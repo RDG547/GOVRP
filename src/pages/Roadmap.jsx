@@ -1,86 +1,126 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Helmet } from 'react-helmet-async';
-import { CheckCircle, Clock, Zap, Star, Rocket, Target } from 'lucide-react';
+import { CheckCircle, Clock, Zap, Target, Rocket, Users, Shield, Globe, Code, Sparkles } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { FaWhatsapp, FaDiscord, FaTelegram } from 'react-icons/fa';
+import PageHeader from '@/components/layout/PageHeader';
 
 const Roadmap = () => {
+  const [isCommunityDialogOpen, setIsCommunityDialogOpen] = useState(false);
+
   const roadmapItems = [
     {
       phase: 'Fase 1',
-      title: 'Lançamento Inicial',
+      period: 'Q1 2025',
       status: 'completed',
-      date: 'Q4 2023',
+      title: 'Fundação e Conceito',
+      description: 'Estabelecimento da base conceitual e arquitetural do GOV.RP.',
       items: [
-        'Sistema de autenticação e cadastro',
-        'Banco Nacional com funcionalidades básicas',
-        'DIC - Departamento de Identificação Civil',
-        'Interface responsiva e moderna',
-        'Sistema de navegação integrado'
+        'Definição da arquitetura da plataforma',
+        'Criação da identidade visual e branding',
+        'Planejamento dos sistemas principais',
+        'Formação da equipe inicial de desenvolvimento'
       ]
     },
     {
       phase: 'Fase 2',
-      title: 'Expansão dos Serviços',
+      period: 'Q2 2025',
       status: 'completed',
-      date: 'Q1 2024',
+      title: 'Desenvolvimento dos Sistemas Core',
+      description: 'Implementação dos serviços fundamentais da plataforma.',
       items: [
-        'Negócios Livres - Marketplace completo',
-        'X Social - Rede social integrada',
-        'Biblioteca Nacional e Acervo Digital',
-        'Sistema de notificações em tempo real',
-        'Melhorias de performance e segurança'
+        'Sistema de autenticação e perfis de usuário',
+        'Banco Nacional com sistema de transações',
+        'DIC - Departamento de Identificação Civil',
+        'Sistema de documentos virtuais (CPF, RG)',
+        'Interface administrativa básica'
       ]
     },
     {
       phase: 'Fase 3',
-      title: 'Funcionalidades Avançadas',
-      status: 'in-progress',
-      date: 'Q2 2024',
+      period: 'Q3 2025',
+      status: 'completed',
+      title: 'Expansão dos Serviços',
+      description: 'Adição de novos serviços e funcionalidades avançadas.',
       items: [
-        'Sistema de votação e eleições',
-        'Tribunal de Justiça virtual',
-        'Ministérios e órgãos governamentais',
-        'Sistema de leis e regulamentações',
-        'Chat em tempo real entre usuários'
+        'Rede Social X integrada',
+        'Sistema de Negócios Livres',
+        'Biblioteca Nacional',
+        'Acervo Digital',
+        'Sistema de cartões de crédito',
+        'Programa de investimentos'
       ]
     },
     {
       phase: 'Fase 4',
-      title: 'Integração e Automação',
-      status: 'planned',
-      date: 'Q3 2024',
+      period: 'Q4 2025',
+      status: 'in-progress',
+      title: 'Lançamento Público',
+      description: 'Abertura oficial da plataforma para toda a comunidade.',
       items: [
-        'API pública para desenvolvedores',
-        'Integração com Discord e WhatsApp',
-        'Sistema de IA para moderação',
-        'Relatórios e analytics avançados',
-        'Sistema de backup automático'
+        'Testes beta com grupo seleto de usuários',
+        'Otimização de performance e segurança',
+        'Sistema de notificações em tempo real',
+        'Documentação completa para usuários',
+        'Lançamento oficial da plataforma'
       ]
     },
     {
       phase: 'Fase 5',
-      title: 'Expansão Internacional',
+      period: 'Q1 2026',
       status: 'planned',
-      date: 'Q4 2024',
+      title: 'Sistemas Governamentais',
+      description: 'Implementação de funcionalidades políticas e administrativas.',
       items: [
-        'Suporte multi-idiomas',
-        'Servidores internacionais',
-        'Parcerias com comunidades globais',
-        'Sistema de federações entre países',
-        'Eventos e competições internacionais'
+        'Sistema de partidos políticos',
+        'Eleições e votações digitais',
+        'Câmara dos Deputados virtual',
+        'Sistema de propostas e leis',
+        'Tribunal de Justiça digital'
       ]
     },
     {
       phase: 'Fase 6',
-      title: 'Inovação Contínua',
-      status: 'future',
-      date: '2025+',
+      period: 'Q2 2026',
+      status: 'planned',
+      title: 'Economia Avançada',
+      description: 'Expansão do sistema econômico com novos recursos.',
       items: [
-        'Realidade virtual e metaverso',
-        'Blockchain e NFTs para documentos',
-        'IA avançada para simulações',
-        'Mobile app nativo',
-        'Gamificação e sistema de conquistas'
+        'Bolsa de valores virtual',
+        'Sistema de impostos e tributação',
+        'Mercado imobiliário',
+        'Seguros e previdência',
+        'Criptomoedas do universo RP'
+      ]
+    },
+    {
+      phase: 'Fase 7',
+      period: 'Q3 2026',
+      status: 'planned',
+      title: 'Expansão Internacional',
+      description: 'Criação de múltiplas nações e diplomacia internacional.',
+      items: [
+        'Sistema de múltiplas nações',
+        'Relações diplomáticas',
+        'Comércio internacional',
+        'Organizações internacionais',
+        'Conflitos e alianças'
+      ]
+    },
+    {
+      phase: 'Fase 8',
+      period: 'Q4 2026',
+      status: 'planned',
+      title: 'Inovação e Futuro',
+      description: 'Implementação de tecnologias emergentes e recursos avançados.',
+      items: [
+        'Inteligência artificial para NPCs',
+        'Realidade virtual integrada',
+        'Blockchain para transparência',
+        'API pública para desenvolvedores',
+        'Aplicativo mobile nativo'
       ]
     }
   ];
@@ -93,8 +133,6 @@ const Roadmap = () => {
         return <Zap className="w-6 h-6 text-yellow-400" />;
       case 'planned':
         return <Clock className="w-6 h-6 text-blue-400" />;
-      case 'future':
-        return <Star className="w-6 h-6 text-purple-400" />;
       default:
         return <Target className="w-6 h-6 text-gray-400" />;
     }
@@ -103,15 +141,13 @@ const Roadmap = () => {
   const getStatusColor = (status) => {
     switch (status) {
       case 'completed':
-        return 'from-green-500 to-emerald-600';
+        return 'from-green-600 to-emerald-600';
       case 'in-progress':
-        return 'from-yellow-500 to-orange-600';
+        return 'from-yellow-600 to-orange-600';
       case 'planned':
-        return 'from-blue-500 to-cyan-600';
-      case 'future':
-        return 'from-purple-500 to-violet-600';
+        return 'from-blue-600 to-purple-600';
       default:
-        return 'from-gray-500 to-gray-600';
+        return 'from-gray-600 to-slate-600';
     }
   };
 
@@ -123,211 +159,168 @@ const Roadmap = () => {
         return 'Em Andamento';
       case 'planned':
         return 'Planejado';
-      case 'future':
-        return 'Futuro';
       default:
-        return 'Indefinido';
+        return 'Pendente';
     }
   };
+
+  const communityChannels = [
+    { name: 'WhatsApp', link: 'https://chat.whatsapp.com/KKqiDj1HyxM97NK9YAFNnj', icon: <FaWhatsapp size={24} />, color: 'bg-green-500', hoverColor: 'hover:bg-green-600' },
+    { name: 'Discord', link: 'https://discord.gg/NwJuuzKbUU', icon: <FaDiscord size={24} />, color: 'bg-indigo-500', hoverColor: 'hover:bg-indigo-600' },
+    { name: 'Telegram', link: 'https://t.me/geopolitical_simulator5', icon: <FaTelegram size={24} />, color: 'bg-sky-500', hoverColor: 'hover:bg-sky-600' },
+  ];
 
   return (
     <>
       <Helmet>
         <title>Roadmap - GOV.RP</title>
-        <meta name="description" content="Acompanhe o roadmap de desenvolvimento do GOV.RP. Veja o que já foi implementado e o que está por vir na nossa plataforma." />
+        <meta name="description" content="Acompanhe o desenvolvimento do GOV.RP através do nosso roadmap detalhado. Veja o que já foi implementado e o que está por vir." />
       </Helmet>
 
       <div className="min-h-screen py-20">
-        <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-20">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="text-center mb-16"
-          >
-            <h1 className="text-5xl md:text-6xl font-bold text-white mb-6">
-              <span className="gradient-text">Roadmap</span> de Desenvolvimento
-            </h1>
-            <p className="text-xl text-gray-300 max-w-3xl mx-auto leading-relaxed">
-              Acompanhe nossa jornada de desenvolvimento e veja o que está por vir no GOV.RP. 
-              Transparência e evolução constante são nossos compromissos.
-            </p>
-          </motion.div>
+        <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <PageHeader
+            icon={Rocket}
+            title="Roadmap do"
+            gradientText="GOV.RP"
+            description="Acompanhe nossa jornada de desenvolvimento e descubra o que está por vir. Transparência total sobre nossos planos e progresso."
+            iconColor="text-purple-400"
+          />
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-16">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-16">
             <motion.div
-              initial={{ opacity: 0, scale: 0.5 }}
-              animate={{ opacity: 1, scale: 1 }}
-              className="text-center"
-            >
-              <div className="text-3xl font-bold text-green-400 mb-2">2</div>
-              <div className="text-gray-300">Fases Concluídas</div>
-            </motion.div>
-            <motion.div
-              initial={{ opacity: 0, scale: 0.5 }}
-              animate={{ opacity: 1, scale: 1 }}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1 }}
-              className="text-center"
+              className="glass-effect rounded-2xl p-6 text-center"
             >
-              <div className="text-3xl font-bold text-yellow-400 mb-2">1</div>
-              <div className="text-gray-300">Em Andamento</div>
+              <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-green-600 to-emerald-600 rounded-full mb-4">
+                <CheckCircle className="w-8 h-8 text-white" />
+              </div>
+              <h3 className="text-2xl font-bold text-white mb-2">3 Fases</h3>
+              <p className="text-green-400 font-semibold">Concluídas</p>
             </motion.div>
+
             <motion.div
-              initial={{ opacity: 0, scale: 0.5 }}
-              animate={{ opacity: 1, scale: 1 }}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2 }}
-              className="text-center"
+              className="glass-effect rounded-2xl p-6 text-center"
             >
-              <div className="text-3xl font-bold text-blue-400 mb-2">3</div>
-              <div className="text-gray-300">Planejadas</div>
+              <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-yellow-600 to-orange-600 rounded-full mb-4">
+                <Zap className="w-8 h-8 text-white" />
+              </div>
+              <h3 className="text-2xl font-bold text-white mb-2">1 Fase</h3>
+              <p className="text-yellow-400 font-semibold">Em Andamento</p>
             </motion.div>
+
             <motion.div
-              initial={{ opacity: 0, scale: 0.5 }}
-              animate={{ opacity: 1, scale: 1 }}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.3 }}
-              className="text-center"
+              className="glass-effect rounded-2xl p-6 text-center"
             >
-              <div className="text-3xl font-bold text-purple-400 mb-2">25+</div>
-              <div className="text-gray-300">Funcionalidades</div>
+              <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full mb-4">
+                <Rocket className="w-8 h-8 text-white" />
+              </div>
+              <h3 className="text-2xl font-bold text-white mb-2">4 Fases</h3>
+              <p className="text-blue-400 font-semibold">Planejadas</p>
             </motion.div>
           </div>
-        </section>
 
-        <section className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="relative">
-            <div className="absolute left-8 top-0 bottom-0 w-0.5 bg-gradient-to-b from-blue-600 via-purple-600 to-pink-600" />
-
-            <div className="space-y-12">
-              {roadmapItems.map((item, index) => (
-                <motion.div
-                  key={index}
-                  initial={{ opacity: 0, x: -20 }}
-                  whileInView={{ opacity: 1, x: 0 }}
-                  transition={{ delay: index * 0.1 }}
-                  className="relative"
-                >
-                  <div className={`absolute left-6 w-4 h-4 bg-gradient-to-r ${getStatusColor(item.status)} rounded-full border-4 border-gray-900`} />
-
-                  <div className="ml-20 glass-effect rounded-2xl p-8 hover:bg-white/10 transition-all duration-300">
-                    <div className="flex items-center justify-between mb-6">
-                      <div className="flex items-center space-x-4">
-                        <div className={`inline-flex items-center justify-center w-12 h-12 bg-gradient-to-r ${getStatusColor(item.status)} rounded-full`}>
-                          {getStatusIcon(item.status)}
-                        </div>
-                        <div>
-                          <h3 className="text-2xl font-bold text-white">{item.title}</h3>
-                          <p className="text-blue-400 font-medium">{item.phase}</p>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <div className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-gradient-to-r ${getStatusColor(item.status)} text-white`}>
-                          {getStatusText(item.status)}
-                        </div>
-                        <p className="text-gray-400 text-sm mt-1">{item.date}</p>
-                      </div>
+          <div className="space-y-8">
+            {roadmapItems.map((item, index) => (
+              <motion.div
+                key={index}
+                initial={{ opacity: 0, x: index % 2 === 0 ? -50 : 50 }}
+                whileInView={{ opacity: 1, x: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.6, delay: index * 0.1 }}
+                className="glass-effect rounded-2xl p-8 border border-white/10"
+              >
+                <div className="flex flex-col lg:flex-row lg:items-center gap-6">
+                  <div className="flex items-center gap-4">
+                    <div className={`flex items-center justify-center w-16 h-16 bg-gradient-to-r ${getStatusColor(item.status)} rounded-full`}>
+                      {getStatusIcon(item.status)}
                     </div>
-
-                    <div className="space-y-3">
+                    <div>
+                      <div className="flex items-center gap-3 mb-1">
+                        <h3 className="text-2xl font-bold text-white">{item.phase}</h3>
+                        <span className={`px-3 py-1 rounded-full text-sm font-semibold ${
+                          item.status === 'completed' ? 'bg-green-500/20 text-green-300' :
+                          item.status === 'in-progress' ? 'bg-yellow-500/20 text-yellow-300' :
+                          'bg-blue-500/20 text-blue-300'
+                        }`}>
+                          {getStatusText(item.status)}
+                        </span>
+                      </div>
+                      <p className="text-blue-400 font-semibold">{item.period}</p>
+                      <h4 className="text-xl font-bold text-white mt-2">{item.title}</h4>
+                    </div>
+                  </div>
+                  
+                  <div className="flex-1">
+                    <p className="text-gray-300 mb-4 leading-relaxed">{item.description}</p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                       {item.items.map((feature, featureIndex) => (
-                        <div key={featureIndex} className="flex items-center space-x-3">
-                          <div className={`w-2 h-2 rounded-full bg-gradient-to-r ${getStatusColor(item.status)}`} />
-                          <p className="text-gray-300">{feature}</p>
+                        <div key={featureIndex} className="flex items-center gap-2">
+                          <div className="w-2 h-2 bg-blue-400 rounded-full flex-shrink-0" />
+                          <span className="text-gray-300 text-sm">{feature}</span>
                         </div>
                       ))}
                     </div>
                   </div>
-                </motion.div>
-              ))}
-            </div>
+                </div>
+              </motion.div>
+            ))}
           </div>
-        </section>
 
-        <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-20">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
-            className="text-center mb-16"
+            viewport={{ once: true }}
+            className="text-center mt-16"
           >
-            <h2 className="text-4xl font-bold text-white mb-6">
-              Nossa <span className="gradient-text">Visão</span> para o Futuro
-            </h2>
-          </motion.div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              className="glass-effect rounded-2xl p-8 text-center"
-            >
-              <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-blue-600 to-cyan-600 rounded-full mb-6">
-                <Rocket className="w-8 h-8 text-white" />
+            <div className="glass-effect rounded-2xl p-8 md:p-12">
+              <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-purple-600 to-pink-600 rounded-full mb-6">
+                <Sparkles className="w-8 h-8 text-white" />
               </div>
-              <h3 className="text-xl font-bold text-white mb-4">Inovação Constante</h3>
-              <p className="text-gray-300 leading-relaxed">
-                Sempre na vanguarda da tecnologia, implementando as mais recentes inovações 
-                para proporcionar a melhor experiência de roleplay político.
+              <h3 className="text-3xl font-bold text-white mb-4">O Futuro é Construído Juntos</h3>
+              <p className="text-gray-300 mb-6 max-w-2xl mx-auto leading-relaxed">
+                Este roadmap é um documento vivo que evolui com base no feedback da nossa comunidade. 
+                Suas sugestões e ideias são fundamentais para moldar o futuro do GOV.RP.
               </p>
-            </motion.div>
-
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
-              className="glass-effect rounded-2xl p-8 text-center"
-            >
-              <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-purple-600 to-violet-600 rounded-full mb-6">
-                <Target className="w-8 h-8 text-white" />
+              <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                <Dialog open={isCommunityDialogOpen} onOpenChange={setIsCommunityDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button className="inline-flex items-center justify-center px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-medium rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all duration-300">
+                      <Users className="w-5 h-5 mr-2" />
+                      Participar da Comunidade
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Escolha seu Canal</DialogTitle>
+                      <DialogDescription>
+                        Junte-se à nossa comunidade para discutir, dar sugestões e ficar por dentro de tudo.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="flex flex-col gap-3 pt-4">
+                      {communityChannels.map(channel => (
+                        <a href={channel.link} key={channel.name} target="_blank" rel="noopener noreferrer" 
+                           className={`flex items-center justify-center gap-3 p-3 rounded-lg text-white font-semibold transition-all ${channel.color} ${channel.hoverColor}`}>
+                          {channel.icon}
+                          <span>{channel.name}</span>
+                        </a>
+                      ))}
+                    </div>
+                  </DialogContent>
+                </Dialog>
+                <a href="https://github.com/RDG547/GOVRP" target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center px-6 py-3 border border-white/20 text-white font-medium rounded-lg hover:bg-white/10 transition-all duration-300">
+                  <Code className="w-5 h-5 mr-2" />
+                  Contribuir no GitHub
+                </a>
               </div>
-              <h3 className="text-xl font-bold text-white mb-4">Expansão Global</h3>
-              <p className="text-gray-300 leading-relaxed">
-                Levar o GOV.RP para o mundo todo, conectando comunidades de roleplay político 
-                de diferentes países e culturas.
-              </p>
-            </motion.div>
-
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.4 }}
-              className="glass-effect rounded-2xl p-8 text-center"
-            >
-              <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-green-600 to-emerald-600 rounded-full mb-6">
-                <Star className="w-8 h-8 text-white" />
-              </div>
-              <h3 className="text-xl font-bold text-white mb-4">Comunidade Forte</h3>
-              <p className="text-gray-300 leading-relaxed">
-                Construir a maior e mais engajada comunidade de roleplay político do mundo, 
-                onde todos podem aprender e se divertir.
-              </p>
-            </motion.div>
-          </div>
-        </section>
-
-        <section className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 mt-20">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            className="glass-effect rounded-3xl p-12 text-center"
-          >
-            <h2 className="text-3xl font-bold text-white mb-6">
-              Sua Opinião <span className="gradient-text">Importa</span>
-            </h2>
-            <p className="text-xl text-gray-300 mb-8 max-w-2xl mx-auto">
-              O roadmap do GOV.RP é construído com base no feedback da nossa comunidade. 
-              Suas sugestões e ideias ajudam a moldar o futuro da plataforma.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <a
-                href="/contact"
-                className="inline-flex items-center px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-medium rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all duration-300"
-              >
-                Enviar Sugestão
-              </a>
-              <a
-                href="/services/social-x"
-                className="inline-flex items-center px-8 py-4 border border-white/20 text-white font-medium rounded-lg hover:bg-white/10 transition-all duration-300"
-              >
-                Participar da Discussão
-              </a>
             </div>
           </motion.div>
         </section>

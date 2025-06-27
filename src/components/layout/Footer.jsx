@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Building2, Twitter, Instagram, Facebook } from 'lucide-react';
@@ -61,4 +60,3 @@ const Footer = () => {
 };
 
 export default Footer;
-  

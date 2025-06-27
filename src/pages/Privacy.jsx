@@ -1,8 +1,9 @@
-
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Helmet } from 'react-helmet-async';
-import { Shield, Eye, Lock, Database, UserCheck, Settings, FileText, Globe, AlertCircle, CheckCircle } from 'lucide-react';
+import { Shield, Eye, Lock, Database, UserCheck, Settings, FileText, Globe, AlertCircle, CheckCircle, Mail, Gavel } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import PageHeader from '@/components/layout/PageHeader';
 
 const Privacy = () => {
   const sections = [
@@ -115,23 +116,17 @@ const Privacy = () => {
 
       <div className="min-h-screen py-20">
         <section className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 mb-20">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="text-center mb-16"
-          >
-            <h1 className="text-5xl md:text-6xl font-bold text-white mb-6">
-              Política de <span className="gradient-text">Privacidade</span>
-            </h1>
-            <p className="text-xl text-gray-300 max-w-3xl mx-auto leading-relaxed">
-              Sua privacidade é fundamental para nós. Esta política explica de forma transparente como coletamos, 
-              usamos, protegemos e respeitamos suas informações pessoais no GOV.RP.
-            </p>
+          <PageHeader
+            icon={Gavel}
+            title="Política de"
+            gradientText="Privacidade"
+            description="Sua privacidade é fundamental para nós. Esta política explica de forma transparente como coletamos, usamos, protegemos e respeitamos suas informações pessoais no GOV.RP."
+            iconColor="text-red-400"
+          />
             <div className="mt-6 text-sm text-gray-400 bg-white/5 rounded-lg p-4">
-              <p><strong>Última atualização:</strong> {new Date().toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
-              <p><strong>Versão:</strong> 3.0 | <strong>Conformidade:</strong> LGPD (Lei 13.709/2018)</p>
+              <p><strong>Última atualização:</strong> {new Date('2025-06-26').toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+              <p><strong>Versão:</strong> 1.0 | <strong>Conformidade:</strong> LGPD (Lei 13.709/2018)</p>
             </div>
-          </motion.div>
         </section>
 
         <section className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -141,11 +136,12 @@ const Privacy = () => {
                 key={index}
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
                 transition={{ delay: index * 0.1 }}
                 className="glass-effect rounded-2xl p-8"
               >
                 <div className="flex items-center mb-6">
-                  <div className="flex items-center justify-center w-12 h-12 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full mr-4">
+                  <div className="flex items-center justify-center w-12 h-12 bg-gradient-to-r from-green-600 to-blue-600 rounded-full mr-4">
                     <section.icon className="w-6 h-6 text-white" />
                   </div>
                   <h2 className="text-2xl font-bold text-white">{section.title}</h2>
@@ -166,6 +162,7 @@ const Privacy = () => {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
             className="glass-effect rounded-2xl p-8 mt-12"
           >
             <h2 className="text-2xl font-bold text-white mb-6 flex items-center">
@@ -194,9 +191,9 @@ const Privacy = () => {
 
             <div className="mt-8 p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg">
               <p className="text-blue-300 text-sm">
-                <strong>Encarregado de Proteção de Dados:</strong> Temos um encarregado especializado responsável 
-                por garantir a conformidade com a LGPD e atender suas solicitações. 
-                Contato: <a href="mailto:dpo@gov-rp.com" className="underline hover:text-blue-200">dpo@gov-rp.com</a>
+                <strong>Encarregado de Proteção de Dados (DPO):</strong> Temos um encarregado especializado responsável 
+                por garantir a conformidade com a LGPD. 
+                Contato: <a href="mailto:suporte@govrp.online" className="underline hover:text-blue-200">suporte@govrp.online</a> (assunto: DPO).
               </p>
             </div>
           </motion.div>
@@ -204,6 +201,7 @@ const Privacy = () => {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
             className="glass-effect rounded-2xl p-8 mt-12"
           >
             <h2 className="text-2xl font-bold text-white mb-6">Política Detalhada de Cookies</h2>
@@ -231,7 +229,7 @@ const Privacy = () => {
             <div className="mt-6 p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
               <p className="text-yellow-300 text-sm">
                 <strong>Gerenciar Cookies:</strong> Você pode gerenciar suas preferências de cookies a qualquer momento 
-                através das configurações do seu navegador ou entrando em contato conosco.
+                através das configurações do seu navegador ou em suas <Link to="/settings" className="underline hover:text-yellow-200">configurações de conta</Link>.
               </p>
             </div>
           </motion.div>
@@ -239,28 +237,23 @@ const Privacy = () => {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
             className="text-center mt-12"
           >
             <div className="glass-effect rounded-2xl p-8">
               <h3 className="text-xl font-bold text-white mb-4">Dúvidas sobre Privacidade?</h3>
               <p className="text-gray-300 mb-6">
-                Se você tiver alguma dúvida sobre nossa política de privacidade, quiser exercer seus direitos 
-                ou relatar alguma preocupação, nossa equipe especializada está pronta para ajudar.
+                Se você tiver alguma dúvida sobre nossa política de privacidade ou quiser exercer seus direitos,
+                nosso canal de suporte está à disposição.
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <a
-                  href="/contact"
-                  className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-medium rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all duration-300"
-                >
+                <Link to="/support" className="inline-flex items-center justify-center px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-medium rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all duration-300">
                   <Shield className="w-5 h-5 mr-2" />
-                  Entre em Contato
-                </a>
-                <a
-                  href="mailto:dpo@gov-rp.com"
-                  className="inline-flex items-center px-6 py-3 border border-white/20 text-white font-medium rounded-lg hover:bg-white/10 transition-all duration-300"
-                >
-                  <UserCheck className="w-5 h-5 mr-2" />
-                  Email do Encarregado
+                  Ir para Suporte
+                </Link>
+                <a href="mailto:suporte@govrp.online" className="inline-flex items-center justify-center px-6 py-3 border border-white/20 text-white font-medium rounded-lg hover:bg-white/10 transition-all duration-300">
+                  <Mail className="w-5 h-5 mr-2" />
+                  Enviar E-mail
                 </a>
               </div>
             </div>

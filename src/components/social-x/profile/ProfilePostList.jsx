@@ -1,4 +1,3 @@
-
 import React, { useRef } from 'react';
 import PostCard from '@/components/social-x/PostCard';
 import { motion, AnimatePresence } from 'framer-motion';

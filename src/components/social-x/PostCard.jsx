@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useToast } from "@/components/ui/use-toast";
@@ -10,20 +9,26 @@ import { Link } from 'react-router-dom';
 import { Loader2, Send, MessageCircle, Repeat2, Heart, BarChart2, Trash2 } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 import Comment from './Comment';
+import { useAuth } from '@/contexts/AuthContext';
 
-const PostCard = React.memo(({ post, currentUser, onInteraction, viewedPosts, onDelete }) => {
+const PostCard = React.memo(({ post, onInteraction, onDelete }) => {
+  const { user: currentUser } = useAuth();
   const { toast } = useToast();
   const [isLiked, setIsLiked] = useState(post.is_liked_by_user);
   const [isReposted, setIsReposted] = useState(post.is_reposted_by_user);
   const [likesCount, setLikesCount] = useState(post.likes_count);
   const [repostsCount, setRepostsCount] = useState(post.reposts_count);
   const [commentsCount, setCommentsCount] = useState(post.comments_count);
+  const [viewsCount, setViewsCount] = useState(post.views_count);
+  
   const [isCommenting, setIsCommenting] = useState(false);
   const [comments, setComments] = useState([]);
   const [commentContent, setCommentContent] = useState('');
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  
   const postRef = useRef(null);
+  const viewedPosts = useRef(new Set());
   
   const authorName = post.author.x_username || post.author.full_name;
   const authorHandle = post.author.x_handle || post.author.username;
@@ -34,6 +39,7 @@ const PostCard = React.memo(({ post, currentUser, onInteraction, viewedPosts, on
     setLikesCount(post.likes_count);
     setRepostsCount(post.reposts_count);
     setCommentsCount(post.comments_count);
+    setViewsCount(post.views_count);
   }, [post]);
   
   useEffect(() => {
@@ -42,15 +48,15 @@ const PostCard = React.memo(({ post, currentUser, onInteraction, viewedPosts, on
         if (entry.isIntersecting && !viewedPosts.current.has(post.id)) {
           viewedPosts.current.add(post.id);
           supabase.rpc('increment_view_count', { p_post_id: post.id }).then(({ error }) => {
-            if (error) console.error('Error incrementing view count:', error);
-            else onInteraction({ ...post, views_count: post.views_count + 1 });
+            if (!error) setViewsCount(v => (v || 0) + 1);
           });
         }
       }, { threshold: 0.5 }
     );
-    if (postRef.current) observer.observe(postRef.current);
-    return () => { if (postRef.current) observer.unobserve(postRef.current) };
-  }, [post.id, viewedPosts, onInteraction]);
+    const currentRef = postRef.current;
+    if (currentRef) observer.observe(currentRef);
+    return () => { if (currentRef) observer.unobserve(currentRef) };
+  }, [post.id]);
 
   const handleLike = async () => {
     setIsLiked(prev => !prev);
@@ -91,15 +97,32 @@ const PostCard = React.memo(({ post, currentUser, onInteraction, viewedPosts, on
     e.preventDefault();
     if (!commentContent.trim()) return;
     setIsSubmittingComment(true);
-    const { error } = await supabase.from('comments').insert({ post_id: post.id, user_id: currentUser.id, content: commentContent });
+
+    const { data: newComment, error } = await supabase.from('comments').insert({
+        post_id: post.id,
+        user_id: currentUser.id,
+        content: commentContent
+    }).select('*, author:profiles!comments_user_id_fkey(*), replies_count').single();
+    
     if (error) {
        toast({ title: 'Erro ao comentar', description: 'O post pode ter sido excluído.', variant: 'destructive' });
     } else {
       setCommentContent('');
-      fetchComments();
+      setComments(prev => [newComment, ...prev]);
       setCommentsCount(c => c + 1);
     }
     setIsSubmittingComment(false);
+  };
+  
+  const handleCommentAction = (action) => {
+      if(action.type === 'comment_deleted') {
+          if(action.parentCommentId === null || action.parentCommentId === undefined){
+              setComments(current => current.filter(c => c.id !== action.commentId));
+              setCommentsCount(c => Math.max(0, c - 1));
+          }
+      } else if (action.type === 'reply_added') {
+          setComments(current => current.map(c => c.id === action.parentCommentId ? { ...c, replies_count: (c.replies_count || 0) + 1} : c));
+      }
   };
 
   const formatTime = (date) => new Date(date).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
@@ -117,7 +140,7 @@ const PostCard = React.memo(({ post, currentUser, onInteraction, viewedPosts, on
               </div>
               {currentUser.id === post.user_id && (
                 <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}><DialogTrigger asChild><Button variant="ghost" size="icon" className="text-gray-400 hover:text-red-500"><Trash2 className="w-4 h-4" /></Button></DialogTrigger>
-                  <DialogContent><DialogHeader><DialogTitle>Confirmar Exclusão</DialogTitle><DialogDescription>Tem certeza que deseja excluir este post? Esta ação não pode ser desfeita.</DialogDescription></DialogHeader><DialogFooter><DialogClose asChild><Button variant="outline">Cancelar</Button></DialogClose><Button variant="destructive" onClick={handleDelete}>Excluir</Button></DialogFooter></DialogContent>
+                  <DialogContent className="glass-effect text-white"><DialogHeader><DialogTitle>Confirmar Exclusão</DialogTitle><DialogDescription className="text-gray-300">Tem certeza que deseja excluir este post? Esta ação não pode ser desfeita.</DialogDescription></DialogHeader><DialogFooter><DialogClose asChild><Button variant="outline">Cancelar</Button></DialogClose><Button variant="destructive" onClick={handleDelete}>Excluir</Button></DialogFooter></DialogContent>
                 </Dialog>
               )}
             </div>
@@ -127,11 +150,11 @@ const PostCard = React.memo(({ post, currentUser, onInteraction, viewedPosts, on
         </div>
       </CardContent>
       <CardFooter className="px-4 py-2 flex justify-between items-center border-t border-slate-700/50">
-        <div className="flex items-center space-x-4 text-gray-400">
-          <motion.button whileTap={{ scale: 0.9 }} onClick={handleCommentToggle} className="flex items-center space-x-1 hover:text-blue-400 transition-colors"><MessageCircle className="w-5 h-5" /><span>{commentsCount}</span></motion.button>
-          <motion.button whileTap={{ scale: 0.9 }} onClick={handleRepost} className={`flex items-center space-x-1 hover:text-green-400 transition-colors ${isReposted ? 'text-green-500' : ''}`}><Repeat2 className="w-5 h-5" /><span>{repostsCount}</span></motion.button>
-          <motion.button whileTap={{ scale: 0.9 }} onClick={handleLike} className={`flex items-center space-x-1 hover:text-pink-500 transition-colors ${isLiked ? 'text-pink-500' : ''}`}><Heart className={`w-5 h-5 ${isLiked ? 'fill-current' : ''}`} /><span>{likesCount}</span></motion.button>
-          <div className="flex items-center space-x-1"><BarChart2 className="w-5 h-5" /><span>{post.views_count || 0}</span></div>
+        <div className="flex items-center space-x-2 md:space-x-4 text-gray-400 text-sm">
+          <motion.button whileTap={{ scale: 0.9 }} onClick={handleCommentToggle} className="flex items-center space-x-1 hover:text-blue-400 transition-colors"><MessageCircle className="w-5 h-5" /><span className="hidden sm:inline">Comentar</span><span>({commentsCount})</span></motion.button>
+          <motion.button whileTap={{ scale: 0.9 }} onClick={handleRepost} className={`flex items-center space-x-1 hover:text-green-400 transition-colors ${isReposted ? 'text-green-500' : ''}`}><Repeat2 className="w-5 h-5" /><span className="hidden sm:inline">Repostar</span><span>({repostsCount})</span></motion.button>
+          <motion.button whileTap={{ scale: 0.9 }} onClick={handleLike} className={`flex items-center space-x-1 hover:text-pink-500 transition-colors ${isLiked ? 'text-pink-500' : ''}`}><Heart className={`w-5 h-5 ${isLiked ? 'fill-current' : ''}`} /><span className="hidden sm:inline">Curtir</span><span>({likesCount})</span></motion.button>
+          <div className="flex items-center space-x-1"><BarChart2 className="w-5 h-5" /><span>{viewsCount || 0}</span></div>
         </div>
       </CardFooter>
       <AnimatePresence>
@@ -143,7 +166,7 @@ const PostCard = React.memo(({ post, currentUser, onInteraction, viewedPosts, on
             </form>
             <div className="mt-4 space-y-3 max-h-96 overflow-y-auto">
               {comments.map(comment => (
-                <Comment key={comment.id} comment={comment} post={post} currentUser={currentUser} onCommentDeleted={fetchComments} />
+                <Comment key={comment.id} comment={comment} post={post} onCommentAction={handleCommentAction} />
               ))}
             </div>
           </motion.div>

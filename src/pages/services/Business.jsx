@@ -5,9 +5,10 @@ import { Button } from '@/components/ui/button';
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabaseClient';
-import { ShoppingCart, Search, PlusCircle, Loader2 } from 'lucide-react';
+import { ShoppingCart, Search, PlusCircle, Loader2, Briefcase } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import PageHeader from '@/components/layout/PageHeader';
 
 const Business = () => {
   const { toast } = useToast();
@@ -56,10 +57,15 @@ const Business = () => {
       </Helmet>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+          <PageHeader
+            icon={Briefcase}
+            title="Negócios"
+            gradientText="Livres"
+            description="O marketplace oficial do GOV.RP para compra e venda de produtos e serviços."
+            iconColor="text-blue-400"
+          />
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-12">
             <div>
-              <h1 className="text-4xl md:text-5xl font-bold text-white">Negócios <span className="gradient-text">Livres</span></h1>
-              <p className="mt-2 text-lg text-gray-300">O marketplace oficial do GOV.RP.</p>
             </div>
             {session && (
               <Button onClick={handleAction} className="mt-4 md:mt-0 bg-gradient-to-r from-blue-600 to-purple-600">

@@ -1,12 +1,15 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Helmet } from 'react-helmet-async';
-import { Mail, LifeBuoy, FileText, Send, HelpCircle, MessageSquare } from 'lucide-react';
+import { Send, HelpCircle, ArrowRight, LifeBuoy, Users, Mail } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/use-toast';
 import { Link } from 'react-router-dom';
+import { FaDiscord, FaWhatsapp, FaTelegram } from 'react-icons/fa';
+import PageHeader from '@/components/layout/PageHeader';
 
 const Support = () => {
   const [formData, setFormData] = useState({
@@ -19,7 +22,8 @@ const Support = () => {
   const { toast } = useToast();
 
   const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
   };
 
   const handleSubmit = (e) => {
@@ -36,9 +40,9 @@ const Support = () => {
   };
 
   const supportChannels = [
-    { icon: Mail, title: 'Email Direto', description: 'Envie um email para suporte@gov-rp.com', link: 'mailto:suporte@gov-rp.com' },
-    { icon: HelpCircle, title: 'FAQ', description: 'Encontre respostas rápidas em nossa seção de Perguntas Frequentes.', link: '/faq' },
-    { icon: MessageSquare, title: 'Comunidade Discord', description: 'Junte-se à nossa comunidade para obter ajuda de outros jogadores e da equipe.', link: '#' }
+    { name: 'WhatsApp', link: 'https://chat.whatsapp.com/KKqiDj1HyxM97NK9YAFNnj', icon: <FaWhatsapp size={28} />, color: 'bg-green-500', hoverColor: 'hover:bg-green-600' },
+    { name: 'Discord', link: 'https://discord.gg/NwJuuzKbUU', icon: <FaDiscord size={28} />, color: 'bg-indigo-500', hoverColor: 'hover:bg-indigo-600' },
+    { name: 'Telegram', link: 'https://t.me/geopolitical_simulator5', icon: <FaTelegram size={28} />, color: 'bg-sky-500', hoverColor: 'hover:bg-sky-600' },
   ];
 
   return (
@@ -48,43 +52,38 @@ const Support = () => {
         <meta name="description" content="Precisa de ajuda? Entre em contato com nossa equipe de suporte. Estamos aqui para ajudar com qualquer problema ou dúvida." />
       </Helmet>
 
-      <div className="min-h-screen py-20">
+      <div className="min-h-screen py-24">
         <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="text-center mb-16"
-          >
-            <h1 className="text-5xl md:text-6xl font-bold text-white mb-6">
-              Central de <span className="gradient-text">Suporte</span>
-            </h1>
-            <p className="text-xl text-gray-300 max-w-3xl mx-auto leading-relaxed">
-              Encontrou um problema ou tem alguma dúvida? Nossa equipe de suporte está pronta para te ajudar a ter a melhor experiência possível no GOV.RP.
-            </p>
-          </motion.div>
+          <PageHeader
+            icon={LifeBuoy}
+            title="Central de"
+            gradientText="Suporte"
+            description="Encontrou um problema ou tem alguma dúvida técnica? Nossa equipe está pronta para te ajudar. Para uma resposta mais rápida, considere usar um de nossos canais comunitários."
+            iconColor="text-blue-400"
+          />
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-16">
             <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 }}>
               <h2 className="text-3xl font-bold text-white mb-8">Abrir um Ticket de Suporte</h2>
-              <div className="glass-effect rounded-2xl p-8">
+              <div className="glass-effect rounded-2xl p-8 border border-white/10">
                 <form onSubmit={handleSubmit} className="space-y-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                       <Label htmlFor="name" className="text-gray-300 mb-2 block">Seu Nome</Label>
-                      <Input id="name" name="name" type="text" required value={formData.name} onChange={handleChange} className="w-full bg-white/5 border-white/10" placeholder="Nome Completo" />
+                      <Input id="name" name="name" type="text" required value={formData.name} onChange={handleChange} className="bg-white/5 border-white/10" placeholder="Nome Completo" />
                     </div>
                     <div>
                       <Label htmlFor="email" className="text-gray-300 mb-2 block">Seu Email</Label>
-                      <Input id="email" name="email" type="email" required value={formData.email} onChange={handleChange} className="w-full bg-white/5 border-white/10" placeholder="seu@email.com" />
+                      <Input id="email" name="email" type="email" required value={formData.email} onChange={handleChange} className="bg-white/5 border-white/10" placeholder="seu@email.com" />
                     </div>
                   </div>
                   <div>
                     <Label htmlFor="subject" className="text-gray-300 mb-2 block">Assunto</Label>
-                    <Input id="subject" name="subject" type="text" required value={formData.subject} onChange={handleChange} className="w-full bg-white/5 border-white/10" placeholder="Ex: Problema com o banco" />
+                    <Input id="subject" name="subject" type="text" required value={formData.subject} onChange={handleChange} className="bg-white/5 border-white/10" placeholder="Ex: Bug no Banco Nacional" />
                   </div>
                   <div>
                     <Label htmlFor="message" className="text-gray-300 mb-2 block">Descrição do Problema</Label>
-                    <textarea id="message" name="message" rows="5" required value={formData.message} onChange={handleChange} className="w-full bg-white/5 border-white/10 p-3 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 transition-all resize-none" placeholder="Descreva seu problema com o máximo de detalhes possível..."></textarea>
+                    <Textarea id="message" name="message" rows="5" required value={formData.message} onChange={handleChange} className="bg-white/5 border-white/10" placeholder="Descreva seu problema com o máximo de detalhes possível..."></Textarea>
                   </div>
                   <Button type="submit" disabled={loading} size="lg" className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">
                     {loading ? 'Enviando...' : <><Send className="w-5 h-5 mr-2" /> Enviar Ticket</>}
@@ -94,21 +93,57 @@ const Support = () => {
             </motion.div>
 
             <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.4 }}>
-              <h2 className="text-3xl font-bold text-white mb-8">Outros Canais de Suporte</h2>
+              <h2 className="text-3xl font-bold text-white mb-8">Canais de Ajuda Rápida</h2>
               <div className="space-y-6">
-                {supportChannels.map((channel, index) => (
-                  <Link to={channel.link} key={index} className="block glass-effect rounded-2xl p-6 hover:bg-white/10 transition-all duration-300">
-                    <div className="flex items-center gap-4">
-                      <div className="flex-shrink-0 w-12 h-12 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full flex items-center justify-center">
-                        <channel.icon className="w-6 h-6 text-white" />
-                      </div>
-                      <div>
-                        <h3 className="text-xl font-bold text-white">{channel.title}</h3>
-                        <p className="text-gray-300">{channel.description}</p>
-                      </div>
+                <Link to="/faq" className="block glass-effect rounded-2xl p-6 hover:bg-white/10 transition-all duration-300 border border-white/10">
+                  <div className="flex items-center gap-4">
+                    <div className="flex-shrink-0 w-12 h-12 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full flex items-center justify-center">
+                      <HelpCircle className="w-6 h-6 text-white" />
                     </div>
-                  </Link>
-                ))}
+                    <div>
+                      <h3 className="text-xl font-bold text-white">Base de Conhecimento (FAQ)</h3>
+                      <p className="text-gray-300">Encontre respostas rápidas para as dúvidas mais comuns.</p>
+                    </div>
+                    <ArrowRight className="w-5 h-5 text-gray-400 ml-auto"/>
+                  </div>
+                </Link>
+
+                <div className="glass-effect rounded-2xl p-6 border border-white/10">
+                  <div className="flex items-center gap-4 mb-4">
+                    <div className="flex-shrink-0 w-12 h-12 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full flex items-center justify-center">
+                      <Users className="w-6 h-6 text-white" />
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-bold text-white">Ajuda Comunitária</h3>
+                      <p className="text-gray-300">Converse com a equipe e outros jogadores em tempo real.</p>
+                    </div>
+                  </div>
+                  <div className="flex flex-col sm:flex-row items-center gap-4 text-white">
+                    {supportChannels.map(channel => (
+                      <a href={channel.link} key={channel.name} target="_blank" rel="noopener noreferrer" 
+                         className={`flex-1 flex items-center justify-center gap-2 p-3 rounded-lg text-white font-semibold transition-all ${channel.color} ${channel.hoverColor}`}>
+                        {channel.icon}
+                        <span>{channel.name}</span>
+                      </a>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="glass-effect rounded-2xl p-6 border border-white/10">
+                  <div className="flex items-center gap-4">
+                    <div className="flex-shrink-0 w-12 h-12 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full flex items-center justify-center">
+                      <Mail className="w-6 h-6 text-white" />
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-bold text-white">E-mail Direto</h3>
+                      <p className="text-gray-300">Se preferir, envie sua questão diretamente para nosso e-mail de suporte.</p>
+                       <a href="mailto:suporte@govrp.online" className="font-semibold text-blue-300 hover:underline">
+                          suporte@govrp.online
+                      </a>
+                    </div>
+                  </div>
+                </div>
+
               </div>
             </motion.div>
           </div>

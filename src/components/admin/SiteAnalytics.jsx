@@ -1,6 +1,5 @@
-
 import React, { useState, useEffect } from 'react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { supabase } from '@/lib/supabaseClient';
 import { useToast } from '@/components/ui/use-toast';
 import { Loader2, Users, FileText, MessageSquare, Banknote } from 'lucide-react';
@@ -25,8 +24,8 @@ const SiteAnalytics = () => {
         fetchStats();
     }, [toast]);
     
-    if (loading) return <div className="flex justify-center py-10"><Loader2 className="w-8 h-8 animate-spin" /></div>;
-    if (!stats) return <div className="text-center py-10">Não foi possível carregar as estatísticas.</div>;
+    if (loading) return <div className="flex justify-center py-10"><Loader2 className="w-8 h-8 animate-spin text-blue-400" /></div>;
+    if (!stats) return <div className="text-center py-10 text-white">Não foi possível carregar as estatísticas.</div>;
     
     const chartData = [
         { name: 'Usuários', value: stats.total_users },
@@ -53,13 +52,13 @@ const SiteAnalytics = () => {
                         <CartesianGrid strokeDasharray="3 3" strokeOpacity={0.1} />
                         <XAxis dataKey="name" stroke="#9ca3af" />
                         <YAxis stroke="#9ca3af" />
-                        <Tooltip contentStyle={{ backgroundColor: '#1f2937', border: '1px solid #374151', color: '#e5e7eb' }} />
-                        <Legend />
-                        <Bar dataKey="value" fill="url(#colorUv)" />
+                        <Tooltip contentStyle={{ backgroundColor: '#1f2937', border: '1px solid #374151', color: '#e5e7eb', borderRadius: '0.5rem' }} cursor={{fill: 'rgba(100, 116, 139, 0.1)'}} />
+                        <Legend wrapperStyle={{color: '#9ca3af'}} />
+                        <Bar dataKey="value" name="Total" fill="url(#colorUv)" />
                          <defs>
                             <linearGradient id="colorUv" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="5%" stopColor="#8884d8" stopOpacity={0.8}/>
-                                <stop offset="95%" stopColor="#8884d8" stopOpacity={0.1}/>
+                                <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.8}/>
+                                <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.3}/>
                             </linearGradient>
                         </defs>
                     </BarChart>

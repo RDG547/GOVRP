@@ -73,7 +73,6 @@ export function parseCurrency(value) {
   return parseFloat(String(value).replace(/\D/g, '')) / 100;
 }
 
-
 export function checkPasswordStrength(password) {
   const strength = {
     length: password.length >= 8,
@@ -84,4 +83,38 @@ export function checkPasswordStrength(password) {
   };
   const score = Object.values(strength).filter(Boolean).length;
   return { strength, score };
+}
+
+export function formatBoleto(code) {
+  if (!code) return '';
+  const cleanCode = code.replace(/\D/g, '').slice(0, 47);
+  
+  let result = cleanCode;
+  if (cleanCode.length > 5) {
+    result = `${cleanCode.slice(0, 5)}.${cleanCode.slice(5)}`;
+  }
+  if (cleanCode.length > 10) {
+    result = `${cleanCode.slice(0, 5)}.${cleanCode.slice(5, 10)} ${cleanCode.slice(10)}`;
+  }
+  if (cleanCode.length > 15) {
+    result = `${cleanCode.slice(0, 5)}.${cleanCode.slice(5, 10)} ${cleanCode.slice(10, 15)}.${cleanCode.slice(15)}`;
+  }
+  if (cleanCode.length > 21) {
+    result = `${cleanCode.slice(0, 5)}.${cleanCode.slice(5, 10)} ${cleanCode.slice(10, 15)}.${cleanCode.slice(15, 21)} ${cleanCode.slice(21)}`;
+  }
+  if (cleanCode.length > 26) {
+    result = `${cleanCode.slice(0, 5)}.${cleanCode.slice(5, 10)} ${cleanCode.slice(10, 15)}.${cleanCode.slice(15, 21)} ${cleanCode.slice(21, 26)}.${cleanCode.slice(26)}`;
+  }
+  if (cleanCode.length > 32) {
+    result = `${cleanCode.slice(0, 5)}.${cleanCode.slice(5, 10)} ${cleanCode.slice(10, 15)}.${cleanCode.slice(15, 21)} ${cleanCode.slice(21, 26)}.${cleanCode.slice(26, 32)} ${cleanCode.slice(32)}`;
+  }
+  if (cleanCode.length > 33) {
+    result = `${cleanCode.slice(0, 5)}.${cleanCode.slice(5, 10)} ${cleanCode.slice(10, 15)}.${cleanCode.slice(15, 21)} ${cleanCode.slice(21, 26)}.${cleanCode.slice(26, 32)} ${cleanCode.slice(32, 33)} ${cleanCode.slice(33)}`;
+  }
+  return result;
+}
+
+export function validateBoleto(code) {
+    const cleanCode = code.replace(/\D/g, '');
+    return cleanCode.length === 47;
 }

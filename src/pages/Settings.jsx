@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { motion } from 'framer-motion';
 import { useAuth } from '@/contexts/AuthContext';
@@ -7,7 +7,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { User, Mail, Phone, Save, Image as ImageIcon, Loader2, Calendar, FileText } from 'lucide-react';
+import { User, Mail, Phone, Save, Image as ImageIcon, Loader2, Calendar, FileText, Trash2 } from 'lucide-react';
 import { formatCPF, formatRG, formatPhone } from '@/lib/utils';
 
 const Settings = () => {
@@ -20,7 +20,9 @@ const Settings = () => {
   });
   const [avatarFile, setAvatarFile] = useState(null);
   const [avatarPreview, setAvatarPreview] = useState('');
+  const [avatarAction, setAvatarAction] = useState('none');
   const [loading, setLoading] = useState(false);
+  const avatarInputRef = useRef(null);
 
   useEffect(() => {
     if (user) {
@@ -40,12 +42,33 @@ const Settings = () => {
     }
     setFormData({ ...formData, [e.target.name]: value });
   };
-
+  
   const handleAvatarChange = (e) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
       setAvatarFile(file);
       setAvatarPreview(URL.createObjectURL(file));
+      setAvatarAction('upload');
+    }
+  };
+  
+  const handleRemoveAvatar = () => {
+    setAvatarFile(null);
+    setAvatarPreview('');
+    setAvatarAction('remove');
+  };
+  
+  const getFilePathFromUrl = (url, bucketName) => {
+    if (!url) return null;
+    try {
+        const urlObject = new URL(url);
+        const pathSegments = urlObject.pathname.split('/');
+        const bucketIndex = pathSegments.indexOf(bucketName);
+        if (bucketIndex === -1 || bucketIndex + 1 >= pathSegments.length) return null;
+        return pathSegments.slice(bucketIndex + 1).join('/');
+    } catch (e) {
+        console.error('Invalid URL for file path extraction:', e);
+        return null;
     }
   };
 
@@ -54,51 +77,39 @@ const Settings = () => {
     setLoading(true);
 
     try {
-      let avatar_url = user.avatar_url;
-      if (avatarFile) {
-        const fileExt = avatarFile.name.split('.').pop();
-        const fileName = `${user.id}-${Date.now()}.${fileExt}`;
-        const filePath = `avatars/${fileName}`;
+        const updates = {
+            full_name: formData.full_name,
+            username: formData.username,
+            phone: formData.phone.replace(/\D/g, '')
+        };
 
-        const { error: uploadError } = await supabase.storage
-          .from('avatars')
-          .upload(filePath, avatarFile, { upsert: true });
+        if (avatarAction === 'upload' && avatarFile) {
+            const filePath = `${user.id}/${Date.now()}_${avatarFile.name}`;
+            const { error: uploadError } = await supabase.storage.from('avatars').upload(filePath, avatarFile, { upsert: true });
+            if (uploadError) throw uploadError;
+            const { data } = supabase.storage.from('avatars').getPublicUrl(filePath);
+            updates.avatar_url = data.publicUrl;
+        } else if (avatarAction === 'remove') {
+            if (user.avatar_url) {
+                const filePath = getFilePathFromUrl(user.avatar_url, 'avatars');
+                if (filePath) await supabase.storage.from('avatars').remove([filePath]);
+            }
+            updates.avatar_url = null;
+        }
 
-        if (uploadError) throw uploadError;
-
-        const { data: urlData } = supabase.storage
-          .from('avatars')
-          .getPublicUrl(filePath);
-        
-        avatar_url = urlData.publicUrl;
-      }
-
-      const unformattedPhone = formData.phone.replace(/\D/g, '');
-
-      const { error: updateError } = await supabase
-        .from('profiles')
-        .update({ 
-          full_name: formData.full_name,
-          username: formData.username,
-          phone: unformattedPhone,
-          avatar_url 
-        })
-        .eq('id', user.id);
-
-      if (updateError) throw updateError;
+        const { error: updateError } = await supabase.from('profiles').update(updates).eq('id', user.id);
+        if (updateError) throw updateError;
       
-      if (user.phone !== unformattedPhone) {
-          const { error: authUpdateError } = await supabase.auth.updateUser({
-              phone: unformattedPhone
-          });
-          if (authUpdateError) throw authUpdateError;
-      }
+        if (user.phone !== formData.phone.replace(/\D/g, '')) {
+            await supabase.auth.updateUser({ phone: formData.phone.replace(/\D/g, '') });
+        }
 
-      await refreshUser();
-      toast({ title: "Sucesso!", description: "Seu perfil foi atualizado." });
+        await refreshUser();
+        toast({ title: "Sucesso!", description: "Seu perfil foi atualizado." });
+        setAvatarAction('none');
     } catch (error) {
       console.error("Error updating profile:", error);
-      toast({ title: "Erro", description: error.message, variant: "destructive" });
+      toast({ title: "Erro ao atualizar perfil", description: error.message, variant: "destructive" });
     } finally {
       setLoading(false);
     }
@@ -122,10 +133,11 @@ const Settings = () => {
             <div className="flex items-center gap-6">
               <div className="relative">
                 <img src={avatarPreview || `https://api.dicebear.com/7.x/micah/svg?seed=${user?.username}`} alt="Avatar" className="w-24 h-24 rounded-full object-cover border-2 border-blue-400" />
-                <label htmlFor="avatar" className="absolute -bottom-1 -right-1 bg-blue-500 p-2 rounded-full cursor-pointer hover:bg-blue-600 transition-colors">
-                  <ImageIcon className="w-4 h-4 text-white" />
-                  <input id="avatar" type="file" accept="image/*" onChange={handleAvatarChange} className="hidden" />
-                </label>
+                <div className="absolute -bottom-1 -right-1 flex gap-1">
+                    <Button type="button" size="icon" className="h-8 w-8 bg-blue-500 hover:bg-blue-600" onClick={() => avatarInputRef.current?.click()}><ImageIcon className="w-4 h-4 text-white" /></Button>
+                    {avatarPreview && <Button type="button" size="icon" variant="destructive" className="h-8 w-8" onClick={handleRemoveAvatar}><Trash2 className="w-4 h-4" /></Button>}
+                </div>
+                <input id="avatar" type="file" accept="image/*" onChange={handleAvatarChange} ref={avatarInputRef} className="hidden" />
               </div>
               <div>
                 <h2 className="text-2xl font-bold text-white">{user?.full_name}</h2>

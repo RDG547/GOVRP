@@ -8,6 +8,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { Loader2 } from 'lucide-react';
 import ProfileHeader from '@/components/social-x/profile/ProfileHeader';
 import ProfilePostList from '@/components/social-x/profile/ProfilePostList';
+import ErrorPage from '@/pages/ErrorPage';
 
 const XProfile = () => {
     const { handle } = useParams();
@@ -22,10 +23,12 @@ const XProfile = () => {
         isFollowing: false,
     });
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
 
     const fetchProfileData = useCallback(async () => {
         if (!handle || !currentUser) return;
         setLoading(true);
+        setError(null);
         try {
             const { data: profile, error: profileError } = await supabase
                 .from('profiles').select('*').eq('x_handle', handle).single();
@@ -52,6 +55,7 @@ const XProfile = () => {
 
         } catch (error) {
             console.error("Error fetching profile:", error);
+            setError(error.message);
             toast({ title: "Erro", description: error.message, variant: "destructive" });
         } finally {
             setLoading(false);
@@ -68,11 +72,11 @@ const XProfile = () => {
             followersCount: isNowFollowing ? prev.followersCount + 1 : prev.followersCount - 1
         }));
     };
-    
-    const handleInteraction = (updatedPost) => {
+
+    const handleProfileUpdate = (updatedProfileData) => {
         setProfileData(prev => ({
             ...prev,
-            posts: prev.posts.map(p => p.id === updatedPost.id ? updatedPost : p)
+            profile: {...prev.profile, ...updatedProfileData}
         }));
     };
     
@@ -83,8 +87,8 @@ const XProfile = () => {
         }));
     };
 
-    if (loading) return <div className="flex justify-center items-center min-h-[60vh]"><Loader2 className="w-12 h-12 animate-spin text-blue-400" /></div>;
-    if (!profileData.profile) return <div className="text-center py-20 text-white">Perfil não encontrado.</div>;
+    if (loading) return <div className="flex justify-center items-center h-96"><Loader2 className="w-12 h-12 animate-spin text-blue-400" /></div>;
+    if (error || !profileData.profile) return <ErrorPage title="Perfil não encontrado" message={error} />;
     
     const { profile, posts, followersCount, followingCount, isFollowing } = profileData;
     const profileName = profile.x_username || profile.full_name;
@@ -92,25 +96,23 @@ const XProfile = () => {
     return (
         <>
             <Helmet>
-                <title>{profileName} (@{profile.x_handle}) - GOV.RP</title>
+                <title>{profileName} (@{profile.x_handle}) - GOV.RP X</title>
             </Helmet>
-            <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-                    <ProfileHeader
-                        profile={profile}
-                        followers={followersCount}
-                        following={followingCount}
-                        isFollowingInitial={isFollowing}
-                        onFollowToggle={handleFollowToggle}
-                    />
-                    <ProfilePostList
-                        posts={posts}
-                        currentUser={currentUser}
-                        onInteraction={handleInteraction}
-                        onDelete={handleDeletePost}
-                    />
-                </motion.div>
-            </div>
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+                <ProfileHeader
+                    profile={profile}
+                    followers={followersCount}
+                    following={followingCount}
+                    isFollowingInitial={isFollowing}
+                    onFollowToggle={handleFollowToggle}
+                    onProfileUpdate={handleProfileUpdate}
+                />
+                <ProfilePostList
+                    posts={posts}
+                    currentUser={currentUser}
+                    onDelete={handleDeletePost}
+                />
+            </motion.div>
         </>
     );
 };

@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { motion } from 'framer-motion';
@@ -79,7 +78,7 @@ const XOnboarding = () => {
                             Criar Perfil X
                         </DialogTitle>
                         <DialogDescription>
-                            Escolha como você quer ser conhecido na rede social X. Seu @handle será único e não poderá ser alterado.
+                            Escolha como você quer ser conhecido na rede social X.
                         </DialogDescription>
                     </DialogHeader>
                     <form onSubmit={handleCreateXProfile} className="space-y-6">

@@ -1,14 +1,13 @@
-
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, forwardRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from "@/components/ui/use-toast";
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
-import { Loader2, Send, X, Image as ImageIcon } from 'lucide-react';
+import { Loader2, Send, X, Image as ImageIcon, Trash2 } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 
-const CreatePostForm = ({ onPostCreated }) => {
+const CreatePostForm = forwardRef(({ onPostCreated }, ref) => {
     const { user } = useAuth();
     const { toast } = useToast();
     const [postContent, setPostContent] = useState('');
@@ -24,6 +23,14 @@ const CreatePostForm = ({ onPostCreated }) => {
             setImagePreview(URL.createObjectURL(file));
         }
     };
+    
+    const removeImage = () => {
+        setPostImage(null);
+        setImagePreview(null);
+        if (fileInputRef.current) {
+            fileInputRef.current.value = '';
+        }
+    }
 
     const handlePostSubmit = async (e) => {
         e.preventDefault();
@@ -47,9 +54,7 @@ const CreatePostForm = ({ onPostCreated }) => {
             toast({ title: 'Erro ao postar', description: error.message, variant: "destructive" });
         } else {
             setPostContent('');
-            setPostImage(null);
-            setImagePreview(null);
-            if (fileInputRef.current) fileInputRef.current.value = '';
+            removeImage();
             toast({ title: 'Sucesso!', description: 'Seu post foi publicado.' });
             onPostCreated(newPost);
         }
@@ -61,13 +66,19 @@ const CreatePostForm = ({ onPostCreated }) => {
             <form onSubmit={handlePostSubmit}>
                 <CardContent className="p-4">
                     <div className="flex gap-4">
-                        <img src={user.avatar_url} alt="Seu avatar" className="w-12 h-12 rounded-full" />
-                        <Textarea value={postContent} onChange={(e) => setPostContent(e.target.value)} placeholder="O que está acontecendo?" className="bg-transparent border-0 text-lg text-white focus-visible:ring-0 p-0" />
+                        <img src={user.x_avatar_url || `https://api.dicebear.com/7.x/micah/svg?seed=${user?.username}`} alt="Seu avatar" className="w-12 h-12 rounded-full" />
+                        <Textarea 
+                            ref={ref}
+                            id="main-post-textarea"
+                            value={postContent} 
+                            onChange={(e) => setPostContent(e.target.value)} 
+                            placeholder="O que está acontecendo?" 
+                            className="bg-transparent border-0 text-lg text-white focus-visible:ring-0 p-0" />
                     </div>
                     {imagePreview && (
                         <div className="relative mt-4 ml-16">
                             <img src={imagePreview} alt="Preview" className="rounded-lg max-h-80 w-auto" />
-                            <Button variant="destructive" size="icon" className="absolute top-2 right-2 h-8 w-8 rounded-full" onClick={() => { setImagePreview(null); setPostImage(null); if (fileInputRef.current) fileInputRef.current.value = ''; }}><X className="h-4 w-4" /></Button>
+                            <Button variant="destructive" size="icon" className="absolute top-2 right-2 h-8 w-8 rounded-full" onClick={removeImage}><X className="h-4 w-4" /></Button>
                         </div>
                     )}
                 </CardContent>
@@ -79,6 +90,6 @@ const CreatePostForm = ({ onPostCreated }) => {
             </form>
         </Card>
     );
-};
+});
 
 export default CreatePostForm;

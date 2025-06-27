@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 
@@ -40,8 +39,29 @@ export const AuthProvider = ({ children }) => {
           .eq('id', currentSession.user.id)
           .single();
         
-        if (error || !profile) {
-          console.error("Error fetching profile or profile not found, logging out.", error);
+        if (error?.code === 'PGRST116' || !profile) {
+          // Profile doesn't exist, let's create it.
+          const { error: creationError } = await supabase.rpc('ensure_profile_exists');
+          if (creationError) {
+            console.error("Failed to create profile, logging out.", creationError);
+            await logout();
+            return;
+          }
+          // Retry fetching after creation
+          const { data: newProfile, error: newProfileError } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', currentSession.user.id)
+            .single();
+
+          if (newProfileError || !newProfile) {
+            console.error("Failed to fetch profile even after creation attempt, logging out.", newProfileError);
+            await logout();
+          } else {
+            setUser(newProfile);
+          }
+        } else if (error) {
+          console.error("Error fetching profile, logging out.", error);
           await logout();
         } else {
           setUser(profile);

@@ -1,127 +1,171 @@
-
 import React, { useState, useEffect } from 'react';
+import { Navigate, useLocation, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { useToast } from "@/components/ui/use-toast";
+import { supabase } from '@/lib/supabaseClient';
+import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { Loader2, Landmark, MessageCircle, Building, FileText, LogIn, UserPlus } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Loader2, Building2, MessageSquare, FileText, ShoppingBag, LogIn, UserPlus } from 'lucide-react';
 
 const ServiceProtectedRoute = ({ children, service }) => {
-  const { user, loading } = useAuth();
+  const { session, user, loading: authLoading, refreshUser } = useAuth();
   const { toast } = useToast();
-  const [showAuthDialog, setShowAuthDialog] = useState(false);
-  const [userDismissed, setUserDismissed] = useState(false);
+  const location = useLocation();
+  const navigate = useNavigate();
+  const [loading, setLoading] = useState(true);
+  const [hasAccess, setHasAccess] = useState(false);
+  const [showSetupModal, setShowSetupModal] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
+  
+  const [xUsername, setXUsername] = useState('');
+  const [xHandle, setXHandle] = useState('');
 
   const serviceConfig = {
     bank: {
-      icon: Landmark,
       name: 'Banco Nacional',
-      description: 'Acesse sua conta bancária, faça transferências e gerencie seus cartões.',
-      checkField: 'account',
-      onboardingComponent: null
+      icon: <Building2 className="w-16 h-16 text-blue-400" />,
+      description: 'Para acessar o Banco Nacional, você precisa abrir uma conta bancária.',
+      checkFunction: async () => {
+        const { data, error } = await supabase.from('accounts').select('id').eq('user_id', user.id).maybeSingle();
+        if (error && error.code !== 'PGRST116') throw error;
+        return !!data;
+      },
+      createFunction: async () => {
+        const { data, error } = await supabase.rpc('create_bank_account');
+        if (error) throw error;
+        return data;
+      }
     },
     x: {
-      icon: MessageCircle,
       name: 'Social X',
-      description: 'Conecte-se com outros cidadãos e compartilhe suas ideias.',
-      checkField: 'x_handle',
-      onboardingComponent: null
+      icon: <MessageSquare className="w-16 h-16 text-purple-400" />,
+      description: 'Para acessar o Social X, você precisa criar seu perfil na rede social.',
+      checkFunction: async () => {
+        const { data } = await supabase.from('profiles').select('x_handle').eq('id', user.id).single();
+        return !!data?.x_handle;
+      },
+      createFunction: async () => {
+        const { data, error } = await supabase.rpc('create_x_profile', {
+          p_x_handle: xHandle,
+          p_x_username: xUsername
+        });
+        if (error) throw error;
+        return data;
+      }
     },
-    business: {
-      icon: Building,
-      name: 'Negócios Livres',
-      description: 'Marketplace para comprar e vender produtos e serviços.',
-      checkField: 'account',
-      onboardingComponent: null
-    },
-    dic: {
-      icon: FileText,
-      name: 'DIC - Documentos',
-      description: 'Gerencie seus documentos oficiais de forma digital.',
-      checkField: 'account',
-      onboardingComponent: null
-    }
+    dic: { name: 'DIC', icon: <FileText className="w-16 h-16 text-green-400" />, description: 'O DIC está disponível para todos os cidadãos registrados.', checkFunction: async () => true, createFunction: async () => ({ success: true }) },
+    business: { name: 'Negócios Livres', icon: <ShoppingBag className="w-16 h-16 text-orange-400" />, description: 'O Negócios Livres está disponível para todos os cidadãos registrados.', checkFunction: async () => true, createFunction: async () => ({ success: true }) }
   };
 
-  const config = serviceConfig[service];
+  const currentService = serviceConfig[service];
 
   useEffect(() => {
-    if (!loading && !user && !userDismissed) {
-      setShowAuthDialog(true);
-    }
-  }, [loading, user, userDismissed]);
+    const checkAccess = async () => {
+      if (!user || !currentService) {
+        setLoading(false);
+        return;
+      }
+      try {
+        const hasServiceAccess = await currentService.checkFunction();
+        setHasAccess(hasServiceAccess);
+      } catch (error) {
+        console.error('Error checking service access:', error);
+        setHasAccess(false);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  const handleDialogClose = () => {
-    setShowAuthDialog(false);
-    setUserDismissed(true);
+    if (!authLoading) {
+      checkAccess();
+    }
+  }, [user, authLoading, service]);
+
+  const handleCreateAccount = async () => {
+    if (service === 'x' && (!xUsername.trim() || !xHandle.trim() || xHandle.trim().length < 4)) {
+      toast({ title: 'Erro', description: 'Preencha todos os campos. O @handle deve ter pelo menos 4 caracteres.', variant: 'destructive' });
+      return;
+    }
+    setIsCreating(true);
+    try {
+      const result = await currentService.createFunction();
+      if (result.success) {
+        toast({ title: 'Sucesso!', description: result.message });
+        await refreshUser();
+        setShowSetupModal(false);
+        setHasAccess(true);
+      } else {
+        toast({ title: 'Erro', description: result.message, variant: 'destructive' });
+      }
+    } catch (error) {
+      toast({ title: 'Erro', description: error.message || 'Não foi possível criar a conta. Tente novamente.', variant: 'destructive' });
+    } finally {
+      setIsCreating(false);
+    }
   };
 
-  if (loading) {
+  const handleCancelSetup = () => {
+    setShowSetupModal(false);
+    navigate(-1);
+  };
+
+  if (authLoading || loading) {
+    return <div className="flex justify-center items-center min-h-[80vh]"><Loader2 className="w-16 h-16 animate-spin text-blue-400" /></div>;
+  }
+
+  if (!session) {
     return (
-      <div className="flex justify-center items-center min-h-[60vh]">
-        <Loader2 className="w-12 h-12 animate-spin text-blue-400" />
-      </div>
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12"><div className="text-center">
+        <div className="flex justify-center mb-6">{currentService?.icon}</div>
+        <h1 className="text-4xl font-bold text-white mb-4">Acesso Restrito</h1>
+        <p className="text-lg text-gray-300 mb-8">Para acessar o <span className="font-semibold">{currentService?.name}</span>, você precisa estar logado em sua conta GOV.RP.</p>
+        <div className="flex flex-col sm:flex-row gap-4 justify-center">
+          <Link to="/login" state={{ from: location }}><Button size="lg" className="bg-gradient-to-r from-blue-600 to-purple-600"><LogIn className="w-5 h-5 mr-2" /> Fazer Login</Button></Link>
+          <Link to="/register"><Button size="lg" variant="outline"><UserPlus className="w-5 h-5 mr-2" /> Criar Conta</Button></Link>
+        </div>
+      </div></div>
     );
   }
 
-  if (!user) {
+  if (!hasAccess && (service === 'bank' || service === 'x')) {
     return (
       <>
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-          <div className="text-center glass-effect rounded-2xl p-12">
-            {config && <config.icon className="mx-auto h-16 w-16 text-blue-400 mb-6" />}
-            <h1 className="text-4xl font-bold text-white mb-4">Acesso Restrito</h1>
-            <p className="text-lg text-gray-300 mb-8">
-              Para acessar o {config?.name || 'serviço'}, você precisa estar logado em sua conta GOV.RP.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link to="/login">
-                <Button size="lg" className="w-full sm:w-auto">
-                  <LogIn className="mr-2 h-5 w-5" />
-                  Fazer Login
-                </Button>
-              </Link>
-              <Link to="/register">
-                <Button size="lg" variant="outline" className="w-full sm:w-auto">
-                  <UserPlus className="mr-2 h-5 w-5" />
-                  Criar Conta
-                </Button>
-              </Link>
-            </div>
+          <div className="text-center">
+            <div className="flex justify-center mb-6">{currentService?.icon}</div>
+            <h1 className="text-4xl font-bold text-white mb-4">Configuração Necessária</h1>
+            <p className="text-lg text-gray-300 mb-8">{currentService?.description}</p>
+            <Button size="lg" onClick={() => setShowSetupModal(true)} className="bg-gradient-to-r from-blue-600 to-purple-600">
+              {service === 'bank' ? 'Abrir Conta Bancária' : 'Criar Perfil X'}
+            </Button>
           </div>
         </div>
 
-        <Dialog open={showAuthDialog && !userDismissed} onOpenChange={handleDialogClose}>
+        <Dialog open={showSetupModal} onOpenChange={setShowSetupModal}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                {config && <config.icon className="h-6 w-6 text-blue-400" />}
-                {config?.name}
-              </DialogTitle>
-              <DialogDescription className="text-base">
-                {config?.description}
-              </DialogDescription>
+              <DialogTitle>{service === 'bank' ? 'Abrir Conta Bancária' : 'Criar Perfil X'}</DialogTitle>
+              <DialogDescription>{service === 'bank' ? 'Sua conta bancária será criada automaticamente com um saldo inicial de R$ 1.000,00.' : 'Escolha seu nome de usuário e @handle para o Social X. Estes devem ser únicos.'}</DialogDescription>
             </DialogHeader>
-            <div className="space-y-4 pt-4">
-              <p className="text-sm text-gray-400">
-                Para continuar, você precisa estar autenticado no GOV.RP.
-              </p>
-              <div className="flex flex-col gap-3">
-                <Link to="/login" onClick={handleDialogClose}>
-                  <Button className="w-full">
-                    <LogIn className="mr-2 h-4 w-4" />
-                    Fazer Login
-                  </Button>
-                </Link>
-                <Link to="/register" onClick={handleDialogClose}>
-                  <Button variant="outline" className="w-full">
-                    <UserPlus className="mr-2 h-4 w-4" />
-                    Criar Nova Conta
-                  </Button>
-                </Link>
+            {service === 'x' && (
+              <div className="space-y-4 py-4">
+                <div>
+                  <Label htmlFor="xUsername">Nome de Usuário no X</Label>
+                  <Input id="xUsername" value={xUsername} onChange={(e) => setXUsername(e.target.value)} placeholder="Ex: João Silva" required />
+                </div>
+                <div>
+                  <Label htmlFor="xHandle">@Handle (identificador único)</Label>
+                  <Input id="xHandle" value={xHandle} onChange={(e) => setXHandle(e.target.value.replace(/[^a-zA-Z0-9_]/g, '').toLowerCase())} placeholder="Ex: joaosilva123" required />
+                  <p className="text-xs text-gray-400 mt-1">Mínimo 4 caracteres. Apenas letras, números e underscore.</p>
+                </div>
               </div>
-            </div>
+            )}
+            <DialogFooter>
+              <Button variant="outline" onClick={handleCancelSetup}>Cancelar</Button>
+              <Button onClick={handleCreateAccount} disabled={isCreating}>{isCreating && <Loader2 className="animate-spin w-4 h-4 mr-2" />}{service === 'bank' ? 'Abrir Conta' : 'Criar Perfil'}</Button>
+            </DialogFooter>
           </DialogContent>
         </Dialog>
       </>

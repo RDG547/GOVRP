@@ -1,11 +1,9 @@
-
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger, DialogClose } from "@/components/ui/dialog";
 import { TabsContent } from "@/components/ui/tabs";
 import { Loader2, CreditCard, RotateCw, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
-import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from '@/lib/supabaseClient';
 import Cards from 'react-credit-cards-2';
@@ -37,7 +35,7 @@ const CardsTab = ({ cards, onUpdate }) => {
         if (error) {
             toast({ title: "Erro", description: error.message, variant: "destructive" });
         } else {
-            toast({ title: data.success ? "Sucesso" : "Aviso", description: data.message });
+            toast({ title: data.success ? "Sucesso" : "Aviso", description: data.message, variant: data.success ? "default" : "destructive" });
             if (data.success) {
                 setIsCardRequestModalOpen(false);
                 onUpdate();

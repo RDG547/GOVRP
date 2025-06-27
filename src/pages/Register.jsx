@@ -9,7 +9,8 @@ import { useToast } from '@/components/ui/use-toast';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { generateCPF, generateRG, formatCPF, formatRG, checkPasswordStrength } from '@/lib/utils';
-import InputMask from 'react-input-mask';
+import PhoneNumberInput, { parsePhoneNumber } from 'react-phone-number-input';
+import pt from 'react-phone-number-input/locale/pt.json';
 
 const PasswordStrengthIndicator = ({ score }) => {
   const levels = [
@@ -38,7 +39,7 @@ const PasswordStrengthIndicator = ({ score }) => {
 
 const Register = () => {
   const [formData, setFormData] = useState({
-    fullName: '', username: '', email: '', countryCode: '+55', phone: '',
+    fullName: '', username: '', email: '', phone: '',
     dateOfBirth: '', rg: '', cpf: '', password: '', confirmPassword: '', terms: false
   });
   const [showPassword, setShowPassword] = useState(false);
@@ -61,6 +62,10 @@ const Register = () => {
     const { name, value, type, checked } = e.target;
     setFormData({ ...formData, [name]: type === 'checkbox' ? checked : value });
   };
+  
+  const handlePhoneChange = (value) => {
+    setFormData({ ...formData, phone: value });
+  };
 
   const handleGenerateCPF = () => setFormData({ ...formData, cpf: formatCPF(generateCPF()) });
   const handleGenerateRG = () => setFormData({ ...formData, rg: formatRG(generateRG()) });
@@ -81,6 +86,12 @@ const Register = () => {
       return;
     }
 
+    const phoneNumber = formData.phone ? parsePhoneNumber(formData.phone) : null;
+    if (!phoneNumber || !phoneNumber.isValid()) {
+        toast({ title: "Erro no cadastro", description: "Por favor, insira um número de telefone válido.", variant: "destructive" });
+        return;
+    }
+
     setLoading(true);
     try {
       await register({
@@ -88,8 +99,8 @@ const Register = () => {
         password: formData.password,
         fullName: formData.fullName,
         username: formData.username,
-        phone: formData.phone.replace(/\D/g, ''),
-        countryCode: formData.countryCode,
+        phone: phoneNumber.nationalNumber,
+        countryCode: `+${phoneNumber.countryCallingCode}`,
         dateOfBirth: formData.dateOfBirth,
         rg: formData.rg.replace(/\D/g, ''),
         cpf: formData.cpf.replace(/\D/g, ''),
@@ -137,15 +148,32 @@ const Register = () => {
 
           <form onSubmit={handleSubmit} className="space-y-6">
               <div className="space-y-6">
-                <div><Label htmlFor="fullName">Nome Completo</Label><div className="relative"><User className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" /><Input id="fullName" name="fullName" type="text" required value={formData.fullName} onChange={handleChange} className={inputClass} placeholder="Seu nome completo" /></div></div>
-                <div><Label htmlFor="username">Nome de usuário</Label><div className="relative"><User className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" /><Input id="username" name="username" type="text" required value={formData.username} onChange={handleChange} className={inputClass} placeholder="Ex: joao.silva" /></div></div>
-                <div><Label htmlFor="dateOfBirth">Data de Nascimento</Label><div className="relative"><Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" /><Input id="dateOfBirth" name="dateOfBirth" type="date" required value={formData.dateOfBirth} onChange={handleChange} className={inputClass} min={`${minBirthYear}-01-01`} max={`${maxBirthYear}-12-31`} /></div></div>
-                <div><Label htmlFor="email">Email</Label><div className="relative"><Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" /><Input id="email" name="email" type="email" required value={formData.email} onChange={handleChange} className={inputClass} placeholder="seu@email.com" /></div></div>
-                <div><Label htmlFor="phone">Telefone</Label><div className="flex gap-2"><Input id="countryCode" name="countryCode" type="text" required value={formData.countryCode} onChange={handleChange} className={`${inputClass} w-20 pl-4`} placeholder="+55" /><div className="relative flex-grow"><Phone className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" /><InputMask mask="(99) 99999-9999" value={formData.phone} onChange={handleChange}>{(inputProps) => <Input {...inputProps} id="phone" name="phone" type="tel" required className={inputClass} placeholder="(11) 99999-9999" />}</InputMask></div></div></div>
-                <div><Label htmlFor="cpf">CPF</Label><div className="relative"><FileText className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" /><Input id="cpf" name="cpf" type="text" required value={formData.cpf} readOnly className={`${inputClass} pr-10`} placeholder="Clique no ícone para gerar" /><Button type="button" size="icon" variant="ghost" onClick={handleGenerateCPF} className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 text-gray-400 hover:text-white"><RefreshCw className="w-4 h-4" /></Button></div></div>
-                <div><Label htmlFor="rg">RG</Label><div className="relative"><FileText className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" /><Input id="rg" name="rg" type="text" required value={formData.rg} readOnly className={`${inputClass} pr-10`} placeholder="Clique no ícone para gerar" /><Button type="button" size="icon" variant="ghost" onClick={handleGenerateRG} className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 text-gray-400 hover:text-white"><RefreshCw className="w-4 h-4" /></Button></div></div>
-                <div><Label htmlFor="password">Senha</Label><div className="relative"><Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" /><Input id="password" name="password" type={showPassword ? 'text' : 'password'} required value={formData.password} onChange={handlePasswordChange} className={`${inputClass} pr-12`} placeholder="Mínimo 8 caracteres" /><button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"><span className="sr-only">Mostrar/Ocultar</span>{showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}</button></div><PasswordStrengthIndicator score={passwordScore} /></div>
-                <div><Label htmlFor="confirmPassword">Confirmar Senha</Label><div className="relative"><Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" /><Input id="confirmPassword" name="confirmPassword" type={showConfirmPassword ? 'text' : 'password'} required value={formData.confirmPassword} onChange={handleChange} className={`${inputClass} pr-12`} placeholder="Confirme sua senha" /><button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"><span className="sr-only">Mostrar/Ocultar</span>{showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}</button></div></div>
+                <div><Label htmlFor="fullName">Nome Completo</Label><div className="relative"><User className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5 z-10" /><Input id="fullName" name="fullName" type="text" required value={formData.fullName} onChange={handleChange} className={inputClass} placeholder="Seu nome completo" /></div></div>
+                <div><Label htmlFor="username">Nome de usuário</Label><div className="relative"><User className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5 z-10" /><Input id="username" name="username" type="text" required value={formData.username} onChange={handleChange} className={inputClass} placeholder="Ex: joao.silva" /></div></div>
+                <div><Label htmlFor="dateOfBirth">Data de Nascimento</Label><div className="relative"><Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5 z-10" /><Input id="dateOfBirth" name="dateOfBirth" type="date" required value={formData.dateOfBirth} onChange={handleChange} className={inputClass} min={`${minBirthYear}-01-01`} max={`${maxBirthYear}-12-31`} /></div></div>
+                <div><Label htmlFor="email">Email</Label><div className="relative"><Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5 z-10" /><Input id="email" name="email" type="email" required value={formData.email} onChange={handleChange} className={inputClass} placeholder="seu@email.com" /></div></div>
+                <div>
+                  <Label htmlFor="phone">Telefone</Label>
+                  <div className="relative">
+                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5 z-10" />
+                    <PhoneNumberInput
+                      id="phone"
+                      international
+                      withCountryCallingCode
+                      labels={pt}
+                      limitMaxLength
+                      defaultCountry="BR"
+                      value={formData.phone}
+                      onChange={handlePhoneChange}
+                      className="phone-input-control"
+                      placeholder="Seu número de telefone"
+                    />
+                  </div>
+                </div>
+                <div><Label htmlFor="cpf">CPF</Label><div className="relative"><FileText className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5 z-10" /><Input id="cpf" name="cpf" type="text" required value={formData.cpf} readOnly className={`${inputClass} pr-10`} placeholder="Clique no ícone para gerar" /><Button type="button" size="icon" variant="ghost" onClick={handleGenerateCPF} className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 text-gray-400 hover:text-white"><RefreshCw className="w-4 h-4" /></Button></div></div>
+                <div><Label htmlFor="rg">RG</Label><div className="relative"><FileText className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5 z-10" /><Input id="rg" name="rg" type="text" required value={formData.rg} readOnly className={`${inputClass} pr-10`} placeholder="Clique no ícone para gerar" /><Button type="button" size="icon" variant="ghost" onClick={handleGenerateRG} className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 text-gray-400 hover:text-white"><RefreshCw className="w-4 h-4" /></Button></div></div>
+                <div><Label htmlFor="password">Senha</Label><div className="relative"><Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5 z-10" /><Input id="password" name="password" type={showPassword ? 'text' : 'password'} required value={formData.password} onChange={handlePasswordChange} className={`${inputClass} pr-12`} placeholder="Mínimo 8 caracteres" /><button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"><span className="sr-only">Mostrar/Ocultar</span>{showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}</button></div><PasswordStrengthIndicator score={passwordScore} /></div>
+                <div><Label htmlFor="confirmPassword">Confirmar Senha</Label><div className="relative"><Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5 z-10" /><Input id="confirmPassword" name="confirmPassword" type={showConfirmPassword ? 'text' : 'password'} required value={formData.confirmPassword} onChange={handleChange} className={`${inputClass} pr-12`} placeholder="Confirme sua senha" /><button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"><span className="sr-only">Mostrar/Ocultar</span>{showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}</button></div></div>
                 <div className="flex items-start space-x-3"><button type="button" name="terms" onClick={() => setFormData({...formData, terms: !formData.terms})} className={`mt-1 flex-shrink-0 w-5 h-5 rounded border-2 transition-all duration-200 ${formData.terms ? 'bg-blue-600 border-blue-600' : 'bg-transparent border-gray-400'}`}>{formData.terms && <Check className="w-4 h-4 text-white" />}</button><Label htmlFor="terms" className="text-sm text-gray-300">Eu concordo com os <Link to="/terms" className="text-blue-400 hover:underline">Termos de Serviço</Link> e a <Link to="/privacy" className="text-blue-400 hover:underline">Política de Privacidade</Link>.</Label></div>
               </div>
               <Button type="submit" disabled={loading} className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 py-3 text-lg font-medium">{loading ? 'Cadastrando...' : 'Criar Conta'}</Button>

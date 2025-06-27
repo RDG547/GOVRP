@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { motion } from 'framer-motion';
@@ -9,6 +8,7 @@ import { supabase } from '@/lib/supabaseClient';
 import { User, Fingerprint, Calendar, Loader2, FileText, Car, Globe } from 'lucide-react';
 import { formatCPF, formatRG } from '@/lib/utils';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from "@/components/ui/dialog";
+import PageHeader from '@/components/layout/PageHeader';
 
 const DIC = () => {
   const { toast } = useToast();
@@ -69,10 +69,13 @@ const DIC = () => {
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {loading ? <div className="flex justify-center items-center min-h-[60vh]"><Loader2 className="w-12 h-12 animate-spin text-blue-400" /></div> :
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-          <div className="text-center mb-12">
-            <h1 className="text-4xl md:text-5xl font-bold text-white">Departamento de Identificação <span className="gradient-text">Civil</span></h1>
-            <p className="mt-2 text-lg text-gray-300">Sua carteira de documentos digitais.</p>
-          </div>
+          <PageHeader
+            icon={FileText}
+            title="Departamento de Identificação"
+            gradientText="Civil"
+            description="Sua carteira de documentos digitais."
+            iconColor="text-purple-400"
+          />
           <div className="glass-effect rounded-2xl p-8 shadow-2xl">
             <div className="flex flex-col sm:flex-row items-center gap-8">
               <div className="flex-shrink-0"><img src={user?.avatar_url || `https://api.dicebear.com/7.x/micah/svg?seed=${user?.username}`} alt="Avatar" className="w-32 h-32 rounded-full object-cover border-2 border-blue-400" /></div>
