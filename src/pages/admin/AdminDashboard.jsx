@@ -1,9 +1,8 @@
-
 import React from 'react';
 import { Helmet } from 'react-helmet-async';
 import { motion } from 'framer-motion';
 import { useAuth } from '@/contexts/AuthContext';
-import { useParams, Link, useLocation } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { BarChart2, Users, MessageCircle, Settings, Shield } from 'lucide-react';
 import SiteAnalytics from '@/components/admin/SiteAnalytics';
@@ -14,13 +13,12 @@ const adminTabs = [
   { value: 'analytics', label: 'Análises', icon: BarChart2, component: <SiteAnalytics /> },
   { value: 'users', label: 'Usuários', icon: Users, component: <UserManagement /> },
   { value: 'content', label: 'Conteúdo', icon: MessageCircle, component: <ContentModeration /> },
-  { value: 'settings', label: 'Configurações', icon: Settings, component: <div className="text-center py-10">Página de configurações em construção.</div> },
+  { value: 'settings', label: 'Configurações', icon: Settings, component: <div className="text-center py-10 text-white">Página de configurações em construção.</div> },
 ];
 
 const AdminDashboard = () => {
   const { user } = useAuth();
   const { tab } = useParams();
-  const location = useLocation();
 
   const activeTab = tab || 'analytics';
 
@@ -46,10 +44,10 @@ const AdminDashboard = () => {
           </div>
           
           <Tabs value={activeTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-2 md:grid-cols-4">
+            <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 bg-black/20 p-1">
               {adminTabs.map(tabItem => (
                   <Link to={`/admin/${tabItem.value}`} key={tabItem.value}>
-                    <TabsTrigger value={tabItem.value} className="w-full">
+                    <TabsTrigger value={tabItem.value} className="w-full data-[state=active]:bg-slate-700 data-[state=active]:text-white">
                         <tabItem.icon className="w-4 h-4 mr-2" />
                         {tabItem.label}
                     </TabsTrigger>
