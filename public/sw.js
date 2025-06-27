@@ -1,4 +1,3 @@
-
 /* eslint-disable no-restricted-globals */
 
 const CACHE_NAME = 'govrp-cache-v1';
