@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -45,14 +44,22 @@ const BankDashboard = ({ account, transactions, cards, investmentOptions, userIn
             <TabsTrigger value="emprestimos">Empréstimos</TabsTrigger>
             <TabsTrigger value="investir">Investir</TabsTrigger>
           </TabsList>
-          <TransactionsTab transactions={transactions} accountId={account?.id} />
-          <CardsTab cards={cards} onUpdate={onUpdate} />
-          <LoansTab loanApplications={loanApplications} onUpdate={onUpdate} />
-          <InvestmentsTab 
-            investmentOptions={investmentOptions} 
-            userInvestments={userInvestments}
-            onUpdate={onUpdate} 
-          />
+          <TabsContent value="extrato">
+             <TransactionsTab transactions={transactions} accountId={account?.id} />
+          </TabsContent>
+          <TabsContent value="cartoes">
+            <CardsTab cards={cards} onUpdate={onUpdate} />
+          </TabsContent>
+          <TabsContent value="emprestimos">
+            <LoansTab loanApplications={loanApplications} onUpdate={onUpdate} />
+          </TabsContent>
+          <TabsContent value="investir">
+            <InvestmentsTab 
+              investmentOptions={investmentOptions} 
+              userInvestments={userInvestments}
+              onUpdate={onUpdate} 
+            />
+          </TabsContent>
         </Tabs>
       </div>
     </div>

@@ -9,7 +9,7 @@ import fs from 'fs';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const VITE_PROJECT_ROOT = path.resolve(__dirname, '../..');
-const EDITABLE_HTML_TAGS = ["a", "Button", "button", "p", "span", "h1", "h2", "h3", "h4"];
+const EDITABLE_HTML_TAGS = ["a", "Button", "button", "p", "span", "h1", "h2", "h3", "h4", "h5", "h6", "label", "Label", "img"];
 
 function parseEditId(editId) {
   const parts = editId.split(':');
@@ -25,7 +25,7 @@ function parseEditId(editId) {
   if (!filePath || isNaN(line) || isNaN(column)) {
     return null;
   }
-  
+
   return { filePath, line, column };
 }
 
@@ -46,7 +46,44 @@ function checkTagNameEditable(openingElementNode, editableTagsList) {
     return false;
 }
 
-export default function inlineEditPlugin() {  
+function validateImageSrc(openingNode) {
+    if (!openingNode || !openingNode.name || openingNode.name.name !== 'img') {
+        return { isValid: true, reason: null }; // Not an image, skip validation
+    }
+
+    const hasPropsSpread = openingNode.attributes.some(attr => 
+        t.isJSXSpreadAttribute(attr) && 
+        attr.argument && 
+        t.isIdentifier(attr.argument) && 
+        attr.argument.name === 'props'
+    );
+
+    if (hasPropsSpread) {
+        return { isValid: false, reason: 'props-spread' };
+    }
+
+    const srcAttr = openingNode.attributes.find(attr => 
+        t.isJSXAttribute(attr) && 
+        attr.name && 
+        attr.name.name === 'src'
+    );
+
+    if (!srcAttr) {
+        return { isValid: false, reason: 'missing-src' };
+    }
+
+    if (!t.isStringLiteral(srcAttr.value)) {
+        return { isValid: false, reason: 'dynamic-src' };
+    }
+
+    if (!srcAttr.value.value || srcAttr.value.value.trim() === '') {
+        return { isValid: false, reason: 'empty-src' };
+    }
+
+    return { isValid: true, reason: null };
+}
+
+export default function inlineEditPlugin() {
   return {
     name: 'vite-inline-edit-plugin',
     enforce: 'pre',
@@ -92,14 +129,25 @@ export default function inlineEditPlugin() {
                 return;
               }
 
+              const imageValidation = validateImageSrc(openingNode);
+              if (!imageValidation.isValid) {
+                const disabledAttribute = t.jsxAttribute(
+                  t.jsxIdentifier('data-edit-disabled'),
+                  t.stringLiteral('true')
+                );
+                openingNode.attributes.push(disabledAttribute);
+                attributesAdded++;
+                return;
+              }
+
               let shouldBeDisabledDueToChildren = false;
 
               // Condition 2: Does the element have dynamic or editable children
               if (t.isJSXElement(elementNode) && elementNode.children) {
                 // Check if element has {...props} spread attribute - disable editing if it does
-                const hasPropsSpread = openingNode.attributes.some(attr => t.isJSXSpreadAttribute(attr) 
-                && attr.argument  
-                && t.isIdentifier(attr.argument) 
+                const hasPropsSpread = openingNode.attributes.some(attr => t.isJSXSpreadAttribute(attr)
+                && attr.argument
+                && t.isIdentifier(attr.argument)
                 && attr.argument.name === 'props'
                 );
 
@@ -155,7 +203,7 @@ export default function inlineEditPlugin() {
                       );
                       openingNode.attributes.push(disabledAttribute);
                       attributesAdded++;
-                      return; 
+                      return;
                   }
               }
 
@@ -175,11 +223,11 @@ export default function inlineEditPlugin() {
                   }
                   currentAncestorCandidatePath = ancestorJsxElementPath.parentPath;
               }
-              
+
               const line = openingNode.loc.start.line;
               const column = openingNode.loc.start.column + 1;
               const editId = `${webRelativeFilePath}:${line}:${column}`;
-              
+
               const idAttribute = t.jsxAttribute(
                 t.jsxIdentifier('data-edit-id'),
                 t.stringLiteral(editId)
@@ -267,23 +315,46 @@ export default function inlineEditPlugin() {
             }
 
             const generateFunction = generate.default || generate;
+            const targetOpeningElement = targetNodePath.node;
             const parentElementNode = targetNodePath.parentPath?.node;
-            let beforeCode = '';
             
-            if (parentElementNode && t.isJSXElement(parentElementNode)) {
-              const beforeOutput = generateFunction(parentElementNode, {});
-              beforeCode = beforeOutput.code;
-            }
-
+            const isImageElement = targetOpeningElement.name && targetOpeningElement.name.name === 'img';
+            
+            let beforeCode = '';
+            let afterCode = '';
             let modified = false;
 
-            if (parentElementNode && t.isJSXElement(parentElementNode)) {
-              parentElementNode.children = [];
-              if (newFullText && newFullText.trim() !== '') {
-                const newTextNode = t.jsxText(newFullText);
-                parentElementNode.children.push(newTextNode);
+            if (isImageElement) {
+              // Handle image src attribute update
+              const beforeOutput = generateFunction(targetOpeningElement, {});
+              beforeCode = beforeOutput.code;
+              
+              const srcAttr = targetOpeningElement.attributes.find(attr => 
+                t.isJSXAttribute(attr) && attr.name && attr.name.name === 'src'
+              );
+              
+              if (srcAttr && t.isStringLiteral(srcAttr.value)) {
+                srcAttr.value = t.stringLiteral(newFullText);
+                modified = true;
+                
+                const afterOutput = generateFunction(targetOpeningElement, {});
+                afterCode = afterOutput.code;
               }
-              modified = true;
+            } else {
+              if (parentElementNode && t.isJSXElement(parentElementNode)) {
+                const beforeOutput = generateFunction(parentElementNode, {});
+                beforeCode = beforeOutput.code;
+                
+                parentElementNode.children = [];
+                if (newFullText && newFullText.trim() !== '') {
+                  const newTextNode = t.jsxText(newFullText);
+                  parentElementNode.children.push(newTextNode);
+                }
+                modified = true;
+                
+                const afterOutput = generateFunction(parentElementNode, {});
+                afterCode = afterOutput.code;
+              }
             }
 
             if (!modified) {
@@ -291,30 +362,24 @@ export default function inlineEditPlugin() {
               return res.end(JSON.stringify({ error: 'Could not apply changes to AST.' }));
             }
 
-            let afterCode = '';
-            if (parentElementNode && t.isJSXElement(parentElementNode)) {
-              const afterOutput = generateFunction(parentElementNode, {});
-              afterCode = afterOutput.code;
-            }
-
             const output = generateFunction(babelAst, {});
             const newContent = output.code;
 
             try {
-              fs.writeFileSync(absoluteFilePath, newContent, 'utf-8'); 
+              fs.writeFileSync(absoluteFilePath, newContent, 'utf-8');
             } catch (writeError) {
               console.error(`[vite][visual-editor] Error during direct write for ${filePath}:`, writeError);
               throw writeError;
             }
 
             res.writeHead(200, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ 
-                success: true, 
+            res.end(JSON.stringify({
+                success: true,
                 newFileContent: newContent,
                 beforeCode,
                 afterCode,
             }));
-            
+
           } catch (error) {
             res.writeHead(500, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({ error: 'Internal server error during edit application.' }));
@@ -323,4 +388,4 @@ export default function inlineEditPlugin() {
       });
     }
   };
-} 
+}

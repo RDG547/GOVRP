@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Github, Mail, Heart, HelpCircle, LifeBuoy, BookOpen, Newspaper, Landmark, Briefcase, FileText, Users, Scroll, ArrowRight, Home as HomeIcon, Milestone } from 'lucide-react';
+import { Github, Mail, Heart, HelpCircle, Headphones as Headset, BookOpen, Newspaper, Landmark, Briefcase, FileText, Users, Scroll, ArrowRight, Home as HomeIcon, Milestone } from 'lucide-react';
 import { FaWhatsapp, FaDiscord, FaTelegram } from 'react-icons/fa';
 
 const Footer = () => {
@@ -72,7 +72,7 @@ const Footer = () => {
                     <Mail className="w-4 h-4"/> Contato
                 </Link>
                 <Link to="/support" className={footerLink}>
-                    <LifeBuoy className="w-4 h-4"/> Suporte
+                    <Headset className="w-4 h-4"/> Suporte
                 </Link>
                  <Link to="/faq" className={footerLink}>
                     <HelpCircle className="w-4 h-4"/> FAQ

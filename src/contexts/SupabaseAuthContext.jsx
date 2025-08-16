@@ -35,10 +35,11 @@ export const AuthProvider = ({ children }) => {
     return () => subscription.unsubscribe();
   }, [handleSession]);
 
-  const signUp = useCallback(async (email, password) => {
+  const signUp = useCallback(async (email, password, options) => {
     const { error } = await supabase.auth.signUp({
       email,
       password,
+      options,
     });
 
     if (error) {

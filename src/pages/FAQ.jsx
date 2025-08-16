@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Helmet } from 'react-helmet-async';
-import { Search, ArrowRight, User, Server, AlertTriangle, HelpCircle, Scale, Briefcase, Heart } from 'lucide-react';
+import { Search, ArrowRight, User, Server, AlertTriangle, HelpCircle, Scale, Briefcase, Heart, Crown } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
@@ -27,12 +27,13 @@ const faqData = [
   { category: 'Sua Conta', question: 'É seguro fornecer meus dados?', answer: 'Sim. Levamos a segurança a sério e usamos criptografia de ponta. Seus dados são usados apenas para fins da plataforma, conforme nossa Política de Privacidade.' },
 
   // Serviços
-  { category: 'Serviços', question: 'Quais são os serviços disponíveis?', answer: 'Oferecemos 6 serviços integrados: Banco Nacional, Negócios Livres, DIC (documentos), a rede social X, Biblioteca Nacional e Acervo Digital (uma coleção de documentos e publicações oficiais). Nós realmente temos 6 Serviços mas estamos sempre em expansão.' },
+  { category: 'Serviços', question: 'Quais são os serviços disponíveis?', answer: 'Oferecemos uma vasta gama de serviços, incluindo Banco Nacional, Negócios Livres, DIC (documentos), a rede social X, Parlamento, Sistema Penal, Eleições, e painéis para corporações como Polícia, AGIES e Forças Armadas. Estamos sempre em expansão para enriquecer o universo do GOV.RP.' },
   { category: 'Serviços', question: 'Como funciona o sistema de governo?', answer: 'Nosso sistema é flexível. Os cidadãos podem criar partidos, lançar candidaturas, participar de eleições e, uma vez no poder, propor e votar em leis que moldam o futuro de suas nações.' },
   { category: 'Serviços', question: 'Posso criar meu próprio país?', answer: 'Sim! A criação de nações é um dos pilares do GOV.RP. Você pode fundar seu próprio país, definir sua forma de governo, criar sua bandeira, hino e cultura.' },
 
   // Economia & Negócios
-  { category: 'Economia & Negócios', question: 'Como eu ganho dinheiro no jogo?', answer: 'Existem várias formas! Você pode receber um salário base do governo, abrir seu próprio negócio através do serviço "Negócios Livres", investir no Banco Nacional ou trabalhar para outros jogadores.' },
+  { category: 'Economia & Negócios', question: 'Como ganho dinheiro no jogo?', answer: 'Existem várias formas! Você pode receber um salário correspondente ao seu cargo público, abrir seu próprio negócio através do serviço "Negócios Livres", fazendo investimentos através do Banco Nacional, trabalhando para outros jogadores, ou através da Renda Cidadã semanal.' },
+  { category: 'Economia & Negócios', question: 'O que é a Renda Cidadã?', answer: 'É um benefício semanal pago a todos os cidadãos com conta bancária para garantir um poder de compra mínimo. O valor e o dia do pagamento são definidos pela administração e podem ser consultados no Painel do Admin.' },
   { category: 'Economia & Negócios', question: 'O que posso fazer com o Banco Nacional?', answer: 'No Banco Nacional, você pode guardar seu dinheiro com segurança, realizar transferências para outros cidadãos, solicitar empréstimos e aplicar seu dinheiro em opções de investimento para obter rendimentos.' },
   { category: 'Economia & Negócios', question: 'Como abro uma empresa?', answer: 'Através do serviço "Negócios Livres", você pode registrar sua empresa, definir seu ramo de atuação, contratar funcionários e participar ativamente da economia do servidor, vendendo produtos e serviços.' },
   
@@ -40,6 +41,11 @@ const faqData = [
   { category: 'Roleplay & Regras', question: 'O que é "Metagaming" e por que é proibido?', answer: 'Metagaming é usar informações que você sabe fora do jogo (Out of Character - OOC) para ganhar vantagens dentro do jogo (In Character - IC). É proibido para garantir um roleplay justo e imersivo para todos.' },
   { category: 'Roleplay & Regras', question: 'O que é "Powergaming"?', answer: 'Powergaming é forçar ações sobre outros jogadores sem lhes dar a oportunidade de reagir, ou realizar feitos que seriam impossíveis para seu personagem. Isso também prejudica a justiça e a imersão do jogo.' },
   { category: 'Roleplay & Regras', question: 'O que acontece se eu quebrar uma regra?', answer: 'Dependendo da gravidade, as consequências vão desde advertências verbais até suspensão temporária ou banimento permanente da plataforma. Nosso objetivo é manter um ambiente divertido e justo.' },
+
+  // Administração
+  { category: 'Administração', question: 'O que é o Painel do Admin?', answer: 'É uma área restrita para administradores da plataforma. Ele permite gerenciar usuários, moderar conteúdo, ajustar configurações do sistema (como a Renda Cidadã) e visualizar análises gerais.' },
+  { category: 'Administração', question: 'Como me torno um administrador?', answer: 'Os administradores são selecionados pela equipe fundadora com base na confiança, tempo de comunidade e contribuições para o projeto. Não há um processo de candidatura aberto.' },
+  { category: 'Administração', question: 'Um admin pode alterar o saldo da minha conta?', answer: 'Sim. Administradores têm a capacidade de adicionar ou remover fundos das contas dos usuários. Essa ferramenta é usada para corrigir erros, aplicar multas de RP ou distribuir recompensas de eventos, sempre com transparência.' },
 
   // Técnico
   { category: 'Técnico', question: 'Como posso entrar em contato com o suporte?', answer: 'Para problemas técnicos, visite nossa página de "Suporte" e abra um ticket detalhando o problema. Nossa equipe responderá o mais rápido possível.' },
@@ -57,6 +63,7 @@ const categories = [
   { id: 'Sua Conta', name: 'Sua Conta', icon: User },
   { id: 'Serviços', name: 'Serviços', icon: Server },
   { id: 'Economia & Negócios', name: 'Economia', icon: Briefcase },
+  { id: 'Administração', name: 'Administração', icon: Crown },
   { id: 'Doações', name: 'Doações', icon: Heart },
   { id: 'Roleplay & Regras', name: 'Regras de RP', icon: Scale },
   { id: 'Técnico', name: 'Técnico', icon: AlertTriangle },

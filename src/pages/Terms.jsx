@@ -94,7 +94,7 @@ const Terms = () => {
         'Encorajamos a resolução amigável de disputas através de nosso sistema de suporte ao cliente.',
         'Em caso de disputas legais, tentaremos primeiro resolver através de mediação ou arbitragem.',
         'Estes termos são regidos exclusivamente pelas leis da República Federativa do Brasil.',
-        'Qualquer ação legal deve ser iniciada nos tribunais competentes da cidade de São Paulo, SP.',
+        'Qualquer ação legal deve ser iniciada nos tribunais competentes.',
         'Você renuncia ao direito de participar de ações coletivas contra a plataforma.',
         'Limitamos nossa responsabilidade ao valor máximo permitido pela legislação brasileira.',
         'Disputas relacionadas a transações financeiras seguem regulamentações específicas do Banco Central.'
@@ -132,8 +132,8 @@ const Terms = () => {
             iconColor="text-yellow-400"
           />
             <div className="mt-6 text-sm text-gray-400 bg-white/5 rounded-lg p-4">
-              <p><strong>Última atualização:</strong> {new Date('2025-06-26').toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
-              <p><strong>Versão:</strong> 1.0 | <strong>Vigência:</strong> Imediata</p>
+              <p><strong>Última atualização:</strong> {new Date('2025-07-24').toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+              <p><strong>Versão:</strong> 1.1 | <strong>Vigência:</strong> Imediata</p>
             </div>
         </section>
 

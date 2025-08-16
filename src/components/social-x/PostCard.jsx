@@ -6,10 +6,52 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger, DialogClose } from "@/components/ui/dialog";
 import { Link } from 'react-router-dom';
-import { Loader2, Send, MessageCircle, Repeat2, Heart, BarChart2, Trash2 } from 'lucide-react';
+import { Loader2, Send, MessageCircle, Repeat2, Heart, BarChart2, Trash2, Crown, Award, Scale } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 import Comment from './Comment';
 import { useAuth } from '@/contexts/AuthContext';
+import { formatDistanceToNow } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+
+const roleBadges = {
+    'Fundador': { icon: Crown, color: 'text-yellow-400', label: 'Fundador' },
+    'Presidente': { icon: Award, color: 'text-blue-400', label: 'Presidente' },
+    'Senador': { icon: Scale, color: 'text-red-400', label: 'Senador' },
+    'Deputado': { icon: Scale, color: 'text-green-400', label: 'Deputado' },
+};
+
+const UserBadge = ({ title }) => {
+    const badge = roleBadges[title];
+    if (!badge) return null;
+    const Icon = badge.icon;
+    return (
+        <TooltipProvider>
+            <Tooltip>
+                <TooltipTrigger>
+                    <Icon className={`w-4 h-4 ${badge.color}`} />
+                </TooltipTrigger>
+                <TooltipContent>
+                    <p>{badge.label}</p>
+                </TooltipContent>
+            </Tooltip>
+        </TooltipProvider>
+    );
+};
+
+const OriginalPostCard = ({ post }) => (
+    <Link to={`/services/x/profile/${post.author.x_handle}`} className="block mt-2 border border-border rounded-lg p-3 hover:bg-accent/50 transition-colors">
+        <div className="flex items-center gap-2 mb-2">
+            <img src={post.author.x_avatar_url || `https://api.dicebear.com/7.x/micah/svg?seed=${post.author.x_handle}`} alt={post.author.x_handle} className="w-6 h-6 rounded-full" />
+            <span className="font-bold text-foreground text-sm">{post.author.x_username}</span>
+            <span className="text-muted-foreground text-sm">@{post.author.x_handle}</span>
+            <span className="text-muted-foreground text-sm">· {formatDistanceToNow(new Date(post.created_at), { locale: ptBR })}</span>
+        </div>
+        <p className="text-foreground text-sm whitespace-pre-wrap">{post.content}</p>
+        {post.image_url && <img  src={post.image_url} alt="Post original" className="mt-2 rounded-lg max-h-60" />}
+    </Link>
+);
+
 
 const PostCard = React.memo(({ post, onInteraction, onDelete }) => {
   const { user: currentUser } = useAuth();
@@ -26,12 +68,17 @@ const PostCard = React.memo(({ post, onInteraction, onDelete }) => {
   const [commentContent, setCommentContent] = useState('');
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  
+  const [isRepostDialogOpen, setIsRepostDialogOpen] = useState(false);
+  const [quoteContent, setQuoteContent] = useState('');
+  const [isSubmittingRepost, setIsSubmittingRepost] = useState(false);
+
   const postRef = useRef(null);
   const viewedPosts = useRef(new Set());
   
   const authorName = post.author.x_username || post.author.full_name;
   const authorHandle = post.author.x_handle || post.author.username;
+  const isRepost = post.original_post_id !== null && post.content === 'repost';
+  const postToShow = isRepost ? post.original_post : post;
   
   useEffect(() => {
     setIsLiked(post.is_liked_by_user);
@@ -65,9 +112,35 @@ const PostCard = React.memo(({ post, onInteraction, onDelete }) => {
   };
   
   const handleRepost = async () => {
-    setIsReposted(prev => !prev);
-    setRepostsCount(prev => isReposted ? prev - 1 : prev + 1);
-    await supabase.rpc('toggle_repost', { p_post_id: post.id });
+    if (isReposted) {
+      // Unrepost
+      setRepostsCount(prev => prev - 1);
+      setIsReposted(false);
+      const { error } = await supabase.rpc('delete_repost', { p_original_post_id: post.id });
+      if (error) {
+        toast({ title: 'Erro ao remover repost', variant: 'destructive' });
+        setRepostsCount(prev => prev + 1); // revert optimistic update
+        setIsReposted(true);
+      }
+    } else {
+      // Open quote dialog
+      setIsRepostDialogOpen(true);
+    }
+  };
+
+  const submitRepost = async () => {
+    setIsSubmittingRepost(true);
+    const { error } = await supabase.rpc('create_repost', { p_post_id: post.id, p_quote_content: quoteContent });
+    if (error) {
+      toast({ title: 'Erro ao repostar', description: error.message, variant: 'destructive' });
+    } else {
+      setRepostsCount(prev => prev + 1);
+      setIsReposted(true);
+      toast({ title: 'Repostado com sucesso!' });
+      setIsRepostDialogOpen(false);
+      setQuoteContent('');
+    }
+    setIsSubmittingRepost(false);
   };
 
   const handleDelete = async () => {
@@ -128,38 +201,67 @@ const PostCard = React.memo(({ post, onInteraction, onDelete }) => {
   const formatTime = (date) => new Date(date).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
   
   return (
-    <Card ref={postRef} className="border-slate-700/50 overflow-hidden">
+    <Card ref={postRef} className="border-border/50 overflow-hidden bg-card">
       <CardContent className="p-4">
+        {post.quote_content && <p className="text-sm text-muted-foreground mb-2">Repostado por <Link to={`/services/x/profile/${authorHandle}`} className="font-bold text-foreground hover:underline">{authorName}</Link></p>}
         <div className="flex items-start space-x-4">
-          <Link to={`/services/x/profile/${authorHandle}`}><img src={post.author.avatar_url} alt={authorHandle} className="w-12 h-12 rounded-full" /></Link>
+          <Link to={`/services/x/profile/${authorHandle}`}><img src={post.author.x_avatar_url || `https://api.dicebear.com/7.x/micah/svg?seed=${authorHandle}`} alt={authorHandle} className="w-12 h-12 rounded-full" /></Link>
           <div className="flex-1">
             <div className="flex items-center justify-between">
               <div>
-                <Link to={`/services/x/profile/${authorHandle}`} className="font-bold text-white hover:underline">{authorName}</Link>
-                <p className="text-sm text-gray-400">@{authorHandle} · <span title={formatTime(post.created_at)}>{formatTime(post.created_at)}</span></p>
+                <div className="flex items-center gap-2">
+                  <Link to={`/services/x/profile/${authorHandle}`} className="font-bold text-foreground hover:underline">{authorName}</Link>
+                  {post.author.titles?.map(title => <UserBadge key={title} title={title} />)}
+                </div>
+                <p className="text-sm text-muted-foreground">@{authorHandle} · <span title={formatTime(post.created_at)}>{formatTime(post.created_at)}</span></p>
               </div>
               {currentUser.id === post.user_id && (
-                <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}><DialogTrigger asChild><Button variant="ghost" size="icon" className="text-gray-400 hover:text-red-500"><Trash2 className="w-4 h-4" /></Button></DialogTrigger>
-                  <DialogContent className="glass-effect text-white"><DialogHeader><DialogTitle>Confirmar Exclusão</DialogTitle><DialogDescription className="text-gray-300">Tem certeza que deseja excluir este post? Esta ação não pode ser desfeita.</DialogDescription></DialogHeader><DialogFooter><DialogClose asChild><Button variant="outline">Cancelar</Button></DialogClose><Button variant="destructive" onClick={handleDelete}>Excluir</Button></DialogFooter></DialogContent>
+                <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}><DialogTrigger asChild><Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive"><Trash2 className="w-4 h-4" /></Button></DialogTrigger>
+                  <DialogContent className="glass-effect text-foreground"><DialogHeader><DialogTitle>Confirmar Exclusão</DialogTitle><DialogDescription className="text-muted-foreground">Tem certeza que deseja excluir este post? Esta ação não pode ser desfeita.</DialogDescription></DialogHeader><DialogFooter><DialogClose asChild><Button variant="outline">Cancelar</Button></DialogClose><Button variant="destructive" onClick={handleDelete}>Excluir</Button></DialogFooter></DialogContent>
                 </Dialog>
               )}
             </div>
-            <p className="text-white mt-2 whitespace-pre-wrap">{post.content}</p>
-            {post.image_url && <img src={post.image_url} alt="Post" className="mt-3 rounded-lg border border-slate-700/50 max-h-96 w-auto" />}
+            {post.quote_content && <p className="text-foreground mt-2 whitespace-pre-wrap">{post.quote_content}</p>}
+            <p className="text-foreground mt-2 whitespace-pre-wrap">{post.content}</p>
+            {post.image_url && <img  src={post.image_url} alt="Post" className="mt-3 rounded-lg border border-border/50 max-h-96 w-auto" />}
+            {post.original_post && <OriginalPostCard post={post.original_post} />}
+
           </div>
         </div>
       </CardContent>
-      <CardFooter className="px-4 py-2 flex justify-between items-center border-t border-slate-700/50">
-        <div className="flex items-center space-x-2 md:space-x-4 text-gray-400 text-sm">
+      <CardFooter className="px-4 py-2 flex justify-between items-center border-t border-border/50">
+        <div className="flex items-center space-x-2 md:space-x-4 text-muted-foreground text-sm">
           <motion.button whileTap={{ scale: 0.9 }} onClick={handleCommentToggle} className="flex items-center space-x-1 hover:text-blue-400 transition-colors"><MessageCircle className="w-5 h-5" /><span className="hidden sm:inline">Comentar</span><span>({commentsCount})</span></motion.button>
-          <motion.button whileTap={{ scale: 0.9 }} onClick={handleRepost} className={`flex items-center space-x-1 hover:text-green-400 transition-colors ${isReposted ? 'text-green-500' : ''}`}><Repeat2 className="w-5 h-5" /><span className="hidden sm:inline">Repostar</span><span>({repostsCount})</span></motion.button>
+          
+          <Dialog open={isRepostDialogOpen} onOpenChange={setIsRepostDialogOpen}>
+            <DialogTrigger asChild>
+              <motion.button whileTap={{ scale: 0.9 }} onClick={() => !isReposted && setIsRepostDialogOpen(true)} className={`flex items-center space-x-1 hover:text-green-400 transition-colors ${isReposted ? 'text-green-500' : ''}`}>
+                  <Repeat2 className="w-5 h-5" />
+                  <span className="hidden sm:inline">Repostar</span>
+                  <span>({repostsCount})</span>
+              </motion.button>
+            </DialogTrigger>
+            <DialogContent className="glass-effect text-foreground">
+                <DialogHeader>
+                    <DialogTitle>Repostar</DialogTitle>
+                    <DialogDescription>Adicione um comentário ou apenas reposte.</DialogDescription>
+                </DialogHeader>
+                <Textarea value={quoteContent} onChange={(e) => setQuoteContent(e.target.value)} placeholder="Adicione um comentário..." className="my-4 bg-secondary border-border" />
+                <OriginalPostCard post={post} />
+                <DialogFooter>
+                    <Button variant="outline" type="button" onClick={() => setIsRepostDialogOpen(false)}>Cancelar</Button>
+                    <Button onClick={submitRepost} disabled={isSubmittingRepost}>{isSubmittingRepost && <Loader2 className="animate-spin w-4 h-4 mr-2" />}Repostar</Button>
+                </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
           <motion.button whileTap={{ scale: 0.9 }} onClick={handleLike} className={`flex items-center space-x-1 hover:text-pink-500 transition-colors ${isLiked ? 'text-pink-500' : ''}`}><Heart className={`w-5 h-5 ${isLiked ? 'fill-current' : ''}`} /><span className="hidden sm:inline">Curtir</span><span>({likesCount})</span></motion.button>
           <div className="flex items-center space-x-1"><BarChart2 className="w-5 h-5" /><span>{viewsCount || 0}</span></div>
         </div>
       </CardFooter>
       <AnimatePresence>
         {isCommenting && (
-          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="px-4 pb-4 border-t border-slate-700/50">
+          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="px-4 pb-4 border-t border-border/50">
             <form onSubmit={handleCommentSubmit} className="flex space-x-2 mt-4">
               <Textarea value={commentContent} onChange={(e) => setCommentContent(e.target.value)} placeholder="Poste sua resposta" className="resize-none" rows={1} />
               <Button type="submit" size="icon" disabled={isSubmittingComment}>{isSubmittingComment ? <Loader2 className="animate-spin w-4 h-4"/> : <Send className="w-4 h-4" />}</Button>

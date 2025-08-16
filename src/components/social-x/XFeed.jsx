@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabaseClient';
@@ -6,8 +6,10 @@ import { useToast } from "@/components/ui/use-toast";
 import { Button } from '@/components/ui/button';
 import CreatePostForm from './CreatePostForm';
 import PostCard from './PostCard';
+import { useOutletContext } from 'react-router-dom';
 
-const XFeed = ({ postInputRef }) => {
+const XFeed = () => {
+    const { postInputRef } = useOutletContext();
     const { user } = useAuth();
     const { toast } = useToast();
     const [posts, setPosts] = useState([]);
@@ -73,11 +75,8 @@ const XFeed = ({ postInputRef }) => {
     }, [user, fetchPosts]);
 
     return (
-        <main>
-            <div className="p-4 border-b border-slate-700/50">
-                <h1 className="text-xl font-bold text-white">Página Inicial</h1>
-            </div>
-            <div className="p-4 border-b border-slate-700/50">
+        <div>
+            <div className="p-4 border-b border-border">
                 <CreatePostForm ref={postInputRef} onPostCreated={handlePostCreated} />
             </div>
 
@@ -94,13 +93,13 @@ const XFeed = ({ postInputRef }) => {
             <div className="space-y-0">
                 <AnimatePresence>
                     {posts.map(post => (
-                        <motion.div key={post.id} layout initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="border-b border-slate-700/50">
+                        <motion.div key={post.id} layout initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="border-b border-border">
                             <PostCard post={post} onDelete={handleDeletePost} />
                         </motion.div>
                     ))}
                 </AnimatePresence>
             </div>
-        </main>
+        </div>
     );
 };
 

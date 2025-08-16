@@ -5,11 +5,36 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
 
 :root {
+  --background: 220 20% 97%;
+  --foreground: 220 10% 15%;
+  --card: 220 20% 100%;
+  --card-foreground: 220 10% 15%;
+  --popover: 220 20% 100%;
+  --popover-foreground: 220 10% 15%;
+  --primary: 262.1 83.3% 57.8%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 220 15% 94%;
+  --secondary-foreground: 220 10% 20%;
+  --muted: 220 15% 90%;
+  --muted-foreground: 220 9% 55%;
+  --accent: 220 15% 92%;
+  --accent-foreground: 220 10% 20%;
+  --destructive: 0 84.2% 60.2%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 220 15% 88%;
+  --input: 220 15% 88%;
+  --ring: 262.1 83.3% 57.8%;
+  --radius: 0.75rem;
+  --glass-bg: rgba(255, 255, 255, 0.6);
+  --glass-border: rgba(0, 0, 0, 0.08);
+}
+
+.dark {
   --background: 222.2 84% 4.9%;
   --foreground: 210 40% 98%;
   --card: 222.2 84% 4.9%;
   --card-foreground: 210 40% 98%;
-  --popover: 222.2 84% 4.9%;
+  --popover: 224 71.4% 4.1%;
   --popover-foreground: 210 40% 98%;
   --primary: 217.2 91.2% 59.8%;
   --primary-foreground: 222.2 84% 4.9%;
@@ -17,14 +42,15 @@
   --secondary-foreground: 210 40% 98%;
   --muted: 217.2 32.6% 17.5%;
   --muted-foreground: 215 20.2% 65.1%;
-  --accent: 217.2 32.6% 17.5%;
+  --accent: 217.2 32.6% 25.5%;
   --accent-foreground: 210 40% 98%;
   --destructive: 0 62.8% 30.6%;
   --destructive-foreground: 210 40% 98%;
   --border: 217.2 32.6% 17.5%;
   --input: 217.2 32.6% 17.5%;
   --ring: 224.3 76.3% 94.1%;
-  --radius: 0.75rem;
+  --glass-bg: rgba(22, 28, 44, 0.5);
+  --glass-border: rgba(255, 255, 255, 0.1);
 }
 
 * {
@@ -37,16 +63,24 @@ html.menu-open {
 
 body {
   font-family: 'Inter', sans-serif;
-  background: hsl(var(--background));
+  background-color: hsl(var(--background));
   min-height: 100vh;
   color: hsl(var(--foreground));
   overflow-x: hidden;
 }
 
+.dark body {
+  background: linear-gradient(to bottom right, hsl(var(--background)), hsl(250 50% 8%));
+}
+
+.light body {
+  background-color: hsl(220 20% 97%);
+}
+
 .glass-effect {
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--glass-bg);
   backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--glass-border);
 }
 
 .gradient-text {
@@ -98,8 +132,8 @@ body {
 
 .hero-pattern {
   background-image: 
-    radial-gradient(circle at 25% 25%, rgba(102, 126, 234, 0.1) 0%, transparent 50%),
-    radial-gradient(circle at 75% 75%, rgba(118, 75, 162, 0.1) 0%, transparent 50%);
+    radial-gradient(circle at 25% 25%, hsla(var(--primary), 0.1) 0%, transparent 50%),
+    radial-gradient(circle at 75% 75%, hsla(275, 39%, 41%, 0.1) 0%, transparent 50%);
 }
 
 .service-card {
@@ -123,7 +157,7 @@ body {
   left: -100%;
   width: 100%;
   height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(102, 126, 234, 0.4), transparent);
+  background: linear-gradient(90deg, transparent, hsla(var(--primary), 0.4), transparent);
   transition: left 0.5s;
 }
 
@@ -137,8 +171,8 @@ body {
   width: 100%;
   height: 2.75rem; 
   padding-left: 2.5rem;
-  background-color: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background-color: hsl(var(--secondary));
+  border: 1px solid hsl(var(--border));
   border-radius: 0.5rem;
   transition: all 0.2s ease-in-out;
 }
@@ -152,7 +186,7 @@ body {
   background-color: transparent;
   border: none;
   outline: none;
-  color: white;
+  color: hsl(var(--foreground));
   font-size: 0.875rem;
   width: 100%;
   height: 100%;
@@ -160,7 +194,7 @@ body {
 }
 
 .phone-input-control .PhoneInputInput::placeholder {
-  color: #9ca3af;
+  color: hsl(var(--muted-foreground));
 }
 
 .phone-input-control .PhoneInputCountry {
@@ -168,10 +202,10 @@ body {
 }
 
 .PhoneInputCountrySelect {
-  background-color: #1f2937 !important;
-  color: white !important;
+  background-color: hsl(var(--secondary)) !important;
+  color: hsl(var(--foreground)) !important;
   border-radius: 0.5rem !important;
-  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border: 1px solid hsl(var(--border)) !important;
 }
 
 .PhoneInputCountrySelect-arrow {
@@ -179,7 +213,7 @@ body {
 }
 
 .PhoneInputCountrySelect:focus, .PhoneInputCountrySelect:hover {
-  background-color: #374151 !important;
+  background-color: hsl(var(--accent)) !important;
 }
 
 .PhoneInputCountryIcon {

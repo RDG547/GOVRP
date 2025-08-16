@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { BookOpen, Shield, Users, Code, LifeBuoy, Server, Landmark, Briefcase, FileText, MessageSquare, Library, Archive, ArrowRight, GitBranch } from 'lucide-react';
+import { BookOpen, Shield, Users, Code, LifeBuoy, Server, Landmark, Briefcase, FileText, MessageSquare, Library, Archive, ArrowRight, GitBranch, HelpCircle, Scale, Gavel, Vote, Eye, ShieldCheck, Headphones, Crown, DollarSign } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
@@ -11,11 +11,13 @@ import PageHeader from '@/components/layout/PageHeader';
 
 const sections = [
   { id: 'introducao', title: 'Introdução', icon: BookOpen },
+  { id: 'tutorial', title: 'Tutorial Guiado', icon: HelpCircle },
   { id: 'servicos', title: 'Serviços', icon: Server },
+  { id: 'admin', title: 'Painel Admin', icon: Crown },
   { id: 'seguranca', title: 'Segurança', icon: Shield },
   { id: 'regras', title: 'Regras', icon: Users },
   { id: 'desenvolvedores', title: 'Desenvolvedores', icon: Code },
-  { id: 'suporte', title: 'Suporte', icon: LifeBuoy },
+  { id: 'suporte', title: 'Suporte', icon: Headphones },
 ];
 
 const ServiceCard = ({ icon: Icon, title, description, color, children }) => (
@@ -56,9 +58,24 @@ const SectionContent = ({ id }) => {
         <h4 className="text-xl font-semibold text-white mb-3">Primeiros Passos:</h4>
         <ol className="list-decimal list-inside space-y-3">
           <li><strong>Crie sua Conta:</strong> O primeiro passo é <Link to="/register" className="text-blue-400 hover:underline">se cadastrar</Link> e criar seu cidadão virtual.</li>
+          <li><strong>Faça o Tutorial:</strong> Ao entrar pela primeira vez, um tutorial guiado irá apresentar as principais funcionalidades. Recomendamos fortemente que você o siga.</li>
           <li><strong>Explore os Serviços:</strong> Familiarize-se com os <Link to="/services" className="text-blue-400 hover:underline">serviços disponíveis</Link>. Abra sua conta bancária, solicite seus documentos e prepare-se para a vida política.</li>
           <li><strong>Defina seu Caminho:</strong> Você será um político influente, um empresário de sucesso, um jornalista investigativo ou um cidadão comum? As escolhas são suas!</li>
         </ol>
+      </div>
+    ),
+    tutorial: (
+      <div>
+        <h3 className="text-2xl font-bold text-white mb-4">Tutorial Guiado</h3>
+        <p className="mb-4">Para garantir que você comece com o pé direito, desenvolvemos um tutorial interativo que é exibido automaticamente no seu primeiro acesso. Este tour destaca os elementos mais importantes da interface e explica as funcionalidades básicas.</p>
+        <h4 className="text-xl font-semibold text-white mb-3">Como funciona?</h4>
+        <ul className="list-disc list-inside space-y-2 mb-4">
+          <li><strong>Aparição Automática:</strong> O tutorial inicia assim que você faz login pela primeira vez.</li>
+          <li><strong>"Não mostrar novamente":</strong> Durante o tutorial, você pode marcar uma caixa para que ele não apareça nos próximos logins.</li>
+          <li><strong>Reativando o Tutorial:</strong> Mudou de ideia? Você pode reativar o tutorial a qualquer momento. Vá até o seu <Link to="/dashboard" className="text-blue-400 hover:underline">Dashboard</Link>, onde encontrará um interruptor para habilitar ou desabilitar a exibição do tutorial no próximo login.</li>
+          <li><strong>Refazendo o Tour:</strong> Se quiser apenas rever o tutorial sem alterar suas configurações, clique no botão "Refazer Tutorial" no seu Dashboard.</li>
+        </ul>
+        <p>Recomendamos que todos os novos usuários completem o tutorial para uma melhor compreensão da plataforma.</p>
       </div>
     ),
     servicos: (
@@ -90,6 +107,8 @@ const SectionContent = ({ id }) => {
             <ul>
               <li>Carteira Nacional de Habilitação (CNH) para conduzir veículos.</li>
               <li>Passaporte para viagens internacionais dentro do RP.</li>
+              <li>Cadastro Nacional da Pessoa Jurídica (CNPJ) para suas empresas.</li>
+              <li>Carteira de Trabalho Digital (CTD) para registros empregatícios.</li>
             </ul>
           </ServiceCard>
           <ServiceCard icon={MessageSquare} title="Rede Social X" description="Compartilhe suas ideias, noticie eventos e construa sua imagem." color="text-sky-400">
@@ -101,15 +120,89 @@ const SectionContent = ({ id }) => {
               <li>Construir sua imagem pública, seja como político, empresário ou ativista.</li>
             </ul>
           </ServiceCard>
-          <ServiceCard icon={Library} title="Biblioteca Nacional" description="Um acervo de conhecimento com leis e documentos históricos." color="text-orange-400">
-            <p>A Biblioteca Nacional é um site externo que funciona como um vasto repositório de conhecimento, permitindo o download de livros, artigos e documentos em PDF.</p>
-            <p>Pense nela como uma grande biblioteca digital, similar a projetos como Z-Library, onde você pode acessar uma infinidade de materiais para estudo e leitura.</p>
+          <ServiceCard icon={Users} title="Partidos Políticos" description="Crie ou filie-se a um partido para participar da vida política." color="text-red-400">
+            <p>A política é o coração do GOV.RP. Os partidos são a principal forma de organização política. Através deles, você pode:</p>
+            <ul>
+              <li>Fundar seu próprio partido com uma ideologia única.</li>
+              <li>Filiar-se a um partido existente para apoiar uma causa.</li>
+              <li>Lançar sua candidatura a cargos públicos.</li>
+              <li>Participar de debates e formar alianças.</li>
+            </ul>
           </ServiceCard>
-          <ServiceCard icon={Archive} title="Acervo Digital" description="Links para jogos, softwares, cursos e outros recursos." color="text-rose-400">
-            <p>O Acervo Digital é um repositório de links selecionados que te redireciona para um mundo de recursos, incluindo downloads de jogos, softwares, cursos e muito mais.</p>
-            <p>É o seu portal de acesso rápido para entretenimento e aprendizado, funcionando como uma ponte para conteúdos externos de qualidade.</p>
+          <ServiceCard icon={Scale} title="Parlamento" description="Proponha, debata e vote em projetos de lei que moldam a nação." color="text-yellow-400">
+            <p>O Parlamento é o poder legislativo do nosso roleplay, dividido entre a Câmara dos Deputados e o Senado. Como parlamentar, você pode:</p>
+            <ul>
+              <li>Propor projetos de lei.</li>
+              <li>Debater e votar em propostas de outros membros.</li>
+              <li>Fiscalizar as ações do poder executivo.</li>
+              <li>Representar os interesses dos seus eleitores.</li>
+            </ul>
+          </ServiceCard>
+          <ServiceCard icon={Gavel} title="Sistema Penal" description="Consulte registros criminais e o status do sistema prisional." color="text-amber-400">
+            <p>A justiça e a ordem são mantidas através do Sistema Penal. Este serviço permite:</p>
+            <ul>
+              <li>Consultar o registro criminal de qualquer cidadão.</li>
+              <li>Acompanhar o status de sentenças e penas.</li>
+              <li>Juízes e promotores podem gerenciar processos e condenações.</li>
+            </ul>
+          </ServiceCard>
+          <ServiceCard icon={Vote} title="Eleições" description="Exerça seu direito de voto e acompanhe os resultados eleitorais." color="text-teal-400">
+            <p>A democracia é exercida através do voto. No portal de Eleições, você pode:</p>
+            <ul>
+              <li>Verificar as eleições ativas.</li>
+              <li>Conhecer os candidatos e suas propostas.</li>
+              <li>Votar em seus representantes.</li>
+              <li>Acompanhar a apuração dos votos em tempo real.</li>
+            </ul>
+          </ServiceCard>
+          <ServiceCard icon={Shield} title="Polícia" description="Acesse os serviços do departamento de polícia e registre ocorrências." color="text-indigo-400">
+            <p>O Departamento de Polícia é responsável pela segurança e ordem. O acesso ao painel é restrito a membros da corporação, que podem:</p>
+            <ul>
+              <li>Registrar e consultar ocorrências.</li>
+              <li>Gerenciar investigações.</li>
+              <li>Acessar o banco de dados de cidadãos para fins de segurança.</li>
+            </ul>
+          </ServiceCard>
+          <ServiceCard icon={Eye} title="AGIES" description="Agência de Inteligência e Espionagem Suprema (acesso restrito)." color="text-pink-400">
+            <p>A AGIES atua nos bastidores para garantir a segurança nacional. O acesso é altamente restrito a agentes autorizados, que utilizam o painel para:</p>
+            <ul>
+              <li>Gerenciar operações de inteligência.</li>
+              <li>Monitorar ameaças internas e externas.</li>
+              <li>Coletar e analisar informações sigilosas.</li>
+            </ul>
+          </ServiceCard>
+          <ServiceCard icon={ShieldCheck} title="Forças Armadas" description="Painel de controle e informações das Forças Armadas (acesso restrito)." color="text-lime-400">
+            <p>As Forças Armadas são a defesa da nossa nação. O painel é de uso exclusivo de militares e permite:</p>
+            <ul>
+              <li>Planejar e acompanhar operações militares.</li>
+              <li>Gerenciar recursos e pessoal.</li>
+              <li>Coordenar a defesa do território nacional.</li>
+            </ul>
+          </ServiceCard>
+          <ServiceCard icon={DollarSign} title="Renda Cidadã" description="Um benefício semanal para todos os cidadãos." color="text-emerald-400">
+            <p>A Renda Cidadã é um sistema de distribuição de renda para garantir um nível básico de bem-estar a todos os cidadãos. Funciona da seguinte forma:</p>
+            <ul>
+              <li>Todo cidadão com conta bancária ativa recebe um valor semanal.</li>
+              <li>O pagamento é automático e ocorre em um dia fixo da semana.</li>
+              <li>O valor e o dia do pagamento podem ser ajustados pela administração da plataforma para equilibrar a economia.</li>
+            </ul>
           </ServiceCard>
         </div>
+      </div>
+    ),
+    admin: (
+      <div>
+        <h3 className="text-2xl font-bold text-white mb-4">Painel de Administração</h3>
+        <p className="mb-4">O Painel de Administração é uma ferramenta poderosa e de acesso restrito, disponível apenas para usuários com o cargo de 'Admin'. Ele permite o gerenciamento completo da plataforma.</p>
+        <h4 className="text-xl font-semibold text-white mb-3">Funcionalidades Principais:</h4>
+        <ul className="list-disc list-inside space-y-2 mb-4">
+          <li><strong>Gerenciamento de Usuários:</strong> Admins podem visualizar, editar e gerenciar todos os usuários da plataforma. Isso inclui alterar nomes, cargos e até mesmo remover usuários, se necessário.</li>
+          <li><strong>Moderação de Conteúdo:</strong> Ferramentas para moderar posts, comentários e outros conteúdos gerados pelos usuários, garantindo um ambiente seguro e em conformidade com as regras.</li>
+          <li><strong>Controle Financeiro:</strong> Admins têm a capacidade de adicionar ou remover fundos das contas bancárias dos usuários, uma ferramenta essencial para corrigir erros, aplicar multas ou distribuir recompensas.</li>
+          <li><strong>Configurações do Sistema:</strong> Ajuste de parâmetros globais da plataforma, como o valor e a frequência da Renda Cidadã, taxas de serviços, entre outros.</li>
+          <li><strong>Análises e Estatísticas:</strong> Visualização de dados e métricas sobre o uso da plataforma, como número de usuários, transações e atividades gerais.</li>
+        </ul>
+        <p>O acesso a este painel é um privilégio que vem com grande responsabilidade. Todas as ações são registradas para garantir a transparência e a segurança.</p>
       </div>
     ),
     seguranca: (

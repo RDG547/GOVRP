@@ -87,7 +87,7 @@ const XProfile = () => {
         }));
     };
 
-    if (loading) return <div className="flex justify-center items-center h-96"><Loader2 className="w-12 h-12 animate-spin text-blue-400" /></div>;
+    if (loading) return <div className="flex justify-center items-center h-96"><Loader2 className="w-12 h-12 animate-spin text-primary" /></div>;
     if (error || !profileData.profile) return <ErrorPage title="Perfil não encontrado" message={error} />;
     
     const { profile, posts, followersCount, followingCount, isFollowing } = profileData;
@@ -98,7 +98,7 @@ const XProfile = () => {
             <Helmet>
                 <title>{profileName} (@{profile.x_handle}) - GOV.RP X</title>
             </Helmet>
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="p-4">
                 <ProfileHeader
                     profile={profile}
                     followers={followersCount}

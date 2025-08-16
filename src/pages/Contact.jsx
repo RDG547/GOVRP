@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Helmet } from 'react-helmet-async';
-import { Mail, Send, LifeBuoy, ArrowRight, Users } from 'lucide-react';
+import { Mail, Send, Headphones as Headset, ArrowRight, Users, Phone } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -10,27 +10,63 @@ import { useToast } from '@/components/ui/use-toast';
 import { Link } from 'react-router-dom';
 import { FaDiscord, FaWhatsapp, FaTelegram } from 'react-icons/fa';
 import PageHeader from '@/components/layout/PageHeader';
+import { useAuth } from '@/contexts/AuthContext';
+import { formatPhone } from '@/lib/utils';
+import { supabase } from '@/lib/supabaseClient';
 
 const Contact = () => {
-    const [formData, setFormData] = useState({ name: '', email: '', subject: 'Contato Geral', message: '' });
-    const [loading, setLoading] = useState(false);
+    const { user } = useAuth();
     const { toast } = useToast();
+    const [formData, setFormData] = useState({ name: '', email: '', phone: '', message: '' });
+    const [loading, setLoading] = useState(false);
+
+    useEffect(() => {
+        if (user) {
+            setFormData(prev => ({
+                ...prev,
+                name: user.full_name || '',
+                email: user.email || '',
+                phone: user.phone ? formatPhone(user.phone) : ''
+            }));
+        }
+    }, [user]);
 
     const handleChange = (e) => {
-        setFormData({ ...formData, [e.target.name]: e.target.value });
+        const { name, value } = e.target;
+        if (name === 'phone') {
+            setFormData({ ...formData, [name]: formatPhone(value) });
+        } else {
+            setFormData({ ...formData, [name]: value });
+        }
     };
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
         setLoading(true);
-        setTimeout(() => {
-            setLoading(false);
+        
+        try {
+            const { data, error } = await supabase.functions.invoke('send-contact-email', {
+                body: { ...formData, type: 'contact' },
+            });
+
+            if (error) throw error;
+            
             toast({
                 title: "Mensagem enviada!",
                 description: "Obrigado pelo seu contato. Responderemos em breve.",
             });
-            setFormData({ name: '', email: '', subject: 'Contato Geral', message: '' });
-        }, 1500);
+            if (!user) {
+                setFormData({ name: '', email: '', phone: '', message: '' });
+            }
+        } catch (error) {
+            toast({
+                title: "Erro ao enviar mensagem",
+                description: "Houve um problema ao enviar seu contato. Tente novamente mais tarde.",
+                variant: "destructive",
+            });
+        } finally {
+            setLoading(false);
+        }
     };
   
   const communityChannels = [
@@ -77,15 +113,17 @@ const Contact = () => {
                             </div>
                         </div>
                         <div>
+                            <Label htmlFor="phone" className="text-gray-300 mb-2 block">Telefone (Opcional)</Label>
+                            <Input id="phone" name="phone" type="tel" value={formData.phone} onChange={handleChange} className="bg-white/5 border-white/10" placeholder="(00) 00000-0000" />
+                        </div>
+                        <div>
                            <Label htmlFor="message" className="text-gray-300 mb-2 block">Sua Mensagem</Label>
                            <Textarea id="message" name="message" rows="6" required value={formData.message} onChange={handleChange} className="bg-white/5 border-white/10" placeholder="Escreva sua dúvida ou feedback..."></Textarea>
                         </div>
                         <div className="pt-2">
-                           <a href={`mailto:suporte@govrp.online?subject=Contato Geral: ${formData.name}&body=${formData.message}`} className="w-full">
-                              <Button type="button" disabled={loading || !formData.name || !formData.email || !formData.message} size="lg" className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">
-                                {loading ? 'Enviando...' : <><Send className="w-5 h-5 mr-2" /> Enviar por E-mail</>}
-                              </Button>
-                           </a>
+                            <Button type="submit" disabled={loading || !formData.name || !formData.email || !formData.message} size="lg" className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">
+                                {loading ? 'Enviando...' : <><Send className="w-5 h-5 mr-2" /> Enviar Mensagem</>}
+                            </Button>
                         </div>
                     </form>
                 </div>
@@ -122,7 +160,7 @@ const Contact = () => {
                 <div className="glass-effect rounded-2xl p-6 border border-blue-500/30 bg-blue-500/10">
                   <div className="flex items-center gap-4">
                     <div className="flex-shrink-0 w-12 h-12 bg-gradient-to-br from-blue-600 to-purple-600 rounded-full flex items-center justify-center">
-                        <LifeBuoy className="w-6 h-6 text-white"/>
+                        <Headset className="w-6 h-6 text-white"/>
                     </div>
                     <div>
                       <h3 className="text-xl font-bold text-white">Precisa de Ajuda Técnica?</h3>

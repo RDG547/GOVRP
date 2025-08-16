@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Helmet } from 'react-helmet-async';
-import { Eye, EyeOff, Mail, Lock, User } from 'lucide-react';
+import { Eye, EyeOff, Lock, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/components/ui/use-toast';
@@ -26,16 +26,20 @@ const Login = () => {
     e.preventDefault();
     setLoading(true);
     try {
-      await login({ identifier: formData.identifier, password: formData.password });
+      const { user } = await login({ identifier: formData.identifier, password: formData.password });
       toast({
         title: "Login realizado com sucesso!",
-        description: `Bem-vindo de volta!`,
+        description: `Bem-vindo de volta, ${user.full_name || user.username}!`,
       });
-      navigate('/');
+      if (user.role === 'Admin') {
+        navigate('/admin-dashboard');
+      } else {
+        navigate('/');
+      }
     } catch (error) {
       toast({
-        title: "Erro no login",
-        description: error.message || "Credenciais inválidas.",
+        title: "Erro no Login",
+        description: error.message || "Credenciais inválidas. Por favor, verifique seu identificador e senha.",
         variant: "destructive",
       });
     } finally {

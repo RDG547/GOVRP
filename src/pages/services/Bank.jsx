@@ -64,7 +64,7 @@ const Bank = () => {
           .select('*, from_account:accounts!transactions_from_account_id_fkey(profiles(full_name)), to_account:accounts!transactions_to_account_id_fkey(profiles(full_name))')
           .or(`from_account_id.eq.${account.id},to_account_id.eq.${account.id}`)
           .order('created_at', { ascending: false })
-          .limit(10);
+          .limit(20);
         
         if (transactionsError) throw transactionsError;
         transactions = transactionsData;

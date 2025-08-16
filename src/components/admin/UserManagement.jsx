@@ -1,11 +1,10 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader2, Edit, Trash2, Shield, Search, PlusCircle, MinusCircle, Wallet } from 'lucide-react';
+import { Loader2, Edit, Trash2, Shield, Search, Wallet, Crown } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -24,6 +23,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { useAuth } from '@/contexts/AuthContext';
+import { Badge } from '@/components/ui/badge';
 
 
 const ModifyBalanceDialog = ({ user, onFinish }) => {
@@ -95,14 +96,69 @@ const ModifyBalanceDialog = ({ user, onFinish }) => {
     );
 };
 
+const EditUserDialog = ({ user, onFinish, onUpdate }) => {
+    const [formData, setFormData] = useState({
+        full_name: user.full_name || '',
+        username: user.username || '',
+        role: user.role || 'Cidadão',
+        titles: user.titles?.join(', ') || ''
+    });
+    const [isProcessing, setIsProcessing] = useState(false);
+    const { toast } = useToast();
+
+    const handleChange = (e) => {
+        setFormData(prev => ({ ...prev, [e.target.id]: e.target.value }));
+    };
+
+    const handleSubmit = async () => {
+        setIsProcessing(true);
+        const titlesArray = formData.titles.split(',').map(t => t.trim()).filter(Boolean);
+        
+        const { data, error } = await supabase.rpc('admin_update_user', {
+            p_user_id: user.id,
+            p_full_name: formData.full_name,
+            p_username: formData.username,
+            p_role: formData.role,
+            p_titles: titlesArray
+        });
+
+        if (error || !data.success) {
+            toast({ title: "Erro ao atualizar", description: data?.message || error.message, variant: "destructive" });
+        } else {
+            toast({ title: "Sucesso", description: data.message });
+            onUpdate();
+            onFinish();
+        }
+        setIsProcessing(false);
+    };
+
+    return (
+        <DialogContent className="glass-effect text-white">
+            <DialogHeader>
+                <DialogTitle>Editar Usuário: {user.full_name}</DialogTitle>
+            </DialogHeader>
+            <div className="py-4 space-y-4">
+                <div><Label htmlFor="full_name">Nome Completo</Label><Input id="full_name" value={formData.full_name} onChange={handleChange} /></div>
+                <div><Label htmlFor="username">Username</Label><Input id="username" value={formData.username} onChange={handleChange} /></div>
+                <div><Label htmlFor="role">Cargo</Label><Input id="role" value={formData.role} onChange={handleChange} /></div>
+                <div><Label htmlFor="titles">Títulos (separados por vírgula)</Label><Input id="titles" value={formData.titles} onChange={handleChange} /></div>
+            </div>
+            <DialogFooter>
+                <DialogClose asChild><Button variant="outline">Cancelar</Button></DialogClose>
+                <Button onClick={handleSubmit} disabled={isProcessing}>{isProcessing && <Loader2 className="animate-spin mr-2 w-4 h-4"/>} Salvar</Button>
+            </DialogFooter>
+        </DialogContent>
+    );
+};
+
 const UserManagement = () => {
+    const { user: adminUser } = useAuth();
     const { toast } = useToast();
     const [users, setUsers] = useState([]);
-    const [loading, setLoading] = useState(false);
+    const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [editingUser, setEditingUser] = useState(null);
     const [modifyingBalanceUser, setModifyingBalanceUser] = useState(null);
-    const [isUpdating, setIsUpdating] = useState(false);
 
     const fetchUsers = useCallback(async () => {
         setLoading(true);
@@ -116,27 +172,13 @@ const UserManagement = () => {
     }, [toast]);
 
     useEffect(() => {
-        fetchUsers();
-    }, [fetchUsers]);
-    
-    const handleUpdateUser = async () => {
-        setIsUpdating(true);
-        const { error } = await supabase.rpc('admin_update_user', {
-            p_user_id: editingUser.id,
-            p_role: editingUser.role,
-            p_full_name: editingUser.full_name,
-        });
-
-        if (error) {
-            toast({ title: "Erro ao atualizar", description: error.message, variant: "destructive" });
-        } else {
-            toast({ title: "Sucesso", description: "Usuário atualizado com sucesso." });
-            setEditingUser(null);
+        if(adminUser?.role === 'Admin') {
             fetchUsers();
+        } else {
+            setLoading(false);
         }
-        setIsUpdating(false);
-    };
-
+    }, [fetchUsers, adminUser]);
+    
     const handleDeleteUser = async (userId, userName) => {
         const { error } = await supabase.rpc('admin_delete_user', { p_user_id: userId });
         if (error) {
@@ -152,12 +194,14 @@ const UserManagement = () => {
         fetchUsers();
     };
 
-
     const filteredUsers = users.filter(user =>
         (user.full_name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
         (user.username || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
         (user.email || '').toLowerCase().includes(searchTerm.toLowerCase())
     );
+
+    if (loading) return <div className="flex justify-center py-10"><Loader2 className="w-8 h-8 animate-spin text-blue-400" /></div>;
+    if (adminUser?.role !== 'Admin') return <div className="text-center py-10 text-white">Acesso não autorizado.</div>;
 
     return (
         <div className="space-y-6">
@@ -171,71 +215,51 @@ const UserManagement = () => {
                     className="pl-10"
                 />
             </div>
-            {loading ? (
-                 <div className="flex justify-center py-10"><Loader2 className="w-8 h-8 animate-spin text-blue-400" /></div>
-            ) : (
-                <div className="overflow-x-auto glass-effect rounded-lg border border-white/10">
-                    <table className="w-full text-sm text-left text-gray-300">
-                        <thead className="text-xs text-gray-400 uppercase bg-black/20">
-                            <tr>
-                                <th scope="col" className="px-6 py-3">Nome Completo</th>
-                                <th scope="col" className="px-6 py-3">Username</th>
-                                <th scope="col" className="px-6 py-3">Cargo</th>
-                                <th scope="col" className="px-6 py-3 text-center">Status dos Serviços</th>
-                                <th scope="col" className="px-6 py-3 text-right">Ações</th>
+            <div className="overflow-x-auto glass-effect rounded-lg border border-white/10">
+                <table className="w-full text-sm text-left text-gray-300">
+                    <thead className="text-xs text-gray-400 uppercase bg-black/20">
+                        <tr>
+                            <th scope="col" className="px-6 py-3">Nome Completo</th>
+                            <th scope="col" className="px-6 py-3">Username</th>
+                            <th scope="col" className="px-6 py-3">Cargo</th>
+                            <th scope="col" className="px-6 py-3 text-center">Status dos Serviços</th>
+                            <th scope="col" className="px-6 py-3 text-right">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {filteredUsers.map(user => (
+                            <tr key={user.id} className="border-b border-slate-700 hover:bg-slate-800/50 transition-colors">
+                                <td className="px-6 py-4 font-medium text-white">{user.full_name}</td>
+                                <td className="px-6 py-4">@{user.username}</td>
+                                <td className="px-6 py-4 flex items-center gap-2">
+                                    {user.role}
+                                    {user.role === 'Admin' && <Crown className="w-4 h-4 text-yellow-400"/>}
+                                </td>
+                                <td className="px-6 py-4 text-center">
+                                  <Badge variant={user.x_handle ? 'default' : 'secondary'} className={user.x_handle ? 'bg-sky-500/20 text-sky-300' : ''}>X</Badge>{' '}
+                                  <Badge variant={user.has_bank_account ? 'default' : 'secondary'} className={user.has_bank_account ? 'bg-green-500/20 text-green-300' : ''}>Banco</Badge>
+                                </td>
+                                <td className="px-6 py-4 text-right space-x-2">
+                                    {user.has_bank_account && (
+                                        <Button variant="ghost" size="icon" onClick={() => setModifyingBalanceUser(user)}><Wallet className="w-4 h-4 text-green-400" /></Button>
+                                    )}
+                                    <Button variant="ghost" size="icon" onClick={() => setEditingUser({...user})}><Edit className="w-4 h-4 text-blue-400" /></Button>
+                                    <Dialog>
+                                        <DialogTrigger asChild><Button variant="ghost" size="icon" disabled={user.id === adminUser.id}><Trash2 className="w-4 h-4 text-red-400" /></Button></DialogTrigger>
+                                        <DialogContent className="glass-effect text-white">
+                                            <DialogHeader><DialogTitle>Confirmar Exclusão</DialogTitle><DialogDescription className="text-gray-300">Tem certeza que deseja excluir o usuário {user.full_name}? Esta ação é irreversível e removerá todos os dados associados.</DialogDescription></DialogHeader>
+                                            <DialogFooter><DialogClose asChild><Button variant="outline">Cancelar</Button></DialogClose><Button variant="destructive" onClick={() => handleDeleteUser(user.id, user.full_name)}>Excluir Permanentemente</Button></DialogFooter>
+                                        </DialogContent>
+                                    </Dialog>
+                                </td>
                             </tr>
-                        </thead>
-                        <tbody>
-                            {filteredUsers.map(user => (
-                                <tr key={user.id} className="border-b border-slate-700 hover:bg-slate-800/50 transition-colors">
-                                    <td className="px-6 py-4 font-medium text-white">{user.full_name}</td>
-                                    <td className="px-6 py-4">@{user.username}</td>
-                                    <td className="px-6 py-4 flex items-center gap-2">
-                                        {user.role}
-                                        {user.role === 'Admin' && <Shield className="w-4 h-4 text-red-400"/>}
-                                    </td>
-                                    <td className="px-6 py-4 text-center">
-                                      <span className={`px-2 py-1 rounded-full text-xs ${user.x_handle ? 'bg-sky-500/20 text-sky-300' : 'bg-gray-500/20 text-gray-300'}`}>X</span>{' '}
-                                      <span className={`px-2 py-1 rounded-full text-xs ${user.has_bank_account ? 'bg-green-500/20 text-green-300' : 'bg-gray-500/20 text-gray-300'}`}>Banco</span>
-                                    </td>
-                                    <td className="px-6 py-4 text-right space-x-2">
-                                        {user.has_bank_account && (
-                                            <Button variant="ghost" size="icon" onClick={() => setModifyingBalanceUser(user)}><Wallet className="w-4 h-4 text-green-400" /></Button>
-                                        )}
-                                        <Button variant="ghost" size="icon" onClick={() => setEditingUser({...user})}><Edit className="w-4 h-4 text-blue-400" /></Button>
-                                        <Dialog>
-                                            <DialogTrigger asChild><Button variant="ghost" size="icon"><Trash2 className="w-4 h-4 text-red-400" /></Button></DialogTrigger>
-                                            <DialogContent className="glass-effect text-white">
-                                                <DialogHeader><DialogTitle>Confirmar Exclusão</DialogTitle><DialogDescription className="text-gray-300">Tem certeza que deseja excluir o usuário {user.full_name}? Esta ação é irreversível e removerá todos os dados associados.</DialogDescription></DialogHeader>
-                                                <DialogFooter><DialogClose asChild><Button variant="outline">Cancelar</Button></DialogClose><Button variant="destructive" onClick={() => handleDeleteUser(user.id, user.full_name)}>Excluir Permanentemente</Button></DialogFooter>
-                                            </DialogContent>
-                                        </Dialog>
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
-            )}
+                        ))}
+                    </tbody>
+                </table>
+            </div>
              {editingUser && (
                 <Dialog open={!!editingUser} onOpenChange={() => setEditingUser(null)}>
-                    <DialogContent className="glass-effect text-white">
-                        <DialogHeader><DialogTitle>Editar Usuário: {editingUser.full_name}</DialogTitle></DialogHeader>
-                        <div className="py-4 space-y-4">
-                            <div>
-                                <Label htmlFor="edit-fullname" className="text-gray-300">Nome Completo</Label>
-                                <Input id="edit-fullname" value={editingUser.full_name} onChange={(e) => setEditingUser(u => ({...u, full_name: e.target.value}))} />
-                            </div>
-                             <div>
-                                <Label htmlFor="edit-role" className="text-gray-300">Cargo</Label>
-                                <Input id="edit-role" value={editingUser.role} onChange={(e) => setEditingUser(u => ({...u, role: e.target.value}))} />
-                            </div>
-                        </div>
-                        <DialogFooter>
-                            <Button variant="outline" onClick={() => setEditingUser(null)}>Cancelar</Button>
-                            <Button onClick={handleUpdateUser} disabled={isUpdating}>{isUpdating && <Loader2 className="animate-spin mr-2 w-4 h-4"/>} Salvar Alterações</Button>
-                        </DialogFooter>
-                    </DialogContent>
+                    <EditUserDialog user={editingUser} onFinish={() => setEditingUser(null)} onUpdate={fetchUsers} />
                 </Dialog>
             )}
             {modifyingBalanceUser && (

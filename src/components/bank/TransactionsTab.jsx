@@ -1,21 +1,41 @@
-import React, { useState } from 'react';
-import { TabsContent } from "@/components/ui/tabs";
+import React, { useState, useCallback } from 'react';
 import { ArrowUp, ArrowDown, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import ReceiptDownloadDialog from './ReceiptDownloadDialog';
+import { supabase } from '@/lib/supabaseClient';
+import { useToast } from '@/components/ui/use-toast';
 
 const TransactionsTab = ({ transactions, accountId }) => {
-    const [selectedTxId, setSelectedTxId] = useState(null);
+    const [selectedReceipt, setSelectedReceipt] = useState(null);
     const [isReceiptOpen, setIsReceiptOpen] = useState(false);
+    const { toast } = useToast();
 
-    const handleDownloadClick = (txId) => {
-        setSelectedTxId(txId);
-        setIsReceiptOpen(true);
+    const handleReceiptClick = useCallback(async (txId) => {
+        const { data, error } = await supabase.rpc('generate_transaction_receipt', { p_transaction_id: txId });
+        if (error || !data.success) {
+            toast({ title: "Erro", description: error?.message || data?.message, variant: "destructive" });
+        } else {
+            setSelectedReceipt(data);
+            setIsReceiptOpen(true);
+        }
+    }, [toast]);
+
+    const getTransactionTypeLabel = (type) => {
+        const labels = {
+            transfer: 'Transferência',
+            purchase: 'Compra',
+            service_fee: 'Taxa de Serviço',
+            investment_application: 'Aplicação',
+            investment_withdrawal: 'Resgate',
+            admin_credit: 'Crédito Admin',
+            admin_debit: 'Débito Admin',
+        };
+        return labels[type] || 'Transação';
     };
 
     return (
         <>
-            <TabsContent value="extrato" className="bg-black/20 rounded-2xl p-6 mt-4">
+            <div className="bg-black/20 rounded-2xl p-6 mt-4">
                 <h3 className="text-xl font-bold text-white mb-4">Últimas Transações</h3>
                 <div className="space-y-3 max-h-[350px] overflow-y-auto pr-2">
                     {transactions.length > 0 ? transactions.map(tx => (
@@ -25,15 +45,15 @@ const TransactionsTab = ({ transactions, accountId }) => {
                                     {tx.to_account_id === accountId ? <ArrowDown className="w-5 h-5 text-green-400" /> : <ArrowUp className="w-5 h-5 text-red-400" />}
                                 </div>
                                 <div>
-                                    <p className="font-semibold text-white">{tx.description || 'Transferência'}</p>
-                                    <p className="text-sm text-gray-400">{new Date(tx.created_at).toLocaleString('pt-BR')}</p>
+                                    <p className="font-semibold text-white">{getTransactionTypeLabel(tx.type)}</p>
+                                    <p className="text-sm text-gray-400">{tx.description || new Date(tx.created_at).toLocaleString('pt-BR')}</p>
                                 </div>
                             </div>
                             <div className="flex items-center gap-4">
                                 <p className={`font-bold text-lg ${tx.to_account_id === accountId ? 'text-green-400' : 'text-red-400'}`}>
                                     {tx.to_account_id === accountId ? '+' : '-'} {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(tx.amount)}
                                 </p>
-                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDownloadClick(tx.id)}>
+                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleReceiptClick(tx.id)}>
                                     <Download className="w-4 h-4" />
                                 </Button>
                             </div>
@@ -42,12 +62,12 @@ const TransactionsTab = ({ transactions, accountId }) => {
                         <p className="text-gray-400 text-center py-8">Nenhuma transação recente.</p>
                     )}
                 </div>
-            </TabsContent>
-            {selectedTxId && (
+            </div>
+            {selectedReceipt && (
                 <ReceiptDownloadDialog 
                     isOpen={isReceiptOpen}
                     setIsOpen={setIsReceiptOpen}
-                    transactionId={selectedTxId}
+                    receipt={selectedReceipt}
                 />
             )}
         </>

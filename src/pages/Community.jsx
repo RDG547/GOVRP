@@ -1,9 +1,11 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Helmet } from 'react-helmet-async';
-import { Users, MessageSquare, Mic, Gamepad2, ArrowRight, Rss } from 'lucide-react';
+import { Users, MessageSquare, Mic, Gamepad2, ArrowRight, Rss, Scale, Shield, Heart } from 'lucide-react';
 import { FaWhatsapp, FaDiscord, FaTelegram } from 'react-icons/fa';
 import PageHeader from '@/components/layout/PageHeader';
+import { Button } from '@/components/ui/button';
+import { Link } from 'react-router-dom';
 
 const Community = () => {
   const channels = [
@@ -37,6 +39,12 @@ const Community = () => {
     { icon: Rss, title: 'Feed de Atividades', description: 'Acompanhe em tempo real as últimas ações e decisões tomadas dentro do universo do RP.' }
   ];
 
+  const conductRules = [
+    { icon: Heart, title: 'Respeito Acima de Tudo', description: 'Trate todos os membros com cortesia. Debates são bem-vindos, mas ataques pessoais não serão tolerados.' },
+    { icon: Shield, title: 'Mantenha o Foco no RP', description: 'Evite discussões excessivas sobre temas fora do contexto do jogo (OOC) nos canais de roleplay (IC).' },
+    { icon: Scale, title: 'Jogo Justo', description: 'Não utilize exploits, metagaming ou powergaming. A diversão de todos depende de um ambiente justo e equilibrado.' },
+  ];
+
   return (
     <>
       <Helmet>
@@ -64,16 +72,16 @@ const Community = () => {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.2 + index * 0.1 }}
-                className="block glass-effect rounded-2xl p-8 h-full hover:bg-white/10 transition-all duration-300 group hover:-translate-y-2"
+                className="block glass-effect rounded-2xl p-8 h-full hover:bg-accent transition-all duration-300 group hover:-translate-y-2"
               >
                 <div className="flex items-center mb-6">
                   <div className={`flex items-center justify-center w-16 h-16 bg-gradient-to-r ${channel.color} rounded-full mr-6`}>
                     {channel.icon}
                   </div>
-                  <h2 className="text-3xl font-bold text-white">{channel.name}</h2>
+                  <h2 className="text-3xl font-bold text-foreground">{channel.name}</h2>
                 </div>
-                <p className="text-gray-300 mb-6 leading-relaxed flex-grow">{channel.description}</p>
-                <div className="flex items-center text-blue-400 group-hover:text-blue-300 transition-colors mt-auto">
+                <p className="text-muted-foreground mb-6 leading-relaxed flex-grow">{channel.description}</p>
+                <div className="flex items-center text-primary group-hover:text-primary/80 transition-colors mt-auto">
                   <span className="font-medium">Juntar-se</span>
                   <ArrowRight className="ml-2 w-4 h-4 group-hover:translate-x-1 transition-transform" />
                 </div>
@@ -82,14 +90,15 @@ const Community = () => {
           </div>
         </section>
 
-        <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
+        <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             className="text-center mb-16"
           >
-            <h2 className="text-4xl font-bold text-white mb-6">O que Acontece na Comunidade?</h2>
+            <h2 className="text-4xl font-bold text-foreground mb-4">O que Acontece na Comunidade?</h2>
+            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">Nossos canais são centros de atividade constante, onde a história do GOV.RP é escrita todos os dias.</p>
           </motion.div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
@@ -105,11 +114,38 @@ const Community = () => {
                 <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full mb-6">
                   <activity.icon className="w-8 h-8 text-white" />
                 </div>
-                <h3 className="text-xl font-bold text-white mb-3">{activity.title}</h3>
-                <p className="text-gray-300 text-sm leading-relaxed">{activity.description}</p>
+                <h3 className="text-xl font-bold text-foreground mb-3">{activity.title}</h3>
+                <p className="text-muted-foreground text-sm leading-relaxed">{activity.description}</p>
               </motion.div>
             ))}
           </div>
+        </section>
+
+        <section className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+            <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                className="glass-effect rounded-2xl p-8 md:p-12 border border-border"
+            >
+                <h2 className="text-3xl font-bold text-foreground text-center mb-8">Código de Conduta</h2>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                    {conductRules.map((rule, index) => (
+                        <div key={index} className="flex flex-col items-center text-center p-4 rounded-lg transition-colors hover:bg-accent">
+                            <div className="flex items-center justify-center w-14 h-14 bg-accent rounded-full mb-4">
+                                <rule.icon className="w-7 h-7 text-primary" />
+                            </div>
+                            <h3 className="text-lg font-semibold text-foreground mb-2">{rule.title}</h3>
+                            <p className="text-muted-foreground text-sm">{rule.description}</p>
+                        </div>
+                    ))}
+                </div>
+                <div className="text-center mt-8">
+                    <Link to="/terms">
+                        <Button variant="link">Ver regras completas</Button>
+                    </Link>
+                </div>
+            </motion.div>
         </section>
       </div>
     </>

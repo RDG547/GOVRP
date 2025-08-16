@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { Helmet } from 'react-helmet-async';
-import { Send, HelpCircle, ArrowRight, LifeBuoy, Users, Mail } from 'lucide-react';
+import { Send, HelpCircle, ArrowRight, Headphones as Headset, Users, Mail, Phone, Paperclip, X as XIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -10,33 +10,102 @@ import { useToast } from '@/components/ui/use-toast';
 import { Link } from 'react-router-dom';
 import { FaDiscord, FaWhatsapp, FaTelegram } from 'react-icons/fa';
 import PageHeader from '@/components/layout/PageHeader';
+import { useAuth } from '@/contexts/AuthContext';
+import { formatPhone } from '@/lib/utils';
+import { supabase } from '@/lib/supabaseClient';
 
 const Support = () => {
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const fileInputRef = useRef(null);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
+    phone: '',
     subject: '',
     message: ''
   });
+  const [file, setFile] = useState(null);
   const [loading, setLoading] = useState(false);
-  const { toast } = useToast();
+
+  useEffect(() => {
+    if (user) {
+      setFormData(prev => ({
+        ...prev,
+        name: user.full_name || '',
+        email: user.email || '',
+        phone: user.phone ? formatPhone(user.phone) : ''
+      }));
+    }
+  }, [user]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    if (name === 'phone') {
+        setFormData({ ...formData, [name]: formatPhone(value) });
+    } else {
+        setFormData({ ...formData, [name]: value });
+    }
   };
 
-  const handleSubmit = (e) => {
+  const handleFileChange = (e) => {
+    if (e.target.files && e.target.files[0]) {
+      const selectedFile = e.target.files[0];
+      if (selectedFile.size > 5 * 1024 * 1024) { // 5MB limit
+        toast({ title: "Arquivo muito grande", description: "O anexo não pode exceder 5MB.", variant: "destructive" });
+        return;
+      }
+      setFile(selectedFile);
+    }
+  };
+  
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
-      toast({
-        title: "Ticket de suporte enviado!",
-        description: "Nossa equipe analisará sua solicitação e entrará em contato em breve.",
-      });
-      setFormData({ name: '', email: '', subject: '', message: '' });
-    }, 1500);
+
+    let attachmentUrl = null;
+    if (file) {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Math.random()}.${fileExt}`;
+      const filePath = `support-attachments/${fileName}`;
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('support-attachments')
+        .upload(filePath, file);
+
+      if (uploadError) {
+        toast({ title: "Erro no Upload", description: "Não foi possível enviar seu anexo.", variant: "destructive" });
+        setLoading(false);
+        return;
+      }
+      attachmentUrl = uploadData.path;
+    }
+
+    try {
+        const { data, error } = await supabase.functions.invoke('send-contact-email', {
+            body: { ...formData, attachmentUrl, type: 'support' },
+        });
+
+        if (error) throw error;
+        
+        toast({
+            title: "Ticket de suporte enviado!",
+            description: "Nossa equipe analisará sua solicitação e entrará em contato em breve.",
+        });
+        if (!user) {
+            setFormData({ name: '', email: '', phone: '', subject: '', message: '' });
+        }
+        setFile(null);
+        if(fileInputRef.current) fileInputRef.current.value = "";
+
+    } catch (error) {
+        toast({
+            title: "Erro ao enviar ticket",
+            description: "Houve um problema ao enviar seu ticket. Tente novamente mais tarde.",
+            variant: "destructive",
+        });
+    } finally {
+        setLoading(false);
+    }
   };
 
   const supportChannels = [
@@ -55,7 +124,7 @@ const Support = () => {
       <div className="min-h-screen py-24">
         <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <PageHeader
-            icon={LifeBuoy}
+            icon={Headset}
             title="Central de"
             gradientText="Suporte"
             description="Encontrou um problema ou tem alguma dúvida técnica? Nossa equipe está pronta para te ajudar. Para uma resposta mais rápida, considere usar um de nossos canais comunitários."
@@ -78,12 +147,27 @@ const Support = () => {
                     </div>
                   </div>
                   <div>
+                    <Label htmlFor="phone" className="text-gray-300 mb-2 block">Telefone (Opcional)</Label>
+                    <Input id="phone" name="phone" type="tel" value={formData.phone} onChange={handleChange} className="bg-white/5 border-white/10" placeholder="(00) 00000-0000" />
+                  </div>
+                  <div>
                     <Label htmlFor="subject" className="text-gray-300 mb-2 block">Assunto</Label>
                     <Input id="subject" name="subject" type="text" required value={formData.subject} onChange={handleChange} className="bg-white/5 border-white/10" placeholder="Ex: Bug no Banco Nacional" />
                   </div>
                   <div>
                     <Label htmlFor="message" className="text-gray-300 mb-2 block">Descrição do Problema</Label>
                     <Textarea id="message" name="message" rows="5" required value={formData.message} onChange={handleChange} className="bg-white/5 border-white/10" placeholder="Descreva seu problema com o máximo de detalhes possível..."></Textarea>
+                  </div>
+                   <div>
+                    <Label htmlFor="attachment" className="text-gray-300 mb-2 block">Anexo (Opcional)</Label>
+                    <div className="relative">
+                      <Button type="button" variant="outline" className="w-full justify-start border-white/20 text-white/70" onClick={() => fileInputRef.current?.click()}>
+                        <Paperclip className="w-4 h-4 mr-2" />
+                        {file ? file.name : "Anexar print ou arquivo (max 5MB)"}
+                      </Button>
+                      <Input ref={fileInputRef} id="attachment" name="attachment" type="file" onChange={handleFileChange} className="sr-only" accept="image/png, image/jpeg, image/gif" />
+                      {file && <Button type="button" variant="ghost" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8" onClick={() => { setFile(null); if(fileInputRef.current) fileInputRef.current.value = ""; }}><XIcon className="w-4 h-4" /></Button>}
+                    </div>
                   </div>
                   <Button type="submit" disabled={loading} size="lg" className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">
                     {loading ? 'Enviando...' : <><Send className="w-5 h-5 mr-2" /> Enviar Ticket</>}

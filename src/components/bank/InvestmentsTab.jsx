@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader2, TrendingUp, Plus, Minus, PiggyBank, Briefcase } from 'lucide-react';
+import { Loader2, Plus, Minus, PiggyBank, Briefcase } from 'lucide-react';
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from '@/lib/supabaseClient';
 import { formatCurrency, parseCurrency } from '@/lib/utils';
@@ -91,14 +91,29 @@ const RiskBadge = ({ level }) => {
 const InvestmentsTab = ({ investmentOptions, userInvestments, onUpdate }) => {
     const [modalState, setModalState] = useState({ isOpen: false, action: '', investment: null });
     const [activeTab, setActiveTab] = useState('portfolio');
+    const [riskFilter, setRiskFilter] = useState('all');
 
     const openModal = (action, investment) => {
         setModalState({ isOpen: true, action, investment });
     };
 
+    const riskOrder = ['low', 'medium', 'high', 'very-high'];
+    const riskLabels = {
+        'all': 'Todos',
+        'low': 'Baixo Risco',
+        'medium': 'Médio Risco',
+        'high': 'Alto Risco',
+        'very-high': 'Muito Alto Risco',
+    };
+
+    const filteredOptions = useMemo(() => {
+        if (riskFilter === 'all') return investmentOptions;
+        return investmentOptions.filter(opt => opt.risk_level === riskFilter);
+    }, [investmentOptions, riskFilter]);
+
     return (
         <>
-            <TabsContent value="investir" className="mt-4">
+            <div className="mt-4">
                 <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                     <TabsList className="grid w-full grid-cols-2">
                         <TabsTrigger value="portfolio"><PiggyBank className="mr-2 h-4 w-4" />Meu Portfólio</TabsTrigger>
@@ -135,30 +150,46 @@ const InvestmentsTab = ({ investmentOptions, userInvestments, onUpdate }) => {
                                  <CardTitle className="text-white justify-center">Opções Para Investir</CardTitle>
                                  <CardDescription>Explore oportunidades para fazer seu dinheiro render.</CardDescription>
                              </CardHeader>
-                             <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                 {investmentOptions && investmentOptions.map(opt => (
-                                     <motion.div initial={{opacity: 0, scale: 0.95}} animate={{opacity: 1, scale: 1}} key={opt.id} className="p-4 rounded-lg bg-slate-800/50 hover:bg-slate-700/50 transition-colors flex flex-col justify-between">
-                                         <div>
-                                            <div className="flex justify-between items-start">
-                                                <h4 className="font-bold text-white flex-1 mr-2">{opt.name}</h4>
-                                                <RiskBadge level={opt.risk_level} />
+                             <CardContent className="space-y-6">
+                                <div className="flex flex-wrap gap-2 justify-center my-4">
+                                    {Object.keys(riskLabels).map(risk => (
+                                        <Button
+                                            key={risk}
+                                            variant={riskFilter === risk ? 'default' : 'outline'}
+                                            onClick={() => setRiskFilter(risk)}
+                                        >
+                                            {riskLabels[risk]}
+                                        </Button>
+                                    ))}
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    {filteredOptions.map(opt => (
+                                        <motion.div initial={{opacity: 0, scale: 0.95}} animate={{opacity: 1, scale: 1}} key={opt.id} className="p-4 rounded-lg bg-slate-800/50 hover:bg-slate-700/50 transition-colors flex flex-col justify-between">
+                                            <div>
+                                                <div className="flex justify-between items-start">
+                                                    <h4 className="font-bold text-white flex-1 mr-2">{opt.name}</h4>
+                                                    <RiskBadge level={opt.risk_level} />
+                                                </div>
+                                                <p className="text-sm text-gray-400 mt-2 min-h-[40px]">{opt.description}</p>
                                             </div>
-                                             <p className="text-sm text-gray-400 mt-2 min-h-[40px]">{opt.description}</p>
-                                         </div>
-                                         <div className="flex justify-between items-end mt-4">
-                                             <div>
-                                                 <p className="text-xs text-gray-400">Rentabilidade</p>
-                                                 <p className="text-lg font-bold text-green-400">{(opt.annual_return_rate * 100).toFixed(0)}% a.a.</p>
-                                             </div>
-                                             <Button size="sm" onClick={() => openModal('invest', opt)}>Investir</Button>
-                                         </div>
-                                     </motion.div>
-                                 ))}
+                                            <div className="flex justify-between items-end mt-4">
+                                                <div>
+                                                    <p className="text-xs text-gray-400">Rentabilidade</p>
+                                                    <p className="text-lg font-bold text-green-400">{(opt.annual_return_rate * 100).toFixed(0)}% a.a.</p>
+                                                </div>
+                                                <Button size="sm" onClick={() => openModal('invest', opt)}>Investir</Button>
+                                            </div>
+                                        </motion.div>
+                                    ))}
+                                </div>
+                                {filteredOptions.length === 0 && (
+                                    <p className="text-center text-muted-foreground py-4">Nenhuma opção de investimento encontrada para esta categoria.</p>
+                                )}
                              </CardContent>
                          </Card>
                     </TabsContent>
                 </Tabs>
-            </TabsContent>
+            </div>
             <InvestmentActionModal {...modalState} setIsOpen={(isOpen) => setModalState(s => ({...s, isOpen}))} onActionSuccess={onUpdate} />
         </>
     );

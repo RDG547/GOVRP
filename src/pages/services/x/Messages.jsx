@@ -18,16 +18,16 @@ const XMessages = () => {
         if (!user) return;
         setLoading(true);
         const { data, error } = await supabase
-            .from('conversations')
+            .from('x_conversations')
             .select(`
                 id,
-                last_message_at,
-                participants:conversation_participants (
-                    profile:profiles ( id, x_username, x_handle, avatar_url )
+                updated_at,
+                participants:x_conversation_participants (
+                    profile:profiles ( id, x_username, x_handle, x_avatar_url )
                 )
             `)
-            .in('id', (await supabase.from('conversation_participants').select('conversation_id').eq('user_id', user.id)).data.map(p => p.conversation_id))
-            .order('last_message_at', { ascending: false });
+            .in('id', (await supabase.from('x_conversation_participants').select('conversation_id').eq('user_id', user.id)).data.map(p => p.conversation_id))
+            .order('updated_at', { ascending: false });
 
         if (error) {
             console.error(error);
@@ -39,8 +39,8 @@ const XMessages = () => {
 
     useEffect(() => {
         fetchConversations();
-        const channel = supabase.channel('dms')
-          .on('postgres_changes', { event: '*', schema: 'public', table: 'direct_messages' }, payload => {
+        const channel = supabase.channel('x_dms')
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'x_messages' }, payload => {
               fetchConversations();
           })
           .subscribe();
@@ -48,6 +48,12 @@ const XMessages = () => {
     }, [fetchConversations]);
     
     const selectedConversation = conversations.find(c => c.id === conversationId);
+
+    const handleNewMessage = (newConversationId) => {
+        fetchConversations().then(() => {
+            navigate(`/services/x/messages/${newConversationId}`);
+        });
+    };
 
     return (
         <>
@@ -61,10 +67,11 @@ const XMessages = () => {
                         <ChatWindow
                             key={conversationId}
                             conversation={selectedConversation}
+                            onNewMessage={handleNewMessage}
                         />
                     ) : (
-                        <div className="flex-1 flex items-center justify-center text-gray-400">
-                            <p>Selecione uma conversa para começar a conversar.</p>
+                        <div className="flex-1 flex items-center justify-center text-gray-400 text-center p-4">
+                            <p>Selecione uma conversa para começar a conversar ou inicie uma nova pelo perfil de um usuário.</p>
                         </div>
                     )}
                 </div>

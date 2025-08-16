@@ -32,12 +32,12 @@ const ConversationList = ({ conversations, loading }) => {
                                 "flex items-center gap-3 p-4 border-b border-slate-800/50 hover:bg-slate-800/50 transition-colors",
                                 convo.id === conversationId ? "bg-slate-700/50" : ""
                             )}>
-                                <img src={participant.avatar_url} alt={participant.x_handle} className="w-12 h-12 rounded-full"/>
+                                <img src={participant.x_avatar_url} alt={participant.x_handle} className="w-12 h-12 rounded-full"/>
                                 <div className="flex-1 min-w-0">
                                     <div className="flex justify-between items-center">
                                         <p className="font-bold text-white truncate">{participant.x_username}</p>
                                         <p className="text-xs text-gray-400 flex-shrink-0 ml-2">
-                                            {formatDistanceToNow(new Date(convo.last_message_at), { locale: ptBR })}
+                                            {formatDistanceToNow(new Date(convo.updated_at), { locale: ptBR, addSuffix: true })}
                                         </p>
                                     </div>
                                     <p className="text-sm text-gray-400 truncate">@{participant.x_handle}</p>
