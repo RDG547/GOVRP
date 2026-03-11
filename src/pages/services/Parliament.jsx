@@ -45,9 +45,12 @@ const CitizenActions = ({ onPlebAction }) => {
             if (partiesError) throw partiesError;
             setParties(partiesData || []);
 
-            const { data: membersData, error: membersError } = await supabase.rpc('get_parliament_members_for_suggestion');
+            const { data: membersData, error: membersError } = await supabase
+                .from('profiles')
+                .select('id, full_name')
+                .in('role', ['Deputado', 'Senador']);
             if (membersError) throw membersError;
-            setParliamentarians(membersData || []);
+            setParliamentarians((membersData || []).map(m => ({ id: m.id, name: m.full_name })));
 
         } catch (error) {
             toast({ title: "Erro ao buscar alvos da sugestão", description: error.message, variant: "destructive" });

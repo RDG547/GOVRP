@@ -503,14 +503,14 @@ const UserManagement = () => {
                 </Popover>
             </div>
             <div className="overflow-x-auto rounded-lg border border-white/10 w-full">
-                <table className="min-w-full text-sm text-left text-gray-300">
+                <table className="w-full text-sm text-left text-gray-300 table-fixed">
                     <thead className="text-xs text-gray-400 uppercase bg-black/20">
                         <tr>
-                            <th scope="col" className="px-6 py-3">Usuário</th>
-                            <th scope="col" className="px-6 py-3">Email</th>
-                            <th scope="col" className="px-6 py-3">Saldo</th>
-                            <th scope="col" className="px-6 py-3 text-center">Cargo</th>
-                            <th scope="col" className="px-6 py-3 text-right">Ações</th>
+                            <th scope="col" className="px-6 py-3 w-[25%]">Usuário</th>
+                            <th scope="col" className="px-6 py-3 w-[25%]">Email</th>
+                            <th scope="col" className="px-6 py-3 w-[15%]">Saldo</th>
+                            <th scope="col" className="px-6 py-3 text-center w-[15%]">Cargo</th>
+                            <th scope="col" className="px-6 py-3 text-right w-[20%]">Ações</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -523,10 +523,10 @@ const UserManagement = () => {
                                 {showSeparator && (
                                     <tr>
                                         <td colSpan="5" className="px-6 py-2">
-                                            <div className="flex items-center">
-                                                <Separator className="flex-grow bg-border" />
-                                                <span className={`px-4 text-xs font-semibold uppercase ${roleColorClass}`}>{user.role}s</span>
-                                                <Separator className="flex-grow bg-border" />
+                                            <div className="flex items-center overflow-hidden">
+                                                <Separator className="flex-1 bg-border min-w-0" />
+                                                <span className={`px-4 text-xs font-semibold uppercase whitespace-nowrap ${roleColorClass}`}>{user.role}s</span>
+                                                <Separator className="flex-1 bg-border min-w-0" />
                                             </div>
                                         </td>
                                     </tr>
@@ -581,7 +581,7 @@ const UserRow = ({ user, adminUser, setModifyingBalanceUser, setChangingPassword
                 <div className="font-medium text-white">{user.full_name}</div>
                 <div className="text-xs text-gray-400">@{user.username}</div>
             </td>
-            <td className="px-6 py-4 text-gray-400">{user.email}</td>
+            <td className="px-6 py-4 text-gray-400 truncate">{user.email}</td>
             <td className="px-6 py-4 font-mono text-green-400">
                 {user.has_bank_account ? formatCurrency(user.balance ?? 0) : <span className="text-gray-500">N/A</span>}
             </td>

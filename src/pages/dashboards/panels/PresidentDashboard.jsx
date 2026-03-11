@@ -281,9 +281,30 @@ const BudgetManager = ({ budget, treasuryBalance, onUpdate, setActiveTab }) => {
                 const existing = budgetAreas.find(a => a.name === name);
                 return { name, allocated_value: existing ? existing.allocated_value : 0 };
             });
-            setAreas(newAreas);
+            
+            // Auto-adjust proportionally if total exceeds treasury
+            const totalAllocated = newAreas.reduce((sum, area) => sum + (area.allocated_value || 0), 0);
+            if (totalAllocated > treasuryBalance && totalAllocated > 0) {
+                const ratio = treasuryBalance / totalAllocated;
+                const adjustedAreas = newAreas.map(area => ({
+                    ...area,
+                    allocated_value: Math.floor((area.allocated_value || 0) * ratio)
+                }));
+                setAreas(adjustedAreas);
+                
+                // Auto-save adjusted budget
+                const saveAdjusted = async () => {
+                    await supabase
+                        .from('system_settings')
+                        .update({ value: { areas: adjustedAreas } })
+                        .eq('key', 'government_budget');
+                };
+                saveAdjusted();
+            } else {
+                setAreas(newAreas);
+            }
         }
-    }, [budget]);
+    }, [budget, treasuryBalance]);
 
     useEffect(() => {
         setInputValue(formatCurrency(tempValue, true));

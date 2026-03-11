@@ -4,6 +4,8 @@ import { formatCPF, formatRG } from '@/lib/utils';
 import { Fingerprint, FileText, Car, Globe, Building, Briefcase, Vote, ShieldCheck, Heart, Award, RefreshCw, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
+const SEAL_IMAGE = 'https://horizons-cdn.hostinger.com/1921e16b-eda9-4d20-a26b-e282c5e34dc7/4a2eff68aee7768164d8f132c8123573.png';
+
 const docInfo = {
     CPF: { name: 'Cadastro de Pessoa Física', icon: Fingerprint, color: 'text-purple-400' },
     RG: { name: 'Registro Geral', icon: FileText, color: 'text-purple-400' },
@@ -80,7 +82,7 @@ const RGDocument = ({ user, doc, side }) => {
             <>
                 <header className="flex items-center justify-between pb-1 sm:pb-2 border-b-2 border-black">
                     <h1 className="font-bold text-[0.6rem] sm:text-base">REPÚBLICA FEDERATIVA DE GOV.RP</h1>
-                    <img src="/icon-192x192.png" alt="Selo" className="w-8 h-8 sm:w-12 sm:h-12 object-contain"/>
+                    <img src={SEAL_IMAGE} alt="Selo" className="w-8 h-8 sm:w-12 sm:h-12 object-contain"/>
                 </header>
                 <p className="text-center font-semibold text-[0.5rem] sm:text-sm mt-1 sm:mt-2">SECRETARIA DE SEGURANÇA PÚBLICA</p>
                 <p className="text-center font-bold text-[0.8rem] sm:text-xl">CARTEIRA DE IDENTIDADE</p>
@@ -123,7 +125,7 @@ const CPFDocument = ({ user, doc, side }) => {
             <>
                 <header className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                        <img src="/icon-192x192.png" alt="Selo" className="w-8 h-8 sm:w-12 sm:h-12 object-contain"/>
+                        <img src={SEAL_IMAGE} alt="Selo" className="w-8 h-8 sm:w-12 sm:h-12 object-contain"/>
                         <div className="text-center">
                             <p className="text-[0.5rem] sm:text-sm font-bold">REPÚBLICA FEDERATIVA DE GOV.RP</p>
                             <p className="text-[0.4rem] sm:text-xs">MINISTÉRIO DA FAZENDA</p>
@@ -184,7 +186,7 @@ const CTDDocument = ({ user, doc, side }) => {
         {side === 'front' ? (
             <div className="w-full h-full flex flex-col justify-between">
                 <header className="flex items-center justify-between">
-                    <img src="/icon-192x192.png" alt="Brasão" className="w-10 h-10 sm:w-14 sm:h-14 object-contain" />
+                    <img src={SEAL_IMAGE} alt="Brasão" className="w-10 h-10 sm:w-14 sm:h-14 object-contain" />
                     <div className="text-right">
                         <p className="font-bold text-base sm:text-xl">CARTEIRA DE TRABALHO</p>
                         <p className="text-[0.6rem] sm:text-sm">E PREVIDÊNCIA SOCIAL</p>
@@ -228,7 +230,7 @@ const TituloEleitorDocument = ({ user, doc, side }) => {
             <>
                 <header className="flex items-center justify-between border-b-2 border-black pb-1 sm:pb-2">
                     <div className="flex items-center gap-2 sm:gap-3">
-                        <img src="/icon-192x192.png" alt="Selo" className="w-8 h-8 sm:w-12 sm:h-12 object-contain"/>
+                        <img src={SEAL_IMAGE} alt="Selo" className="w-8 h-8 sm:w-12 sm:h-12 object-contain"/>
                         <p className="font-bold text-base sm:text-lg">JUSTIÇA ELEITORAL</p>
                     </div>
                     <Vote className="w-8 h-8 sm:w-10 sm:h-10" />
@@ -265,7 +267,7 @@ const CNHDocument = ({ user, doc, side }) => {
             <>
                 <header className="flex items-center justify-between pb-1">
                     <div className="flex items-center gap-2">
-                         <img src="/icon-192x192.png" alt="Selo" className="w-8 h-8 sm:w-10 sm:h-10 object-contain"/>
+                         <img src={SEAL_IMAGE} alt="Selo" className="w-8 h-8 sm:w-10 sm:h-10 object-contain"/>
                          <div className="text-[0.5rem] sm:text-[10px] leading-tight"><p>REPÚBLICA FEDERATIVA</p><p className="font-bold">DE GOV.RP</p><p>MINISTÉRIO DA JUSTIÇA</p></div>
                     </div>
                     <h1 className="font-bold text-[0.6rem] sm:text-sm text-right">CARTEIRA NACIONAL<br/>DE HABILITAÇÃO</h1>
@@ -318,7 +320,7 @@ const PassportDocument = ({ user, doc, side }) => {
      <DocumentContainer className={`font-serif ${side === 'front' ? 'bg-[#0A2240] text-white' : 'bg-gray-100 text-black'}`}>
         {side === 'front' ? (
             <div className="w-full h-full flex flex-col items-center justify-center text-center">
-                <img src="/icon-192x192.png" alt="Brasão" className="w-12 h-12 sm:w-20 sm:h-20 mb-2 sm:mb-3 object-contain" />
+                <img src={SEAL_IMAGE} alt="Brasão" className="w-12 h-12 sm:w-20 sm:h-20 mb-2 sm:mb-3 object-contain" />
                 <p className="text-[0.6rem] sm:text-lg tracking-[0.2em]">REPÚBLICA FEDERATIVA DE GOV.RP</p>
                 <div className="w-2/3 h-px bg-white/50 my-2 sm:my-4"></div>
                 <p className="text-xl sm:text-3xl font-bold tracking-wider">PASSAPORTE</p>
@@ -356,7 +358,7 @@ const MarriageCertificateDocument = ({ user, doc }) => {
     return (
         <div className="p-6 bg-white rounded-lg text-black font-serif max-w-2xl mx-auto border-4 border-pink-300">
             <header className="text-center mb-6">
-                <img src="/icon-192x192.png" alt="Brasão da República" className="w-20 h-20 mx-auto mb-2 object-contain" />
+                <img src={SEAL_IMAGE} alt="Brasão da República" className="w-20 h-20 mx-auto mb-2 object-contain" />
                 <h1 className="text-sm font-bold">REPÚBLICA FEDERATIVA DE GOV.RP</h1>
                 <h2 className="text-xs">CARTÓRIO DE REGISTRO CIVIL</h2>
             </header>
@@ -419,7 +421,7 @@ const ReservistCertificateDocument = ({ user, doc, side }) => {
         {side === 'front' ? (
             <>
                 <header className="text-center mb-2">
-                    <img src="/icon-192x192.png" alt="Brasão da República" className="w-12 h-12 mx-auto mb-1 object-contain" />
+                    <img src={SEAL_IMAGE} alt="Brasão da República" className="w-12 h-12 mx-auto mb-1 object-contain" />
                     <h1 className="text-sm font-bold">REPÚBLICA FEDERATIVA DE GOV.RP</h1>
                     <h2 className="text-xs">MINISTÉRIO DA DEFESA - FORÇAS ARMADAS</h2>
                 </header>

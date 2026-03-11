@@ -87,7 +87,7 @@ const DigitalArchive = () => {
                                             <CardHeader>
                                                 <CardTitle className="text-xl line-clamp-2">{entry.title}</CardTitle>
                                                 <CardDescription className="text-sm">
-                                                    {formatPublicationDate(entry.published_at, entry.type === 'Decreto')}
+                                                    {formatPublicationDate(entry.published_at, entry.type?.includes('Decreto'))}
                                                 </CardDescription>
                                             </CardHeader>
                                             <CardContent className="flex-grow">
@@ -102,7 +102,7 @@ const DigitalArchive = () => {
                                         <DialogHeader>
                                             <DialogTitle className="text-2xl">{entry.title}</DialogTitle>
                                             <DialogDescription>
-                                                Publicado em: {formatPublicationDate(entry.published_at, entry.type === 'Decreto')}
+                                                Publicado em: {formatPublicationDate(entry.published_at, entry.type?.includes('Decreto'))}
                                                 <br />
                                                 Tipo: {entry.type}
                                             </DialogDescription>

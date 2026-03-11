@@ -15,21 +15,49 @@ const Electricity = () => {
     const { user } = useAuth();
     const [service, setService] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [currentPrice, setCurrentPrice] = useState(null);
     const serviceType = 'Energia Elétrica';
 
     const fetchService = useCallback(async () => {
         if (!user) return;
         setLoading(true);
-        const { data, error } = await supabase
-            .from('user_services')
-            .select('*')
-            .eq('user_id', user.id)
-            .eq('service_type', serviceType);
-        
-        if (error) {
-            toast({ title: 'Erro ao buscar serviço', variant: 'destructive' });
-        } else {
-            setService(data[0] || null);
+        try {
+            const { data: serviceData, error: serviceError } = await supabase
+                .from('user_services')
+                .select('*')
+                .eq('user_id', user.id)
+                .eq('service_type', serviceType);
+            
+            if (serviceError) throw serviceError;
+
+            const { data: priceData, error: priceError } = await supabase
+                .from('system_settings')
+                .select('value')
+                .eq('key', 'basic_service_prices')
+                .single();
+
+            if (priceError && priceError.code !== 'PGRST116') throw priceError;
+
+            const prices = priceData?.value || {};
+            const presidentialPrice = prices['Energia Elétrica'];
+
+            if (presidentialPrice !== undefined) {
+                setCurrentPrice(presidentialPrice);
+            }
+
+            const currentService = serviceData?.[0] || null;
+            setService(currentService);
+
+            // Sync price with presidential setting if it changed
+            if (currentService && presidentialPrice !== undefined && currentService.price !== presidentialPrice) {
+                await supabase
+                    .from('user_services')
+                    .update({ price: presidentialPrice })
+                    .eq('id', currentService.id);
+                setService({ ...currentService, price: presidentialPrice });
+            }
+        } catch (error) {
+            toast({ title: 'Erro ao buscar serviço', variant: 'destructive', description: error.message });
         }
         setLoading(false);
     }, [user, toast]);
@@ -45,11 +73,13 @@ const Electricity = () => {
         });
     };
 
+    const displayPrice = currentPrice !== null && currentPrice !== undefined ? currentPrice : service?.price;
+
     const ContractInfo = () => (
         <Card className="glass-effect">
             <CardHeader>
                 <CardTitle>Meu Contrato de Energia</CardTitle>
-                <CardDescription>Plano Padrão - {formatCurrency(service.price)}/semana</CardDescription>
+                <CardDescription>Plano Padrão - {formatCurrency(displayPrice)}/semana</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
                  <Alert>

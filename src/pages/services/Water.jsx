@@ -17,21 +17,49 @@ const Water = () => {
     const [service, setService] = useState(null);
     const [loading, setLoading] = useState(true);
     const [waterQuality, setWaterQuality] = useState(95);
+    const [currentPrice, setCurrentPrice] = useState(null);
     const serviceType = 'Água';
 
     const fetchService = useCallback(async () => {
         if (!user) return;
         setLoading(true);
-        const { data, error } = await supabase
-            .from('user_services')
-            .select('*')
-            .eq('user_id', user.id)
-            .eq('service_type', serviceType);
-        
-        if (error) {
-            toast({ title: 'Erro ao buscar serviço', variant: 'destructive' });
-        } else {
-            setService(data[0] || null);
+        try {
+            const { data: serviceData, error: serviceError } = await supabase
+                .from('user_services')
+                .select('*')
+                .eq('user_id', user.id)
+                .eq('service_type', serviceType);
+            
+            if (serviceError) throw serviceError;
+
+            const { data: priceData, error: priceError } = await supabase
+                .from('system_settings')
+                .select('value')
+                .eq('key', 'basic_service_prices')
+                .single();
+
+            if (priceError && priceError.code !== 'PGRST116') throw priceError;
+
+            const prices = priceData?.value || {};
+            const presidentialPrice = prices['Água'];
+
+            if (presidentialPrice !== undefined) {
+                setCurrentPrice(presidentialPrice);
+            }
+
+            const currentService = serviceData?.[0] || null;
+            setService(currentService);
+
+            // Sync price with presidential setting if it changed
+            if (currentService && presidentialPrice !== undefined && currentService.price !== presidentialPrice) {
+                await supabase
+                    .from('user_services')
+                    .update({ price: presidentialPrice })
+                    .eq('id', currentService.id);
+                setService({ ...currentService, price: presidentialPrice });
+            }
+        } catch (error) {
+            toast({ title: 'Erro ao buscar serviço', variant: 'destructive', description: error.message });
         }
         setLoading(false);
     }, [user, toast]);
@@ -46,6 +74,8 @@ const Water = () => {
             description: message,
         });
     };
+
+    const displayPrice = currentPrice !== null && currentPrice !== undefined ? currentPrice : service?.price;
     
     return (
         <>
@@ -91,7 +121,7 @@ const Water = () => {
                                             O fornecimento de água é um serviço essencial e obrigatório para todos os cidadãos.
                                         </AlertDescription>
                                     </Alert>
-                                    <p>Plano Padrão Ativo - {formatCurrency(service.price)}/semana</p>
+                                    <p>Plano Padrão Ativo - {formatCurrency(displayPrice)}/semana</p>
                                     <Button className="w-full justify-start" variant="outline" onClick={() => handleAction('Histórico de consumo em breve.')}><BarChart className="mr-2 h-5 w-5"/> Histórico de Consumo</Button>
                                     <Button className="w-full justify-start" variant="destructive" onClick={() => handleAction('Relato de vazamento em breve.')}><AlertTriangle className="mr-2 h-5 w-5"/> Relatar Vazamento</Button>
                                 </>

@@ -96,6 +96,27 @@ const PoliticalParties = () => {
             toast({ title: 'Erro', description: error?.message || data.message, variant: 'destructive' });
         } else {
             toast({ title: 'Sucesso!', description: data.message });
+            
+            // Send notifications to party leaders if manual affiliation
+            const party = parties.find(p => p.id === partyId);
+            if (party && party.affiliation_mode === 'manual' && user) {
+                const leaderIds = [party.owner_id, party.president_id, party.vice_president_id]
+                    .filter(Boolean)
+                    .filter((id, index, self) => self.indexOf(id) === index && id !== user.id);
+                
+                if (leaderIds.length > 0) {
+                    const notifications = leaderIds.map(leaderId => ({
+                        user_id: leaderId,
+                        sender_id: user.id,
+                        type: 'party_affiliation_request',
+                        content: `${user.full_name} solicitou filiação ao partido ${party.name} (${party.acronym}).`,
+                        link: `/services/political-parties/${party.id}`,
+                        is_read: false
+                    }));
+                    await supabase.from('notifications').insert(notifications);
+                }
+            }
+            
             fetchData();
         }
         setActionLoading(null);
