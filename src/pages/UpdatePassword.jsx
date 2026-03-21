@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/components/ui/use-toast';
+import { checkPasswordStrength } from '@/lib/utils';
 
 const UpdatePassword = () => {
   const [password, setPassword] = useState('');
@@ -46,8 +47,8 @@ const UpdatePassword = () => {
       toast({ title: "Erro", description: "As senhas não coincidem.", variant: "destructive" });
       return;
     }
-    if (password.length < 6) {
-      toast({ title: "Erro", description: "A senha deve ter pelo menos 6 caracteres.", variant: "destructive" });
+    if (password.length < 8 || checkPasswordStrength(password).score < 3) {
+      toast({ title: "Erro", description: "Use uma senha com pelo menos 8 caracteres e complexidade razoável.", variant: "destructive" });
       return;
     }
 
@@ -93,7 +94,7 @@ const UpdatePassword = () => {
                 <Label htmlFor="password" className="text-gray-300 mb-2 block">Nova Senha</Label>
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                  <Input id="password" name="password" type={showPassword ? 'text' : 'password'} required value={password} onChange={(e) => setPassword(e.target.value)} className="w-full pl-10 pr-12 py-3 bg-white/5 border border-white/10" placeholder="Mínimo 6 caracteres" />
+                  <Input id="password" name="password" type={showPassword ? 'text' : 'password'} required value={password} onChange={(e) => setPassword(e.target.value)} className="w-full pl-10 pr-12 py-3 bg-white/5 border border-white/10" placeholder="Mínimo 8 caracteres" />
                   <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white"><span className="sr-only">Mostrar/Ocultar</span>{showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}</button>
                 </div>
               </div>

@@ -17,6 +17,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover"
+import { executeProductPurchase } from '@/lib/commerce';
 
 const CartItem = ({ item, updateQuantity, removeFromCart }) => (
     <div className="flex items-center gap-4 py-2">
@@ -124,14 +125,15 @@ const Cart = () => {
     const handleConfirmCheckout = async (paymentMethod, cardId) => {
         for (const item of cartItems) {
             for (let i = 0; i < item.quantity; i++) {
-                const { data, error } = await supabase.rpc('buy_product', {
-                    p_product_id: item.id,
-                    p_payment_method: paymentMethod,
-                    p_card_id: cardId || null,
+                const result = await executeProductPurchase({
+                    supabase,
+                    productId: item.id,
+                    paymentMethod,
+                    cardId,
                 });
 
-                if (error || !data.success) {
-                    toast({ title: `Erro na compra de ${item.name}`, description: data?.message || error?.message || "Ocorreu um erro.", variant: "destructive" });
+                if (!result.success) {
+                    toast({ title: `Erro na compra de ${item.name}`, description: result.message, variant: "destructive" });
                     return; // Stop checkout process on first error
                 }
             }

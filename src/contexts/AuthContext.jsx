@@ -1,7 +1,9 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabaseClient';
+import { isPrisonSentenceActive } from '@/lib/prison';
 
 const AuthContext = createContext();
+const AUTH_FAILURE_MESSAGE = 'Credenciais inválidas. Verifique seus dados e tente novamente.';
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
@@ -36,6 +38,8 @@ export const AuthProvider = ({ children }) => {
   const fetchUserProfile = useCallback(async (currentSession) => {
     if (currentSession?.user) {
       try {
+        await supabase.rpc('check_and_update_prisoner_status');
+
         const { data: profile, error } = await supabase
           .from('profiles')
           .select('*')
@@ -80,6 +84,8 @@ export const AuthProvider = ({ children }) => {
 
   const refreshUser = useCallback(async () => {
     if (session?.user?.id) {
+      try {
+        await supabase.rpc('check_and_update_prisoner_status');
         const { data: profile, error } = await supabase
           .from('profiles')
           .select('*')
@@ -88,8 +94,25 @@ export const AuthProvider = ({ children }) => {
         if (profile && !error) {
             setUser(profile);
         }
+      } catch (error) {
+        console.error('Error refreshing user profile:', error);
+      }
     }
   }, [session?.user?.id]);
+
+  useEffect(() => {
+    if (!session?.user?.id || !isPrisonSentenceActive(user)) {
+      return undefined;
+    }
+
+    const intervalId = window.setInterval(() => {
+      refreshUser();
+    }, 60000);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [refreshUser, session?.user?.id, user]);
 
 
   useEffect(() => {
@@ -125,23 +148,46 @@ export const AuthProvider = ({ children }) => {
   }, [fetchUserProfile, logout]);
 
   const login = async ({ identifier, password, captchaToken }) => {
-    let email = identifier;
+    const normalizedIdentifier = identifier.trim();
+    const normalizedPhone = normalizedIdentifier.replace(/\D/g, '');
+    let email = normalizedIdentifier.toLowerCase();
     
-    if (!identifier.includes('@')) {
-      const { data: profile, error } = await supabase
-        .from('profiles')
-        .select('email')
-        .or(`username.eq.${identifier},phone.eq.${identifier.replace(/\D/g, '')},email.eq.${identifier}`)
-        .single();
+    if (!email.includes('@')) {
+      let profile = null;
+      let error = null;
+
+      if (normalizedPhone) {
+        const response = await supabase
+          .from('profiles')
+          .select('email')
+          .eq('phone', normalizedPhone)
+          .maybeSingle();
+
+        profile = response.data;
+        error = response.error;
+      }
+
+      if (!profile) {
+        const response = await supabase
+          .from('profiles')
+          .select('email')
+          .eq('username', normalizedIdentifier)
+          .maybeSingle();
+
+        profile = response.data;
+        error = response.error;
+      }
         
       if (error || !profile) {
-        throw new Error('Usuário não encontrado.');
+        throw new Error(AUTH_FAILURE_MESSAGE);
       }
       email = profile.email;
     }
     
     const { data, error } = await supabase.auth.signInWithPassword({ email, password, options: { captchaToken } });
-    if (error) throw error;
+    if (error) {
+      throw new Error(AUTH_FAILURE_MESSAGE);
+    }
     
     const profileData = await fetchUserProfile(data.session);
     setUser(profileData);

@@ -11,8 +11,8 @@ import { Label } from '@/components/ui/label';
 import { generateCPF, generateRG, formatCPF, formatRG, checkPasswordStrength } from '@/lib/utils';
 import PhoneNumberInput, { parsePhoneNumber } from 'react-phone-number-input';
 import pt from 'react-phone-number-input/locale/pt.json';
-import { supabase } from '@/lib/supabaseClient';
 import { FaGoogle, FaFacebook, FaDiscord } from 'react-icons/fa';
+import { isAuthPopupClosedError, signInWithOAuthPopup } from '@/lib/oauthPopup';
 
 const PasswordStrengthIndicator = ({ score }) => {
   const levels = [
@@ -48,10 +48,17 @@ const Register = () => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [passwordScore, setPasswordScore] = useState(0);
+  const [socialLoadingProvider, setSocialLoadingProvider] = useState(null);
 
   const { register } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
+
+  const providerLabels = {
+    google: 'Google',
+    facebook: 'Facebook',
+    discord: 'Discord',
+  };
 
   const handlePasswordChange = (e) => {
     const newPassword = e.target.value;
@@ -124,9 +131,29 @@ const Register = () => {
   };
 
   const handleSocialLogin = async (provider) => {
-    const { error } = await supabase.auth.signInWithOAuth({ provider, options: { redirectTo: `${window.location.origin}/` } });
-    if (error) {
-      toast({ title: `Erro com ${provider}`, description: error.message, variant: 'destructive' });
+    const providerLabel = providerLabels[provider] || provider;
+
+    setSocialLoadingProvider(provider);
+
+    try {
+      await signInWithOAuthPopup(provider);
+      toast({
+        title: 'Autenticacao realizada!',
+        description: `Sua conta com ${providerLabel} foi conectada com sucesso.`,
+      });
+      navigate('/');
+    } catch (error) {
+      if (isAuthPopupClosedError(error)) {
+        return;
+      }
+
+      toast({
+        title: `Erro com ${providerLabel}`,
+        description: error.message,
+        variant: 'destructive',
+      });
+    } finally {
+      setSocialLoadingProvider(null);
     }
   };
 
@@ -210,10 +237,23 @@ const Register = () => {
               <div><Label htmlFor="confirmPassword">Confirmar Senha</Label><div className="relative"><Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5 z-10" /><Input id="confirmPassword" name="confirmPassword" type={showConfirmPassword ? 'text' : 'password'} required value={formData.confirmPassword} onChange={handleChange} className={`${inputClass} pr-12`} placeholder="Confirme sua senha" /><button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"><span className="sr-only">Mostrar/Ocultar</span>{showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}</button></div></div>
               <div className="flex items-start space-x-3"><button type="button" name="terms" onClick={() => setFormData({ ...formData, terms: !formData.terms })} className={`mt-1 flex-shrink-0 w-5 h-5 rounded border-2 transition-all duration-200 ${formData.terms ? 'bg-blue-600 border-blue-600' : 'bg-transparent border-gray-400'}`}>{formData.terms && <Check className="w-4 h-4 text-white" />}</button><Label htmlFor="terms" className="text-sm text-gray-300">Eu concordo com os <Link to="/terms" className="text-blue-400 hover:underline">Termos de Serviço</Link> e a <Link to="/privacy" className="text-blue-400 hover:underline">Política de Privacidade</Link>.</Label></div>
             </div>
-            <Button type="submit" disabled={loading} className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 py-3 text-lg font-medium">{loading ? <Loader2 className="animate-spin" /> : <><UserPlus className="mr-2 h-5 w-5" />Criar Conta</>}</Button>
+            <Button type="submit" disabled={loading || Boolean(socialLoadingProvider)} className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 py-3 text-lg font-medium">{loading ? <Loader2 className="animate-spin" /> : <><UserPlus className="mr-2 h-5 w-5" />Criar Conta</>}</Button>
           </form>
           <div className="relative my-6"><div className="absolute inset-0 flex items-center"><div className="w-full border-t border-white/20"></div></div><div className="relative flex justify-center text-sm"><span className="px-2 bg-background text-gray-400">Ou cadastre-se com</span></div></div>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3"><Button variant="outline" onClick={() => handleSocialLogin('google')} className="w-full flex justify-center items-center gap-2"><FaGoogle /> <span>Google</span></Button><Button variant="outline" onClick={() => handleSocialLogin('facebook')} className="w-full flex justify-center items-center gap-2"><FaFacebook /> <span>Facebook</span></Button><Button variant="outline" onClick={() => handleSocialLogin('discord')} className="w-full flex justify-center items-center gap-2"><FaDiscord /> <span>Discord</span></Button></div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <Button variant="outline" onClick={() => handleSocialLogin('google')} disabled={loading || Boolean(socialLoadingProvider)} className="w-full flex justify-center items-center gap-2">
+              {socialLoadingProvider === 'google' ? <Loader2 className="h-4 w-4 animate-spin" /> : <FaGoogle />}
+              <span>Google</span>
+            </Button>
+            <Button variant="outline" onClick={() => handleSocialLogin('facebook')} disabled={loading || Boolean(socialLoadingProvider)} className="w-full flex justify-center items-center gap-2">
+              {socialLoadingProvider === 'facebook' ? <Loader2 className="h-4 w-4 animate-spin" /> : <FaFacebook />}
+              <span>Facebook</span>
+            </Button>
+            <Button variant="outline" onClick={() => handleSocialLogin('discord')} disabled={loading || Boolean(socialLoadingProvider)} className="w-full flex justify-center items-center gap-2">
+              {socialLoadingProvider === 'discord' ? <Loader2 className="h-4 w-4 animate-spin" /> : <FaDiscord />}
+              <span>Discord</span>
+            </Button>
+          </div>
           <div className="mt-6 text-center"><p className="text-gray-300">Já tem uma conta?{' '}<Link to="/login" className="text-blue-400 hover:text-blue-300 font-medium transition-colors">Entre aqui</Link></p></div>
         </motion.div>
       </div>

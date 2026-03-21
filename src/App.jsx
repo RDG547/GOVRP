@@ -1,11 +1,12 @@
 import React from 'react';
-import { Routes, Route, useLocation, Navigate, Link } from 'react-router-dom';
+import { Routes, Route, useLocation, Navigate } from 'react-router-dom';
 import { Toaster } from '@/components/ui/toaster';
-import { AuthProvider } from '@/contexts/AuthContext';
+import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 import Navbar from '@/components/layout/Navbar';
 import Home from '@/pages/Home';
 import Login from '@/pages/Login';
 import Register from '@/pages/Register';
+import AuthCallback from '@/pages/AuthCallback';
 import About from '@/pages/About';
 import Contact from '@/pages/Contact';
 import Support from '@/pages/Support';
@@ -87,12 +88,19 @@ import Gas from '@/pages/services/Gas';
 import InventoryPage from '@/pages/services/InventoryPage';
 import ProductDetails from '@/pages/services/ProductDetails';
 import PresidentDashboard from '@/pages/dashboards/panels/PresidentDashboard';
+import PrisonRouteGuard from '@/components/PrisonRouteGuard';
+import { isPrisonSentenceActive } from '@/lib/prison';
+import { PARLIAMENT_PANEL_ROLES } from '@/lib/parliament';
 
 const MainLayout = ({ children }) => {
   const location = useLocation();
+  const { user } = useAuth();
   const isXPage = location.pathname.startsWith('/services/x');
+  const isAuthCallback = location.pathname === '/auth/callback';
+  const isLockedPrisonPage =
+    isPrisonSentenceActive(user) && location.pathname === '/services/prison';
 
-  if (isXPage) {
+  if (isXPage || isAuthCallback || isLockedPrisonPage) {
     return <>{children}</>;
   }
 
@@ -102,7 +110,7 @@ const MainLayout = ({ children }) => {
       <main className="pt-20">
         {children}
       </main>
-      <Footer />
+      <Footer disableTopSpacing={location.pathname === '/'} />
     </>
   );
 };
@@ -110,20 +118,23 @@ const MainLayout = ({ children }) => {
 function App() {
   const location = useLocation();
   const { theme } = useTheme();
+  const isAuthCallback = location.pathname === '/auth/callback';
 
   return (
     <AuthProvider>
       <div className={`${theme} min-h-screen bg-background text-foreground custom-scrollbar`}>
-        <ParticlesBackground />
+        {!isAuthCallback && <ParticlesBackground />}
         <div className="relative z-10">
-          <MainLayout>
-            <ScrollRestoration />
-            <WelcomeTutorial />
-            <AnimatePresence mode="wait">
-              <Routes location={location} key={location.pathname}>
+          <PrisonRouteGuard>
+            <MainLayout>
+              <ScrollRestoration />
+              {!isAuthCallback && <WelcomeTutorial />}
+              <AnimatePresence mode="wait">
+                <Routes location={location} key={location.pathname}>
                 <Route path="/" element={<Home />} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/register" element={<Register />} />
+                <Route path="/auth/callback" element={<AuthCallback />} />
                 <Route path="/forgot-password" element={<ForgotPassword />} />
                 <Route path="/update-password" element={<UpdatePassword />} />
                 <Route path="/about" element={<About />} />
@@ -174,9 +185,9 @@ function App() {
                 <Route path="/services/political-parties" element={<ServiceProtectedRoute><PoliticalParties /></ServiceProtectedRoute>} />
                 <Route path="/services/political-parties/:partyId" element={<ServiceProtectedRoute><PartyPage /></ServiceProtectedRoute>} />
                 
-                <Route path="/services/parliament" element={<ServiceProtectedRoute><ServiceAccess requiredRoles={['Deputado', 'Senador', 'Presidente da Câmara', 'Presidente do Senado', 'Admin']} citizenPath="/services/parliament/citizen" panelPath="/services/parliament/panel" /></ServiceProtectedRoute>} />
+                <Route path="/services/parliament" element={<ServiceProtectedRoute><ServiceAccess requiredRoles={PARLIAMENT_PANEL_ROLES} citizenPath="/services/parliament/citizen" panelPath="/services/parliament/panel" /></ServiceProtectedRoute>} />
                 <Route path="/services/parliament/citizen" element={<ServiceProtectedRoute><Parliament /></ServiceProtectedRoute>} />
-                <Route path="/services/parliament/panel" element={<RoleProtectedRoute roles={['Deputado', 'Senador', 'Presidente da Câmara', 'Presidente do Senado', 'Admin']}><ParliamentPanel /></RoleProtectedRoute>} />
+                <Route path="/services/parliament/panel" element={<RoleProtectedRoute roles={PARLIAMENT_PANEL_ROLES}><ParliamentPanel /></RoleProtectedRoute>} />
 
                 <Route path="/services/penal-system" element={<ServiceProtectedRoute><ServiceAccess requiredRoles={['Juiz', 'Admin']} citizenPath="/services/penal-system/citizen" panelPath="/services/penal-system/panel" /></ServiceProtectedRoute>} />
                 <Route path="/services/penal-system/citizen" element={<ServiceProtectedRoute><PenalSystem /></ServiceProtectedRoute>} />
@@ -209,11 +220,12 @@ function App() {
                 <Route path="/admin-dashboard/:tab" element={<AdminProtectedRoute><AdminDashboardPage /></AdminProtectedRoute>} />
 
                 <Route path="*" element={<ErrorPage />} />
-              </Routes>
-            </AnimatePresence>
-          </MainLayout>
+                </Routes>
+              </AnimatePresence>
+            </MainLayout>
+          </PrisonRouteGuard>
           <Toaster />
-          <CookieConsent />
+          {!isAuthCallback && <CookieConsent />}
         </div>
       </div>
     </AuthProvider>

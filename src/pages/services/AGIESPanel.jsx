@@ -87,7 +87,7 @@ const TransactionViewer = () => {
                                         <CommandEmpty>Nenhum usuário encontrado.</CommandEmpty>
                                         <CommandGroup heading="Usuários">
                                             {users.map((user) => (
-                                                <CommandItem key={user.id} onSelect={() => handleUserSelect(user.id)} className="cursor-pointer">
+                                                <CommandItem key={user.id} value={user.id} onSelect={handleUserSelect} className="cursor-pointer">
                                                     <User className="mr-2 h-4 w-4" />
                                                     <span>{user.full_name}</span>
                                                 </CommandItem>

@@ -8,6 +8,15 @@ import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabaseClient';
 import { Loader2, Save, Image as ImageIcon, Trash2, AtSign } from 'lucide-react';
+import {
+    ACCEPTED_IMAGE_EXTENSIONS,
+    ACCEPTED_IMAGE_MIME_TYPES,
+    IMAGE_ACCEPT_ATTRIBUTE,
+    MAX_STANDARD_IMAGE_UPLOAD_BYTES,
+    buildStoragePath,
+    extractStoragePathFromUrl,
+    validateSelectedFile,
+} from '@/lib/security';
 
 const EditProfileModal = ({ isOpen, setIsOpen, profile, onProfileUpdate }) => {
     const { refreshUser } = useAuth();
@@ -28,23 +37,22 @@ const EditProfileModal = ({ isOpen, setIsOpen, profile, onProfileUpdate }) => {
     const [headerAction, setHeaderAction] = useState('none');
     const headerInputRef = useRef(null);
 
-    const getFilePathFromUrl = (url, bucketName) => {
-        if (!url) return null;
-        try {
-            const urlObject = new URL(url);
-            const pathSegments = urlObject.pathname.split('/');
-            const bucketIndex = pathSegments.indexOf(bucketName);
-            if (bucketIndex === -1 || bucketIndex + 1 >= pathSegments.length) return null;
-            return pathSegments.slice(bucketIndex + 1).join('/');
-        } catch (e) {
-            console.error('Invalid URL for file path extraction:', e);
-            return null;
-        }
-    };
-    
     const handleAvatarChange = (e) => {
         const file = e.target.files?.[0];
         if (file) {
+            const validation = validateSelectedFile(file, {
+                allowedMimeTypes: ACCEPTED_IMAGE_MIME_TYPES,
+                allowedExtensions: ACCEPTED_IMAGE_EXTENSIONS,
+                maxBytes: MAX_STANDARD_IMAGE_UPLOAD_BYTES,
+                label: 'avatar',
+            });
+
+            if (!validation.ok) {
+                toast({ title: "Arquivo inválido", description: validation.error, variant: "destructive" });
+                if (avatarInputRef.current) avatarInputRef.current.value = '';
+                return;
+            }
+
             setAvatarFile(file);
             setAvatarPreview(URL.createObjectURL(file));
             setAvatarAction('upload');
@@ -54,6 +62,19 @@ const EditProfileModal = ({ isOpen, setIsOpen, profile, onProfileUpdate }) => {
     const handleHeaderChange = (e) => {
         const file = e.target.files?.[0];
         if (file) {
+            const validation = validateSelectedFile(file, {
+                allowedMimeTypes: ACCEPTED_IMAGE_MIME_TYPES,
+                allowedExtensions: ACCEPTED_IMAGE_EXTENSIONS,
+                maxBytes: MAX_STANDARD_IMAGE_UPLOAD_BYTES,
+                label: 'imagem de capa',
+            });
+
+            if (!validation.ok) {
+                toast({ title: "Arquivo inválido", description: validation.error, variant: "destructive" });
+                if (headerInputRef.current) headerInputRef.current.value = '';
+                return;
+            }
+
             setHeaderFile(file);
             setHeaderPreview(URL.createObjectURL(file));
             setHeaderAction('upload');
@@ -86,8 +107,8 @@ const EditProfileModal = ({ isOpen, setIsOpen, profile, onProfileUpdate }) => {
             }
 
             if (avatarAction === 'upload' && avatarFile) {
-                const oldFilePath = getFilePathFromUrl(profile.x_avatar_url, 'x-avatars');
-                const newFilePath = `${profile.id}/${Date.now()}_${avatarFile.name}`;
+                const oldFilePath = extractStoragePathFromUrl(profile.x_avatar_url, 'x-avatars');
+                const newFilePath = buildStoragePath({ prefix: '', entityId: profile.id, fileName: avatarFile.name });
                 const { error: uploadError } = await supabase.storage.from('x-avatars').upload(newFilePath, avatarFile, { upsert: false });
                 if (uploadError) throw uploadError;
                 if (oldFilePath) await supabase.storage.from('x-avatars').remove([oldFilePath]);
@@ -95,15 +116,15 @@ const EditProfileModal = ({ isOpen, setIsOpen, profile, onProfileUpdate }) => {
                 updates.x_avatar_url = data.publicUrl;
             } else if (avatarAction === 'remove') {
                 if (profile.x_avatar_url) {
-                    const filePath = getFilePathFromUrl(profile.x_avatar_url, 'x-avatars');
+                    const filePath = extractStoragePathFromUrl(profile.x_avatar_url, 'x-avatars');
                     if (filePath) await supabase.storage.from('x-avatars').remove([filePath]);
                 }
                 updates.x_avatar_url = null;
             }
 
             if (headerAction === 'upload' && headerFile) {
-                const oldFilePath = getFilePathFromUrl(profile.x_header_url, 'headers');
-                const newFilePath = `${profile.id}/${Date.now()}_${headerFile.name}`;
+                const oldFilePath = extractStoragePathFromUrl(profile.x_header_url, 'headers');
+                const newFilePath = buildStoragePath({ prefix: '', entityId: profile.id, fileName: headerFile.name });
                 const { error: uploadError } = await supabase.storage.from('headers').upload(newFilePath, headerFile, { upsert: false });
                 if (uploadError) throw uploadError;
                 if (oldFilePath) await supabase.storage.from('headers').remove([oldFilePath]);
@@ -111,7 +132,7 @@ const EditProfileModal = ({ isOpen, setIsOpen, profile, onProfileUpdate }) => {
                 updates.x_header_url = data.publicUrl;
             } else if (headerAction === 'remove') {
                 if (profile.x_header_url) {
-                    const filePath = getFilePathFromUrl(profile.x_header_url, 'headers');
+                    const filePath = extractStoragePathFromUrl(profile.x_header_url, 'headers');
                     if (filePath) await supabase.storage.from('headers').remove([filePath]);
                 }
                 updates.x_header_url = null;
@@ -148,7 +169,7 @@ const EditProfileModal = ({ isOpen, setIsOpen, profile, onProfileUpdate }) => {
                            <Button type="button" size="icon" variant="secondary" onClick={() => headerInputRef.current?.click()}><ImageIcon className="w-4 h-4"/></Button>
                            {headerPreview && <Button type="button" size="icon" variant="destructive" onClick={handleRemoveHeader}><Trash2 className="w-4 h-4"/></Button>}
                         </div>
-                        <input type="file" ref={headerInputRef} id="header_image" className="hidden" accept="image/*" onChange={handleHeaderChange}/>
+                        <input type="file" ref={headerInputRef} id="header_image" className="hidden" accept={IMAGE_ACCEPT_ATTRIBUTE} onChange={handleHeaderChange}/>
                     </div>
 
                     <div className="relative w-fit">
@@ -158,7 +179,7 @@ const EditProfileModal = ({ isOpen, setIsOpen, profile, onProfileUpdate }) => {
                            <Button type="button" size="icon" variant="secondary" className="h-8 w-8" onClick={() => avatarInputRef.current?.click()}><ImageIcon className="w-4 h-4"/></Button>
                            {avatarPreview && <Button type="button" size="icon" variant="destructive" className="h-8 w-8" onClick={handleRemoveAvatar}><Trash2 className="w-4 h-4"/></Button>}
                         </div>
-                        <input type="file" ref={avatarInputRef} id="avatar_image" className="hidden" accept="image/*" onChange={handleAvatarChange}/>
+                        <input type="file" ref={avatarInputRef} id="avatar_image" className="hidden" accept={IMAGE_ACCEPT_ATTRIBUTE} onChange={handleAvatarChange}/>
                     </div>
 
                     <div><Label htmlFor="x_username">Nome de Usuário</Label><Input id="x_username" value={xUsername} onChange={(e) => setXUsername(e.target.value)} /></div>

@@ -1,94 +1,137 @@
-import React, { useState, useRef, useEffect } from 'react';
-    import { Input } from '@/components/ui/input';
-    import { Button } from '@/components/ui/button';
-    import { Upload, Link as LinkIcon, X } from 'lucide-react';
-    import { Label } from './ui/label';
+import React, { useEffect, useRef, useState } from 'react';
+import { Upload, Link as LinkIcon, X } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Label } from './ui/label';
+import {
+  ACCEPTED_IMAGE_EXTENSIONS,
+  ACCEPTED_IMAGE_MIME_TYPES,
+  IMAGE_ACCEPT_ATTRIBUTE,
+  MAX_STANDARD_IMAGE_UPLOAD_BYTES,
+  validateRemoteAssetUrl,
+  validateSelectedFile,
+} from '@/lib/security';
 
-    const ImageUploader = ({ onUrlChange, onFileChange, initialUrl = '', label = "Imagem" }) => {
-      const [url, setUrl] = useState(initialUrl);
-      const [file, setFile] = useState(null);
-      const fileInputRef = useRef(null);
+const ImageUploader = ({
+  onUrlChange,
+  onFileChange,
+  initialUrl = '',
+  label = 'Imagem',
+  accept = IMAGE_ACCEPT_ATTRIBUTE,
+  allowedMimeTypes = ACCEPTED_IMAGE_MIME_TYPES,
+  allowedExtensions = ACCEPTED_IMAGE_EXTENSIONS,
+  maxFileSize = MAX_STANDARD_IMAGE_UPLOAD_BYTES,
+}) => {
+  const [url, setUrl] = useState(initialUrl);
+  const [file, setFile] = useState(null);
+  const [error, setError] = useState('');
+  const fileInputRef = useRef(null);
 
-      useEffect(() => {
-        setUrl(initialUrl);
-      }, [initialUrl]);
+  useEffect(() => {
+    setUrl(initialUrl);
+    setFile(null);
+    setError('');
+  }, [initialUrl]);
 
-      const handleUrlChange = (e) => {
-        const newUrl = e.target.value;
-        setUrl(newUrl);
-        if (onUrlChange) {
-          onUrlChange(newUrl);
-        }
-        if (file) {
-          setFile(null);
-          if (onFileChange) {
-            onFileChange(null);
-          }
-        }
-      };
+  const handleUrlChange = (e) => {
+    const newUrl = e.target.value;
+    setUrl(newUrl);
 
-      const handleFileChange = (e) => {
-        const selectedFile = e.target.files[0];
-        if (selectedFile) {
-          setFile(selectedFile);
-          if (onFileChange) {
-            onFileChange(selectedFile);
-          }
-          setUrl('');
-          if (onUrlChange) {
-            onUrlChange('');
-          }
-        }
-      };
+    const validation = validateRemoteAssetUrl(newUrl);
 
-      const handleUploadClick = () => {
-        fileInputRef.current.click();
-      };
+    if (!validation.ok) {
+      setError(validation.error);
+      onUrlChange?.('');
+      return;
+    }
 
-      const handleClearFile = () => {
-        setFile(null);
-        if (onFileChange) {
-          onFileChange(null);
-        }
-        if (fileInputRef.current) {
-          fileInputRef.current.value = '';
-        }
-      };
+    setError('');
+    onUrlChange?.(validation.value);
 
-      return (
-        <div className="space-y-2">
-          <Label>{label}</Label>
-          <div className="flex items-center gap-2">
-            <div className="relative flex-grow">
-              <LinkIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                type="text"
-                placeholder="Cole uma URL ou faça upload"
-                value={file ? file.name : url}
-                onChange={handleUrlChange}
-                readOnly={!!file}
-                className="pl-10"
-              />
-            </div>
-            {file ? (
-              <Button type="button" variant="destructive" size="icon" onClick={handleClearFile}>
-                <X className="h-4 w-4" />
-              </Button>
-            ) : (
-              <Button type="button" variant="outline" size="icon" onClick={handleUploadClick}>
-                <Upload className="h-4 w-4" />
-              </Button>
-            )}
-          </div>
-          <input
-            type="file"
-            ref={fileInputRef}
-            onChange={handleFileChange}
-            className="hidden"
-            accept="image/*"
+    if (file) {
+      setFile(null);
+      onFileChange?.(null);
+    }
+  };
+
+  const handleFileChange = (e) => {
+    const selectedFile = e.target.files?.[0];
+
+    if (!selectedFile) {
+      return;
+    }
+
+    const validation = validateSelectedFile(selectedFile, {
+      allowedMimeTypes,
+      allowedExtensions,
+      maxBytes: maxFileSize,
+      label: 'imagem',
+    });
+
+    if (!validation.ok) {
+      setError(validation.error);
+      onFileChange?.(null);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+      return;
+    }
+
+    setError('');
+    setFile(selectedFile);
+    onFileChange?.(selectedFile);
+    setUrl('');
+    onUrlChange?.('');
+  };
+
+  const handleUploadClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleClearFile = () => {
+    setFile(null);
+    setError('');
+    onFileChange?.(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  return (
+    <div className="space-y-2">
+      <Label>{label}</Label>
+      <div className="flex items-center gap-2">
+        <div className="relative flex-grow">
+          <LinkIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            type="text"
+            placeholder="Cole uma URL HTTPS ou faça upload"
+            value={file ? file.name : url}
+            onChange={handleUrlChange}
+            readOnly={!!file}
+            className="pl-10"
           />
         </div>
-      );
-    };
+        {file ? (
+          <Button type="button" variant="destructive" size="icon" onClick={handleClearFile}>
+            <X className="h-4 w-4" />
+          </Button>
+        ) : (
+          <Button type="button" variant="outline" size="icon" onClick={handleUploadClick}>
+            <Upload className="h-4 w-4" />
+          </Button>
+        )}
+      </div>
+      {error && <p className="text-sm text-destructive">{error}</p>}
+      <input
+        type="file"
+        ref={fileInputRef}
+        onChange={handleFileChange}
+        className="hidden"
+        accept={accept}
+      />
+    </div>
+  );
+};
 
-    export default ImageUploader;
+export default ImageUploader;

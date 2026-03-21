@@ -19,6 +19,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import { publishOfficialGazetteEntry } from '@/lib/officialGazette';
 
 const MinisterManager = ({ ministers, onUpdate }) => {
     const { toast } = useToast();
@@ -58,6 +59,19 @@ const MinisterManager = ({ ministers, onUpdate }) => {
         if (error || !data.success) {
             toast({ title: 'Erro ao nomear ministro', description: data?.message || error.message, variant: 'destructive' });
         } else {
+            const selectedProfile = allUsers.find((profile) => profile.id === selectedUser);
+
+            try {
+                await publishOfficialGazetteEntry(supabase, {
+                    title: `Nomeação ministerial: ${selectedProfile?.full_name || 'Ministro'}`,
+                    summary: `${selectedProfile?.full_name || 'O cidadão selecionado'} foi nomeado para ${selectedMinistry}.`,
+                    content: `${selectedProfile?.full_name || 'O cidadão selecionado'} assumiu oficialmente o cargo de ${selectedMinistry}.`,
+                    type: 'Nomeação e Exoneração',
+                });
+            } catch (gazetteError) {
+                console.error('Erro ao publicar nomeação no Diário Oficial:', gazetteError);
+            }
+
             toast({ title: 'Sucesso!', description: data.message });
             onUpdate();
             setIsDialogOpen(false);
@@ -65,11 +79,22 @@ const MinisterManager = ({ ministers, onUpdate }) => {
         setIsSaving(false);
     };
 
-    const handleDismiss = async (userId) => {
-        const { data, error } = await supabase.rpc('dismiss_minister', { p_user_id: userId });
+    const handleDismiss = async (minister) => {
+        const { data, error } = await supabase.rpc('dismiss_minister', { p_user_id: minister.user_id });
         if (error || !data.success) {
             toast({ title: 'Erro ao exonerar ministro', description: data?.message || error.message, variant: 'destructive' });
         } else {
+            try {
+                await publishOfficialGazetteEntry(supabase, {
+                    title: `Exoneração ministerial: ${minister.profile.full_name}`,
+                    summary: `${minister.profile.full_name} deixou o cargo de ${minister.ministry}.`,
+                    content: `${minister.profile.full_name} foi exonerado do cargo de ${minister.ministry}.`,
+                    type: 'Nomeação e Exoneração',
+                });
+            } catch (gazetteError) {
+                console.error('Erro ao publicar exoneração no Diário Oficial:', gazetteError);
+            }
+
             toast({ title: 'Sucesso!', description: data.message });
             onUpdate();
         }
@@ -88,7 +113,7 @@ const MinisterManager = ({ ministers, onUpdate }) => {
                             <p className="font-semibold">{minister.profile.full_name}</p>
                             <p className="text-sm text-muted-foreground">{minister.ministry}</p>
                         </div>
-                        <Button variant="destructive" size="sm" onClick={() => handleDismiss(minister.user_id)}>
+                        <Button variant="destructive" size="sm" onClick={() => handleDismiss(minister)}>
                             <UserX className="mr-2 h-4 w-4" />
                             Exonerar
                         </Button>

@@ -12,6 +12,9 @@ import { Button } from '@/components/ui/button';
 import { formatDistanceToNow, format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { motion } from 'framer-motion';
+import { useLocation } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
+import { formatPrisonCountdown, isPrisonSentenceActive } from '@/lib/prison';
 
 const StatCard = ({ icon: Icon, title, value, color }) => (
     <Card className="glass-effect">
@@ -71,11 +74,120 @@ const getSecurityLevel = (crime) => {
     return { text: 'Média Segurança', color: 'bg-yellow-500/20 text-yellow-300', icon: Users };
 };
 
+const PrisonerLockScreen = ({ user, activeRecord, redirectedFrom, onRefresh }) => (
+    <>
+        <Helmet>
+            <title>Custódia Federal - GOV.RP</title>
+            <meta name="description" content="Área de custódia federal para usuários atualmente presos." />
+        </Helmet>
+        <div className="min-h-screen flex items-center justify-center px-4 bg-gradient-to-br from-slate-950 via-slate-900 to-red-950/60">
+            <motion.div
+                initial={{ opacity: 0, y: -20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4 }}
+                className="w-full max-w-3xl rounded-2xl border border-red-500/20 bg-slate-950/80 p-8 shadow-2xl backdrop-blur"
+            >
+                <Tally5 className="mx-auto mb-6 h-20 w-20 text-red-400" />
+                <h1 className="mb-4 text-center text-4xl font-bold text-white">Você está sob custódia federal</h1>
+                <p className="mx-auto mb-4 max-w-2xl text-center text-lg text-slate-300">
+                    Seu acesso ao restante do GOV.RP foi temporariamente bloqueado. Aguarde o término da pena para voltar a circular livremente pela plataforma.
+                </p>
+                {redirectedFrom && (
+                    <p className="mx-auto mb-8 max-w-2xl rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-center text-sm text-red-200">
+                        A tentativa de acessar <strong>{redirectedFrom}</strong> foi bloqueada porque você ainda está preso.
+                    </p>
+                )}
+
+                <div className="grid gap-4 md:grid-cols-3">
+                    <Card className="border-slate-800 bg-slate-900/70">
+                        <CardContent className="p-5">
+                            <p className="text-sm text-slate-400">Status</p>
+                            <p className="mt-2 text-xl font-semibold text-red-300">Custódia ativa</p>
+                        </CardContent>
+                    </Card>
+                    <Card className="border-slate-800 bg-slate-900/70">
+                        <CardContent className="p-5">
+                            <p className="text-sm text-slate-400">Tempo restante</p>
+                            <p className="mt-2 text-xl font-semibold text-white">
+                                {formatPrisonCountdown(user?.release_date)}
+                            </p>
+                        </CardContent>
+                    </Card>
+                    <Card className="border-slate-800 bg-slate-900/70">
+                        <CardContent className="p-5">
+                            <p className="text-sm text-slate-400">Situação penal</p>
+                            <p className="mt-2 text-xl font-semibold text-white">
+                                {user?.criminal_status || 'Condenado'}
+                            </p>
+                        </CardContent>
+                    </Card>
+                </div>
+
+                <div className="mt-8 grid gap-4 md:grid-cols-2">
+                    <Card className="border-slate-800 bg-slate-900/70">
+                        <CardHeader>
+                            <CardTitle className="text-white">Dados da Pena</CardTitle>
+                            <CardDescription>A contagem acompanha o tempo real.</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-3 text-sm text-slate-200">
+                            <p><strong>Crime:</strong> {activeRecord?.crime || 'Não informado'}</p>
+                            <p><strong>Início:</strong> {activeRecord?.sentence_start_date ? format(new Date(activeRecord.sentence_start_date), 'dd/MM/yyyy HH:mm') : 'Não informado'}</p>
+                            <p><strong>Término:</strong> {user?.release_date ? format(new Date(user.release_date), 'dd/MM/yyyy HH:mm') : 'Não informado'}</p>
+                            <p><strong>Juiz responsável:</strong> {activeRecord?.judge?.full_name || 'Não informado'}</p>
+                        </CardContent>
+                    </Card>
+                    <Card className="border-slate-800 bg-slate-900/70">
+                        <CardHeader>
+                            <CardTitle className="text-white">Orientação</CardTitle>
+                            <CardDescription>Enquanto a pena estiver ativa, esta é sua única página acessível.</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-3 text-sm text-slate-200">
+                            <Badge variant="destructive" className="w-fit">Saída bloqueada</Badge>
+                            <p>Ao tentar acessar outras áreas, você será redirecionado automaticamente de volta para esta página.</p>
+                            <p>Assim que o prazo terminar, sua situação será atualizada e o acesso será liberado.</p>
+                            <Button onClick={onRefresh} className="mt-2 w-full">Atualizar Situação</Button>
+                        </CardContent>
+                    </Card>
+                </div>
+            </motion.div>
+        </div>
+    </>
+);
+
 const Prison = () => {
+    const location = useLocation();
+    const { user, refreshUser } = useAuth();
     const { toast } = useToast();
     const [inmates, setInmates] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
+    const [activeRecord, setActiveRecord] = useState(null);
+    const [, setClockTick] = useState(0);
+    const isCurrentUserImprisoned = isPrisonSentenceActive(user);
+    const redirectedFrom = location.state?.prisonRedirectedFrom;
+
+    const fetchActiveRecord = useCallback(async () => {
+        if (!user?.id || !isCurrentUserImprisoned) {
+            setActiveRecord(null);
+            return;
+        }
+
+        const { data, error } = await supabase
+            .from('criminal_records')
+            .select('*, judge:profiles!criminal_records_judge_id_fkey(id, full_name)')
+            .eq('user_id', user.id)
+            .eq('is_active', true)
+            .order('sentence_end_date', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+        if (error) {
+            toast({ title: 'Erro ao carregar dados da prisão', description: error.message, variant: 'destructive' });
+            return;
+        }
+
+        setActiveRecord(data);
+    }, [isCurrentUserImprisoned, toast, user?.id]);
 
     const fetchInmates = useCallback(async () => {
         setLoading(true);
@@ -91,8 +203,43 @@ const Prison = () => {
     }, [toast]);
 
     useEffect(() => {
+        if (isCurrentUserImprisoned) {
+            setLoading(false);
+            fetchActiveRecord();
+            return;
+        }
+
         fetchInmates();
-    }, [fetchInmates]);
+    }, [fetchActiveRecord, fetchInmates, isCurrentUserImprisoned]);
+
+    useEffect(() => {
+        if (!isCurrentUserImprisoned) {
+            return undefined;
+        }
+
+        const intervalId = window.setInterval(() => {
+            setClockTick((currentTick) => currentTick + 1);
+        }, 1000);
+
+        return () => {
+            window.clearInterval(intervalId);
+        };
+    }, [isCurrentUserImprisoned]);
+
+    useEffect(() => {
+        if (!isCurrentUserImprisoned) {
+            return undefined;
+        }
+
+        const intervalId = window.setInterval(() => {
+            refreshUser();
+            fetchActiveRecord();
+        }, 60000);
+
+        return () => {
+            window.clearInterval(intervalId);
+        };
+    }, [fetchActiveRecord, isCurrentUserImprisoned, refreshUser]);
 
     const filteredInmates = useMemo(() => {
         if (!searchTerm) return inmates;
@@ -109,6 +256,17 @@ const Prison = () => {
         const highSecurity = inmates.filter(i => getSecurityLevel(i.crime).text === 'Alta Segurança').length;
         return { total, maxSecurity, highSecurity };
     }, [inmates]);
+
+    if (isCurrentUserImprisoned) {
+        return (
+            <PrisonerLockScreen
+                user={user}
+                activeRecord={activeRecord}
+                redirectedFrom={redirectedFrom}
+                onRefresh={refreshUser}
+            />
+        );
+    }
 
     return (
         <>

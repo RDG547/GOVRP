@@ -18,6 +18,7 @@ import { ptBR } from 'date-fns/locale';
 import ImageUploader from '@/components/ImageUploader';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
+import { buildStoragePath } from '@/lib/security';
 
 const politicalOrientations = ['Extrema Esquerda', 'Esquerda', 'Centro-Esquerda', 'Centro', 'Centro-Direita', 'Direita', 'Extrema-Direita'];
 const roleHierarchy = { 'Dono': 4, 'Presidente': 3, 'Vice-Presidente': 2, 'Membro': 1 };
@@ -54,7 +55,7 @@ const EditPartyForm = ({ party, onAction, closeDialog, userRole, members }) => {
         try {
             let finalLogoUrl = formData.logo_url;
             if (logoFile) {
-                const { data: uploadData, error: uploadError } = await supabase.storage.from('public-assets').upload(`party-logos/${Date.now()}-${logoFile.name}`, logoFile);
+                const { data: uploadData, error: uploadError } = await supabase.storage.from('public-assets').upload(buildStoragePath({ prefix: 'party-logos', entityId: party.id, fileName: logoFile.name }), logoFile);
                 if (uploadError) throw new Error(`Erro no upload do logo: ${uploadError.message}`);
                 finalLogoUrl = supabase.storage.from('public-assets').getPublicUrl(uploadData.path).data.publicUrl;
             }

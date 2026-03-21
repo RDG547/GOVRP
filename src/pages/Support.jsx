@@ -13,6 +13,13 @@ import PageHeader from '@/components/layout/PageHeader';
 import { useAuth } from '@/contexts/AuthContext';
 import { formatPhone } from '@/lib/utils';
 import { supabase } from '@/lib/supabaseClient';
+import {
+  ACCEPTED_IMAGE_EXTENSIONS,
+  ACCEPTED_IMAGE_MIME_TYPES,
+  MAX_SUPPORT_ATTACHMENT_BYTES,
+  buildStoragePath,
+  validateSelectedFile,
+} from '@/lib/security';
 
 const Support = () => {
   const { user } = useAuth();
@@ -51,8 +58,16 @@ const Support = () => {
   const handleFileChange = (e) => {
     if (e.target.files && e.target.files[0]) {
       const selectedFile = e.target.files[0];
-      if (selectedFile.size > 5 * 1024 * 1024) { // 5MB limit
-        toast({ title: "Arquivo muito grande", description: "O anexo não pode exceder 5MB.", variant: "destructive" });
+      const validation = validateSelectedFile(selectedFile, {
+        allowedMimeTypes: ACCEPTED_IMAGE_MIME_TYPES,
+        allowedExtensions: ACCEPTED_IMAGE_EXTENSIONS,
+        maxBytes: MAX_SUPPORT_ATTACHMENT_BYTES,
+        label: 'anexo',
+      });
+
+      if (!validation.ok) {
+        toast({ title: "Arquivo inválido", description: validation.error, variant: "destructive" });
+        if (fileInputRef.current) fileInputRef.current.value = "";
         return;
       }
       setFile(selectedFile);
@@ -65,9 +80,11 @@ const Support = () => {
 
     let attachmentUrl = null;
     if (file) {
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${Math.random()}.${fileExt}`;
-      const filePath = `support-attachments/${fileName}`;
+      const filePath = buildStoragePath({
+        prefix: 'support-attachments',
+        entityId: user?.id || 'guest',
+        fileName: file.name,
+      });
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from('support-attachments')
         .upload(filePath, file);

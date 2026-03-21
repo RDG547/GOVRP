@@ -17,6 +17,7 @@ import { Label } from '@/components/ui/label';
 import ImageUploader from '@/components/ImageUploader';
 import PartyManagementDialog from '@/components/parties/PartyManagementDialog';
 import { Textarea } from '@/components/ui/textarea';
+import { buildStoragePath } from '@/lib/security';
 
 const roleHierarchy = { 'Dono': 4, 'Presidente': 3, 'Vice-Presidente': 2, 'Membro': 1 };
 
@@ -36,7 +37,7 @@ const CustomizationDialog = ({ party, open, onOpenChange, onUpdate }) => {
             if (headerFile) {
                 const { data: uploadData, error: uploadError } = await supabase.storage
                     .from('public-assets')
-                    .upload(`party-headers/${party.id}/${Date.now()}-${headerFile.name}`, headerFile);
+                    .upload(buildStoragePath({ prefix: 'party-headers', entityId: party.id, fileName: headerFile.name }), headerFile);
                 if (uploadError) throw uploadError;
                 finalHeaderUrl = supabase.storage.from('public-assets').getPublicUrl(uploadData.path).data.publicUrl;
             }

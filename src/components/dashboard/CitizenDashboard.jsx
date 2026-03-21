@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { motion } from 'framer-motion';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Settings, Shield, User, Banknote, Bell, ArrowRight, Mail, Phone, TrendingUp, Activity, PiggyBank, Users, LayoutDashboard, Calendar, Briefcase, AtSign, Fingerprint, Flag, Star, BookOpen, Car, Globe, Building, HelpCircle, Contact, Package, Repeat, FileText as DocIcon, UserPlus, MessageSquare, Gavel, Award } from 'lucide-react';
+import { Settings, Shield, User, Banknote, Bell, ArrowRight, Mail, Phone, TrendingUp, Activity, PiggyBank, Users, LayoutDashboard, Calendar, Briefcase, AtSign, Fingerprint, Flag, Star, BookOpen, Car, Globe, Building, HelpCircle, Contact, Package, Repeat, FileText as DocIcon, UserPlus, MessageSquare, Gavel, Award, Loader2, Landmark } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/lib/supabaseClient';
@@ -71,6 +71,9 @@ const ActivityIcon = ({ type }) => {
         'criminal_record_new': { icon: Gavel, color: 'text-red-400', bg: 'bg-red-500/20' },
         'bill_suggestion_received': { icon: Award, color: 'text-yellow-400', bg: 'bg-yellow-500/20' },
         'bill_suggestion_received_party': { icon: Award, color: 'text-yellow-400', bg: 'bg-yellow-500/20' },
+        'daily_check_in': { icon: Calendar, color: 'text-emerald-400', bg: 'bg-emerald-500/20' },
+        'daily_check_in_reward': { icon: Calendar, color: 'text-emerald-400', bg: 'bg-emerald-500/20' },
+        'political_points_awarded': { icon: Landmark, color: 'text-amber-400', bg: 'bg-amber-500/20' },
         'default': { icon: Bell, color: 'text-gray-400', bg: 'bg-gray-500/20' }
     };
 
@@ -87,6 +90,8 @@ const CitizenDashboard = () => {
   const { toast } = useToast();
   const [dontShowTutorial, setDontShowTutorial] = useState(false);
   const [data, setData] = useState({
+    accountId: null,
+    hasBankAccount: false,
     balance: 0,
     investments: 0,
     followers: 0,
@@ -94,9 +99,20 @@ const CitizenDashboard = () => {
     activityFeed: [],
     party: null,
     reputation: 0,
+    politicalPoints: 0,
     documents: [],
   });
   const [loading, setLoading] = useState(true);
+  const [dailyCheckIn, setDailyCheckIn] = useState({
+    loading: true,
+    claiming: false,
+    featureAvailable: true,
+    status: null,
+  });
+
+  const isMissingDailyCheckInRpc = (error) =>
+    error?.code === 'PGRST202' ||
+    /daily_check_in/i.test(`${error?.message || ''} ${error?.details || ''}`);
 
   useEffect(() => {
     if (user) {
@@ -104,48 +120,142 @@ const CitizenDashboard = () => {
     }
   }, [user]);
 
-  useEffect(() => {
-    const fetchData = async () => {
-      if (!user) return;
-      setLoading(true);
+  const fetchData = useCallback(async () => {
+    if (!user) {
+      return;
+    }
 
-      const sevenDaysAgo = subDays(new Date(), 7).toISOString();
+    setLoading(true);
+    setDailyCheckIn((currentState) => ({
+      ...currentState,
+      loading: true,
+    }));
 
-      const { data: accountData } = await supabase.from('accounts').select('id, balance').eq('user_id', user.id).maybeSingle();
-      const { data: investmentsData } = await supabase.rpc('get_total_invested_by_user', { p_user_id: user.id });
-      const { count: followersCount } = await supabase.from('followers').select('*', { count: 'exact', head: true }).eq('following_id', user.id);
-      const { count: followingCount } = await supabase.from('followers').select('*', { count: 'exact', head: true }).eq('follower_id', user.id);
-      const { data: notifData } = await supabase.from('notifications').select('*').eq('user_id', user.id).gte('created_at', sevenDaysAgo).order('created_at', { ascending: false });
-      const { data: partyData, error: partyError } = await supabase.rpc('get_user_party_affiliation', { p_user_id: user.id });
-      if (partyError) console.error("Party Affiliation Error:", partyError);
-      const { data: documentsData } = await supabase.from('documents').select('*').eq('user_id', user.id);
-      
-      let transactions = [];
-      if (accountData) {
-        const { data: transData } = await supabase.rpc('get_user_transactions', { p_user_id: user.id });
-        transactions = transData || [];
+    const sevenDaysAgo = subDays(new Date(), 7).toISOString();
+
+    try {
+      const [
+        accountResponse,
+        investmentsResponse,
+        followersResponse,
+        followingResponse,
+        notificationsResponse,
+        partyResponse,
+        documentsResponse,
+        dailyCheckInResponse,
+      ] = await Promise.all([
+        supabase.from('accounts').select('id, balance').eq('user_id', user.id).maybeSingle(),
+        supabase.rpc('get_total_invested_by_user', { p_user_id: user.id }),
+        supabase.from('followers').select('*', { count: 'exact', head: true }).eq('following_id', user.id),
+        supabase.from('followers').select('*', { count: 'exact', head: true }).eq('follower_id', user.id),
+        supabase.from('notifications').select('*').eq('user_id', user.id).gte('created_at', sevenDaysAgo).order('created_at', { ascending: false }),
+        supabase.rpc('get_user_party_affiliation', { p_user_id: user.id }),
+        supabase.from('documents').select('*').eq('user_id', user.id),
+        supabase.rpc('get_daily_check_in_status'),
+      ]);
+
+      if (accountResponse.error && accountResponse.error.code !== 'PGRST116') {
+        throw accountResponse.error;
       }
-      
-      const combinedActivity = [...(notifData || []), ...transactions]
+
+      if (investmentsResponse.error) {
+        throw investmentsResponse.error;
+      }
+
+      if (followersResponse.error) {
+        throw followersResponse.error;
+      }
+
+      if (followingResponse.error) {
+        throw followingResponse.error;
+      }
+
+      if (notificationsResponse.error) {
+        throw notificationsResponse.error;
+      }
+
+      if (documentsResponse.error) {
+        throw documentsResponse.error;
+      }
+
+      if (partyResponse.error) {
+        console.error("Party Affiliation Error:", partyResponse.error);
+      }
+
+      let transactions = [];
+      if (accountResponse.data) {
+        const { data: transactionsData, error: transactionsError } = await supabase.rpc('get_user_transactions', { p_user_id: user.id });
+
+        if (transactionsError) {
+          throw transactionsError;
+        }
+
+        transactions = transactionsData || [];
+      }
+
+      const combinedActivity = [...(notificationsResponse.data || []), ...transactions]
         .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
       setData({
-        balance: accountData?.balance || 0,
-        investments: investmentsData || 0,
-        followers: followersCount || 0,
-        following: followingCount || 0,
+        accountId: accountResponse.data?.id || null,
+        hasBankAccount: Boolean(accountResponse.data),
+        balance: accountResponse.data?.balance || 0,
+        investments: investmentsResponse.data || 0,
+        followers: followersResponse.count || 0,
+        following: followingResponse.count || 0,
         activityFeed: combinedActivity,
-        party: partyData?.is_affiliated ? partyData : null,
+        party: partyResponse.data?.is_affiliated ? partyResponse.data : null,
         reputation: user.reputation_points || 0,
-        documents: documentsData || [],
+        politicalPoints: user.political_points || 0,
+        documents: documentsResponse.data || [],
       });
-      setLoading(false);
-    };
 
+      if (dailyCheckInResponse.error) {
+        if (isMissingDailyCheckInRpc(dailyCheckInResponse.error)) {
+          setDailyCheckIn((currentState) => ({
+            ...currentState,
+            loading: false,
+            featureAvailable: false,
+            status: null,
+          }));
+        } else {
+          console.error("Daily Check-in Error:", dailyCheckInResponse.error);
+          setDailyCheckIn((currentState) => ({
+            ...currentState,
+            loading: false,
+            featureAvailable: true,
+            status: null,
+          }));
+        }
+      } else {
+        setDailyCheckIn((currentState) => ({
+          ...currentState,
+          loading: false,
+          featureAvailable: true,
+          status: dailyCheckInResponse.data,
+        }));
+      }
+    } catch (error) {
+      console.error("Dashboard Error:", error);
+      toast({
+        title: "Erro ao carregar dashboard",
+        description: "Nao foi possivel carregar todos os dados do seu painel.",
+        variant: "destructive",
+      });
+      setDailyCheckIn((currentState) => ({
+        ...currentState,
+        loading: false,
+      }));
+    } finally {
+      setLoading(false);
+    }
+  }, [toast, user]);
+
+  useEffect(() => {
     if (user) {
       fetchData();
     }
-  }, [user]);
+  }, [fetchData, user]);
 
   const handleTutorialToggle = async (checked) => {
     setDontShowTutorial(checked);
@@ -164,6 +274,48 @@ const CitizenDashboard = () => {
         variant: "destructive",
       });
       setDontShowTutorial(!checked);
+    }
+  };
+
+  const handleClaimDailyCheckIn = async () => {
+    setDailyCheckIn((currentState) => ({
+      ...currentState,
+      claiming: true,
+    }));
+
+    try {
+      const { data: claimResult, error } = await supabase.rpc('claim_daily_check_in');
+
+      if (error) {
+        throw error;
+      }
+
+      if (!claimResult?.success) {
+        toast({
+          title: claimResult?.already_claimed ? "Check-in ja registrado" : "Nao foi possivel registrar o check-in",
+          description: claimResult?.message || "Tente novamente em instantes.",
+          variant: claimResult?.already_claimed ? "default" : "destructive",
+        });
+        return;
+      }
+
+      toast({
+        title: "Check-in diario realizado!",
+        description: claimResult.message,
+      });
+
+      await Promise.all([refreshUser(), fetchData()]);
+    } catch (error) {
+      toast({
+        title: "Erro ao registrar check-in",
+        description: error.message || "Nao foi possivel registrar sua recompensa diaria.",
+        variant: "destructive",
+      });
+    } finally {
+      setDailyCheckIn((currentState) => ({
+        ...currentState,
+        claiming: false,
+      }));
     }
   };
 
@@ -193,10 +345,11 @@ const CitizenDashboard = () => {
             centered={true}
           />
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-6">
             <StatCard title="Saldo em Conta" value={formatCurrency(data.balance)} icon={Banknote} color="text-green-400" description="Disponível para uso imediato." />
             <StatCard title="Total Investido" value={formatCurrency(data.investments)} icon={PiggyBank} color="text-blue-400" description="Seu patrimônio em crescimento." />
             <StatCard title="Reputação" value={data.reputation} icon={Star} color="text-yellow-400" description="Sua influência na comunidade." />
+            <StatCard title="Pontos Políticos" value={data.politicalPoints} icon={Landmark} color="text-amber-400" description="Seu capital político institucional." />
             <StatCard title="Seguidores no X" value={data.followers} icon={Users} color="text-sky-400" description={`${data.following} seguindo`} />
           </div>
 
@@ -242,6 +395,90 @@ const CitizenDashboard = () => {
             </div>
             
             <div className="lg:col-span-2 space-y-6">
+              <Card className="glass-effect border-emerald-500/20">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2"><Calendar className="text-emerald-400" /> Check-in Diario</CardTitle>
+                  <CardDescription>Entre todos os dias para garantir saldo, reputacao e manter sua sequencia ativa.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {dailyCheckIn.loading ? (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Carregando status do check-in...
+                    </div>
+                  ) : !dailyCheckIn.featureAvailable ? (
+                    <p className="text-sm text-muted-foreground">
+                      O check-in diario sera exibido automaticamente assim que a atualizacao do banco for aplicada no Supabase.
+                    </p>
+                  ) : !dailyCheckIn.status?.has_bank_account ? (
+                    <>
+                      <p className="text-sm text-muted-foreground">
+                        Abra sua conta bancaria para receber recompensas em saldo e registrar sua sequencia diaria.
+                      </p>
+                      <Link to="/services/bank">
+                        <Button className="w-full bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-700 hover:to-teal-600">
+                          <Banknote className="mr-2 h-4 w-4" />
+                          Abrir Conta Bancaria
+                        </Button>
+                      </Link>
+                    </>
+                  ) : (
+                    <>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-4">
+                          <p className="text-xs text-muted-foreground">Sequencia atual</p>
+                          <p className="text-2xl font-bold text-foreground">{dailyCheckIn.status?.current_streak || 0} dias</p>
+                        </div>
+                        <div className="rounded-xl border border-blue-500/20 bg-blue-500/10 p-4">
+                          <p className="text-xs text-muted-foreground">
+                            {dailyCheckIn.status?.has_checked_in_today ? 'Proxima recompensa' : 'Recompensa de hoje'}
+                          </p>
+                          <p className="text-lg font-bold text-foreground">{formatCurrency(dailyCheckIn.status?.reward_preview_amount || 0)}</p>
+                          <p className="text-xs text-muted-foreground">+{dailyCheckIn.status?.reputation_reward || 0} reputacao</p>
+                        </div>
+                      </div>
+
+                      <div className="rounded-xl border border-white/10 bg-white/5 p-4 text-sm text-muted-foreground space-y-2">
+                        <p>
+                          {dailyCheckIn.status?.has_checked_in_today
+                            ? 'Seu check-in de hoje ja foi registrado. Volte amanha para continuar sua sequencia.'
+                            : dailyCheckIn.status?.current_streak > 0
+                              ? `Seu proximo check-in sera o dia ${dailyCheckIn.status?.next_streak} da sequencia.`
+                              : 'Faca o primeiro check-in para iniciar sua sequencia diaria.'}
+                        </p>
+                        {dailyCheckIn.status?.weekly_bonus_amount > 0 && (
+                          <p className="text-amber-300">
+                            Esse resgate inclui bonus semanal de {formatCurrency(dailyCheckIn.status.weekly_bonus_amount)}.
+                          </p>
+                        )}
+                        {dailyCheckIn.status?.last_checked_in_at && (
+                          <p className="text-xs">
+                            Ultimo registro {formatDistanceToNow(new Date(dailyCheckIn.status.last_checked_in_at), { addSuffix: true, locale: ptBR })}.
+                          </p>
+                        )}
+                      </div>
+
+                      <Button
+                        className="w-full bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-700 hover:to-teal-600"
+                        onClick={handleClaimDailyCheckIn}
+                        disabled={dailyCheckIn.claiming || !dailyCheckIn.status?.can_claim_today}
+                      >
+                        {dailyCheckIn.claiming ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Registrando check-in...
+                          </>
+                        ) : dailyCheckIn.status?.has_checked_in_today ? (
+                          'Check-in ja realizado hoje'
+                        ) : (
+                          'Fazer Check-in Diario'
+                        )}
+                      </Button>
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+
                <Card className="glass-effect">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2"><TrendingUp /> Resumo Financeiro</CardTitle>

@@ -211,38 +211,54 @@ if (window.navigation && window.self !== window.top) {
 const addTransformIndexHtml = {
 	name: 'add-transform-index-html',
 	transformIndexHtml(html) {
-		const tags = [
-			{
-				tag: 'script',
-				attrs: { type: 'module' },
-				children: configHorizonsRuntimeErrorHandler,
+		const tags = [];
+
+		if (isDev) {
+			tags.push(
+				{
+					tag: 'script',
+					attrs: { type: 'module' },
+					children: configHorizonsRuntimeErrorHandler,
+					injectTo: 'head',
+				},
+				{
+					tag: 'script',
+					attrs: { type: 'module' },
+					children: configHorizonsViteErrorHandler,
+					injectTo: 'head',
+				},
+				{
+					tag: 'script',
+					attrs: {type: 'module'},
+					children: configHorizonsConsoleErrorHandler,
+					injectTo: 'head',
+				},
+				{
+					tag: 'script',
+					attrs: { type: 'module' },
+					children: configWindowFetchMonkeyPatch,
+					injectTo: 'head',
+				},
+				{
+					tag: 'script',
+					attrs: { type: 'module' },
+					children: configNavigationHandler,
+					injectTo: 'head',
+				}
+			);
+		}
+
+		if (!isDev) {
+			tags.push({
+				tag: 'meta',
+				attrs: {
+					'http-equiv': 'Content-Security-Policy',
+					content:
+						"default-src 'self'; base-uri 'self'; object-src 'none'; script-src 'self' https://js.stripe.com https://va.vercel-scripts.com; style-src 'self' 'unsafe-inline' https:; img-src 'self' data: blob: https:; media-src 'self' blob: https:; font-src 'self' data: https:; connect-src 'self' https:; frame-src 'self' https://js.stripe.com https://hooks.stripe.com; manifest-src 'self'; upgrade-insecure-requests",
+				},
 				injectTo: 'head',
-			},
-			{
-				tag: 'script',
-				attrs: { type: 'module' },
-				children: configHorizonsViteErrorHandler,
-				injectTo: 'head',
-			},
-			{
-				tag: 'script',
-				attrs: {type: 'module'},
-				children: configHorizonsConsoleErrorHandler,
-				injectTo: 'head',
-			},
-			{
-				tag: 'script',
-				attrs: { type: 'module' },
-				children: configWindowFetchMonkeyPatch,
-				injectTo: 'head',
-			},
-			{
-				tag: 'script',
-				attrs: { type: 'module' },
-				children: configNavigationHandler,
-				injectTo: 'head',
-			},
-		];
+			});
+		}
 
 		if (!isDev && process.env.TEMPLATE_BANNER_SCRIPT_URL && process.env.TEMPLATE_REDIRECT_URL) {
 			tags.push(

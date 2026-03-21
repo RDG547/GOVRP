@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Helmet } from 'react-helmet-async';
@@ -8,18 +8,25 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/components/ui/use-toast';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { supabase } from '@/lib/supabaseClient';
 import { FaGoogle, FaFacebook, FaDiscord } from 'react-icons/fa';
+import { isAuthPopupClosedError, signInWithOAuthPopup } from '@/lib/oauthPopup';
 
 
 const Login = () => {
   const [formData, setFormData] = useState({ identifier: '', password: '' });
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [socialLoadingProvider, setSocialLoadingProvider] = useState(null);
   
   const { login } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
+
+  const providerLabels = {
+    google: 'Google',
+    facebook: 'Facebook',
+    discord: 'Discord',
+  };
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -53,14 +60,29 @@ const Login = () => {
   };
 
   const handleSocialLogin = async (provider) => {
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider,
-      options: {
-        redirectTo: `${window.location.origin}/`
+    const providerLabel = providerLabels[provider] || provider;
+
+    setSocialLoadingProvider(provider);
+
+    try {
+      await signInWithOAuthPopup(provider);
+      toast({
+        title: 'Autenticacao realizada!',
+        description: `Sua sessao com ${providerLabel} foi iniciada com sucesso.`,
+      });
+      navigate('/');
+    } catch (error) {
+      if (isAuthPopupClosedError(error)) {
+        return;
       }
-    });
-    if (error) {
-      toast({ title: `Erro com ${provider}`, description: error.message, variant: 'destructive' });
+
+      toast({
+        title: `Erro com ${providerLabel}`,
+        description: error.message,
+        variant: 'destructive',
+      });
+    } finally {
+      setSocialLoadingProvider(null);
     }
   };
 
@@ -136,7 +158,7 @@ const Login = () => {
 
             <Button
               type="submit"
-              disabled={loading}
+              disabled={loading || Boolean(socialLoadingProvider)}
               className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 py-3 text-lg font-medium"
             >
               {loading ? <Loader2 className="animate-spin" /> : <><LogIn className="mr-2 h-5 w-5" /> Entrar</>}
@@ -153,9 +175,18 @@ const Login = () => {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <Button variant="outline" onClick={() => handleSocialLogin('google')} className="w-full flex justify-center items-center gap-2"><FaGoogle /> <span>Google</span></Button>
-            <Button variant="outline" onClick={() => handleSocialLogin('facebook')} className="w-full flex justify-center items-center gap-2"><FaFacebook /> <span>Facebook</span></Button>
-            <Button variant="outline" onClick={() => handleSocialLogin('discord')} className="w-full flex justify-center items-center gap-2"><FaDiscord /> <span>Discord</span></Button>
+            <Button variant="outline" onClick={() => handleSocialLogin('google')} disabled={loading || Boolean(socialLoadingProvider)} className="w-full flex justify-center items-center gap-2">
+              {socialLoadingProvider === 'google' ? <Loader2 className="h-4 w-4 animate-spin" /> : <FaGoogle />}
+              <span>Google</span>
+            </Button>
+            <Button variant="outline" onClick={() => handleSocialLogin('facebook')} disabled={loading || Boolean(socialLoadingProvider)} className="w-full flex justify-center items-center gap-2">
+              {socialLoadingProvider === 'facebook' ? <Loader2 className="h-4 w-4 animate-spin" /> : <FaFacebook />}
+              <span>Facebook</span>
+            </Button>
+            <Button variant="outline" onClick={() => handleSocialLogin('discord')} disabled={loading || Boolean(socialLoadingProvider)} className="w-full flex justify-center items-center gap-2">
+              {socialLoadingProvider === 'discord' ? <Loader2 className="h-4 w-4 animate-spin" /> : <FaDiscord />}
+              <span>Discord</span>
+            </Button>
           </div>
 
           <div className="mt-6 text-center">

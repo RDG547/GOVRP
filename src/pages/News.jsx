@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { supabase } from '@/lib/supabaseClient';
 import { useToast } from '@/components/ui/use-toast';
-import { Loader2, Newspaper, Rss, ArrowRight, BookCheck, ScrollText } from 'lucide-react';
+import { Loader2, Newspaper, Rss, ArrowRight, ScrollText } from 'lucide-react';
 import PageHeader from '@/components/layout/PageHeader';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Link, useSearchParams } from 'react-router-dom';
@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Button } from '@/components/ui/button'; // Import the Button component
+import { fetchOfficialGazetteEntries, getOfficialGazetteTypeMeta } from '@/lib/officialGazette';
 
 const NewsCard = ({ item, type }) => {
     const isArticle = type === 'article';
@@ -19,7 +20,7 @@ const NewsCard = ({ item, type }) => {
     const link = isArticle ? `/news/${item.id}` : '#';
     const imageUrl = isArticle ? item.image_url : null;
     const author = isArticle ? item.author?.full_name : null;
-    const category = isArticle ? item.category?.name : item.type;
+    const category = isArticle ? item.category?.name : getOfficialGazetteTypeMeta(item.type).label;
     const publishedAt = item.published_at || item.created_at;
 
     return (
@@ -62,7 +63,6 @@ const News = () => {
     const [articles, setArticles] = useState([]);
     const [douEntries, setDouEntries] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [categories, setCategories] = useState([]);
     const [searchParams, setSearchParams] = useSearchParams();
     const { toast } = useToast();
     const activeTab = searchParams.get('tab') || 'news';
@@ -78,20 +78,8 @@ const News = () => {
             if (articlesError) throw articlesError;
             setArticles(articlesData || []);
 
-            const { data: douData, error: douError } = await supabase
-                .from('dou_entries')
-                .select('*')
-                .order('published_at', { ascending: false });
-            
-            if (douError) throw douError;
+            const douData = await fetchOfficialGazetteEntries(supabase);
             setDouEntries(douData || []);
-
-            const { data: categoriesData, error: categoriesError } = await supabase
-                .from('news_categories')
-                .select('*');
-
-            if (categoriesError) throw categoriesError;
-            setCategories(categoriesData || []);
 
         } catch (error) {
             toast({ title: 'Erro ao carregar notícias', description: error.message, variant: 'destructive' });

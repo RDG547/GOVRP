@@ -19,7 +19,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { formatCurrency, formatCNPJ } from '@/lib/utils';
+import { cn, formatCurrency, formatCNPJ } from '@/lib/utils';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Badge } from '@/components/ui/badge';
@@ -27,7 +27,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import ProductFormDialog from '@/components/dashboard/ProductFormDialog';
 import { useCart } from '@/contexts/CartContext';
 import Cart from '@/components/business/Cart';
-import { cn } from '@/lib/utils';
+import { executeProductPurchase } from '@/lib/commerce';
 
 const StockBadge = ({ stock }) => {
   if (stock === null) return null;
@@ -321,16 +321,17 @@ const Business = () => {
   const handleConfirmBuy = async (paymentMethod, cardId) => {
     if (!selectedProduct) return;
 
-    const { data, error } = await supabase.rpc('buy_product', {
-      p_product_id: selectedProduct.id,
-      p_payment_method: paymentMethod,
-      p_card_id: cardId || null,
+    const result = await executeProductPurchase({
+      supabase,
+      productId: selectedProduct.id,
+      paymentMethod,
+      cardId,
     });
 
-    if (error || !data.success) {
-      toast({ title: "Erro na compra", description: data?.message || error?.message || "Ocorreu um erro.", variant: "destructive" });
+    if (!result.success) {
+      toast({ title: "Erro na compra", description: result.message, variant: "destructive" });
     } else {
-      toast({ title: "Sucesso!", description: data.message });
+      toast({ title: "Sucesso!", description: result.message });
       fetchProductsAndCategories();
     }
     setIsBuyDialogOpen(false);

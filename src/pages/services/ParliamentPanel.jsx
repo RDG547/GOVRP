@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Helmet } from 'react-helmet-async';
-import { Landmark, FileText, Vote, Users, PlusCircle, Check, X, ShieldCheck, Mail, Megaphone, Loader2, Scale, UserCheck, Gavel, UserX } from 'lucide-react';
+import { Vote, PlusCircle, Check, X, ShieldCheck, Loader2, Scale, Gavel, UserX } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/components/ui/use-toast';
@@ -18,6 +18,25 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { motion } from 'framer-motion';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import {
+    canManageParliamentVoting,
+    ensureParliamentOperatorMember,
+    finalizeParliamentVotingIfReady,
+    startBillVotingSession,
+} from '@/lib/parliament';
+
+const resolveHouseDetails = (houseId, availableHouses = [], accessHouse = null) => {
+    const matchedHouse = availableHouses.find((item) => item.id === houseId) || accessHouse;
+    const houseName = matchedHouse?.name || 'Casa Legislativa';
+    const isSenate = houseName.toLowerCase().includes('senado');
+
+    return {
+        id: houseId,
+        name: houseName,
+        memberRole: isSenate ? 'Senador' : 'Deputado',
+        presidentRole: isSenate ? 'Presidente do Senado' : 'Presidente da Câmara dos Deputados',
+    };
+};
 
 const ParliamentPanel = () => {
     const { user } = useAuth();
@@ -34,21 +53,28 @@ const ParliamentPanel = () => {
     const [newBill, setNewBill] = useState({ title: '', summary: '', full_text: '', type: 'PL' });
     const [proposingBill, setProposingBill] = useState(false);
     const [adminTargetHouseId, setAdminTargetHouseId] = useState('a1b2c3d4-e5f6-7890-1234-567890abcdef'); // Default to Câmara
+    const [availableHouses, setAvailableHouses] = useState([]);
     const [votings, setVotings] = useState([]);
     const [activeMainTab, setActiveMainTab] = useState('projects');
     const [activeSubTab, setActiveSubTab] = useState('citizen_suggestions');
     const [votingOn, setVotingOn] = useState(null);
 
-    const houseConfig = {
-        'a1b2c3d4-e5f6-7890-1234-567890abcdef': { name: 'Câmara dos Deputados', memberRole: 'Deputado', presidentRole: 'Presidente da Câmara dos Deputados' },
-        'fedcba09-8765-4321-0987-654321fedcba': { name: 'Senado Federal', memberRole: 'Senador', presidentRole: 'Presidente do Senado' },
-    };
-
     const fetchPanelData = useCallback(async () => {
         if (!user) return;
         setLoading(true);
 
-        const { data: access, error: accessError } = await supabase.rpc('get_parliament_access_data', { p_user_id: user.id });
+        const [{ data: access, error: accessError }, { data: housesData, error: housesError }] = await Promise.all([
+            supabase.rpc('get_parliament_access_data', { p_user_id: user.id }),
+            supabase.from('parliament_houses').select('id, name').order('name'),
+        ]);
+
+        if (housesError) {
+            setLoading(false);
+            setAccessData({ hasAccess: false, reason: housesError.message || 'Nao foi possivel carregar as casas legislativas.' });
+            return;
+        }
+
+        setAvailableHouses(housesData || []);
 
         if (accessError || !access.has_access) {
             setAccessData({ hasAccess: false, reason: access?.reason || accessError?.message || "Acesso negado." });
@@ -65,35 +91,40 @@ const ParliamentPanel = () => {
                 throw new Error("Não foi possível determinar a casa legislativa. Verifique sua filiação parlamentar.");
             }
 
-            const currentHouse = houseConfig[currentHouseId];
-            if (!currentHouse) {
-                throw new Error(`Configuração da casa legislativa não encontrada para o ID: ${currentHouseId}`);
-            }
+            const currentHouse = resolveHouseDetails(currentHouseId, housesData, access.house);
 
-            setParliamentMember(access.member);
-            setHouse({ id: currentHouseId, ...currentHouse });
+            const currentOperator = await ensureParliamentOperatorMember(supabase, {
+                userId: user.id,
+                houseId: currentHouseId,
+                member: access.member,
+            });
 
-            const { memberRole, presidentRole } = currentHouse;
+            setParliamentMember(currentOperator);
+            setHouse(currentHouse);
 
             const [billsRes, suggestionsRes, plebiscitesRes, membersRes, votingsRes] = await Promise.all([
-                supabase.from('bills').select('*, author:profiles(full_name, role)').eq('house_id', currentHouseId),
-                supabase.from('bill_suggestions').select('*, author:profiles(id, full_name, role, avatar_url)').eq('target_id', currentHouseId).eq('target_type', 'house'),
+                supabase.from('bills').select('*, author:profiles(id, full_name, role, avatar_url)').order('created_at', { ascending: false }),
+                supabase.from('bill_suggestions').select('*, author:profiles(id, full_name, role, avatar_url)').eq('target_type', 'house').order('created_at', { ascending: false }),
                 supabase.from('plebiscites').select('*, author:profiles(id, full_name, avatar_url)').eq('status', 'Pendente'),
-                supabase.from('parliament_members').select('profile:profiles(*), party:political_parties(name, acronym, logo_url)').eq('house_id', currentHouseId),
+                supabase.from('parliament_members').select('house_id, profile:profiles(*), party:political_parties(name, acronym, logo_url)').order('term_start_date', { ascending: false }),
                 supabase.from('parliament_votings').select('*, votes:parliament_voting_votes(vote), user_vote:parliament_voting_votes(vote, member_id)').eq('house_id', currentHouseId).eq('status', 'active'),
             ]);
 
             if (billsRes.error) throw billsRes.error;
-            setBills(billsRes.data || []);
+            setBills((billsRes.data || []).filter((bill) => bill.house_id === currentHouseId));
 
             if (suggestionsRes.error) throw suggestionsRes.error;
-            setSuggestions(suggestionsRes.data || []);
+            setSuggestions((suggestionsRes.data || []).filter((suggestion) => suggestion.target_id === currentHouseId));
 
             if (plebiscitesRes.error) throw plebiscitesRes.error;
             setPlebiscitesRequests(plebiscitesRes.data || []);
 
             if (membersRes.error) throw membersRes.error;
-            setMembers(membersRes.data.map(m => ({ ...m.profile, party: m.party })) || []);
+            setMembers(
+                (membersRes.data || [])
+                    .filter((member) => member.house_id === currentHouseId)
+                    .map((member) => ({ ...member.profile, party: member.party }))
+            );
 
             if (votingsRes.error) throw votingsRes.error;
             const filteredVotings = (votingsRes.data || []).filter(v => v.type !== 'plebiscite');
@@ -173,7 +204,10 @@ const ParliamentPanel = () => {
 
     const handlePlebiscitesStatus = async (plebisciteId, action) => {
         const rpcName = action === 'approve' ? 'approve_plebiscite' : 'reject_plebiscite';
-        const { data, error } = await supabase.rpc(rpcName, { p_plebiscite_id: plebisciteId, p_house_id: house.id });
+        const rpcArgs = action === 'approve'
+            ? { p_plebiscite_id: plebisciteId, p_house_id: house.id }
+            : { p_plebiscite_id: plebisciteId };
+        const { data, error } = await supabase.rpc(rpcName, rpcArgs);
         if (error || (data && !data.success)) {
             toast({ title: "Erro", description: data?.message || error.message, variant: "destructive" });
         } else {
@@ -182,23 +216,50 @@ const ParliamentPanel = () => {
         }
     };
 
+    const handleStartBillVoting = async (bill) => {
+        try {
+            await startBillVotingSession(supabase, {
+                billId: bill.id,
+                houseId: house.id,
+                title: bill.title,
+                description: bill.summary || 'Sessão de votação legislativa.',
+            });
+            toast({ title: 'Sessão aberta!', description: 'O projeto foi colocado em votação.' });
+            setActiveMainTab('votes');
+            fetchPanelData();
+        } catch (error) {
+            toast({ title: 'Erro ao iniciar votação', description: error.message, variant: 'destructive' });
+        }
+    };
+
     const handleParliamentVote = async (votingId, vote) => {
         setVotingOn(votingId);
-        const { data, error } = await supabase.rpc('cast_parliament_vote', {
-            p_voting_id: votingId,
-            p_member_id: parliamentMember.id,
-            p_vote: vote
-        });
-        if (error || (data && !data.success)) {
-            toast({ title: "Erro ao votar", description: data?.message || error.message, variant: "destructive" });
-        } else {
-            toast({ title: "Voto computado!", description: data.message });
-            fetchPanelData();
+        try {
+            const selectedVoting = votings.find((item) => item.id === votingId);
+            const { data, error } = await supabase.rpc('cast_parliament_vote', {
+                p_voting_id: votingId,
+                p_member_id: parliamentMember.id,
+                p_vote: vote
+            });
+            if (error || (data && !data.success)) {
+                toast({ title: "Erro ao votar", description: data?.message || error.message, variant: "destructive" });
+            } else {
+                const finalization = selectedVoting
+                    ? await finalizeParliamentVotingIfReady(supabase, { voting: selectedVoting })
+                    : { finalized: false };
+                toast({
+                    title: "Voto computado!",
+                    description: finalization.finalized ? finalization.message : data.message,
+                });
+                fetchPanelData();
+            }
+        } catch (error) {
+            toast({ title: "Erro ao votar", description: error.message, variant: "destructive" });
         }
         setVotingOn(null);
     };
 
-    const canStartVote = user.role === 'Admin' || user.role === 'Presidente da Câmara dos Deputados' || user.role === 'Presidente do Senado';
+    const canStartVote = canManageParliamentVoting(user.role);
 
     if (loading) return <div className="flex items-center justify-center h-screen"><Loader2 className="w-16 h-16 animate-spin" /></div>;
 
@@ -242,8 +303,9 @@ const ParliamentPanel = () => {
                         <Select value={adminTargetHouseId} onValueChange={setAdminTargetHouseId}>
                             <SelectTrigger><SelectValue /></SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="a1b2c3d4-e5f6-7890-1234-567890abcdef">Câmara dos Deputados</SelectItem>
-                                <SelectItem value="fedcba09-8765-4321-0987-654321fedcba">Senado Federal</SelectItem>
+                                {availableHouses.map((houseItem) => (
+                                    <SelectItem key={houseItem.id} value={houseItem.id}>{houseItem.name}</SelectItem>
+                                ))}
                             </SelectContent>
                         </Select>
                     </div>
@@ -269,7 +331,7 @@ const ParliamentPanel = () => {
                                         <CardHeader className="flex flex-row items-center justify-between">
                                             <div>
                                                 <CardTitle>Projetos dos Membros ({house?.name})</CardTitle>
-                                                <CardDescription>Projetos propostos por {house?.name === 'Câmara dos Deputados' ? 'Deputados' : 'Senadores'}.</CardDescription>
+                                                <CardDescription>Projetos propostos por {house?.name?.toLowerCase().includes('senado') ? 'Senadores' : 'Deputados'}.</CardDescription>
                                             </div>
                                             <Button onClick={() => setIsProposeBillOpen(true)}><PlusCircle className="mr-2 h-4 w-4"/>Propor Projeto</Button>
                                         </CardHeader>
@@ -278,13 +340,21 @@ const ParliamentPanel = () => {
                                             {bills.length > 0 ? bills.map(bill => (
                                                 <Card key={bill.id} className="bg-background/50">
                                                     <CardHeader>
-                                                        <CardTitle>{bill.title} <span className="text-sm font-normal text-muted-foreground">({bill.type})</span></CardTitle>
-                                                        <CardDescription>Autor: {bill.author?.full_name || 'Desconhecido'} | Status: {bill.status}</CardDescription>
+                                                        <div className="flex items-start gap-3">
+                                                            <Avatar className="h-11 w-11">
+                                                                <AvatarImage src={bill.author?.avatar_url} alt={bill.author?.full_name} />
+                                                                <AvatarFallback>{bill.author?.full_name?.charAt(0) || 'A'}</AvatarFallback>
+                                                            </Avatar>
+                                                            <div>
+                                                                <CardTitle>{bill.title} <span className="text-sm font-normal text-muted-foreground">({bill.type})</span></CardTitle>
+                                                                <CardDescription>Autor: {bill.author?.full_name || 'Desconhecido'} | Status: {bill.status}</CardDescription>
+                                                            </div>
+                                                        </div>
                                                     </CardHeader>
                                                     <CardContent><p>{bill.summary}</p></CardContent>
                                                     {canStartVote && bill.status === 'Em tramitação' && (
                                                         <CardFooter>
-                                                            <Button size="sm"><Gavel className="w-4 h-4 mr-2" /> Colocar em Votação</Button>
+                                                            <Button size="sm" onClick={() => handleStartBillVoting(bill)}><Gavel className="w-4 h-4 mr-2" /> Colocar em Votação</Button>
                                                         </CardFooter>
                                                     )}
                                                 </Card>
@@ -439,7 +509,7 @@ const ParliamentPanel = () => {
 
                         <TabsContent value="members">
                              <Card className="glass-effect">
-                                 <CardHeader><CardTitle>Membros {house?.name === 'Senado Federal' ? 'do Senado' : `da ${house?.name}`}</CardTitle></CardHeader>
+                                 <CardHeader><CardTitle>Membros {house?.name?.toLowerCase().includes('senado') ? 'do Senado' : `da ${house?.name}`}</CardTitle></CardHeader>
                                  <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                                     {members.length > 0 ? members.map(member => (
                                         <Card key={member.id} className="bg-background/30 p-4 flex flex-col items-center text-center">
@@ -480,8 +550,9 @@ const ParliamentPanel = () => {
                                 <Select value={adminTargetHouseId} onValueChange={setAdminTargetHouseId}>
                                     <SelectTrigger><SelectValue/></SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="a1b2c3d4-e5f6-7890-1234-567890abcdef">Câmara dos Deputados</SelectItem>
-                                        <SelectItem value="fedcba09-8765-4321-0987-654321fedcba">Senado Federal</SelectItem>
+                                        {availableHouses.map((houseItem) => (
+                                            <SelectItem key={houseItem.id} value={houseItem.id}>{houseItem.name}</SelectItem>
+                                        ))}
                                     </SelectContent>
                                 </Select>
                             </div>

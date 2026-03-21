@@ -25,16 +25,80 @@ const formatValue = (type, value) => {
     return value;
 };
 
+const normalizeMrzValue = (value = '') =>
+    value
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toUpperCase()
+        .replace(/[^A-Z0-9 ]/g, ' ')
+        .trim();
+
+const formatPassportMrzDate = (value) => {
+    if (!value) return '<<<<<<';
+
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '<<<<<<';
+
+    const year = String(date.getFullYear()).slice(-2);
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+
+    return `${year}${month}${day}`;
+};
+
+const buildMrzLine = (value) =>
+    value
+        .replace(/\s+/g, '<')
+        .replace(/<+/g, '<')
+        .padEnd(44, '<')
+        .slice(0, 44);
+
+const getPassportNames = (fullName = '') => {
+    const normalized = normalizeMrzValue(fullName);
+    if (!normalized) {
+        return {
+            surname: 'N/A',
+            givenNames: 'N/A',
+        };
+    }
+
+    const parts = normalized.split(' ').filter(Boolean);
+    if (parts.length === 1) {
+        return {
+            surname: parts[0],
+            givenNames: 'N/A',
+        };
+    }
+
+    return {
+        surname: parts.slice(-1).join(' '),
+        givenNames: parts.slice(0, -1).join(' '),
+    };
+};
+
+const PassportField = ({ label, value, className = '' }) => (
+    <div className={className}>
+        <p className="block font-semibold text-slate-500 uppercase tracking-[0.18em] text-[0.44rem] sm:text-[0.55rem] leading-tight">
+            {label}
+        </p>
+        <p className="font-bold text-slate-950 text-[0.58rem] sm:text-[0.76rem] leading-snug break-words">
+            {value || 'N/A'}
+        </p>
+    </div>
+);
+
 const DocumentField = ({ label, value, className = '' }) => (
     <div className={className}>
         <p className="block font-semibold text-gray-500 uppercase tracking-wider text-[0.5rem] sm:text-[9px] leading-tight">{label}</p>
-        <p className="font-bold text-black text-[0.6rem] sm:text-[12px] leading-tight truncate">{value || 'N/A'}</p>
+        <p className="font-bold text-black text-[0.6rem] sm:text-[12px] leading-snug break-words">{value || 'N/A'}</p>
     </div>
 );
 
 const DocumentContainer = ({ children, className = '' }) => (
-    <div className={`relative w-full max-w-[420px] aspect-[1.6] flex flex-col shadow-lg border rounded-lg p-2 sm:p-4 ${className}`}>
-        {children}
+    <div className={`relative w-full max-w-[430px] min-h-[280px] aspect-[1.42] flex flex-col overflow-hidden shadow-lg border rounded-lg p-3 sm:p-4 ${className}`}>
+        <div className="relative z-10 flex h-full flex-col">
+            {children}
+        </div>
     </div>
 );
 
@@ -157,6 +221,7 @@ const CNPJDocument = ({ user, doc, side }) => (
         {side === 'front' ? (
             <>
                 <header className="text-center border-b-2 border-black pb-1 sm:pb-2">
+                    <img src={SEAL_IMAGE} alt="Selo" className="mx-auto mb-2 h-10 w-10 object-contain sm:h-12 sm:w-12" />
                     <p className="text-[0.5rem] sm:text-sm font-bold">REPÚBLICA FEDERATIVA DE GOV.RP</p>
                     <p className="text-base sm:text-xl font-bold">CADASTRO NACIONAL DA PESSOA JURÍDICA</p>
                 </header>
@@ -316,6 +381,12 @@ const CNHDocument = ({ user, doc, side }) => {
 
 const PassportDocument = ({ user, doc, side }) => {
     const dateOfBirth = new Date(user.date_of_birth.replace(/-/g, '\/')).toLocaleDateString('pt-BR');
+    const { surname, givenNames } = getPassportNames(user.full_name);
+    const mrzLineOne = buildMrzLine(`P<GOV${surname}<<${givenNames}`);
+    const mrzLineTwo = buildMrzLine(
+        `${normalizeMrzValue(doc.document_number)}<0GOV${formatPassportMrzDate(user.date_of_birth)}X${formatPassportMrzDate(doc.expires_at)}`
+    );
+
     return (
      <DocumentContainer className={`font-serif ${side === 'front' ? 'bg-[#0A2240] text-white' : 'bg-gray-100 text-black'}`}>
         {side === 'front' ? (
@@ -326,27 +397,38 @@ const PassportDocument = ({ user, doc, side }) => {
                 <p className="text-xl sm:text-3xl font-bold tracking-wider">PASSAPORTE</p>
             </div>
         ) : (
-            <div className="flex flex-col justify-between h-full">
-                 <div>
-                    <p className="text-[0.6rem] sm:text-sm text-gray-500 tracking-widest">PASSAPORTE</p>
-                    <div className="flex gap-2 sm:gap-4 mt-1 sm:mt-2">
-                        <img src={user.avatar_url} alt="Foto" className="w-1/4 aspect-[3/4] object-cover"/>
-                        <div className="text-[0.5rem] sm:text-xs w-full grid grid-cols-2 gap-x-2 sm:gap-x-3 gap-y-1 sm:gap-y-1.5">
-                            <DocumentField label="Tipo/Type" value="P" />
-                            <DocumentField label="País/Country" value="GOV" />
-                            <DocumentField label="Passaporte Nº" value={doc.document_number} className="col-span-2"/>
-                            <DocumentField label="Apelido/Surname" value={user.full_name?.split(' ').slice(-1).join(' ').toUpperCase()} className="col-span-2"/>
-                            <DocumentField label="Nomes/Given Names" value={user.full_name?.split(' ').slice(0, -1).join(' ').toUpperCase()} className="col-span-2"/>
-                            <DocumentField label="Nacionalidade" value="GOVERNIANA" />
-                            <DocumentField label="Data de Nasc." value={dateOfBirth} />
-                            <DocumentField label="Data de Emissão" value={new Date(doc.issued_at).toLocaleDateString('pt-BR')} />
-                            <DocumentField label="Data de Validade" value={doc.expires_at ? new Date(doc.expires_at).toLocaleDateString('pt-BR') : 'INDEFINIDA'} />
-                        </div>
+            <div className="flex h-full flex-col gap-3 rounded-md bg-white/80 p-3 sm:gap-4 sm:p-4">
+                 <div className="flex items-start justify-between gap-3 border-b border-slate-200 pb-2">
+                    <div>
+                        <p className="text-[0.6rem] sm:text-[0.78rem] text-slate-500 tracking-[0.28em]">PASSAPORTE</p>
+                        <p className="text-[0.46rem] sm:text-[0.6rem] uppercase tracking-[0.22em] text-slate-400">República Federativa de GOV.RP</p>
+                    </div>
+                    <div className="rounded-full border border-slate-200 bg-slate-50 px-2 py-1 text-[0.48rem] font-semibold uppercase tracking-[0.22em] text-slate-500 sm:text-[0.58rem]">
+                        Documento Oficial
                     </div>
                  </div>
-                 <div className="font-mono text-[0.5rem] sm:text-sm tracking-wider leading-tight mt-auto">
-                    <p>{`P<GOV<${user.full_name?.toUpperCase().replace(/ /g, '<').padEnd(30, '<')}`}</p>
-                    <p>{`${doc.document_number}<1GOV${new Date(user.date_of_birth).getFullYear()}${(new Date(user.date_of_birth).getMonth()+1).toString().padStart(2, '0')}${new Date(user.date_of_birth).getDate().toString().padStart(2, '0')}<1M${doc.expires_at ? `${new Date(doc.expires_at).getFullYear()}${(new Date(doc.expires_at).getMonth()+1).toString().padStart(2, '0')}${new Date(doc.expires_at).getDate().toString().padStart(2, '0')}` : '<<<<<<'}`.padEnd(30, '<')}</p>
+
+                 <div className="grid flex-1 grid-cols-[96px_1fr] gap-3 sm:grid-cols-[112px_1fr] sm:gap-4">
+                    <div className="overflow-hidden rounded-md border border-slate-200 bg-slate-100">
+                        <img src={user.avatar_url} alt="Foto" className="h-full w-full object-cover"/>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-x-3 gap-y-2 sm:gap-x-4 sm:gap-y-2.5">
+                        <PassportField label="Tipo/Type" value="P" />
+                        <PassportField label="País/Country" value="GOV" />
+                        <PassportField label="Passaporte Nº" value={doc.document_number} className="col-span-2" />
+                        <PassportField label="Apelido/Surname" value={surname} className="col-span-2" />
+                        <PassportField label="Nomes/Given Names" value={givenNames} className="col-span-2" />
+                        <PassportField label="Nacionalidade" value="GOVERNIANA" />
+                        <PassportField label="Data de Nasc." value={dateOfBirth} />
+                        <PassportField label="Data de Emissão" value={new Date(doc.issued_at).toLocaleDateString('pt-BR')} />
+                        <PassportField label="Data de Validade" value={doc.expires_at ? new Date(doc.expires_at).toLocaleDateString('pt-BR') : 'INDEFINIDA'} />
+                    </div>
+                 </div>
+
+                 <div className="rounded-md border border-slate-200 bg-slate-50 px-2 py-2 font-mono text-[0.43rem] leading-none tracking-[0.16em] text-slate-900 sm:px-3 sm:text-[0.56rem]">
+                    <p className="overflow-hidden whitespace-nowrap">{mrzLineOne}</p>
+                    <p className="mt-1 overflow-hidden whitespace-nowrap">{mrzLineTwo}</p>
                  </div>
             </div>
         )}
@@ -391,12 +473,12 @@ const ProfessionalRegistryDocument = ({ user, doc, side }) => (
             <>
                 <header className="flex items-center justify-between pb-1 sm:pb-2 border-b-2 border-black">
                     <h1 className="font-bold text-[0.6rem] sm:text-base">CONSELHO PROFISSIONAL DE GOV.RP</h1>
-                    <Award className="w-8 h-8 sm:w-12 sm:h-12 text-indigo-600"/>
+                    <img src={SEAL_IMAGE} alt="Selo" className="h-9 w-9 object-contain sm:h-12 sm:w-12" />
                 </header>
-                <p className="text-center font-bold text-[0.8rem] sm:text-xl mt-2">CARTEIRA DE IDENTIDADE PROFISSIONAL</p>
-                <main className="flex-grow flex gap-2 sm:gap-3 mt-2 sm:mt-3">
+                <p className="mt-2 text-center font-bold text-[0.76rem] sm:text-lg">CARTEIRA DE IDENTIDADE PROFISSIONAL</p>
+                <main className="mt-2 flex flex-grow gap-2 sm:mt-3 sm:gap-3">
                     <img src={user.avatar_url} alt="Foto" className="w-1/3 aspect-[3/4] object-cover border-2 border-gray-400"/>
-                    <div className="w-2/3 space-y-1 sm:space-y-2 text-[0.5rem] sm:text-[11px] p-1">
+                    <div className="w-2/3 space-y-1 sm:space-y-1.5 text-[0.5rem] sm:text-[11px] p-1">
                         <DocumentField label="NOME COMPLETO" value={user.full_name?.toUpperCase()} />
                         <DocumentField label="PROFISSÃO" value={doc.metadata?.profession?.toUpperCase() || 'NÃO ESPECIFICADO'} />
                         <DocumentField label="Nº DE REGISTRO" value={doc.document_number} className="text-red-600 font-mono" />
@@ -404,8 +486,8 @@ const ProfessionalRegistryDocument = ({ user, doc, side }) => (
                         <DocumentField label="DATA DE EMISSÃO" value={new Date(doc.issued_at).toLocaleDateString('pt-BR')} />
                     </div>
                 </main>
-                <footer className="text-center text-xs mt-2">
-                    <p className="font-serif text-base">Assinatura do Portador</p>
+                <footer className="mt-1 text-center text-[10px] sm:text-xs">
+                    <p className="font-serif text-sm sm:text-base">Assinatura do Portador</p>
                 </footer>
             </>
         ) : (
@@ -420,19 +502,19 @@ const ReservistCertificateDocument = ({ user, doc, side }) => {
     <DocumentContainer className="bg-gradient-to-br from-green-100 to-yellow-100 text-black font-mono">
         {side === 'front' ? (
             <>
-                <header className="text-center mb-2">
+                <header className="text-center mb-1">
                     <img src={SEAL_IMAGE} alt="Brasão da República" className="w-12 h-12 mx-auto mb-1 object-contain" />
-                    <h1 className="text-sm font-bold">REPÚBLICA FEDERATIVA DE GOV.RP</h1>
-                    <h2 className="text-xs">MINISTÉRIO DA DEFESA - FORÇAS ARMADAS</h2>
+                    <h1 className="text-[0.72rem] font-bold sm:text-sm">REPÚBLICA FEDERATIVA DE GOV.RP</h1>
+                    <h2 className="text-[0.62rem] sm:text-xs">MINISTÉRIO DA DEFESA - FORÇAS ARMADAS</h2>
                 </header>
-                <h3 className="text-lg font-bold text-center mb-3">CERTIFICADO DE RESERVISTA</h3>
-                <main className="text-sm space-y-2">
+                <h3 className="mb-2 text-center text-base font-bold sm:text-lg">CERTIFICADO DE RESERVISTA</h3>
+                <main className="space-y-1.5 text-xs sm:text-sm">
                     <DocumentField label="NOME" value={user.full_name?.toUpperCase()} />
                     <DocumentField label="NASCIMENTO" value={dateOfBirth} />
                     <DocumentField label="Nº DE REGISTRO" value={doc.document_number} />
-                    <p>Certificamos que o cidadão acima qualificado foi dispensado do serviço militar inicial por ter sido incluído no excesso de contingente.</p>
+                    <p className="leading-snug">Certificamos que o cidadão acima qualificado foi dispensado do serviço militar inicial por ter sido incluído no excesso de contingente.</p>
                 </main>
-                <footer className="mt-4 text-center text-xs">
+                <footer className="mt-3 text-center text-[10px] sm:text-xs">
                     <p>Emitido em: {new Date(doc.issued_at).toLocaleDateString('pt-BR')}</p>
                 </footer>
             </>
@@ -467,6 +549,10 @@ export const OfficialDocument = ({ user, doc, onBack, side: initialSide = 'front
   if (!DocumentComponent) return null;
 
   const isFullPageDoc = ['Certidão de Casamento'].includes(doc.type);
+  const actionButtonClassName =
+    doc.type === 'Passport' && side === 'back'
+      ? 'text-slate-700 bg-white/90 border border-slate-200 hover:bg-white h-8 w-8'
+      : 'text-white bg-black/50 hover:bg-black/70 h-8 w-8';
 
   if (isFullPageDoc) {
     return (
@@ -482,12 +568,12 @@ export const OfficialDocument = ({ user, doc, onBack, side: initialSide = 'front
   }
 
   return (
-    <div className="relative w-full max-w-md mx-auto">
+    <div className={`relative mx-auto w-full ${onBack ? 'max-w-[30rem] pr-12' : 'max-w-md'}`}>
       <DocumentComponent user={user} doc={doc} side={side}/>
        {onBack && (
-        <div className="absolute top-2 right-2 flex flex-col gap-2">
-           <Button variant="ghost" size="icon" onClick={onBack} className="text-white bg-black/50 hover:bg-black/70 h-8 w-8"><X className="h-4 w-4"/></Button>
-           {hasTwoSides && <Button variant="ghost" size="icon" onClick={() => setSide(s => s === 'front' ? 'back' : 'front')} className="text-white bg-black/50 hover:bg-black/70 h-8 w-8"><RefreshCw className="h-4 w-4"/></Button>}
+        <div className="absolute right-2 top-2 flex flex-col gap-2">
+           <Button variant="ghost" size="icon" onClick={onBack} className={actionButtonClassName}><X className="h-4 w-4"/></Button>
+           {hasTwoSides && <Button variant="ghost" size="icon" onClick={() => setSide(s => s === 'front' ? 'back' : 'front')} className={actionButtonClassName}><RefreshCw className="h-4 w-4"/></Button>}
         </div>
        )}
     </div>

@@ -9,8 +9,12 @@ import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import PageHeader from '@/components/layout/PageHeader';
 import { supabase } from '@/lib/supabaseClient';
+import { getOptionalPublicEnv } from '@/lib/env';
 
-const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
+const stripePublicKey =
+    getOptionalPublicEnv('VITE_STRIPE_PUBLISHABLE_KEY') ||
+    getOptionalPublicEnv('VITE_STRIPE_PUBLIC_KEY');
+const stripePromise = stripePublicKey ? loadStripe(stripePublicKey) : Promise.resolve(null);
 
 const Donation = () => {
     const { toast } = useToast();
@@ -35,9 +39,19 @@ const Donation = () => {
             return;
         }
 
+        if (!stripePublicKey) {
+            toast({
+                title: "Configuração incompleta",
+                description: "A chave pública do Stripe não foi configurada no ambiente.",
+                variant: "destructive"
+            });
+            return;
+        }
+
         setLoadingPriceId(priceId);
         try {
             const stripe = await stripePromise;
+            if (!stripe) throw new Error('Stripe não está configurado.');
             const { data: { session: checkoutSession }, error: sessionError } = await supabase.functions.invoke('stripe-checkout', {
                 body: {
                     priceId: priceId,

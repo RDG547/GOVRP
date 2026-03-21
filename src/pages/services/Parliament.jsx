@@ -341,7 +341,7 @@ const Parliament = () => {
             if (membersError) throw membersError;
             setAllMembers(membersData || []);
 
-            const { data: billsData, error: billsError } = await supabase.from('bills').select('*, author:profiles(full_name), house:parliament_houses(id, name), votes:bill_votes(*, member:parliament_members(user:profiles(full_name)))').order('created_at', { ascending: false });
+            const { data: billsData, error: billsError } = await supabase.from('bills').select('*, author:profiles(full_name, avatar_url), house:parliament_houses(id, name), votes:bill_votes(*, member:parliament_members(user:profiles(full_name)))').order('created_at', { ascending: false });
             if (billsError) throw billsError;
             setBills(billsData || []);
 
@@ -471,8 +471,16 @@ const BillList = ({ bills, user, parliamentMember, onAction }) => {
                     <motion.div key={bill.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
                         <Card className="glass-effect h-full flex flex-col">
                             <CardHeader>
-                                <CardTitle className="text-foreground">{bill.title}</CardTitle>
-                                <CardDescription>Autor: {bill.author.full_name} | {bill.house.name}</CardDescription>
+                                <div className="flex items-start gap-3">
+                                    <Avatar className="h-11 w-11">
+                                        <AvatarImage src={bill.author?.avatar_url} alt={bill.author?.full_name} />
+                                        <AvatarFallback>{bill.author?.full_name?.charAt(0) || 'A'}</AvatarFallback>
+                                    </Avatar>
+                                    <div>
+                                        <CardTitle className="text-foreground">{bill.title}</CardTitle>
+                                        <CardDescription>Autor: {bill.author?.full_name || 'Desconhecido'} | {bill.house.name}</CardDescription>
+                                    </div>
+                                </div>
                             </CardHeader>
                             <CardContent className="flex-grow">
                                 <p className="text-sm text-muted-foreground line-clamp-3">{bill.summary}</p>

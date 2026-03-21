@@ -1,4 +1,4 @@
-import React, { useState, useRef, forwardRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, forwardRef, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from "@/components/ui/use-toast";
 import { Button } from '@/components/ui/button';
@@ -7,6 +7,18 @@ import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Loader2, Send, X, Image as ImageIcon, Video } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import {
+    ACCEPTED_IMAGE_EXTENSIONS,
+    ACCEPTED_IMAGE_MIME_TYPES,
+    ACCEPTED_VIDEO_EXTENSIONS,
+    ACCEPTED_VIDEO_MIME_TYPES,
+    IMAGE_ACCEPT_ATTRIBUTE,
+    MAX_POST_VIDEO_UPLOAD_BYTES,
+    MAX_SOCIAL_IMAGE_UPLOAD_BYTES,
+    VIDEO_ACCEPT_ATTRIBUTE,
+    buildStoragePath,
+    validateSelectedFile,
+} from '@/lib/security';
 
 const CreatePostForm = forwardRef(({ onPostCreated }, ref) => {
     const { user } = useAuth();
@@ -76,14 +88,43 @@ const CreatePostForm = forwardRef(({ onPostCreated }, ref) => {
         const file = e.target.files[0];
         if (file) {
             if (file.type.startsWith('video/')) {
-                if (file.size > 180 * 1024 * 1024) { // 180MB limit for ~3 min video
-                    toast({ title: 'Vídeo muito grande', description: 'O vídeo não pode exceder 3 minutos (aprox. 180MB).', variant: 'destructive' });
+                const validation = validateSelectedFile(file, {
+                    allowedMimeTypes: ACCEPTED_VIDEO_MIME_TYPES,
+                    allowedExtensions: ACCEPTED_VIDEO_EXTENSIONS,
+                    maxBytes: MAX_POST_VIDEO_UPLOAD_BYTES,
+                    label: 'vídeo',
+                });
+                if (!validation.ok) {
+                    toast({ title: 'Arquivo inválido', description: validation.error, variant: 'destructive' });
+                    if (fileInputRef.current) fileInputRef.current.value = '';
                     return;
                 }
                 setMediaType('video');
             } else if (file.type.startsWith('image/gif')) {
+                const validation = validateSelectedFile(file, {
+                    allowedMimeTypes: ACCEPTED_IMAGE_MIME_TYPES,
+                    allowedExtensions: ACCEPTED_IMAGE_EXTENSIONS,
+                    maxBytes: MAX_SOCIAL_IMAGE_UPLOAD_BYTES,
+                    label: 'imagem',
+                });
+                if (!validation.ok) {
+                    toast({ title: 'Arquivo inválido', description: validation.error, variant: 'destructive' });
+                    if (fileInputRef.current) fileInputRef.current.value = '';
+                    return;
+                }
                 setMediaType('gif');
             } else if (file.type.startsWith('image/')) {
+                const validation = validateSelectedFile(file, {
+                    allowedMimeTypes: ACCEPTED_IMAGE_MIME_TYPES,
+                    allowedExtensions: ACCEPTED_IMAGE_EXTENSIONS,
+                    maxBytes: MAX_SOCIAL_IMAGE_UPLOAD_BYTES,
+                    label: 'imagem',
+                });
+                if (!validation.ok) {
+                    toast({ title: 'Arquivo inválido', description: validation.error, variant: 'destructive' });
+                    if (fileInputRef.current) fileInputRef.current.value = '';
+                    return;
+                }
                 setMediaType('image');
             } else {
                 toast({ title: 'Arquivo inválido', description: 'Por favor, selecione uma imagem, GIF ou vídeo.', variant: 'destructive' });
@@ -111,7 +152,7 @@ const CreatePostForm = forwardRef(({ onPostCreated }, ref) => {
 
         if (postMedia) {
             const bucket = mediaType === 'video' ? 'post-videos' : 'post-images';
-            const fileName = `${user.id}/${Date.now()}_${postMedia.name}`;
+            const fileName = buildStoragePath({ prefix: '', entityId: user.id, fileName: postMedia.name });
             const { data: uploadData, error: uploadError } = await supabase.storage.from(bucket).upload(fileName, postMedia);
             if (uploadError) {
                 toast({ title: `Erro no upload d${mediaType === 'video' ? 'o vídeo' : 'a imagem'}`, description: uploadError.message, variant: "destructive" });
@@ -191,7 +232,7 @@ const CreatePostForm = forwardRef(({ onPostCreated }, ref) => {
                 </CardContent>
                 <CardFooter className="p-4 flex justify-between items-center border-t border-slate-700/50">
                     <div className="flex gap-1">
-                        <input type="file" ref={fileInputRef} id="mediaUpload" accept="image/*,video/mp4,video/quicktime,video/x-msvideo,video/x-matroska" onChange={handleMediaSelect} className="hidden" />
+                        <input type="file" ref={fileInputRef} id="mediaUpload" accept={`${IMAGE_ACCEPT_ATTRIBUTE},${VIDEO_ACCEPT_ATTRIBUTE}`} onChange={handleMediaSelect} className="hidden" />
                         <Button type="button" variant="ghost" size="icon" className="text-blue-400 hover:text-blue-300" onClick={() => fileInputRef.current.click()}><ImageIcon /></Button>
                         <Button type="button" variant="ghost" size="icon" className="text-blue-400 hover:text-blue-300" onClick={() => fileInputRef.current.click()}><Video /></Button>
                     </div>

@@ -27,6 +27,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { executeProductPurchase } from '@/lib/commerce';
 
 const StarRating = ({ rating, setRating, interactive = true }) => {
     return (
@@ -218,16 +219,17 @@ const ProductDetails = () => {
     const handleConfirmBuy = async (paymentMethod, cardId) => {
         if (!product) return;
 
-        const { data, error } = await supabase.rpc('buy_product', {
-            p_product_id: product.id,
-            p_payment_method: paymentMethod,
-            p_card_id: cardId || null,
+        const result = await executeProductPurchase({
+            supabase,
+            productId: product.id,
+            paymentMethod,
+            cardId,
         });
 
-        if (error || !data.success) {
-            toast({ title: "Erro na compra", description: data?.message || error?.message || "Ocorreu um erro.", variant: "destructive" });
+        if (!result.success) {
+            toast({ title: "Erro na compra", description: result.message, variant: "destructive" });
         } else {
-            toast({ title: "Sucesso!", description: data.message });
+            toast({ title: "Sucesso!", description: result.message });
             fetchProductDetails();
         }
         setIsBuyDialogOpen(false);

@@ -9,6 +9,15 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { User, Mail, Phone, Save, Image as ImageIcon, Loader2, Calendar, FileText, Trash2 } from 'lucide-react';
 import { formatCPF, formatRG, formatPhone } from '@/lib/utils';
+import {
+  ACCEPTED_IMAGE_EXTENSIONS,
+  ACCEPTED_IMAGE_MIME_TYPES,
+  IMAGE_ACCEPT_ATTRIBUTE,
+  MAX_STANDARD_IMAGE_UPLOAD_BYTES,
+  buildStoragePath,
+  extractStoragePathFromUrl,
+  validateSelectedFile,
+} from '@/lib/security';
 
 const Settings = () => {
   const { user, session, refreshUser } = useAuth();
@@ -46,6 +55,21 @@ const Settings = () => {
   const handleAvatarChange = (e) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
+      const validation = validateSelectedFile(file, {
+        allowedMimeTypes: ACCEPTED_IMAGE_MIME_TYPES,
+        allowedExtensions: ACCEPTED_IMAGE_EXTENSIONS,
+        maxBytes: MAX_STANDARD_IMAGE_UPLOAD_BYTES,
+        label: 'avatar',
+      });
+
+      if (!validation.ok) {
+        toast({ title: 'Arquivo inválido', description: validation.error, variant: 'destructive' });
+        if (avatarInputRef.current) {
+          avatarInputRef.current.value = '';
+        }
+        return;
+      }
+
       setAvatarFile(file);
       setAvatarPreview(URL.createObjectURL(file));
       setAvatarAction('upload');
@@ -58,20 +82,6 @@ const Settings = () => {
     setAvatarAction('remove');
   };
   
-  const getFilePathFromUrl = (url, bucketName) => {
-    if (!url) return null;
-    try {
-        const urlObject = new URL(url);
-        const pathSegments = urlObject.pathname.split('/');
-        const bucketIndex = pathSegments.indexOf(bucketName);
-        if (bucketIndex === -1 || bucketIndex + 1 >= pathSegments.length) return null;
-        return pathSegments.slice(bucketIndex + 1).join('/');
-    } catch (e) {
-        console.error('Invalid URL for file path extraction:', e);
-        return null;
-    }
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -84,8 +94,8 @@ const Settings = () => {
         };
 
         if (avatarAction === 'upload' && avatarFile) {
-            const oldFilePath = getFilePathFromUrl(user.avatar_url, 'avatars');
-            const newFilePath = `${user.id}/${Date.now()}_${avatarFile.name}`;
+            const oldFilePath = extractStoragePathFromUrl(user.avatar_url, 'avatars');
+            const newFilePath = buildStoragePath({ prefix: '', entityId: user.id, fileName: avatarFile.name });
             const { error: uploadError } = await supabase.storage.from('avatars').upload(newFilePath, avatarFile, { upsert: false });
             if (uploadError) throw uploadError;
             if (oldFilePath) await supabase.storage.from('avatars').remove([oldFilePath]);
@@ -93,7 +103,7 @@ const Settings = () => {
             updates.avatar_url = data.publicUrl;
         } else if (avatarAction === 'remove') {
             if (user.avatar_url) {
-                const filePath = getFilePathFromUrl(user.avatar_url, 'avatars');
+                const filePath = extractStoragePathFromUrl(user.avatar_url, 'avatars');
                 if (filePath) await supabase.storage.from('avatars').remove([filePath]);
             }
             updates.avatar_url = null;
@@ -139,7 +149,7 @@ const Settings = () => {
                     <Button type="button" size="icon" className="h-8 w-8 bg-blue-500 hover:bg-blue-600" onClick={() => avatarInputRef.current?.click()}><ImageIcon className="w-4 h-4 text-white" /></Button>
                     {avatarPreview && <Button type="button" size="icon" variant="destructive" className="h-8 w-8" onClick={handleRemoveAvatar}><Trash2 className="w-4 h-4" /></Button>}
                 </div>
-                <input id="avatar" type="file" accept="image/*" onChange={handleAvatarChange} ref={avatarInputRef} className="hidden" />
+                <input id="avatar" type="file" accept={IMAGE_ACCEPT_ATTRIBUTE} onChange={handleAvatarChange} ref={avatarInputRef} className="hidden" />
               </div>
               <div>
                 <h2 className="text-2xl font-bold text-white">{user?.full_name}</h2>

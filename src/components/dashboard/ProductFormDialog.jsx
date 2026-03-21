@@ -12,6 +12,7 @@ import { Loader2, Save } from 'lucide-react';
 import ImageUploader from '@/components/ImageUploader';
 import { Switch } from '@/components/ui/switch';
 import { parseCurrency, formatCurrency } from '@/lib/utils';
+import { buildStoragePath, extractStoragePathFromUrl } from '@/lib/security';
 
 const PREDEFINED_CATEGORIES = [
   "Eletrônicos",
@@ -22,6 +23,11 @@ const PREDEFINED_CATEGORIES = [
   "Veículos",
   "Serviços",
   "Outros"
+];
+
+const SUBSCRIPTION_INTERVALS = [
+  { value: '7 days', label: 'Semanal' },
+  { value: '30 days', label: 'Mensal' },
 ];
 
 const ProductFormDialog = ({ isOpen, setIsOpen, product, onSuccess }) => {
@@ -39,6 +45,7 @@ const ProductFormDialog = ({ isOpen, setIsOpen, product, onSuccess }) => {
     category: 'Outros',
     stock: '1',
     product_type: 'one-time',
+    subscription_interval: '30 days',
     image_url: '',
     promotion_price: '',
     promotion_expires_at: '',
@@ -89,6 +96,7 @@ const ProductFormDialog = ({ isOpen, setIsOpen, product, onSuccess }) => {
         category: isPredefined ? product.category : 'custom',
         stock: product.stock === null ? '' : String(product.stock),
         product_type: product.product_type || 'one-time',
+        subscription_interval: product.subscription_interval || '30 days',
         image_url: product.image_url || '',
         promotion_price: product.promotion_price ? formatCurrency(product.promotion_price, true) : '',
         promotion_expires_at: product.promotion_expires_at ? new Date(product.promotion_expires_at).toISOString().slice(0, 16) : '',
@@ -106,6 +114,7 @@ const ProductFormDialog = ({ isOpen, setIsOpen, product, onSuccess }) => {
         category: 'Outros',
         stock: '1',
         product_type: 'one-time',
+        subscription_interval: '30 days',
         image_url: '',
         promotion_price: '',
         promotion_expires_at: '',
@@ -126,21 +135,18 @@ const ProductFormDialog = ({ isOpen, setIsOpen, product, onSuccess }) => {
     if (id === 'category') {
       setShowCustomCategory(value === 'custom');
     }
-    setFormData(prev => ({ ...prev, [id]: value }));
-  };
 
-  const getFilePathFromUrl = (url, bucketName) => {
-    if (!url) return null;
-    try {
-      const urlObject = new URL(url);
-      const pathSegments = urlObject.pathname.split('/');
-      const bucketIndex = pathSegments.indexOf(bucketName);
-      if (bucketIndex === -1 || bucketIndex + 1 >= pathSegments.length) return null;
-      return pathSegments.slice(bucketIndex + 1).join('/');
-    } catch (e) {
-      console.error('Invalid URL for file path extraction:', e);
-      return null;
+    if (id === 'product_type') {
+      setFormData(prev => ({
+        ...prev,
+        product_type: value,
+        stock: value === 'one-time' ? prev.stock || '1' : '',
+        subscription_interval: value === 'subscription' ? prev.subscription_interval || '30 days' : '',
+      }));
+      return;
     }
+
+    setFormData(prev => ({ ...prev, [id]: value }));
   };
 
   const handleSubmit = async (e) => {
@@ -151,9 +157,9 @@ const ProductFormDialog = ({ isOpen, setIsOpen, product, onSuccess }) => {
       let finalImageUrl = formData.image_url;
 
       if (imageFile) {
-        const oldFilePath = product?.image_url ? getFilePathFromUrl(product.image_url, 'product-images') : null;
+        const oldFilePath = product?.image_url ? extractStoragePathFromUrl(product.image_url, 'product-images') : null;
 
-        const newFileName = `${user.id}/${Date.now()}-${imageFile.name}`;
+        const newFileName = buildStoragePath({ prefix: '', entityId: user.id, fileName: imageFile.name });
         const { data: uploadData, error: uploadError } = await supabase.storage
           .from('product-images')
           .upload(newFileName, imageFile);
@@ -168,13 +174,22 @@ const ProductFormDialog = ({ isOpen, setIsOpen, product, onSuccess }) => {
       }
 
       const finalCategory = formData.category === 'custom' ? customCategory : formData.category;
+      const normalizedPrice = parseCurrencyInput(formData.price);
+
+      if (formData.product_type === 'subscription' && !formData.subscription_interval) {
+        throw new Error('Defina a periodicidade da assinatura antes de anunciar o produto.');
+      }
 
       const productData = {
         ...formData,
         category: finalCategory,
         seller_id: user.id,
-        price: parseCurrencyInput(formData.price),
+        price: normalizedPrice,
         stock: formData.product_type === 'one-time' ? parseInt(formData.stock, 10) : null,
+        subscription_interval:
+          formData.product_type === 'subscription' ? formData.subscription_interval : null,
+        subscription_price:
+          formData.product_type === 'subscription' ? normalizedPrice : null,
         image_url: finalImageUrl,
         promotion_price: showPromotion ? parseCurrencyInput(formData.promotion_price) : null,
         promotion_expires_at: showPromotion && formData.promotion_expires_at ? new Date(formData.promotion_expires_at).toISOString() : null,
@@ -246,6 +261,24 @@ const ProductFormDialog = ({ isOpen, setIsOpen, product, onSuccess }) => {
               </SelectContent>
             </Select>
           </div>
+          {formData.product_type === 'subscription' && (
+            <div>
+              <Label htmlFor="subscription_interval">Periodicidade</Label>
+              <Select
+                onValueChange={(value) => handleSelectChange('subscription_interval', value)}
+                value={formData.subscription_interval}
+              >
+                <SelectTrigger id="subscription_interval"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {SUBSCRIPTION_INTERVALS.map((interval) => (
+                    <SelectItem key={interval.value} value={interval.value}>
+                      {interval.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
           {formData.product_type === 'one-time' && (
             <div><Label htmlFor="stock">Estoque</Label><Input id="stock" type="number" value={formData.stock} onChange={handleChange} required /></div>
           )}

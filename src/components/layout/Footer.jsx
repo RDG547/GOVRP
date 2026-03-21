@@ -3,15 +3,16 @@ import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Github, Mail, Heart, HelpCircle, Headphones as Headset, BookOpen, Newspaper, Landmark, Store, FileText, Users, Scroll, ArrowRight, Home as HomeIcon, Milestone } from 'lucide-react';
 import { FaWhatsapp, FaDiscord, FaTelegram } from 'react-icons/fa';
+import { cn } from '@/lib/utils';
 
-const Footer = () => {
+const Footer = ({ disableTopSpacing = false }) => {
   const currentYear = new Date().getFullYear();
 
   const footerLink = "flex items-center gap-2 text-gray-300 hover:text-blue-400 transition-colors duration-300";
   const socialLink = "text-gray-400 hover:text-white transition-colors duration-300";
 
   return (
-    <footer className="bg-slate-900/50 backdrop-blur-lg border-t border-white/10 mt-20">
+    <footer className={cn("bg-slate-900/50 backdrop-blur-lg border-t border-white/10", disableTopSpacing ? 'mt-0' : 'mt-20')}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-12">
           

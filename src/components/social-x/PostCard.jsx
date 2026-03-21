@@ -19,6 +19,7 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { normalizeSafeUrl, openUrlInNewTab } from '@/lib/security';
 
 const roleBadges = {
     'Fundador': { icon: Crown, color: 'text-yellow-400', label: 'Fundador da Plataforma' },
@@ -81,14 +82,12 @@ const PostCard = ({ post, onPostUpdate, onPostDelete, onRepostCreated }) => {
     const [editedContent, setEditedContent] = useState(post.content);
     const [isSavingEdit, setIsSavingEdit] = useState(false);
     const [isRepostModalOpen, setIsRepostModalOpen] = useState(false);
-    const [isShared, setIsShared] = useState(false);
 
     const author = post.author;
     const handle = author?.x_handle;
     const name = author?.x_username;
     const avatar = author?.x_avatar_url || `https://api.dicebear.com/7.x/micah/svg?seed=${handle}`;
     
-    const wasEdited = post.updated_at && new Date(post.updated_at) > new Date(post.created_at).setSeconds(new Date(post.created_at).getSeconds() + 10);
     const postDateTime = format(new Date(post.created_at), "dd/MM/yyyy, HH:mm", { locale: ptBR });
 
     const handleInteraction = async (action) => {
@@ -184,9 +183,7 @@ const PostCard = ({ post, onPostUpdate, onPostDelete, onRepostCreated }) => {
     const handleCopyLink = () => {
         const url = `${window.location.origin}/services/x/post/${post.id}`;
         navigator.clipboard.writeText(url);
-        setIsShared(true);
         toast({ title: 'Link copiado!', description: 'O link para o post foi copiado para a área de transferência.' });
-        setTimeout(() => setIsShared(false), 2000);
     };
 
     const handleSocialShare = (platform) => {
@@ -205,7 +202,9 @@ const PostCard = ({ post, onPostUpdate, onPostDelete, onRepostCreated }) => {
                 break;
             default: return;
         }
-        window.open(shareUrl, '_blank');
+        if (!openUrlInNewTab(shareUrl)) {
+            toast({ title: 'Erro ao compartilhar', description: 'Não foi possível abrir a janela de compartilhamento.', variant: 'destructive' });
+        }
     };
 
     const renderContent = (content) => {
@@ -218,7 +217,9 @@ const PostCard = ({ post, onPostUpdate, onPostDelete, onRepostCreated }) => {
       
       return parts.map((part, index) => {
         if (part.match(urlRegex)) {
-          return <a key={index} href={part} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">{part}</a>;
+          const safeUrl = normalizeSafeUrl(part);
+          if (!safeUrl) return part;
+          return <a key={index} href={safeUrl} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">{part}</a>;
         }
         if (part.match(mentionRegex)) {
           const handle = part.substring(1);

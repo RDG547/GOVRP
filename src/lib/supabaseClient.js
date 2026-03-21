@@ -1,6 +1,22 @@
 import { createClient } from '@supabase/supabase-js';
+import {
+  getOptionalPublicEnv,
+  getRequiredPublicEnv,
+  getRequiredPublicHttpsEnv,
+} from '@/lib/env';
 
-const supabaseUrl = 'https://nojlfilayycebrtyybzf.supabase.co';
-const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vamxmaWxheXljZWJydHl5YnpmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTA1MTgyOTUsImV4cCI6MjA2NjA5NDI5NX0.4WzHmtycN8mpc0fI5ZDHQackiKu3XSr41GTQ8dQDHjQ';
+const supabaseUrl = getRequiredPublicHttpsEnv('VITE_SUPABASE_URL');
+const supabasePublishableKey =
+  getOptionalPublicEnv('VITE_SUPABASE_PUBLISHABLE_KEY') ||
+  getRequiredPublicEnv('VITE_SUPABASE_ANON_KEY');
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export { supabaseUrl, supabasePublishableKey };
+
+export const supabase = createClient(supabaseUrl, supabasePublishableKey, {
+  auth: {
+    autoRefreshToken: true,
+    persistSession: true,
+    detectSessionInUrl: true,
+    flowType: 'pkce',
+  },
+});

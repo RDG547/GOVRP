@@ -9,6 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2, PlusCircle } from 'lucide-react';
 import ImageUploader from '@/components/ImageUploader';
+import { buildStoragePath } from '@/lib/security';
 
 const politicalOrientations = ['Extrema Esquerda', 'Esquerda', 'Centro-Esquerda', 'Centro', 'Centro-Direita', 'Direita', 'Extrema-Direita'];
 
@@ -44,7 +45,7 @@ const CreatePartyDialog = ({ onPartyCreated, userAffiliation }) => {
         try {
             let finalLogoUrl = logoUrl;
             if (logoFile) {
-                const { data: uploadData, error: uploadError } = await supabase.storage.from('public-assets').upload(`party-logos/${Date.now()}-${logoFile.name}`, logoFile);
+                const { data: uploadData, error: uploadError } = await supabase.storage.from('public-assets').upload(buildStoragePath({ prefix: 'party-logos', entityId: 'new-party', fileName: logoFile.name }), logoFile);
                 if (uploadError) {
                     throw new Error(`Erro no upload do logo: ${uploadError.message}`);
                 }

@@ -13,6 +13,7 @@ import React, { useState, useEffect } from 'react';
     import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
     import { Loader2, Vote } from 'lucide-react';
     import ImageUploader from '@/components/ImageUploader';
+    import { buildStoragePath } from '@/lib/security';
 
     const candidacySchema = z.object({
       election_id: z.string().uuid("Selecione uma eleição válida."),
@@ -93,7 +94,7 @@ import React, { useState, useEffect } from 'react';
           if (imageFile) {
             const { data: uploadData, error: uploadError } = await supabase.storage
               .from('public-assets')
-              .upload(`campaign-photos/${user.id}/${Date.now()}-${imageFile.name}`, imageFile);
+              .upload(buildStoragePath({ prefix: 'campaign-photos', entityId: user.id, fileName: imageFile.name }), imageFile);
             if (uploadError) throw uploadError;
             finalImageUrl = supabase.storage.from('public-assets').getPublicUrl(uploadData.path).data.publicUrl;
           }

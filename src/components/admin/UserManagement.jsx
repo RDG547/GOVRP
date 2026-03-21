@@ -356,6 +356,10 @@ const roleConfig = {
 };
 
 const USERS_PER_PAGE = 12;
+const roleOrder = [
+    'Admin', 'Presidente', 'Presidente da Câmara', 'Presidente do Senado', 'Ministro', 'Senador', 'Deputado',
+    'Juiz', 'Policial', 'Agente Secreto', 'Militar', 'Cidadão', 'Usuário'
+];
 
 const UserManagement = () => {
     const { user: adminUser } = useAuth();
@@ -370,6 +374,7 @@ const UserManagement = () => {
     const [filters, setFilters] = useState({ letter: 'all', role: 'all', balance: [0, 1000000] });
     const [maxBalance, setMaxBalance] = useState(1000000);
     const [currentPage, setCurrentPage] = useState(1);
+    const [deletingUserId, setDeletingUserId] = useState(null);
 
     const fetchUsers = useCallback(async () => {
         const { data, error } = await supabase.rpc('admin_get_all_users');
@@ -394,12 +399,31 @@ const UserManagement = () => {
     }, [fetchUsers, adminUser]);
     
     const handleDeleteUser = async (userId, userName) => {
-        const { error } = await supabase.rpc('admin_delete_user', { p_user_id: userId });
-        if (error) {
-            toast({ title: 'Erro ao excluir', description: error.message, variant: "destructive" });
-        } else {
-            toast({ title: 'Usuário excluído!', description: `O usuário ${userName} foi removido.` });
-            fetchUsers();
+        setDeletingUserId(userId);
+        try {
+            const { data, error } = await supabase.rpc('admin_delete_user', { p_user_id: userId });
+
+            if (error || data?.success === false) {
+                toast({
+                    title: 'Erro ao excluir',
+                    description: data?.message || error?.message || 'Não foi possível remover o usuário.',
+                    variant: "destructive"
+                });
+            } else {
+                toast({
+                    title: 'Usuário excluído!',
+                    description: data?.message || `O usuário ${userName} foi removido.`
+                });
+                fetchUsers();
+            }
+        } catch (error) {
+            toast({
+                title: 'Erro ao excluir',
+                description: error.message || 'Ocorreu uma falha inesperada ao remover o usuário.',
+                variant: "destructive"
+            });
+        } finally {
+            setDeletingUserId(null);
         }
     };
     
@@ -407,11 +431,6 @@ const UserManagement = () => {
         setModifyingBalanceUser(null);
         fetchUsers();
     };
-
-    const roleOrder = [
-        'Admin', 'Presidente', 'Presidente da Câmara', 'Presidente do Senado', 'Ministro', 'Senador', 'Deputado', 
-        'Juiz', 'Policial', 'Agente Secreto', 'Militar', 'Cidadão', 'Usuário'
-    ];
 
     const sortedAndFilteredUsers = useMemo(() => {
         return users
@@ -434,7 +453,7 @@ const UserManagement = () => {
                 }
                 return (a.full_name || '').localeCompare(b.full_name || '');
             });
-    }, [users, searchTerm, filters, roleOrder]);
+    }, [users, searchTerm, filters]);
 
     const totalPages = Math.ceil(sortedAndFilteredUsers.length / USERS_PER_PAGE);
 
@@ -531,7 +550,7 @@ const UserManagement = () => {
                                         </td>
                                     </tr>
                                 )}
-                                <UserRow user={user} adminUser={adminUser} setModifyingBalanceUser={setModifyingBalanceUser} setChangingPasswordUser={setChangingPasswordUser} setEditingUser={setEditingUser} handleDeleteUser={handleDeleteUser} setManagingCardLimitUser={setManagingCardLimitUser} />
+                                <UserRow user={user} adminUser={adminUser} setModifyingBalanceUser={setModifyingBalanceUser} setChangingPasswordUser={setChangingPasswordUser} setEditingUser={setEditingUser} handleDeleteUser={handleDeleteUser} setManagingCardLimitUser={setManagingCardLimitUser} deletingUserId={deletingUserId} />
                                </React.Fragment>
                              )
                         }) : (
@@ -571,9 +590,10 @@ const UserManagement = () => {
     );
 };
 
-const UserRow = ({ user, adminUser, setModifyingBalanceUser, setChangingPasswordUser, setEditingUser, handleDeleteUser, setManagingCardLimitUser }) => {
+const UserRow = ({ user, adminUser, setModifyingBalanceUser, setChangingPasswordUser, setEditingUser, handleDeleteUser, setManagingCardLimitUser, deletingUserId }) => {
     const config = roleConfig[user.role] || roleConfig.default;
     const Icon = config.icon;
+    const isDeleting = deletingUserId === user.id;
 
     return (
         <tr className="border-b border-slate-700 hover:bg-slate-800/50 transition-colors">
@@ -616,7 +636,13 @@ const UserRow = ({ user, adminUser, setModifyingBalanceUser, setChangingPassword
                     </DialogTrigger>
                     <DialogContent className="glass-effect text-white">
                         <DialogHeader><DialogTitle>Confirmar Exclusão</DialogTitle><DialogDescription className="text-gray-300">Tem certeza que deseja excluir o usuário {user.full_name}? Esta ação é irreversível e removerá todos os dados associados.</DialogDescription></DialogHeader>
-                        <DialogFooter><DialogClose asChild><Button variant="outline">Cancelar</Button></DialogClose><Button variant="destructive" onClick={() => handleDeleteUser(user.id, user.full_name)}>Excluir Permanentemente</Button></DialogFooter>
+                        <DialogFooter>
+                            <DialogClose asChild><Button variant="outline" disabled={isDeleting}>Cancelar</Button></DialogClose>
+                            <Button variant="destructive" disabled={isDeleting} onClick={() => handleDeleteUser(user.id, user.full_name)}>
+                                {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                                Excluir Permanentemente
+                            </Button>
+                        </DialogFooter>
                     </DialogContent>
                 </Dialog>
             </td>

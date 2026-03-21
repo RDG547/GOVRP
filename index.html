@@ -2,9 +2,9 @@
 <html lang="pt-BR">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/png" href="https://horizons-cdn.hostinger.com/1921e16b-eda9-4d20-a26b-e282c5e34dc7/4a2eff68aee7768164d8f132c8123573.png" />
-    <meta name="generator" content="Hostinger Horizons" />
+    <link rel="icon" type="image/png" href="/icon-192x192.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="referrer" content="strict-origin-when-cross-origin" />
     <title>GOV.RP - Ecossistema de Roleplay Político</title>
     <meta name="theme-color" content="#1a1a2e">
     <link rel="manifest" href="/manifest.json" />
@@ -13,16 +13,5 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
-    <script>
-      if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/sw.js').then(registration => {
-            console.log('SW registered: ', registration);
-          }).catch(registrationError => {
-            console.log('SW registration failed: ', registrationError);
-          });
-        });
-      }
-    </script>
   </body>
 </html>

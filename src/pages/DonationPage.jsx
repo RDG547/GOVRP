@@ -11,8 +11,12 @@ import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
 import { loadStripe } from '@stripe/stripe-js';
 import { supabase } from '@/lib/supabaseClient';
+import { getOptionalPublicEnv } from '@/lib/env';
 
-const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY);
+const stripePublicKey =
+    getOptionalPublicEnv('VITE_STRIPE_PUBLIC_KEY') ||
+    getOptionalPublicEnv('VITE_STRIPE_PUBLISHABLE_KEY');
+const stripePromise = stripePublicKey ? loadStripe(stripePublicKey) : Promise.resolve(null);
 
 const donationOptions = [
     { amount: 10.00, title: 'Apoio Básico', priceId: 'price_1RePJdJ1feeiCKW77P1WWyWB' },
@@ -65,6 +69,15 @@ const DonationPage = () => {
             });
             return;
         }
+
+        if (!stripePublicKey) {
+            toast({
+                title: "Configuração incompleta",
+                description: "A chave pública do Stripe não foi configurada no ambiente.",
+                variant: "destructive"
+            });
+            return;
+        }
         
         setLoading(true);
 
@@ -93,6 +106,7 @@ const DonationPage = () => {
             if (!sessionId) throw new Error('ID da sessão não foi recebido da Supabase Function.');
 
             const stripe = await stripePromise;
+            if (!stripe) throw new Error('Stripe não está configurado.');
             const { error } = await stripe.redirectToCheckout({ sessionId });
 
             if (error) {

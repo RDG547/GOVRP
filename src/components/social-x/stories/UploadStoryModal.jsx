@@ -1,5 +1,4 @@
 import React, { useState, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '@/lib/supabaseClient';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/components/ui/use-toast';
@@ -7,6 +6,18 @@ import { Loader2, X, Image as ImageIcon, Video } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
+import {
+    ACCEPTED_IMAGE_EXTENSIONS,
+    ACCEPTED_IMAGE_MIME_TYPES,
+    ACCEPTED_VIDEO_EXTENSIONS,
+    ACCEPTED_VIDEO_MIME_TYPES,
+    IMAGE_ACCEPT_ATTRIBUTE,
+    MAX_SOCIAL_IMAGE_UPLOAD_BYTES,
+    MAX_STORY_VIDEO_UPLOAD_BYTES,
+    VIDEO_ACCEPT_ATTRIBUTE,
+    buildStoragePath,
+    validateSelectedFile,
+} from '@/lib/security';
 
 const UploadStoryModal = ({ isOpen, onOpenChange, onStoryCreated }) => {
     const [uploadType, setUploadType] = useState('media'); // 'media' or 'text'
@@ -35,13 +46,42 @@ const UploadStoryModal = ({ isOpen, onOpenChange, onStoryCreated }) => {
     const handleFileSelect = (e) => {
         const selectedFile = e.target.files?.[0];
         if (selectedFile) {
-            if (selectedFile.type.startsWith('image/gif')) { 
+            if (selectedFile.type.startsWith('image/gif')) {
+                const validation = validateSelectedFile(selectedFile, {
+                    allowedMimeTypes: ACCEPTED_IMAGE_MIME_TYPES,
+                    allowedExtensions: ACCEPTED_IMAGE_EXTENSIONS,
+                    maxBytes: MAX_SOCIAL_IMAGE_UPLOAD_BYTES,
+                    label: 'imagem',
+                });
+                if (!validation.ok) {
+                    toast({ title: 'Arquivo inválido', description: validation.error, variant: 'destructive' });
+                    if (fileInputRef.current) fileInputRef.current.value = '';
+                    return;
+                }
                 setMediaType('gif'); 
-            } else if (selectedFile.type.startsWith('image/')) { 
+            } else if (selectedFile.type.startsWith('image/')) {
+                const validation = validateSelectedFile(selectedFile, {
+                    allowedMimeTypes: ACCEPTED_IMAGE_MIME_TYPES,
+                    allowedExtensions: ACCEPTED_IMAGE_EXTENSIONS,
+                    maxBytes: MAX_SOCIAL_IMAGE_UPLOAD_BYTES,
+                    label: 'imagem',
+                });
+                if (!validation.ok) {
+                    toast({ title: 'Arquivo inválido', description: validation.error, variant: 'destructive' });
+                    if (fileInputRef.current) fileInputRef.current.value = '';
+                    return;
+                }
                 setMediaType('image'); 
-            } else if (selectedFile.type.startsWith('video/')) { 
-                if (selectedFile.size > 60 * 1024 * 1024) { // 60MB limit for ~1 min video
-                    toast({ title: 'Vídeo muito grande', description: 'O vídeo para stories não pode exceder 1 minuto (aprox. 60MB).', variant: 'destructive' });
+            } else if (selectedFile.type.startsWith('video/')) {
+                const validation = validateSelectedFile(selectedFile, {
+                    allowedMimeTypes: ACCEPTED_VIDEO_MIME_TYPES,
+                    allowedExtensions: ACCEPTED_VIDEO_EXTENSIONS,
+                    maxBytes: MAX_STORY_VIDEO_UPLOAD_BYTES,
+                    label: 'vídeo',
+                });
+                if (!validation.ok) {
+                    toast({ title: 'Arquivo inválido', description: validation.error, variant: 'destructive' });
+                    if (fileInputRef.current) fileInputRef.current.value = '';
                     return;
                 }
                 setMediaType('video'); 
@@ -77,7 +117,7 @@ const UploadStoryModal = ({ isOpen, onOpenChange, onStoryCreated }) => {
                     return;
                 }
                 const bucket = 'stories';
-                const fileName = `${user.id}/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
+                const fileName = buildStoragePath({ prefix: '', entityId: user.id, fileName: file.name });
                 const { error: uploadError } = await supabase.storage.from(bucket).upload(fileName, file);
                 if (uploadError) throw uploadError;
                 const { data: urlData } = supabase.storage.from(bucket).getPublicUrl(fileName);
@@ -121,7 +161,7 @@ const UploadStoryModal = ({ isOpen, onOpenChange, onStoryCreated }) => {
                             </div>
                         ) : (
                             <div className="flex justify-center items-center h-48 border-2 border-dashed border-border rounded-lg">
-                               <input type="file" ref={fileInputRef} onChange={handleFileSelect} className="hidden" accept="image/*,video/*" />
+                               <input type="file" ref={fileInputRef} onChange={handleFileSelect} className="hidden" accept={`${IMAGE_ACCEPT_ATTRIBUTE},${VIDEO_ACCEPT_ATTRIBUTE}`} />
                                <div className="text-center space-y-2">
                                    <p>Arraste um arquivo ou clique para selecionar</p>
                                    <div className="flex gap-2 justify-center">

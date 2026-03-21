@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabaseClient';
-import { FileText, Car, Globe, Briefcase as BriefcaseIcon, Building, Download, Image as ImageIcon, Eye, History, FilePlus, Files, Loader2, Flag, School, Star, Award, Vote, Heart, ShieldCheck, Fingerprint, X, Trash2, AtSign, Phone, Mail } from 'lucide-react';
+import { FileText, Car, Globe, Briefcase as BriefcaseIcon, Building, Download, Image as ImageIcon, Eye, History, FilePlus, Files, Loader2, Flag, School, Star, Award, Vote, Heart, ShieldCheck, Fingerprint, X, Trash2, AtSign, Phone, Mail, Landmark } from 'lucide-react';
 import { formatCPF, formatRG, formatCNPJ, formatPhone } from '@/lib/utils';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import PageHeader from '@/components/layout/PageHeader';
@@ -359,6 +359,7 @@ const DIC = () => {
                                     <InfoCard icon={Heart} title="Estado Civil" value={user.marital_status} color="pink"/>
                                     <InfoCard icon={Award} title="Títulos" value={user.titles?.join(', ')} color="purple"/>
                                     <InfoCard icon={Star} title="Reputação Civil" value={`${user.reputation_points} pontos`} color="yellow"/>
+                                    <InfoCard icon={Landmark} title="Pontos Políticos" value={`${user.political_points || 0} PP`} color="orange"/>
                                     
                                     <InfoCard icon={Fingerprint} title="CPF" value={formatCPF(getDoc('CPF', true)?.document_number)} color="sky"/>
                                     <InfoCard icon={FileText} title="RG" value={formatRG(getDoc('RG', true)?.document_number)} color="sky"/>
@@ -420,7 +421,7 @@ const DIC = () => {
             </div>
             
             <Dialog open={!!visualizingDoc} onOpenChange={() => setVisualizingDoc(null)}>
-                <DialogContent className="max-w-fit p-0 border-0 bg-transparent shadow-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95">
+                <DialogContent className="max-w-fit overflow-visible p-0 border-0 bg-transparent shadow-none [&>button]:hidden data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95">
                     {visualizingDoc && <OfficialDocument user={visualizingDoc.user || user} doc={visualizingDoc} onBack={() => setVisualizingDoc(null)} />}
                 </DialogContent>
             </Dialog>
