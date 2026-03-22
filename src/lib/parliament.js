@@ -1,3 +1,6 @@
+import { publishBillResultNews, publishBillProposedNews, publishBillVotingStartedNews } from './newsPublisher';
+import { publishOfficialGazetteEntry, mapBillTypeToGazetteType as getGazetteType } from './officialGazette';
+
 const HOUSE_PRESIDENT_ROLES = [
   'Presidente da Câmara',
   'Presidente da Câmara dos Deputados',
@@ -9,10 +12,11 @@ export const PARLIAMENT_PANEL_ROLES = [
   'Senador',
   ...HOUSE_PRESIDENT_ROLES,
   'Admin',
+  'Presidente',
 ];
 
 export const canManageParliamentVoting = (role) =>
-  role === 'Admin' || HOUSE_PRESIDENT_ROLES.includes(role);
+  role === 'Admin' || role === 'Presidente' || HOUSE_PRESIDENT_ROLES.includes(role);
 
 const getTodayDate = () => new Date().toISOString().slice(0, 10);
 
@@ -22,9 +26,12 @@ const getFutureDate = (yearsAhead = 4) => {
   return date.toISOString().slice(0, 10);
 };
 
-const getVotingEndDate = (daysAhead = 7) => {
+/**
+ * Voting sessions last 24 hours maximum.
+ */
+const getVotingEndDate = () => {
   const date = new Date();
-  date.setDate(date.getDate() + daysAhead);
+  date.setHours(date.getHours() + 24);
   return date.toISOString();
 };
 
@@ -44,6 +51,14 @@ export const inferBillTypeFromTitle = (title = '') => {
   }
 
   return 'PL';
+};
+
+/**
+ * Checks if a bill type is a PEC (requires 2/3 of BOTH houses).
+ */
+const isPEC = (billType = '') => {
+  const normalized = billType.trim().toUpperCase();
+  return normalized === 'PEC';
 };
 
 export const ensureParliamentOperatorMember = async (
@@ -142,6 +157,34 @@ export const startBillVotingSession = async (
   return createdVoting;
 };
 
+/**
+ * Starts a bill voting session and publishes a news article.
+ */
+export const startBillVotingSessionWithNews = async (
+  supabase,
+  { billId, houseId, title, description, bill }
+) => {
+  const voting = await startBillVotingSession(supabase, { billId, houseId, title, description });
+  
+  // Publish news about the voting start
+  if (bill) {
+    try {
+      const { data: house } = await supabase
+        .from('parliament_houses')
+        .select('name')
+        .eq('id', houseId)
+        .single();
+      await publishBillVotingStartedNews(supabase, {
+        bill,
+        houseName: house?.name,
+      });
+    } catch (e) {
+      console.error('Erro ao publicar notícia de votação:', e);
+    }
+  }
+  return voting;
+};
+
 const countVotes = (votes = []) =>
   votes.reduce(
     (totals, vote) => {
@@ -215,6 +258,84 @@ const finalizeSuggestionVoting = async (supabase, voting, approved) => {
   };
 };
 
+/**
+ * Gets the other house ID (for PEC dual-house flow).
+ */
+const getOtherHouseId = async (supabase, currentHouseId) => {
+  const { data: houses, error } = await supabase
+    .from('parliament_houses')
+    .select('id')
+    .neq('id', currentHouseId)
+    .limit(1)
+    .maybeSingle();
+
+  if (error) throw error;
+  return houses?.id || null;
+};
+
+/**
+ * Checks if a PEC was approved by the other house already.
+ */
+const checkPECOtherHouseApproval = async (supabase, billId, currentHouseId) => {
+  const { data: otherVoting, error } = await supabase
+    .from('parliament_votings')
+    .select('id, status, house_id')
+    .eq('related_id', billId)
+    .eq('type', 'bill')
+    .eq('status', 'closed')
+    .neq('house_id', currentHouseId)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) throw error;
+
+  if (!otherVoting) return null;
+
+  // Check whether that voting resulted in approval
+  const { data: votes, error: votesError } = await supabase
+    .from('parliament_voting_votes')
+    .select('vote')
+    .eq('voting_id', otherVoting.id);
+
+  if (votesError) throw votesError;
+
+  const totals = countVotes(votes || []);
+  // For PEC: need 2/3 approval
+  const totalVoted = totals.approve + totals.reject + totals.abstain;
+  const threshold = Math.ceil(totalVoted * 2 / 3);
+  const wasApproved = totals.approve >= threshold && totals.approve > 0;
+
+  return { wasApproved, houseId: otherVoting.house_id };
+};
+
+/**
+ * Determines if a bill vote passed based on its type.
+ * - PL: Simple majority (50%+1 of votes cast, excluding abstentions)
+ * - PEC: 2/3 of ALL members in the house (abstention = against)
+ */
+const isBillApproved = (billType, voteTotals, seatCount) => {
+  if (isPEC(billType)) {
+    // PEC needs 2/3 of all members (including those who didn't vote - counted as abstention)
+    const threshold = Math.ceil(seatCount * 2 / 3);
+    return voteTotals.approve >= threshold;
+  } else {
+    // PL: simple majority of votes cast (abstentions don't count against)
+    const votesDecisive = voteTotals.approve + voteTotals.reject;
+    if (votesDecisive === 0) return false;
+    const threshold = Math.floor(votesDecisive / 2) + 1;
+    return voteTotals.approve >= threshold;
+  }
+};
+
+/**
+ * Finalizes a voting session if conditions are met:
+ * - All members voted, OR
+ * - 24h has passed (non-voters count as abstention)
+ * 
+ * For PEC: After first house approval, creates voting in the other house.
+ * Only fully approved when both houses approve with 2/3.
+ */
 export const finalizeParliamentVotingIfReady = async (
   supabase,
   { voting }
@@ -242,28 +363,197 @@ export const finalizeParliamentVotingIfReady = async (
   const seatCount = Math.max(memberCountResponse.count || 0, 1);
   const votingExpired =
     voting.end_date && new Date(voting.end_date).getTime() <= Date.now();
+  const allVoted = (votes?.length || 0) >= seatCount;
 
-  if (!votingExpired && (votes?.length || 0) < seatCount) {
+  // Only finalize if all members voted OR the 24h period expired
+  if (!votingExpired && !allVoted) {
     return {
       finalized: false,
     };
   }
 
-  const voteTotals = countVotes(votes || []);
-  const approved = voteTotals.approve > voteTotals.reject;
+  // If expired but not all voted, count non-voters as abstention
+  const actualVotes = votes || [];
+  const nonVoterAbstentions = Math.max(seatCount - actualVotes.length, 0);
+  const voteTotals = countVotes(actualVotes);
+  voteTotals.abstain += nonVoterAbstentions;
 
+  // Determine if bill or suggestion
   if (voting.type === 'bill' && voting.related_id) {
-    const { error: billStatusError } = await supabase.rpc('update_bill_status', {
-      p_bill_id: voting.related_id,
-      p_new_status: approved ? 'Aprovado' : 'Rejeitado',
-    });
+    // Fetch the bill to know its type
+    const { data: bill, error: billFetchError } = await supabase
+      .from('bills')
+      .select('id, title, summary, full_text, type, author_id, house_id, house:parliament_houses(name)')
+      .eq('id', voting.related_id)
+      .single();
 
-    if (billStatusError) {
-      throw billStatusError;
+    if (billFetchError) throw billFetchError;
+
+    const billType = bill?.type || 'PL';
+    const approved = isBillApproved(billType, voteTotals, seatCount);
+
+    if (isPEC(billType) && approved) {
+      // PEC dual-house flow
+      // Check if the other house already voted on this PEC
+      const otherHouseResult = await checkPECOtherHouseApproval(supabase, bill.id, voting.house_id);
+
+      if (otherHouseResult === null) {
+        // Other house hasn't voted yet - send to the other house
+        const otherHouseId = await getOtherHouseId(supabase, voting.house_id);
+
+        if (otherHouseId) {
+          // Close current voting
+          await supabase
+            .from('parliament_votings')
+            .update({ status: 'closed' })
+            .eq('id', voting.id);
+
+          // Update bill status to indicate it's moving to the other house
+          await supabase.rpc('update_bill_status', {
+            p_bill_id: bill.id,
+            p_new_status: 'Em votação (2ª Casa)',
+          });
+
+          // Start voting in the other house  
+          const { data: otherHouse } = await supabase
+            .from('parliament_houses')
+            .select('name')
+            .eq('id', otherHouseId)
+            .single();
+
+          await startBillVotingSession(supabase, {
+            billId: bill.id,
+            houseId: otherHouseId,
+            title: `[2ª Casa] ${bill.title}`,
+            description: `Votação de PEC proveniente da ${bill.house?.name || 'outra casa'}. Necessário 2/3 para aprovação.`,
+          });
+
+          // Override status back since startBillVotingSession sets to "Em votação"
+          await supabase.rpc('update_bill_status', {
+            p_bill_id: bill.id,
+            p_new_status: 'Em votação (2ª Casa)',
+          });
+
+          return {
+            finalized: true,
+            approved: true,
+            message: `PEC aprovada na ${bill.house?.name || 'casa de origem'}! Enviada para votação na ${otherHouse?.name || 'outra casa legislativa'}.`,
+          };
+        }
+      } else if (otherHouseResult.wasApproved) {
+        // Both houses approved! PEC is fully approved
+        await supabase.rpc('update_bill_status', {
+          p_bill_id: bill.id,
+          p_new_status: 'Aprovado',
+        });
+
+        // Publish news and DOU
+        try {
+          await publishBillResultNews(supabase, {
+            bill,
+            approved: true,
+            houseName: 'ambas as Casas Legislativas',
+          });
+          await publishOfficialGazetteEntry(supabase, {
+            title: bill.title,
+            summary: bill.summary || `PEC aprovada por ambas as casas do Parlamento.`,
+            content: bill.full_text || bill.summary || 'Publicação legislativa oficial.',
+            type: 'Emenda Constitucional',
+            sourceId: bill.id,
+          });
+        } catch (newsError) {
+          console.error('Erro ao publicar notícia/DOU da PEC:', newsError);
+        }
+
+        // Close this voting
+        await supabase
+          .from('parliament_votings')
+          .update({ status: 'closed' })
+          .eq('id', voting.id);
+
+        return {
+          finalized: true,
+          approved: true,
+          message: 'PEC aprovada por ambas as casas do Parlamento! Publicada no Diário Oficial.',
+        };
+      } else {
+        // Other house rejected - PEC is fully rejected
+        await supabase.rpc('update_bill_status', {
+          p_bill_id: bill.id,
+          p_new_status: 'Rejeitado',
+        });
+
+        try {
+          await publishBillResultNews(supabase, {
+            bill,
+            approved: false,
+            houseName: 'Parlamento (rejeitada em uma das casas)',
+          });
+        } catch (newsError) {
+          console.error('Erro ao publicar notícia de rejeição da PEC:', newsError);
+        }
+
+        await supabase
+          .from('parliament_votings')
+          .update({ status: 'closed' })
+          .eq('id', voting.id);
+
+        return {
+          finalized: true,
+          approved: false,
+          message: 'PEC rejeitada. A outra casa legislativa já havia rejeitado esta proposta.',
+        };
+      }
+    } else if (isPEC(billType) && !approved) {
+      // PEC rejected in this house - fully rejected
+      await supabase.rpc('update_bill_status', {
+        p_bill_id: bill.id,
+        p_new_status: 'Rejeitado',
+      });
+
+      try {
+        await publishBillResultNews(supabase, {
+          bill,
+          approved: false,
+          houseName: bill.house?.name,
+        });
+      } catch (newsError) {
+        console.error('Erro ao publicar notícia de rejeição da PEC:', newsError);
+      }
+    } else {
+      // PL: simple majority in one house is sufficient
+      const newStatus = approved ? 'Aprovado' : 'Rejeitado';
+      await supabase.rpc('update_bill_status', {
+        p_bill_id: bill.id,
+        p_new_status: newStatus,
+      });
+
+      try {
+        await publishBillResultNews(supabase, {
+          bill,
+          approved,
+          houseName: bill.house?.name,
+        });
+
+        if (approved) {
+          await publishOfficialGazetteEntry(supabase, {
+            title: bill.title,
+            summary: bill.summary || `Projeto de lei aprovado por ${bill.house?.name || 'Casa Legislativa'}.`,
+            content: bill.full_text || bill.summary || 'Publicação legislativa oficial.',
+            type: bill.type || 'Lei',
+            sourceId: bill.id,
+          });
+        }
+      } catch (newsError) {
+        console.error('Erro ao publicar notícia/DOU do projeto:', newsError);
+      }
     }
   }
 
   if (voting.type === 'suggestion' && voting.related_id) {
+    const votesDecisive = voteTotals.approve + voteTotals.reject;
+    const threshold = votesDecisive > 0 ? Math.floor(votesDecisive / 2) + 1 : 1;
+    const approved = voteTotals.approve >= threshold;
     await finalizeSuggestionVoting(supabase, voting, approved);
   }
 
@@ -276,11 +566,65 @@ export const finalizeParliamentVotingIfReady = async (
     throw closeVotingError;
   }
 
+  // Re-calculate for message
+  const totalDecisive = voteTotals.approve + voteTotals.reject;
+  const simpleApproved = totalDecisive > 0 && voteTotals.approve > totalDecisive / 2;
+
   return {
     finalized: true,
-    approved,
-    message: approved
+    approved: simpleApproved,
+    message: simpleApproved
       ? 'Votação encerrada com aprovação.'
       : 'Votação encerrada com rejeição.',
   };
+};
+
+/**
+ * Checks all active votings and auto-closes any that have expired (24h passed).
+ * Also fixes legacy votings whose end_date was set beyond 24h from creation.
+ * Should be called periodically (e.g., on page load).
+ */
+export const autoCloseExpiredVotings = async (supabase) => {
+  try {
+    // First, fix any legacy votings with end_dates beyond 24h from creation
+    const { data: activeVotings, error: activeError } = await supabase
+      .from('parliament_votings')
+      .select('id, created_at, end_date')
+      .eq('status', 'active');
+
+    if (!activeError && activeVotings) {
+      for (const voting of activeVotings) {
+        const createdAt = new Date(voting.created_at);
+        const endDate = new Date(voting.end_date);
+        const expectedEnd = new Date(createdAt.getTime() + 24 * 60 * 60 * 1000); // 24h after creation
+        
+        // If end_date is more than 25h from creation (1h tolerance), fix it
+        if (endDate.getTime() - createdAt.getTime() > 25 * 60 * 60 * 1000) {
+          await supabase
+            .from('parliament_votings')
+            .update({ end_date: expectedEnd.toISOString() })
+            .eq('id', voting.id);
+        }
+      }
+    }
+
+    // Now close expired votings
+    const { data: expiredVotings, error } = await supabase
+      .from('parliament_votings')
+      .select('id, house_id, end_date, type, related_id, title, description, status')
+      .eq('status', 'active')
+      .lte('end_date', new Date().toISOString());
+
+    if (error || !expiredVotings || expiredVotings.length === 0) return;
+
+    for (const voting of expiredVotings) {
+      try {
+        await finalizeParliamentVotingIfReady(supabase, { voting });
+      } catch (e) {
+        console.error(`Erro ao finalizar votação expirada ${voting.id}:`, e);
+      }
+    }
+  } catch (e) {
+    console.error('Erro ao buscar votações expiradas:', e);
+  }
 };

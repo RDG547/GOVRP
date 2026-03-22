@@ -95,7 +95,7 @@ const DocumentField = ({ label, value, className = '' }) => (
 );
 
 const DocumentContainer = ({ children, className = '' }) => (
-    <div className={`relative w-full max-w-[430px] min-h-[280px] aspect-[1.42] flex flex-col overflow-hidden shadow-lg border rounded-lg p-3 sm:p-4 ${className}`}>
+    <div className={`relative w-full max-w-[430px] min-h-[280px] h-auto flex flex-col overflow-hidden shadow-lg border rounded-lg p-3 sm:p-4 ${className}`}>
         <div className="relative z-10 flex h-full flex-col">
             {children}
         </div>

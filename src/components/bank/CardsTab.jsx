@@ -223,6 +223,15 @@ const CardsTab = ({ onUpdate }) => {
     }, [user, toast]);
 
     useEffect(() => {
+        // Close any due invoices when the user loads the tab
+        const closeInvoices = async () => {
+            try {
+                await supabase.rpc('close_due_invoices');
+            } catch (e) {
+                // silently fail - function may not exist yet
+            }
+        };
+        closeInvoices();
         fetchData();
     }, [fetchData]);
 

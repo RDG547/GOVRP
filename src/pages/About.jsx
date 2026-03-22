@@ -6,21 +6,9 @@ import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import PageHeader from '@/components/layout/PageHeader';
 import { useAuth } from '@/contexts/AuthContext';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 const About = () => {
   const { user } = useAuth();
-
-  const teamMembers = [
-    { name: 'RDG' },
-    { name: 'Damon' },
-    { name: 'André' },
-    { name: 'André Vitor' },
-    { name: 'Gabriel' },
-    { name: 'Gabriel Vinícius' },
-    { name: 'Ryan' },
-    { name: 'Lucas Cândido' },
-  ];
 
   const values = [
     { icon: Palette, title: 'Liberdade Criativa', description: 'Nós fornecemos a tela; você pinta a obra-prima. Crie narrativas, sistemas políticos e economias sem limites.' },
@@ -90,37 +78,6 @@ const About = () => {
                   </div>
                   <h3 className="text-2xl font-bold text-foreground mb-3">{value.title}</h3>
                   <p className="text-muted-foreground leading-relaxed">{value.description}</p>
-                </motion.div>
-              ))}
-            </div>
-          </div>
-
-          <div className="my-24">
-            <h2 className="text-4xl font-bold text-foreground text-center mb-4">Os Arquitetos da <span className="gradient-text">Plataforma</span></h2>
-            <p className="text-center text-muted-foreground max-w-2xl mx-auto mb-12">
-              Uma equipe dedicada de desenvolvedores, designers e entusiastas de roleplay que trabalham incansavelmente para construir e manter o universo dinâmico do GOV.RP.
-            </p>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-10">
-              {teamMembers.map((member, index) => (
-                <motion.div
-                  key={index}
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  whileInView={{ opacity: 1, scale: 1 }}
-                  viewport={{ once: true }}
-                  transition={{ duration: 0.5, delay: index * 0.1 }}
-                  className="text-center group flex flex-col items-center"
-                >
-                  <div className="relative">
-                    <Avatar className="w-24 h-24 mb-4 border-4 border-transparent group-hover:border-primary transition-all duration-300">
-                      <AvatarImage src={`https://api.dicebear.com/7.x/bottts/svg?seed=${member.name}`} />
-                      <AvatarFallback>{member.name.charAt(0)}</AvatarFallback>
-                    </Avatar>
-                    <span className="absolute bottom-3 -right-1 bg-primary text-primary-foreground rounded-full p-1.5 border-2 border-background">
-                      <Code className="w-4 h-4" />
-                    </span>
-                  </div>
-                  <h4 className="text-xl font-bold text-foreground">{member.name}</h4>
-                  <p className="text-sm text-muted-foreground">Desenvolvedor</p>
                 </motion.div>
               ))}
             </div>

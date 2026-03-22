@@ -46,6 +46,8 @@ import DonationPage from '@/pages/DonationPage';
 import CountryInfo from '@/pages/CountryInfo';
 import ParticlesBackground from '@/components/ParticlesBackground';
 import BetaAccessWall from '@/pages/BetaAccessWall';
+import ScrollToTop from '@/components/ScrollToTop';
+import DailyCheckInPopup from '@/components/DailyCheckInPopup';
 
 import SocialX from '@/pages/services/SocialX';
 import XFeed from '@/components/social-x/XFeed';
@@ -111,6 +113,7 @@ const MainLayout = ({ children }) => {
         {children}
       </main>
       <Footer disableTopSpacing={location.pathname === '/'} />
+      <ScrollToTop />
     </>
   );
 };
@@ -130,7 +133,7 @@ function App() {
               <ScrollRestoration />
               {!isAuthCallback && <WelcomeTutorial />}
               <AnimatePresence mode="wait">
-                <Routes location={location} key={location.pathname}>
+                <Routes location={location} key={location.pathname.startsWith('/services/x') ? '/services/x' : location.pathname}>
                 <Route path="/" element={<Home />} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/register" element={<Register />} />
@@ -226,6 +229,7 @@ function App() {
           </PrisonRouteGuard>
           <Toaster />
           {!isAuthCallback && <CookieConsent />}
+          {!isAuthCallback && <DailyCheckInPopup />}
         </div>
       </div>
     </AuthProvider>

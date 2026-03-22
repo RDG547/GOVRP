@@ -23,7 +23,10 @@ import {
     ensureParliamentOperatorMember,
     finalizeParliamentVotingIfReady,
     startBillVotingSession,
+    startBillVotingSessionWithNews,
+    autoCloseExpiredVotings,
 } from '@/lib/parliament';
+import { publishBillProposedNews } from '@/lib/newsPublisher';
 
 const resolveHouseDetails = (houseId, availableHouses = [], accessHouse = null) => {
     const matchedHouse = availableHouses.find((item) => item.id === houseId) || accessHouse;
@@ -58,10 +61,14 @@ const ParliamentPanel = () => {
     const [activeMainTab, setActiveMainTab] = useState('projects');
     const [activeSubTab, setActiveSubTab] = useState('citizen_suggestions');
     const [votingOn, setVotingOn] = useState(null);
+    const [billStatusFilter, setBillStatusFilter] = useState('all');
 
     const fetchPanelData = useCallback(async () => {
         if (!user) return;
         setLoading(true);
+
+        // Auto-close any expired votings before loading
+        await autoCloseExpiredVotings(supabase);
 
         const [{ data: access, error: accessError }, { data: housesData, error: housesError }] = await Promise.all([
             supabase.rpc('get_parliament_access_data', { p_user_id: user.id }),
@@ -172,9 +179,20 @@ const ParliamentPanel = () => {
                 status: 'Em tramitação'
             };
 
-            const { error } = await supabase.from('bills').insert(billData);
+            const { error } = await supabase.from('bills').insert(billData).select('*').single();
 
             if (error) throw error;
+
+            // Publish news about the new bill
+            try {
+                const { data: houseName } = await supabase.from('parliament_houses').select('name').eq('id', house.id).single();
+                await publishBillProposedNews(supabase, {
+                    bill: { ...billData, title: newBill.title, summary: newBill.summary, type: newBill.type },
+                    authorName: user.full_name || user.email,
+                    houseName: houseName?.name,
+                });
+            } catch (e) { console.error('Erro ao publicar notícia de projeto:', e); }
+
             toast({ title: "Sucesso!", description: "Projeto proposto." });
             setIsProposeBillOpen(false);
             setNewBill({ title: '', summary: '', full_text: '', type: 'PL' });
@@ -218,11 +236,12 @@ const ParliamentPanel = () => {
 
     const handleStartBillVoting = async (bill) => {
         try {
-            await startBillVotingSession(supabase, {
+            await startBillVotingSessionWithNews(supabase, {
                 billId: bill.id,
                 houseId: house.id,
                 title: bill.title,
                 description: bill.summary || 'Sessão de votação legislativa.',
+                bill,
             });
             toast({ title: 'Sessão aberta!', description: 'O projeto foi colocado em votação.' });
             setActiveMainTab('votes');
@@ -328,37 +347,65 @@ const ParliamentPanel = () => {
                                 </TabsList>
                                 <TabsContent value="member_projects" className="mt-4">
                                     <Card className="glass-effect">
-                                        <CardHeader className="flex flex-row items-center justify-between">
+                                        <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-4">
                                             <div>
                                                 <CardTitle>Projetos dos Membros ({house?.name})</CardTitle>
                                                 <CardDescription>Projetos propostos por {house?.name?.toLowerCase().includes('senado') ? 'Senadores' : 'Deputados'}.</CardDescription>
                                             </div>
-                                            <Button onClick={() => setIsProposeBillOpen(true)}><PlusCircle className="mr-2 h-4 w-4"/>Propor Projeto</Button>
+                                            <div className="flex items-center gap-2 flex-wrap">
+                                                <Select value={billStatusFilter} onValueChange={setBillStatusFilter}>
+                                                    <SelectTrigger className="w-[180px]">
+                                                        <SelectValue placeholder="Filtrar por status" />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="all">Todos os Status</SelectItem>
+                                                        <SelectItem value="Em tramitação">Em Tramitação</SelectItem>
+                                                        <SelectItem value="Em votação">Em Votação</SelectItem>
+                                                        <SelectItem value="Aprovado">Aprovados</SelectItem>
+                                                        <SelectItem value="Rejeitado">Rejeitados</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                                <Button onClick={() => setIsProposeBillOpen(true)}><PlusCircle className="mr-2 h-4 w-4"/>Propor Projeto</Button>
+                                            </div>
                                         </CardHeader>
                                         <CardContent>
                                             <div className="space-y-4">
-                                            {bills.length > 0 ? bills.map(bill => (
-                                                <Card key={bill.id} className="bg-background/50">
-                                                    <CardHeader>
-                                                        <div className="flex items-start gap-3">
-                                                            <Avatar className="h-11 w-11">
-                                                                <AvatarImage src={bill.author?.avatar_url} alt={bill.author?.full_name} />
-                                                                <AvatarFallback>{bill.author?.full_name?.charAt(0) || 'A'}</AvatarFallback>
-                                                            </Avatar>
-                                                            <div>
-                                                                <CardTitle>{bill.title} <span className="text-sm font-normal text-muted-foreground">({bill.type})</span></CardTitle>
-                                                                <CardDescription>Autor: {bill.author?.full_name || 'Desconhecido'} | Status: {bill.status}</CardDescription>
-                                                            </div>
-                                                        </div>
-                                                    </CardHeader>
-                                                    <CardContent><p>{bill.summary}</p></CardContent>
-                                                    {canStartVote && bill.status === 'Em tramitação' && (
-                                                        <CardFooter>
-                                                            <Button size="sm" onClick={() => handleStartBillVoting(bill)}><Gavel className="w-4 h-4 mr-2" /> Colocar em Votação</Button>
-                                                        </CardFooter>
-                                                    )}
-                                                </Card>
-                                            )) : <p className="text-center py-4">Nenhum projeto em tramitação nesta casa.</p>}
+                                            {(() => {
+                                                const filtered = billStatusFilter === 'all' ? bills : bills.filter(b => b.status === billStatusFilter);
+                                                return filtered.length > 0 ? filtered.map(bill => {
+                                                    const billStatusConfig = {
+                                                        'Em tramitação': { class: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30', label: 'Em Tramitação' },
+                                                        'Em votação': { class: 'bg-blue-500/20 text-blue-400 border-blue-500/30', label: 'Em Votação' },
+                                                        'Em votação (2ª Casa)': { class: 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30', label: 'Em Votação (2ª Casa)' },
+                                                        'Aprovado': { class: 'bg-green-500/20 text-green-400 border-green-500/30', label: 'Aprovado' },
+                                                        'Rejeitado': { class: 'bg-red-500/20 text-red-400 border-red-500/30', label: 'Rejeitado' },
+                                                    };
+                                                    const statusInfo = billStatusConfig[bill.status] || { class: 'bg-muted text-muted-foreground', label: bill.status };
+                                                    return (
+                                                        <Card key={bill.id} className="bg-background/50">
+                                                            <CardHeader>
+                                                                <div className="flex items-start gap-3">
+                                                                    <Avatar className="h-11 w-11">
+                                                                        <AvatarImage src={bill.author?.avatar_url} alt={bill.author?.full_name} />
+                                                                        <AvatarFallback>{bill.author?.full_name?.charAt(0) || 'A'}</AvatarFallback>
+                                                                    </Avatar>
+                                                                    <div className="flex-1">
+                                                                        <CardTitle>{bill.title} <span className="text-sm font-normal text-muted-foreground">({bill.type})</span></CardTitle>
+                                                                        <CardDescription>Autor: {bill.author?.full_name || 'Desconhecido'}</CardDescription>
+                                                                    </div>
+                                                                    <Badge variant="outline" className={statusInfo.class}>{statusInfo.label}</Badge>
+                                                                </div>
+                                                            </CardHeader>
+                                                            <CardContent><p>{bill.summary}</p></CardContent>
+                                                            {canStartVote && bill.status === 'Em tramitação' && (
+                                                                <CardFooter>
+                                                                    <Button size="sm" onClick={() => handleStartBillVoting(bill)}><Gavel className="w-4 h-4 mr-2" /> Colocar em Votação</Button>
+                                                                </CardFooter>
+                                                            )}
+                                                        </Card>
+                                                    );
+                                                }) : <p className="text-center py-4">Nenhum projeto encontrado{billStatusFilter !== 'all' ? ` com o status "${billStatusFilter}"` : ' nesta casa'}.</p>
+                                            })()}
                                             </div>
                                         </CardContent>
                                     </Card>

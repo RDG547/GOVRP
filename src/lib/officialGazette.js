@@ -100,7 +100,7 @@ const normalizeGazetteType = (rawType = '') => {
   return rawType;
 };
 
-const mapBillTypeToGazetteType = (billType = '') => {
+export const mapBillTypeToGazetteType = (billType = '') => {
   const normalized = stripAccents(billType).toUpperCase();
 
   if (normalized.includes('PEC')) {

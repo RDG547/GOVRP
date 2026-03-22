@@ -9,12 +9,12 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const allCurrencies = [
-  { code: 'BRL', name: 'Real Brasileiro', symbol: 'R$' },
-  { code: 'USD', name: 'Dólar Americano', symbol: '$' },
-  { code: 'EUR', name: 'Euro', symbol: '€' },
-  { code: 'GBP', name: 'Libra Esterlina', symbol: '£' },
-  { code: 'JPY', name: 'Iene Japonês', symbol: '¥' },
-  { code: 'CNY', name: 'Yuan Chinês', symbol: '¥' },
+  { code: 'BRL', name: 'Real Brasileiro', symbol: 'R$', flag: '🇧🇷' },
+  { code: 'USD', name: 'Dólar Americano', symbol: '$', flag: '🇺🇸' },
+  { code: 'EUR', name: 'Euro', symbol: '€', flag: '🇪🇺' },
+  { code: 'GBP', name: 'Libra Esterlina', symbol: '£', flag: '🇬🇧' },
+  { code: 'JPY', name: 'Iene Japonês', symbol: '¥', flag: '🇯🇵' },
+  { code: 'CNY', name: 'Yuan Chinês', symbol: '¥', flag: '🇨🇳' },
 ];
 
 const ExchangeTab = ({ onUpdate, account }) => {
@@ -141,7 +141,7 @@ const ExchangeTab = ({ onUpdate, account }) => {
              <ul className="space-y-2">
                 {allCurrencies.filter(c => c.code !== 'BRL').map(currency => (
                   <li key={currency.code} className="flex justify-between items-center p-2 rounded-md hover:bg-white/5">
-                    <span className="font-semibold text-foreground">{currency.name} (1 {currency.code})</span>
+                    <span className="font-semibold text-foreground"><span className="text-lg">{currency.flag}</span> {currency.name} (1 {currency.code})</span>
                     <span className="font-mono text-primary">R$ {(rates?.[currency.code] ? 1 / rates[currency.code] : 0).toFixed(4)}</span>
                   </li>
                 ))}
@@ -152,7 +152,7 @@ const ExchangeTab = ({ onUpdate, account }) => {
               <ul className="space-y-2">
                 {allCurrencies.filter(c => c.code !== 'BRL').map(currency => (
                   <li key={currency.code} className="flex justify-between items-center p-2 rounded-md hover:bg-white/5">
-                    <span className="font-semibold text-foreground">Real (1 BRL)</span>
+                    <span className="font-semibold text-foreground"><span className="text-lg">{currency.flag}</span> Real (1 BRL)</span>
                     <span className="font-mono text-primary">{(rates?.[currency.code] || 0).toFixed(4)} {currency.code}</span>
                   </li>
                 ))}
@@ -173,7 +173,7 @@ const ExchangeTab = ({ onUpdate, account }) => {
               <Select value={fromCurrency} onValueChange={setFromCurrency}>
                 <SelectTrigger><SelectValue placeholder="Moeda de Origem" /></SelectTrigger>
                 <SelectContent>
-                  {allCurrencies.filter(c => availableCurrencies.includes(c.code)).map(c => <SelectItem key={c.code} value={c.code}>{c.name}</SelectItem>)}
+                  {allCurrencies.filter(c => availableCurrencies.includes(c.code)).map(c => <SelectItem key={c.code} value={c.code}><span className="text-lg">{c.flag}</span> {c.name}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
@@ -183,7 +183,7 @@ const ExchangeTab = ({ onUpdate, account }) => {
               <Select value={toCurrency} onValueChange={setToCurrency}>
                 <SelectTrigger><SelectValue placeholder="Moeda de Destino" /></SelectTrigger>
                 <SelectContent>
-                  {allCurrencies.map(c => <SelectItem key={c.code} value={c.code}>{c.name}</SelectItem>)}
+                  {allCurrencies.map(c => <SelectItem key={c.code} value={c.code}><span className="text-lg">{c.flag}</span> {c.name}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>

@@ -233,7 +233,7 @@ const CountryInfo = () => {
                 }}
               >
                 <ScrollText className="mr-2 h-4 w-4" />
-                Ler no Projeto
+                Ler Constituição
               </Button>
               <Button asChild className="bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-700 hover:to-cyan-600">
                 <a href={CONSTITUTION_PDF_PATH} download="constituicao-govrp.pdf">

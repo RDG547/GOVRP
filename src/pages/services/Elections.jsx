@@ -362,8 +362,10 @@ const Elections = () => {
             </div>
 
             <Dialog open={isRegisterOpen} onOpenChange={setIsRegisterOpen}>
-                <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-                    <RegisterCandidacy onFinished={() => setIsRegisterOpen(false)} />
+                <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden p-0">
+                    <div className="overflow-y-auto max-h-[90vh] p-6 pr-4 custom-scrollbar">
+                        <RegisterCandidacy onFinished={() => setIsRegisterOpen(false)} />
+                    </div>
                 </DialogContent>
             </Dialog>
 

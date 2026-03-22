@@ -3,6 +3,7 @@ import { Helmet } from 'react-helmet-async';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '@/lib/supabaseClient';
 import { useAuth } from '@/contexts/AuthContext';
+import { autoCloseExpiredVotings } from '@/lib/parliament';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
@@ -216,6 +217,38 @@ const ParliamentMembersList = ({ members }) => {
     );
 };
 
+/**
+ * Real-time countdown hook that updates every second.
+ */
+const useCountdown = (endDateStr) => {
+    const [timeLeft, setTimeLeft] = useState('');
+
+    useEffect(() => {
+        if (!endDateStr) { setTimeLeft(''); return; }
+        const endTime = new Date(endDateStr).getTime();
+        const tick = () => {
+            const diff = endTime - Date.now();
+            if (diff <= 0) { setTimeLeft('Encerrado'); return; }
+            const h = Math.floor(diff / 3600000);
+            const m = Math.floor((diff % 3600000) / 60000);
+            const s = Math.floor((diff % 60000) / 1000);
+            setTimeLeft(`${h}h ${String(m).padStart(2,'0')}min ${String(s).padStart(2,'0')}s`);
+        };
+        tick();
+        const interval = setInterval(tick, 1000);
+        return () => clearInterval(interval);
+    }, [endDateStr]);
+
+    return timeLeft;
+};
+
+/** Wrapper component for real-time countdown display */
+const CountdownTimer = ({ endDate }) => {
+    const timeLeft = useCountdown(endDate);
+    if (!timeLeft) return null;
+    return <span className="text-xs text-blue-400">⏱ {timeLeft}</span>;
+};
+
 const PlebisciteList = ({ plebiscites, userVote, onVote, user }) => {
     const { toast } = useToast();
     const [votingOn, setVotingOn] = useState(null);
@@ -274,6 +307,11 @@ const PlebisciteList = ({ plebiscites, userVote, onVote, user }) => {
                             </CardHeader>
                             <CardContent className="flex-grow">
                                 <p className="text-sm text-muted-foreground">{pleb.description}</p>
+                                {pleb.status === 'Ativo' && pleb.end_date && (
+                                    <div className="mt-3">
+                                        <CountdownTimer endDate={pleb.end_date} />
+                                    </div>
+                                )}
                                 {pleb.status === 'Ativo' && (
                                     <div className="w-full h-48 mt-4">
                                         <ResponsiveContainer>
@@ -333,6 +371,8 @@ const Parliament = () => {
     const fetchParliamentData = useCallback(async () => {
         setLoading(true);
         try {
+            // Auto-close any expired votings before fetching data
+            await autoCloseExpiredVotings(supabase);
             const { data: housesData, error: housesError } = await supabase.from('parliament_houses').select('*');
             if (housesError) throw housesError;
             setHouses(housesData || []);
@@ -341,9 +381,32 @@ const Parliament = () => {
             if (membersError) throw membersError;
             setAllMembers(membersData || []);
 
-            const { data: billsData, error: billsError } = await supabase.from('bills').select('*, author:profiles(full_name, avatar_url), house:parliament_houses(id, name), votes:bill_votes(*, member:parliament_members(user:profiles(full_name)))').order('created_at', { ascending: false });
+            const { data: billsData, error: billsError } = await supabase.from('bills').select('*, author:profiles(full_name, avatar_url), house:parliament_houses(id, name)').order('created_at', { ascending: false });
             if (billsError) throw billsError;
-            setBills(billsData || []);
+
+            // Fetch voting data for all bills
+            const billIds = (billsData || []).map(b => b.id);
+            let votingsMap = {};
+            if (billIds.length > 0) {
+                const { data: votingsData } = await supabase
+                    .from('parliament_votings')
+                    .select('id, status, end_date, house_id, related_id, votes:parliament_voting_votes(vote, member_id, member:parliament_members(user:profiles(full_name, role)))')
+                    .eq('type', 'bill')
+                    .in('related_id', billIds);
+                
+                if (votingsData) {
+                    votingsData.forEach(v => {
+                        if (!votingsMap[v.related_id]) votingsMap[v.related_id] = [];
+                        votingsMap[v.related_id].push(v);
+                    });
+                }
+            }
+            
+            const enrichedBills = (billsData || []).map(bill => ({
+                ...bill,
+                votings: votingsMap[bill.id] || [],
+            }));
+            setBills(enrichedBills);
 
             const { data: plebiscitesData, error: plebiscitesError } = await supabase
                 .from('plebiscites')
@@ -432,40 +495,49 @@ const Parliament = () => {
 };
 
 const BillList = ({ bills, user, parliamentMember, onAction }) => {
-    const { toast } = useToast();
-
-    const handleVote = async (bill_id, vote) => {
-        if (!parliamentMember) {
-            toast({ title: "Acesso negado", description: "Apenas membros do parlamento podem votar.", variant: "destructive" });
-            return;
-        }
-
-        const { error } = await supabase.from('bill_votes').insert({
-            bill_id,
-            member_id: parliamentMember.id,
-            vote
-        });
-
-        if (error) {
-            if (error.code === '23505') {
-                 toast({ title: "Voto já computado", description: "Você já votou neste projeto.", variant: "default" });
-            } else {
-                toast({ title: "Erro ao votar", description: error.message, variant: "destructive" });
-            }
-        } else {
-            toast({ title: "Voto computado!", description: `Você votou '${vote}'.` });
-            onAction();
-        }
-    };
+    const [statusFilter, setStatusFilter] = useState('all');
+    
+    const filteredBills = statusFilter === 'all' ? bills : bills.filter(b => b.status === statusFilter || (statusFilter === 'Em votação' && b.status?.startsWith('Em votação')));
 
     return (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {bills.length > 0 ? bills.map(bill => {
-                const votesFor = bill.votes.filter(v => v.vote === 'Sim').length;
-                const votesAgainst = bill.votes.filter(v => v.vote === 'Não').length;
-                const votesAbstain = bill.votes.filter(v => v.vote === 'Abstenção').length;
+        <div className="space-y-6">
+            <div className="flex justify-end">
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                    <SelectTrigger className="w-[200px]">
+                        <SelectValue placeholder="Filtrar por status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="all">Todos os Status</SelectItem>
+                        <SelectItem value="Em tramitação">Em Tramitação</SelectItem>
+                        <SelectItem value="Em votação">Em Votação</SelectItem>
+                        <SelectItem value="Aprovado">Aprovados</SelectItem>
+                        <SelectItem value="Rejeitado">Rejeitados</SelectItem>
+                    </SelectContent>
+                </Select>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredBills.length > 0 ? filteredBills.map(bill => {
+                // Get votes from parliament_votings system (the official voting mechanism)
+                const activeVoting = bill.votings?.find(v => v.status === 'active');
+                const closedVotings = bill.votings?.filter(v => v.status === 'closed') || [];
+                const latestVoting = activeVoting || closedVotings[0];
+                const allVotes = latestVoting?.votes || [];
+                
+                const votesFor = allVotes.filter(v => v.vote === 'Aprovar').length;
+                const votesAgainst = allVotes.filter(v => v.vote === 'Rejeitar').length;
+                const votesAbstain = allVotes.filter(v => v.vote === 'Abster').length;
                 const totalVotes = votesFor + votesAgainst + votesAbstain;
-                const userVote = bill.votes.find(v => v.member_id === parliamentMember?.id)?.vote;
+
+                const statusConfig = {
+                    'Em tramitação': { class: 'bg-yellow-500/20 text-yellow-300', label: 'Em Tramitação' },
+                    'Em votação': { class: 'bg-blue-500/20 text-blue-300', label: 'Em Votação' },
+                    'Em votação (2ª Casa)': { class: 'bg-indigo-500/20 text-indigo-300', label: 'Em Votação (2ª Casa)' },
+                    'Aprovado': { class: 'bg-green-500/20 text-green-300', label: 'Aprovado' },
+                    'Rejeitado': { class: 'bg-red-500/20 text-red-300', label: 'Rejeitado' },
+                };
+                const statusInfo = statusConfig[bill.status] || { class: 'bg-muted text-muted-foreground', label: bill.status };
+
+                // Time remaining uses the CountdownTimer component for real-time updates
 
                 return (
                     <motion.div key={bill.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
@@ -476,62 +548,60 @@ const BillList = ({ bills, user, parliamentMember, onAction }) => {
                                         <AvatarImage src={bill.author?.avatar_url} alt={bill.author?.full_name} />
                                         <AvatarFallback>{bill.author?.full_name?.charAt(0) || 'A'}</AvatarFallback>
                                     </Avatar>
-                                    <div>
+                                    <div className="flex-1">
                                         <CardTitle className="text-foreground">{bill.title}</CardTitle>
-                                        <CardDescription>Autor: {bill.author?.full_name || 'Desconhecido'} | {bill.house.name}</CardDescription>
+                                        <CardDescription>Autor: {bill.author?.full_name || 'Desconhecido'} | {bill.house?.name}</CardDescription>
                                     </div>
                                 </div>
                             </CardHeader>
                             <CardContent className="flex-grow">
                                 <p className="text-sm text-muted-foreground line-clamp-3">{bill.summary}</p>
-                                <div className="mt-4">
-                                    <span className={`px-2 py-1 text-xs rounded-full ${
-                                        bill.status === 'Aprovado' ? 'bg-green-500/20 text-green-300' :
-                                        bill.status === 'Rejeitado' ? 'bg-red-500/20 text-red-300' :
-                                        'bg-yellow-500/20 text-yellow-300'
-                                    }`}>{bill.status}</span>
+                                <div className="mt-4 flex items-center gap-2 flex-wrap">
+                                    <span className={`px-2 py-1 text-xs rounded-full ${statusInfo.class}`}>{statusInfo.label}</span>
+                                    <span className="px-2 py-1 text-xs rounded-full bg-muted text-muted-foreground">{bill.type}</span>
+                                    {activeVoting?.end_date && <CountdownTimer endDate={activeVoting.end_date} />}
                                 </div>
-                                <Collapsible className="mt-4">
-                                    <CollapsibleTrigger asChild><Button variant="link" className="p-0 h-auto text-sm"><Users className="w-4 h-4 mr-2"/> Ver Votos ({totalVotes})</Button></CollapsibleTrigger>
-                                    <CollapsibleContent className="mt-2 space-y-2 text-xs max-h-40 overflow-y-auto">
-                                        {bill.votes.map(vote => (
-                                            <div key={vote.id} className="flex justify-between items-center">
-                                                <span>{vote.member.user.full_name}</span>
-                                                <span className={`font-bold ${vote.vote === 'Sim' ? 'text-green-400' : vote.vote === 'Não' ? 'text-red-400' : 'text-gray-400'}`}>{vote.vote}</span>
+                                {totalVotes > 0 && (
+                                    <>
+                                        <Collapsible className="mt-4">
+                                            <CollapsibleTrigger asChild><Button variant="link" className="p-0 h-auto text-sm"><Users className="w-4 h-4 mr-2"/>Ver Votos ({totalVotes})</Button></CollapsibleTrigger>
+                                            <CollapsibleContent className="mt-2 space-y-2 text-xs max-h-40 overflow-y-auto">
+                                                {allVotes.map((vote, idx) => (
+                                                    <div key={idx} className="flex justify-between items-center gap-2">
+                                                        <div className="flex flex-col">
+                                                            <span className="font-medium">{vote.member?.user?.full_name || 'Membro'}</span>
+                                                            <span className="text-[10px] text-muted-foreground">{vote.member?.user?.role || ''}</span>
+                                                        </div>
+                                                        <span className={`font-bold whitespace-nowrap ${vote.vote === 'Aprovar' ? 'text-green-400' : vote.vote === 'Rejeitar' ? 'text-red-400' : 'text-gray-400'}`}>{vote.vote}</span>
+                                                    </div>
+                                                ))}
+                                            </CollapsibleContent>
+                                        </Collapsible>
+                                        <div className="mt-4 space-y-2">
+                                            <div className="flex gap-1">
+                                                <Progress value={votesFor} max={totalVotes} className="flex-1 h-2" indicatorClassName="bg-green-500" />
+                                                <Progress value={votesAgainst} max={totalVotes} className="flex-1 h-2" indicatorClassName="bg-red-500" />
+                                                <Progress value={votesAbstain} max={totalVotes} className="flex-1 h-2" indicatorClassName="bg-gray-500" />
                                             </div>
-                                        ))}
-                                        {bill.votes.length === 0 && <p className="text-muted-foreground text-center">Nenhum voto registrado.</p>}
-                                    </CollapsibleContent>
-                                </Collapsible>
-                                <div className="mt-4 space-y-2">
-                                    <div className="flex gap-1">
-                                       {totalVotes > 0 && <Progress value={votesFor} max={totalVotes} className="flex-1 h-2" indicatorClassName="bg-green-500" />}
-                                       {totalVotes > 0 && <Progress value={votesAgainst} max={totalVotes} className="flex-1 h-2" indicatorClassName="bg-red-500" />}
-                                       {totalVotes > 0 && <Progress value={votesAbstain} max={totalVotes} className="flex-1 h-2" indicatorClassName="bg-gray-500" />}
-                                    </div>
-                                    <div className="flex justify-between text-xs">
-                                        <span className="text-green-400">Sim: {votesFor}</span>
-                                        <span className="text-red-400">Não: {votesAgainst}</span>
-                                        <span className="text-gray-400">Abs: {votesAbstain}</span>
-                                    </div>
-                                </div>
-                            </CardContent>
-                            <CardFooter>
-                                {parliamentMember && parliamentMember.house_id === bill.house_id && !userVote && bill.status === 'Em tramitação' && (
-                                    <div className="flex gap-2 w-full">
-                                        <Button size="sm" className="flex-1 bg-green-600 hover:bg-green-700" onClick={() => handleVote(bill.id, 'Sim')}><ThumbsUp className="w-4 h-4 mr-2" />Sim</Button>
-                                        <Button size="sm" className="flex-1 bg-red-600 hover:bg-red-700" onClick={() => handleVote(bill.id, 'Não')}><ThumbsDown className="w-4 h-4 mr-2" />Não</Button>
-                                        <Button size="sm" className="flex-1 bg-gray-600 hover:bg-gray-700" onClick={() => handleVote(bill.id, 'Abstenção')}><UserX className="w-4 h-4 mr-2" />Abster</Button>
-                                    </div>
+                                            <div className="flex justify-between text-xs">
+                                                <span className="text-green-400">Aprovar: {votesFor}</span>
+                                                <span className="text-red-400">Rejeitar: {votesAgainst}</span>
+                                                <span className="text-gray-400">Abster: {votesAbstain}</span>
+                                            </div>
+                                        </div>
+                                    </>
                                 )}
-                                {userVote && <p className="text-sm text-center w-full text-muted-foreground">Seu voto: <span className="font-bold">{userVote}</span></p>}
-                            </CardFooter>
+                                {totalVotes === 0 && (bill.status?.startsWith('Em votação')) && (
+                                    <p className="text-xs text-muted-foreground mt-4 text-center">Nenhum voto registrado ainda.</p>
+                                )}
+                            </CardContent>
                         </Card>
                     </motion.div>
                 )
-            }) : <p className="col-span-full text-center text-muted-foreground py-10">Nenhum projeto de lei encontrado.</p>}
+            }) : <p className="col-span-full text-center text-muted-foreground py-10">Nenhum projeto de lei encontrado{statusFilter !== 'all' ? ` com o status selecionado` : ''}.</p>}
+            </div>
         </div>
     );
-}
+};
 
 export default Parliament;

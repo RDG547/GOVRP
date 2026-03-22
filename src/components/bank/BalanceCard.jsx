@@ -19,6 +19,15 @@ const currencySymbols = {
   CNY: '¥',
 };
 
+const currencyFlags = {
+  BRL: '🇧🇷',
+  USD: '🇺🇸',
+  EUR: '🇪🇺',
+  GBP: '🇬🇧',
+  JPY: '🇯🇵',
+  CNY: '🇨🇳',
+};
+
 const BalanceCard = ({ account, onUpdate, onTransferClick, onPayClick }) => {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -88,7 +97,7 @@ const BalanceCard = ({ account, onUpdate, onTransferClick, onPayClick }) => {
       <div className="relative z-10">
         <div className="flex justify-between items-start mb-4">
           <div className="text-left">
-            <p className="text-sm text-blue-200/80">Saldo em Conta</p>
+            <p className="text-sm text-blue-200/80"><span className="text-base">{currencyFlags.BRL}</span> Saldo em Conta</p>
             <div className="flex items-center gap-2">
               <p className="text-4xl font-bold">
                 {isBalanceVisible ? formatCurrency(allBalances.BRL || 0) : 'R$ ••••••'}
@@ -121,7 +130,7 @@ const BalanceCard = ({ account, onUpdate, onTransferClick, onPayClick }) => {
                       onCheckedChange={() => handleCurrencyToggle(currency)}
                     />
                     <Label htmlFor={`currency-${currency}`} className="text-sm font-normal">
-                      {currency} ({currencySymbols[currency]})
+                      <span className="text-base">{currencyFlags[currency]}</span> {currency} ({currencySymbols[currency]})
                     </Label>
                   </div>
                 ))}
@@ -139,7 +148,7 @@ const BalanceCard = ({ account, onUpdate, onTransferClick, onPayClick }) => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.1 }}
             >
-              <p className="text-xs text-blue-200/70">{currency}</p>
+              <p className="text-sm text-blue-200/70"><span className="text-base">{currencyFlags[currency]}</span> {currency}</p>
               <p className="text-lg font-bold">
                 {isBalanceVisible ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency, minimumFractionDigits: 2 }).format(balance || 0) : `${currencySymbols[currency]} ••••••`}
               </p>
