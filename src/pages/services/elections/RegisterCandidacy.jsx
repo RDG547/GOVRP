@@ -69,7 +69,7 @@ import React, { useState, useEffect } from 'react';
                     .from('party_members')
                     .select('party_id')
                     .eq('user_id', user.id)
-                    .single();
+                    .maybeSingle();
                 if (memberData) {
                     setUserAffiliation(memberData.party_id);
                     form.setValue('party_id', memberData.party_id);
@@ -105,8 +105,8 @@ import React, { useState, useEffect } from 'react';
 
           const { data, error } = await supabase.rpc('submit_candidacy', {
             p_election_id: values.election_id,
-            p_party_id: values.party_id,
-            p_vice_candidate_id: null, // Simplificado por enquanto
+            p_party_id: values.party_id === 'none' ? null : values.party_id,
+            p_vice_candidate_id: null,
             p_political_name: values.political_name,
             p_bio: values.bio,
             p_proposals: values.proposals,
@@ -162,17 +162,18 @@ import React, { useState, useEffect } from 'react';
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Partido Político</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value || ''} disabled={!!userAffiliation}>
-                        <FormControl>
-                          <SelectTrigger>
-                              <SelectValue placeholder={userAffiliation ? (parties.find(p => p.id === userAffiliation)?.name || "Seu partido") : "Selecione seu partido ou deixe em branco para avulsa"} />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {!userAffiliation && <SelectItem value="">Candidatura Avulsa</SelectItem>}
-                          {parties.map(p => <SelectItem key={p.id} value={p.id} disabled={userAffiliation && userAffiliation !== p.id}>{p.name}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
+                      <FormControl>
+                        <Input 
+                          value={userAffiliation ? (parties.find(p => p.id === userAffiliation)?.name || "Carregando...") : "Candidatura Avulsa"} 
+                          disabled 
+                          className="opacity-70 cursor-not-allowed"
+                        />
+                      </FormControl>
+                      <p className="text-xs text-muted-foreground">
+                        {userAffiliation 
+                          ? "Sua candidatura será vinculada ao seu partido atual." 
+                          : "Você não possui filiação partidária. Sua candidatura será avulsa."}
+                      </p>
                       <FormMessage />
                     </FormItem>
                   )}

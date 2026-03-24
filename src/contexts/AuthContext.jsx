@@ -116,33 +116,63 @@ export const AuthProvider = ({ children }) => {
 
 
   useEffect(() => {
+    let isMounted = true;
+    
     const getSession = async () => {
-      const { data: { session: currentSession }, error: sessionError } = await supabase.auth.getSession();
-      
-      if(sessionError && (sessionError.message === 'Invalid Refresh Token: Refresh Token Not Found' || sessionError.message === 'NetworkError when attempting to fetch resource.')) {
-        await logout();
-        setLoading(false);
-        return;
+      try {
+        const { data: { session: currentSession }, error: sessionError } = await supabase.auth.getSession();
+        
+        if (!isMounted) return;
+
+        if(sessionError && (sessionError.message === 'Invalid Refresh Token: Refresh Token Not Found' || sessionError.message === 'NetworkError when attempting to fetch resource.')) {
+          await logout();
+          return;
+        }
+        
+        setSession(currentSession);
+        const profile = await fetchUserProfile(currentSession);
+        if (isMounted) setUser(profile);
+      } catch (e) {
+        console.error("Critical error during initial session load:", e);
+        if (isMounted) {
+          setUser(null);
+          setSession(null);
+        }
+      } finally {
+        if (isMounted) setLoading(false);
       }
-      
-      setSession(currentSession);
-      const profile = await fetchUserProfile(currentSession);
-      setUser(profile);
-      setLoading(false);
     };
 
     getSession();
 
+    // Safety timeout: if loading is still true after 10 seconds, force it to false
+    const safetyTimeout = setTimeout(() => {
+      if (isMounted) {
+        setLoading(prev => {
+          if (prev) {
+            console.warn("Safety timeout triggered: forcing loading to false.");
+            return false;
+          }
+          return prev;
+        });
+      }
+    }, 10000);
+
     const { data: authListener } = supabase.auth.onAuthStateChange(
       async (_event, newSession) => {
+        if (!isMounted) return;
         setSession(newSession);
         const profile = await fetchUserProfile(newSession);
-        setUser(profile);
-        setLoading(false);
+        if (isMounted) {
+          setUser(profile);
+          setLoading(false);
+        }
       }
     );
 
     return () => {
+      isMounted = false;
+      clearTimeout(safetyTimeout);
       authListener?.subscription.unsubscribe();
     };
   }, [fetchUserProfile, logout]);

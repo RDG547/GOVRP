@@ -3,9 +3,10 @@ import { Helmet } from 'react-helmet-async';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabaseClient';
 import { useAuth } from '@/contexts/AuthContext';
-import { Loader2 } from 'lucide-react';
+import { Loader2, ArrowLeft } from 'lucide-react';
 import ConversationList from '@/components/social-x/messages/ConversationList';
 import ChatWindow from '@/components/social-x/messages/ChatWindow';
+import { Button } from '@/components/ui/button';
 
 const XMessages = () => {
     const { user } = useAuth();
@@ -76,19 +77,55 @@ const XMessages = () => {
     return (
         <>
             <Helmet><title>Mensagens - X</title></Helmet>
-            <div className="flex h-[calc(100vh-10rem)] border border-slate-700/50 rounded-lg overflow-hidden">
-                <div className={`w-full md:w-1/3 border-r border-slate-700/50 flex-shrink-0 flex-col ${conversationId ? 'hidden md:flex' : 'flex'}`}>
-                    <ConversationList conversations={conversations} loading={loading} onConversationDeleted={handleConversationDeleted} />
-                </div>
-                <div className={`w-full md:w-2/3 flex-shrink-0 ${!conversationId ? 'hidden md:flex' : 'flex'}`}>
-                   {conversationId && selectedConversation ? (
-                        <ChatWindow
-                            key={conversationId}
-                            conversation={selectedConversation}
+            <div className="flex flex-col h-[calc(100vh-5rem)] md:flex-row">
+                {/* Conversation List */}
+                <div className={`
+                    w-full md:w-80 lg:w-96 
+                    border-r border-border 
+                    flex-shrink-0 flex flex-col
+                    ${conversationId ? 'hidden md:flex' : 'flex'}
+                `}>
+                    <div className="p-4 border-b border-border">
+                        <h2 className="text-xl font-bold text-foreground">Mensagens</h2>
+                    </div>
+                    <div className="flex-1 overflow-y-auto custom-scrollbar">
+                        <ConversationList 
+                            conversations={conversations} 
+                            loading={loading} 
+                            onConversationDeleted={handleConversationDeleted} 
                         />
+                    </div>
+                </div>
+                
+                {/* Chat Area */}
+                <div className={`
+                    flex-1 flex flex-col min-w-0
+                    ${!conversationId ? 'hidden md:flex' : 'flex'}
+                `}>
+                    {conversationId && selectedConversation ? (
+                        <>
+                            {/* Mobile back button */}
+                            <div className="md:hidden p-2 border-b border-border">
+                                <Button 
+                                    variant="ghost" 
+                                    size="sm" 
+                                    onClick={() => navigate('/services/x/messages')}
+                                    className="gap-2"
+                                >
+                                    <ArrowLeft className="w-4 h-4" /> Voltar
+                                </Button>
+                            </div>
+                            <ChatWindow
+                                key={conversationId}
+                                conversation={selectedConversation}
+                            />
+                        </>
                     ) : (
-                        <div className="flex-1 flex items-center justify-center text-gray-400 text-center p-4">
-                            <p>Selecione uma conversa para começar a conversar ou inicie uma nova pelo perfil de um usuário.</p>
+                        <div className="flex-1 flex items-center justify-center text-muted-foreground text-center p-4">
+                            <div>
+                                <h3 className="text-lg font-semibold mb-2">Selecione uma conversa</h3>
+                                <p className="text-sm">Escolha uma conversa da lista ou inicie uma nova pelo perfil de um usuário.</p>
+                            </div>
                         </div>
                     )}
                 </div>

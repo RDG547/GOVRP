@@ -48,6 +48,7 @@ import ParticlesBackground from '@/components/ParticlesBackground';
 import BetaAccessWall from '@/pages/BetaAccessWall';
 import ScrollToTop from '@/components/ScrollToTop';
 import DailyCheckInPopup from '@/components/DailyCheckInPopup';
+import { InternetSpeedProvider } from '@/contexts/InternetSpeedContext';
 
 import SocialX from '@/pages/services/SocialX';
 import XFeed from '@/components/social-x/XFeed';
@@ -129,6 +130,7 @@ function App() {
         {!isAuthCallback && <ParticlesBackground />}
         <div className="relative z-10">
           <PrisonRouteGuard>
+            <InternetSpeedProvider>
             <MainLayout>
               <ScrollRestoration />
               {!isAuthCallback && <WelcomeTutorial />}
@@ -226,6 +228,7 @@ function App() {
                 </Routes>
               </AnimatePresence>
             </MainLayout>
+            </InternetSpeedProvider>
           </PrisonRouteGuard>
           <Toaster />
           {!isAuthCallback && <CookieConsent />}

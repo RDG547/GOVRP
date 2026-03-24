@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MessageCircle, Repeat2, Heart, Upload, MoreHorizontal, Trash2, Edit, Crown, Shield, Scale, Loader2, Check, Send, Copy, Share2 } from 'lucide-react';
@@ -82,6 +82,7 @@ const PostCard = ({ post, onPostUpdate, onPostDelete, onRepostCreated }) => {
     const [editedContent, setEditedContent] = useState(post.content);
     const [isSavingEdit, setIsSavingEdit] = useState(false);
     const [isRepostModalOpen, setIsRepostModalOpen] = useState(false);
+    const dropdownJustClosed = useRef(false);
 
     const author = post.author;
     const handle = author?.x_handle;
@@ -271,11 +272,19 @@ const PostCard = ({ post, onPostUpdate, onPostDelete, onRepostCreated }) => {
     );
 
     const handleCardClick = (e) => {
+        if(dropdownJustClosed.current) return;
         if(e.target.closest('a, button, .no-navigate, textarea')) {
             return;
         }
         navigate(`/services/x/post/${post.id}`);
     }
+
+    const handleDropdownOpenChange = (open) => {
+        if (!open) {
+            dropdownJustClosed.current = true;
+            setTimeout(() => { dropdownJustClosed.current = false; }, 300);
+        }
+    };
 
     return (
         <>
@@ -299,7 +308,7 @@ const PostCard = ({ post, onPostUpdate, onPostDelete, onRepostCreated }) => {
                         <p className="text-sm text-muted-foreground">@{handle} · {postDateTime}</p>
                     </div>
                     {(user?.id === post.user_id || user?.role === 'Admin') && (
-                        <DropdownMenu>
+                        <DropdownMenu onOpenChange={handleDropdownOpenChange}>
                             <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="w-8 h-8 no-navigate"><MoreHorizontal className="w-5 h-5 text-muted-foreground" /></Button></DropdownMenuTrigger>
                             <DropdownMenuContent>
                                 {user.id === post.user_id && <DropdownMenuItem onClick={() => setIsEditing(true)}><Edit className="mr-2 h-4 w-4" />Editar</DropdownMenuItem>}
