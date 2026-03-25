@@ -1049,15 +1049,35 @@ const PresidentDashboard = () => {
                     </TabsContent>
 
                     <TabsContent value="management" className="mt-6">
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
-                            <div className="flex flex-col gap-8">
-                                <MinisterManager ministers={ministers} onUpdate={fetchData} />
-                            </div>
-                            <div className="flex flex-col gap-8">
-                                <DecreeManager decrees={decrees} onUpdate={fetchData} />
-                                <ResignationManager onResign={handleResignation} />
-                            </div>
-                        </div>
+                        <Tabs defaultValue="ministers" className="w-full">
+                            <ScrollArea className="w-full whitespace-nowrap mb-6">
+                                <TabsList className="inline-flex w-full justify-start md:justify-center border-b border-border/40 bg-transparent p-0">
+                                    <TabsTrigger value="ministers" className="data-[state=active]:bg-card data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-t-lg px-6">Ministros</TabsTrigger>
+                                    <TabsTrigger value="decrees" className="data-[state=active]:bg-card data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-t-lg px-6">Decretos Presidenciais</TabsTrigger>
+                                    <TabsTrigger value="resignation" className="data-[state=active]:bg-card data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-t-lg px-6">Renúncia</TabsTrigger>
+                                </TabsList>
+                            </ScrollArea>
+
+                            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
+                                <TabsContent value="ministers" className="mt-0">
+                                    <div className="max-w-4xl mx-auto">
+                                        <MinisterManager ministers={ministers} onUpdate={fetchData} />
+                                    </div>
+                                </TabsContent>
+
+                                <TabsContent value="decrees" className="mt-0">
+                                    <div className="max-w-4xl mx-auto">
+                                        <DecreeManager decrees={decrees} onUpdate={fetchData} />
+                                    </div>
+                                </TabsContent>
+
+                                <TabsContent value="resignation" className="mt-0">
+                                    <div className="max-w-xl mx-auto pt-8">
+                                        <ResignationManager onResign={handleResignation} />
+                                    </div>
+                                </TabsContent>
+                            </motion.div>
+                        </Tabs>
                     </TabsContent>
                 </Tabs>
             </div>
