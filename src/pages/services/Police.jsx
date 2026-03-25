@@ -190,7 +190,7 @@ const Police = () => {
                 setOpenCollapsible(openCollapsible === 'fines' ? null : 'fines');
                 result = { success: true, message: null };
             } else if (actionType === 'request_clearance_certificate') {
-                 const { data, error } = await supabase.from('criminal_records').select('*').eq('user_id', user.id).eq('is_active', true).maybeSingle();
+                 const { data, error } = await supabase.from('criminal_records').select('*').eq('user_id', user.id).eq('is_active', true).limit(1).maybeSingle();
                  if (error) throw error;
                  const docData = {
                      type: 'Certidão Negativa',

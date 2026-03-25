@@ -254,7 +254,7 @@ const addTransformIndexHtml = {
 				attrs: {
 					'http-equiv': 'Content-Security-Policy',
 					content:
-						"default-src 'self'; base-uri 'self'; object-src 'none'; script-src 'self' https://js.stripe.com https://va.vercel-scripts.com; style-src 'self' 'unsafe-inline' https:; img-src 'self' data: blob: https:; media-src 'self' blob: https:; font-src 'self' data: https:; connect-src 'self' https:; frame-src 'self' https://js.stripe.com https://hooks.stripe.com; manifest-src 'self'; upgrade-insecure-requests",
+						"default-src 'self'; base-uri 'self'; object-src 'none'; script-src 'self' https://js.stripe.com https://va.vercel-scripts.com; style-src 'self' 'unsafe-inline' https:; img-src 'self' data: blob: https:; media-src 'self' blob: https:; font-src 'self' data: https:; connect-src 'self' https: wss:; frame-src 'self' https://js.stripe.com https://hooks.stripe.com; manifest-src 'self'; upgrade-insecure-requests",
 				},
 				injectTo: 'head',
 			});

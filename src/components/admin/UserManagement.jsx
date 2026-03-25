@@ -225,11 +225,13 @@ const ChangePasswordDialog = ({ user, onFinish }) => {
         }
 
         try {
-            const { data, error } = await supabase.functions.invoke('admin-update-user-password', {
-                body: { userId: user.id, newPassword },
+            const { data, error } = await supabase.rpc('admin_change_user_password', {
+                p_user_id: user.id, 
+                p_new_password: newPassword 
             });
 
             if (error) throw error;
+            if (!data.success) throw new Error(data.message);
             
             toast({ title: 'Sucesso!', description: `A senha de ${user.full_name} foi alterada.` });
             onFinish();

@@ -128,6 +128,7 @@ export const InternetSpeedProvider = ({ children }) => {
         .select('plan_name')
         .eq('user_id', user.id)
         .eq('service_type', 'Internet')
+        .limit(1)
         .maybeSingle();
       
       if (data?.plan_name) {
@@ -149,7 +150,8 @@ export const InternetSpeedProvider = ({ children }) => {
     
     const skipPaths = [
       '/login', '/register', '/auth/callback', '/update-password', '/forgot-password',
-      '/community', '/help', '/about', '/donate'
+      '/community', '/help', '/about', '/donate',
+      '/contact', '/support', '/faq', '/docs', '/roadmap'
     ];
     if (skipPaths.some(p => currentPath.startsWith(p))) {
       previousPath.current = currentPath;
@@ -176,10 +178,11 @@ export const InternetSpeedProvider = ({ children }) => {
         setIsLoading(false);
       }, delay);
     }
-
-    return () => {
-      if (loadingTimeout.current) clearTimeout(loadingTimeout.current);
-    };
+    
+    // Do NOT clear timeout on unmount or re-render cleanup, 
+    // because automated sub-redirects (like /services/x -> /services/x/home)
+    // would run this cleanup, clear the timeout, but skip the next delay entirely,
+    // leaving isLoading=true INFINITELY!
   }, [location.pathname, userPlan]);
 
   const handleUpgrade = () => {

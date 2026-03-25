@@ -1,7 +1,8 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MessageCircle, Repeat2, Heart, Upload, MoreHorizontal, Trash2, Edit, Crown, Shield, Scale, Loader2, Check, Send, Copy, Share2 } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { supabase } from '@/lib/supabaseClient';
@@ -65,6 +66,56 @@ const PoliticalSeal = ({ role }) => {
       </TooltipProvider>
     );
 }
+
+const InlineComments = ({ postId, currentCount }) => {
+    const [comments, setComments] = useState([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchComments = async () => {
+            if (currentCount === 0) { setLoading(false); return; }
+            setLoading(true);
+            const { data, error } = await supabase
+                .from('comments')
+                .select('*, author:profiles!comments_user_id_fkey(*)')
+                .eq('post_id', postId)
+                .is('parent_comment_id', null)
+                .order('created_at', { ascending: true })
+                .limit(5); // Show only top 5 comments inline
+            
+            if (!error && data) {
+                setComments(data);
+            }
+            setLoading(false);
+        };
+        fetchComments();
+    }, [postId, currentCount]);
+
+    if (loading) return <div className="flex justify-center p-2"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>;
+    if (comments.length === 0) return null;
+
+    return (
+        <div className="space-y-3 mt-2 max-h-60 overflow-y-auto custom-scrollbar no-navigate p-1">
+            {comments.map((comment) => (
+                <div key={comment.id} className="flex gap-2">
+                    <img src={comment.author?.x_avatar_url || `https://api.dicebear.com/7.x/micah/svg?seed=${comment.author?.x_handle}`} alt="Avatar" className="w-8 h-8 rounded-full bg-secondary" />
+                    <div className="flex-1 max-w-[calc(100%-2.5rem)]">
+                        <div className="bg-muted/30 p-2 rounded-lg break-words">
+                            <div className="flex items-center gap-1 text-xs mb-1">
+                                <span className="font-bold text-foreground truncate">{comment.author?.full_name}</span>
+                                <span className="text-muted-foreground truncate">@{comment.author?.x_handle}</span>
+                            </div>
+                            <p className="text-sm text-foreground whitespace-pre-wrap">{comment.content}</p>
+                        </div>
+                    </div>
+                </div>
+            ))}
+            {currentCount > 5 && (
+                <p className="text-xs text-primary font-medium text-center italic mt-2">Visite o post para ver mais comentários.</p>
+            )}
+        </div>
+    );
+};
 
 const PostCard = ({ post, onPostUpdate, onPostDelete, onRepostCreated }) => {
     const { user } = useAuth();
@@ -373,9 +424,11 @@ const PostCard = ({ post, onPostUpdate, onPostDelete, onRepostCreated }) => {
                             initial={{ opacity: 0, height: 0, marginTop: 0 }}
                             animate={{ opacity: 1, height: 'auto', marginTop: '1rem' }}
                             exit={{ opacity: 0, height: 0, marginTop: 0 }}
-                            className="overflow-hidden"
+                            className="overflow-hidden space-y-4"
+                            onClick={(e) => e.stopPropagation()} // Prevent card click navigation
                         >
-                            <form onSubmit={handleCommentSubmit} className="flex items-start gap-2">
+                            <InlineComments postId={post.id} currentCount={commentsCount} />
+                            <form onSubmit={handleCommentSubmit} className="flex items-start gap-2 pt-2 border-t border-border mt-2">
                                 <img src={user.x_avatar_url || `https://api.dicebear.com/7.x/micah/svg?seed=${user.x_handle}`} alt="Seu avatar" className="w-8 h-8 rounded-full mt-1" />
                                 <div className="flex-1">
                                   <Textarea 

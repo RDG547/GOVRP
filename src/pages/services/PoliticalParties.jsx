@@ -61,7 +61,7 @@ const PoliticalParties = () => {
         if (error) { toast({ title: "Erro ao buscar partidos", description: error.message, variant: "destructive" }); }
 
         if (user?.id) {
-            const { data: memberData } = await supabase.from('party_members').select('*, party:political_parties(*, members:party_members(*, profile:profiles(*)))').eq('user_id', user.id).maybeSingle();
+            const { data: memberData } = await supabase.from('party_members').select('*, party:political_parties(*, members:party_members(*, profile:profiles(*)))').eq('user_id', user.id).limit(1).maybeSingle();
             setUserAffiliation(memberData);
             
             if (memberData && data) {
@@ -76,7 +76,7 @@ const PoliticalParties = () => {
             }
 
             if (!memberData) {
-              const {data: requestData} = await supabase.from('party_affiliation_requests').select('*').eq('user_id', user.id).eq('status', 'pending').maybeSingle();
+              const {data: requestData} = await supabase.from('party_affiliation_requests').select('*').eq('user_id', user.id).eq('status', 'pending').limit(1).maybeSingle();
               setPendingRequest(requestData);
             } else {
               setPendingRequest(null);

@@ -333,6 +333,8 @@ const PlebisciteList = ({ plebiscites, userVote, onVote, user }) => {
                                 {pleb.status === 'Ativo' && canVote && (
                                     isVoting ? (
                                         <div className="w-full flex justify-center"><Loader2 className="animate-spin" /></div>
+                                    ) : (pleb.end_date && new Date(pleb.end_date) < new Date()) ? (
+                                        <p className="text-sm text-red-500 font-bold w-full text-center">Votação Encerrada (Aguardando apuração)</p>
                                     ) : userHasVoted ? (
                                         <p className="text-sm text-muted-foreground w-full text-center">Seu voto: <span className="font-bold">{userHasVoted}</span></p>
                                     ) : (
@@ -418,7 +420,7 @@ const Parliament = () => {
             setPlebiscites(plebiscitesData || []);
 
             if (user) {
-                const { data: memberStatus, error: memberStatusError } = await supabase.from('parliament_members').select('id, house_id').eq('user_id', user.id).maybeSingle();
+                const { data: memberStatus, error: memberStatusError } = await supabase.from('parliament_members').select('id, house_id').eq('user_id', user.id).limit(1).maybeSingle();
                 if (memberStatusError && memberStatusError.code !== 'PGRST116') throw memberStatusError;
                 setParliamentMember(memberStatus);
 

@@ -148,13 +148,30 @@ export const AuthProvider = ({ children }) => {
     // Safety timeout: if loading is still true after 10 seconds, force it to false
     const safetyTimeout = setTimeout(() => {
       if (isMounted) {
-        setLoading(prev => {
-          if (prev) {
-            console.warn("Safety timeout triggered: forcing loading to false.");
-            return false;
+        console.warn("Safety timeout triggered: forcing loading to false.");
+        
+        // If we timeout but have a session, ensure user isn't blindly null causing UI issues.
+        // Try fallback to session metadata so TopNavbar and Dashboard don't crash.
+        setSession((currentValidSession) => {
+          if (currentValidSession?.user) {
+            setUser((currentUserState) => {
+              if (!currentUserState) {
+                console.warn("Falling back to session metadata for user profile after timeout");
+                return {
+                  id: currentValidSession.user.id,
+                  email: currentValidSession.user.email,
+                  full_name: currentValidSession.user.user_metadata?.full_name || 'Usuário Desconectado',
+                  username: currentValidSession.user.user_metadata?.username || 'user',
+                  role: currentValidSession.user.app_metadata?.role || 'Cidadão',
+                };
+              }
+              return currentUserState;
+            });
           }
-          return prev;
+          return currentValidSession;
         });
+
+        setLoading(false);
       }
     }, 10000);
 

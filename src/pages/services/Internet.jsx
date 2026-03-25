@@ -27,14 +27,14 @@ const Internet = () => {
                 .select('*')
                 .eq('user_id', user.id)
                 .eq('service_type', serviceType)
-                .single();
+                .limit(1).maybeSingle();
+
+            if (serviceError) throw serviceError;
             
-            if (serviceError && serviceError.code !== 'PGRST116') throw serviceError;
-            
-            const { data: priceData, error: priceError } = await supabase.from('system_settings').select('value').eq('key', 'basic_service_prices').single();
+            const { data: priceData, error: priceError } = await supabase.from('system_settings').select('value').eq('key', 'basic_service_prices').limit(1).maybeSingle();
             if (priceError) throw priceError;
             
-            const prices = priceData.value || {};
+            const prices = priceData?.value || {};
             const defaultPlans = [
                 { id: 1, name: 'Básico', speed: '100 Mbps', price: prices['Internet_Básico'] !== undefined ? prices['Internet_Básico'] : 79.90, description: 'Ideal para navegar e redes sociais.' },
                 { id: 2, name: 'Ultra', speed: '500 Mbps', price: prices['Internet_Ultra'] !== undefined ? prices['Internet_Ultra'] : 99.90, description: 'Perfeito para streaming 4K e jogos online.' },
@@ -43,6 +43,14 @@ const Internet = () => {
             setPlans(defaultPlans);
 
             if(serviceData){
+                const matchingPlan = defaultPlans.find(p => p.name === serviceData.plan_name);
+                if (matchingPlan && matchingPlan.price !== undefined && serviceData.price !== matchingPlan.price) {
+                    await supabase
+                        .from('user_services')
+                        .update({ price: matchingPlan.price })
+                        .eq('id', serviceData.id);
+                    serviceData.price = matchingPlan.price;
+                }
                 setCurrentService(serviceData);
             } else {
                 // Auto-contract basic plan if none exists
@@ -53,9 +61,9 @@ const Internet = () => {
                         service_type: serviceType,
                         plan_name: basicPlan.name,
                         price: basicPlan.price,
-                    }).select().single();
+                    }).select().maybeSingle();
 
-                    if(insertError) throw insertError;
+                    if(insertError && insertError.code !== 'PGRST116') throw insertError;
                     setCurrentService(newService);
                 }
             }
@@ -79,9 +87,9 @@ const Internet = () => {
             .update({ plan_name: plan.name, price: plan.price })
             .eq('id', currentService.id)
             .select()
-            .single();
+            .maybeSingle();
 
-        if (error) {
+        if (error && error.code !== 'PGRST116') {
             toast({ title: 'Erro ao mudar de plano', variant: 'destructive' });
         } else {
             toast({ title: 'Plano Alterado!', description: `Seu plano agora é o ${plan.name}.` });

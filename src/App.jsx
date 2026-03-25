@@ -103,17 +103,17 @@ const MainLayout = ({ children }) => {
   const isLockedPrisonPage =
     isPrisonSentenceActive(user) && location.pathname === '/services/prison';
 
-  if (isXPage || isAuthCallback || isLockedPrisonPage) {
+  if (isAuthCallback || isLockedPrisonPage) {
     return <>{children}</>;
   }
 
   return (
     <>
       <Navbar />
-      <main className="pt-20">
+      <main className={isXPage ? "pt-20 w-full" : "pt-20"}>
         {children}
       </main>
-      <Footer disableTopSpacing={location.pathname === '/'} />
+      {!isXPage && <Footer disableTopSpacing={location.pathname === '/'} />}
       <ScrollToTop />
     </>
   );

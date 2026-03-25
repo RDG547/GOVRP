@@ -24,13 +24,7 @@ import React, { useState, useRef } from 'react';
 
         if (!user?.x_handle) {
             return (
-                <>
-                    <Navbar />
-                    <main className="pt-20">
-                        <XOnboarding onProfileCreated={refreshUser} />
-                    </main>
-                    <Footer />
-                </>
+                <XOnboarding onProfileCreated={refreshUser} />
             );
         }
 
@@ -41,8 +35,7 @@ import React, { useState, useRef } from 'react';
                     <meta name="description" content="Conecte-se, compartilhe e debata na rede social do GOV.RP." />
                 </Helmet>
                 <div className="min-h-screen bg-background text-foreground">
-                    <Navbar />
-                    <main className="pt-20 w-full">
+                    <div className="w-full">
                         <div className="flex justify-center w-full">
                             <div className="w-full max-w-screen-xl grid grid-cols-1 md:grid-cols-[auto,minmax(0,600px)] lg:grid-cols-[auto,minmax(0,600px),1fr]">
                                 <header className="hidden md:sticky top-20 h-[calc(100vh-5rem)] md:flex md:flex-col md:justify-between md:w-20 xl:w-64">
@@ -63,7 +56,7 @@ import React, { useState, useRef } from 'react';
                                 </aside>
                             </div>
                         </div>
-                    </main>
+                    </div>
                 </div>
                 <div className="md:hidden fixed bottom-0 left-0 right-0 bg-background border-t border-border z-50">
                     <XSidebar onPostClick={() => setIsPostModalOpen(true)} />

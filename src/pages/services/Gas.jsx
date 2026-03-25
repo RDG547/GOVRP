@@ -34,7 +34,8 @@ const Gas = () => {
                 .from('system_settings')
                 .select('value')
                 .eq('key', 'basic_service_prices')
-                .single();
+                .limit(1)
+                .maybeSingle();
 
             if (priceError && priceError.code !== 'PGRST116') throw priceError;
 

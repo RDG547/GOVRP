@@ -402,11 +402,8 @@ export const finalizeParliamentVotingIfReady = async (
         const otherHouseId = await getOtherHouseId(supabase, voting.house_id);
 
         if (otherHouseId) {
-          // Close current voting
-          await supabase
-            .from('parliament_votings')
-            .update({ status: 'closed' })
-            .eq('id', voting.id);
+          // Close current voting by bypassing RLS
+          await supabase.rpc('close_parliament_voting', { p_voting_id: voting.id });
 
           // Update bill status to indicate it's moving to the other house
           await supabase.rpc('update_bill_status', {
@@ -465,11 +462,8 @@ export const finalizeParliamentVotingIfReady = async (
           console.error('Erro ao publicar notícia/DOU da PEC:', newsError);
         }
 
-        // Close this voting
-        await supabase
-          .from('parliament_votings')
-          .update({ status: 'closed' })
-          .eq('id', voting.id);
+        // Close this voting by bypassing RLS
+        await supabase.rpc('close_parliament_voting', { p_voting_id: voting.id });
 
         return {
           finalized: true,
@@ -493,10 +487,8 @@ export const finalizeParliamentVotingIfReady = async (
           console.error('Erro ao publicar notícia de rejeição da PEC:', newsError);
         }
 
-        await supabase
-          .from('parliament_votings')
-          .update({ status: 'closed' })
-          .eq('id', voting.id);
+        // Close this voting by bypassing RLS
+        await supabase.rpc('close_parliament_voting', { p_voting_id: voting.id });
 
         return {
           finalized: true,
@@ -557,10 +549,7 @@ export const finalizeParliamentVotingIfReady = async (
     await finalizeSuggestionVoting(supabase, voting, approved);
   }
 
-  const { error: closeVotingError } = await supabase
-    .from('parliament_votings')
-    .update({ status: 'closed' })
-    .eq('id', voting.id);
+  const { error: closeVotingError } = await supabase.rpc('close_parliament_voting', { p_voting_id: voting.id });
 
   if (closeVotingError) {
     throw closeVotingError;

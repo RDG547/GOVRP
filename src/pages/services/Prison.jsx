@@ -179,7 +179,7 @@ const Prison = () => {
             .eq('is_active', true)
             .order('sentence_end_date', { ascending: false })
             .limit(1)
-            .maybeSingle();
+            .limit(1).maybeSingle();
 
         if (error) {
             toast({ title: 'Erro ao carregar dados da prisão', description: error.message, variant: 'destructive' });
