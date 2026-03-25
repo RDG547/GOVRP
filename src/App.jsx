@@ -88,6 +88,7 @@ import PhoneService from '@/pages/services/PhoneService';
 import Rent from '@/pages/services/Rent';
 import Maintenance from '@/pages/services/Maintenance';
 import Gas from '@/pages/services/Gas';
+import Education from '@/pages/services/Education';
 import InventoryPage from '@/pages/services/InventoryPage';
 import ProductDetails from '@/pages/services/ProductDetails';
 import PresidentDashboard from '@/pages/dashboards/panels/PresidentDashboard';
@@ -220,6 +221,7 @@ function App() {
                 <Route path="/services/rent" element={<ServiceProtectedRoute><Rent /></ServiceProtectedRoute>} />
                 <Route path="/services/maintenance" element={<ServiceProtectedRoute><Maintenance /></ServiceProtectedRoute>} />
                 <Route path="/services/gas" element={<ServiceProtectedRoute><Gas /></ServiceProtectedRoute>} />
+                <Route path="/services/education" element={<ServiceProtectedRoute><Education /></ServiceProtectedRoute>} />
 
                 <Route path="/admin-dashboard" element={<AdminProtectedRoute><AdminDashboardPage /></AdminProtectedRoute>} />
                 <Route path="/admin-dashboard/:tab" element={<AdminProtectedRoute><AdminDashboardPage /></AdminProtectedRoute>} />

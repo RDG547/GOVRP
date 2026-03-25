@@ -150,11 +150,13 @@ export const InternetSpeedProvider = ({ children }) => {
     
     const skipPaths = [
       '/login', '/register', '/auth/callback', '/update-password', '/forgot-password',
-      '/community', '/help', '/about', '/donate',
+      '/community', '/help', '/about', '/donate', '/country-info',
       '/contact', '/support', '/faq', '/docs', '/roadmap'
     ];
     if (skipPaths.some(p => currentPath.startsWith(p))) {
       previousPath.current = currentPath;
+      setIsLoading(false);
+      if (loadingTimeout.current) clearTimeout(loadingTimeout.current);
       return;
     }
 
@@ -179,10 +181,10 @@ export const InternetSpeedProvider = ({ children }) => {
       }, delay);
     }
     
-    // Do NOT clear timeout on unmount or re-render cleanup, 
-    // because automated sub-redirects (like /services/x -> /services/x/home)
-    // would run this cleanup, clear the timeout, but skip the next delay entirely,
-    // leaving isLoading=true INFINITELY!
+    // IMPORTANT: Clear on unmount or re-render
+    return () => {
+      if (loadingTimeout.current) clearTimeout(loadingTimeout.current);
+    };
   }, [location.pathname, userPlan]);
 
   const handleUpgrade = () => {

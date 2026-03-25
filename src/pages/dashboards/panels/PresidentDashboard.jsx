@@ -920,56 +920,131 @@ const PresidentDashboard = () => {
                         </TabsList>
                     </div>
 
-                    <TabsContent value="overview" className="mt-6">
+                    <TabsContent value="overview" className="mt-6 space-y-8">
+                        {/* Estatísticas Principais (Cards Superiores) */}
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                            {govFinances && <FinanceCard title="Cofre Público (Disponível)" value={availableTreasury} icon={University} />}
-                            <FinanceCard title={deficit >= 0 ? "Superávit" : "Déficit"} value={deficit} icon={deficit >= 0 ? TrendingUp : TrendingDown} colorClass={deficit >= 0 ? 'text-green-400' : 'text-red-400'} />
-                            {govFinances && <FinanceCard title="Empréstimos Ativos" value={govFinances.loans_balance} icon={Handshake} colorClass="text-yellow-400" />}
-                            {govFinances && <FinanceCard title="Gastos do Cartão" value={corporateCardValue} icon={CreditCard} isCurrency={false} colorClass="text-orange-400" />}
-                        </div>
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4">
                             {govFinances && (
-                                <Card className="glass-effect">
-                                    <CardContent className="p-4">
-                                        <Label>Cartão Governamental ({formatCurrency(govFinances.corporate_card_used)} / {formatCurrency(govFinances.corporate_card_limit)})</Label>
-                                        <Progress value={cardUsage} className="mt-2" />
-                                    </CardContent>
-                                </Card>
+                                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
+                                    <FinanceCard title="Cofre Público (Disponível)" value={availableTreasury} icon={University} colorClass="text-emerald-400" />
+                                </motion.div>
+                            )}
+                            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
+                                <FinanceCard title={deficit >= 0 ? "Superávit Orçamentário" : "Déficit Orçamentário"} value={Math.abs(deficit)} icon={deficit >= 0 ? TrendingUp : TrendingDown} colorClass={deficit >= 0 ? 'text-green-400' : 'text-red-400'} />
+                            </motion.div>
+                            {govFinances && (
+                                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
+                                    <FinanceCard title="Empréstimos Ativos" value={govFinances.loans_balance} icon={Handshake} colorClass="text-amber-400" />
+                                </motion.div>
                             )}
                             {govFinances && (
-                                <Card className="glass-effect">
-                                    <CardContent className="p-4">
-                                        <Label>Capacidade de Empréstimo ({formatCurrency(govFinances.loans_balance)} / {formatCurrency(govFinances.loan_limit)})</Label>
-                                        <Progress value={loanUsage} className="mt-2" />
-                                    </CardContent>
-                                </Card>
+                                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}>
+                                    <FinanceCard title="Uso do Cartão Governamental" value={corporateCardValue} icon={CreditCard} isCurrency={false} colorClass="text-orange-400" />
+                                </motion.div>
+                            )}
+                        </div>
+
+                        {/* Elementos Secundários: Gráficos ou Progresso */}
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-8">
+                            {govFinances && (
+                                <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.5 }}>
+                                    <Card className="glass-effect overflow-hidden border-t-4 border-t-orange-500/50">
+                                        <CardHeader className="bg-black/20 pb-4">
+                                            <CardTitle className="flex items-center gap-2"><CreditCard className="w-5 h-5 text-orange-400"/> Status do Cartão do Governo</CardTitle>
+                                            <CardDescription>Limite total e utilização vigente</CardDescription>
+                                        </CardHeader>
+                                        <CardContent className="p-6">
+                                            <div className="flex justify-between items-end mb-2">
+                                                <div>
+                                                    <p className="text-3xl font-bold text-orange-400">{formatCurrency(govFinances.corporate_card_used)}</p>
+                                                    <p className="text-sm text-muted-foreground mt-1">Utilizado do limite de {formatCurrency(govFinances.corporate_card_limit)}</p>
+                                                </div>
+                                                <div className="text-right">
+                                                    <p className="text-xl font-bold">{cardUsage.toFixed(1)}%</p>
+                                                </div>
+                                            </div>
+                                            <Progress value={cardUsage} className="h-3 bg-muted" indicatorClassName={`${cardUsage > 80 ? 'bg-red-500' : cardUsage > 50 ? 'bg-orange-500' : 'bg-green-500'}`} />
+                                        </CardContent>
+                                    </Card>
+                                </motion.div>
+                            )}
+                            
+                            {govFinances && (
+                                <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.6 }}>
+                                    <Card className="glass-effect overflow-hidden border-t-4 border-t-amber-500/50">
+                                        <CardHeader className="bg-black/20 pb-4">
+                                            <CardTitle className="flex items-center gap-2"><Handshake className="w-5 h-5 text-amber-400"/> Capacidade de Empréstimo</CardTitle>
+                                            <CardDescription>Histórico e limites de tomada de crédito</CardDescription>
+                                        </CardHeader>
+                                        <CardContent className="p-6">
+                                            <div className="flex justify-between items-end mb-2">
+                                                <div>
+                                                    <p className="text-3xl font-bold text-amber-400">{formatCurrency(govFinances.loans_balance)}</p>
+                                                    <p className="text-sm text-muted-foreground mt-1">Dívida sobre limite de {formatCurrency(govFinances.loan_limit)}</p>
+                                                </div>
+                                                <div className="text-right">
+                                                    <p className="text-xl font-bold">{loanUsage.toFixed(1)}%</p>
+                                                </div>
+                                            </div>
+                                            <Progress value={loanUsage} className="h-3 bg-muted" indicatorClassName={`${loanUsage > 80 ? 'bg-red-500' : loanUsage > 50 ? 'bg-amber-500' : 'bg-green-500'}`} />
+                                            {loanUsage >= 100 && (
+                                                <p className="text-xs text-red-500 mt-4 text-center">Nação atingiu o topo do limite de dívidas permitido no momento.</p>
+                                            )}
+                                        </CardContent>
+                                    </Card>
+                                </motion.div>
                             )}
                         </div>
                     </TabsContent>
 
                     <TabsContent value="finances" className="mt-6">
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
-                            <div className="flex flex-col gap-8">
-                                {budget && govFinances && <BudgetManager budget={budget} treasuryBalance={govFinances.treasury_balance} onUpdate={fetchData} setActiveTab={setActiveTab} />}
-                                {servicePrices && <ServicePriceManager servicePrices={servicePrices} onUpdate={fetchData} setActiveTab={setActiveTab} />}
-                            </div>
-                            <div className="flex flex-col gap-8">
-                                {taxes && <TaxManager taxes={taxes} onUpdate={fetchData} setActiveTab={setActiveTab} />}
-                                <Card className="glass-effect">
-                                  <CardHeader>
-                                    <CardTitle>Ações Financeiras</CardTitle>
-                                    {govFinances && (
-                                        <CardDescription>
-                                            Disponível para empréstimo: <span className="text-green-400 font-bold">{formatCurrency(govFinances.loan_limit - govFinances.loans_balance)}</span>
-                                        </CardDescription>
-                                    )}
-                                  </CardHeader>
-                                  <CardContent>
-                                      <LoanManager onUpdate={fetchData} setActiveTab={setActiveTab} govFinances={govFinances} />
-                                  </CardContent>
-                                </Card>
-                            </div>
-                        </div>
+                        <Tabs defaultValue="budget" className="w-full">
+                            <ScrollArea className="w-full whitespace-nowrap mb-6">
+                                <TabsList className="inline-flex w-full justify-start md:justify-center border-b border-border/40 bg-transparent p-0">
+                                    <TabsTrigger value="budget" className="data-[state=active]:bg-card data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-t-lg px-6">Orçamento Governamental</TabsTrigger>
+                                    <TabsTrigger value="taxes" className="data-[state=active]:bg-card data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-t-lg px-6">Gestão de Impostos</TabsTrigger>
+                                    <TabsTrigger value="prices" className="data-[state=active]:bg-card data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-t-lg px-6">Valores de Tarifas Base</TabsTrigger>
+                                    <TabsTrigger value="actions" className="data-[state=active]:bg-card data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-t-lg px-6">Empréstimos/Cofre</TabsTrigger>
+                                </TabsList>
+                            </ScrollArea>
+
+                            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
+                                <TabsContent value="budget" className="mt-0">
+                                    <div className="max-w-4xl mx-auto">
+                                        {budget && govFinances && <BudgetManager budget={budget} treasuryBalance={govFinances.treasury_balance} onUpdate={fetchData} setActiveTab={setActiveTab} />}
+                                    </div>
+                                </TabsContent>
+                                
+                                <TabsContent value="taxes" className="mt-0">
+                                    <div className="max-w-3xl mx-auto">
+                                        {taxes && <TaxManager taxes={taxes} onUpdate={fetchData} setActiveTab={setActiveTab} />}
+                                    </div>
+                                </TabsContent>
+                                
+                                <TabsContent value="prices" className="mt-0">
+                                    <div className="max-w-3xl mx-auto">
+                                        {servicePrices && <ServicePriceManager servicePrices={servicePrices} onUpdate={fetchData} setActiveTab={setActiveTab} />}
+                                    </div>
+                                </TabsContent>
+                                
+                                <TabsContent value="actions" className="mt-0">
+                                    <div className="max-w-xl mx-auto pt-8">
+                                        <Card className="glass-effect">
+                                            <CardHeader className="text-center">
+                                                <CardTitle className="text-2xl">Ações de Cofre</CardTitle>
+                                                {govFinances && (
+                                                    <CardDescription className="text-base">
+                                                        Margem atual pré-aprovada para empréstimos: <br/><span className="text-green-400 font-bold text-lg">{formatCurrency(govFinances.loan_limit - govFinances.loans_balance)}</span>
+                                                    </CardDescription>
+                                                )}
+                                            </CardHeader>
+                                            <CardContent className="flex justify-center pb-8">
+                                                <LoanManager onUpdate={fetchData} setActiveTab={setActiveTab} govFinances={govFinances} />
+                                            </CardContent>
+                                        </Card>
+                                    </div>
+                                </TabsContent>
+                            </motion.div>
+                        </Tabs>
                     </TabsContent>
 
                     <TabsContent value="management" className="mt-6">

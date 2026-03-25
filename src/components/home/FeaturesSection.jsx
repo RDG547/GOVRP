@@ -60,7 +60,7 @@ const FeaturesSection = () => {
             className="relative aspect-square"
           >
             <div className="absolute inset-0 bg-gradient-to-br from-purple-600 to-blue-600 rounded-full blur-3xl opacity-30"></div>
-            <img  class="relative w-full h-full object-cover rounded-2xl" alt="Mapa mundi digital com pontos de luz conectados" src="https://images.unsplash.com/photo-1679830238737-5bc41f101bbb" />
+            <img className="relative w-full h-full object-cover rounded-2xl" alt="Mapa mundi digital com pontos de luz conectados" src="https://images.unsplash.com/photo-1679830238737-5bc41f101bbb" />
           </motion.div>
         </div>
       </div>

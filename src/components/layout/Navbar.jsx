@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Menu, X, ChevronDown, Settings, LayoutDashboard, Tally5, Landmark, Store, FileText, Library, Archive, MessageSquare, Users, Newspaper, Home as HomeIcon, Heart, HelpCircle, Headphones as Headset, Grid, Mail, BookOpen, LogOut, Scale, Gavel, Shield, Vote, Eye, ShieldCheck, Crown, HeartHandshake as Handcuffs, Map, Siren, Wifi, Zap, Droplet, Smartphone, Wrench, Milestone, LogIn, UserPlus, FolderKanban, User, Flame } from 'lucide-react';
+import { Menu, X, ChevronDown, Settings, LayoutDashboard, Tally5, Landmark, Store, FileText, Library, Archive, MessageSquare, Users, Newspaper, Home as HomeIcon, Heart, HelpCircle, Headphones as Headset, Grid, Mail, BookOpen, LogOut, Scale, Gavel, Shield, Vote, Eye, ShieldCheck, Crown, HeartHandshake as Handcuffs, Map, Siren, Wifi, Zap, Droplet, Smartphone, Wrench, Milestone, LogIn, UserPlus, FolderKanban, User, Flame, GraduationCap } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
@@ -39,8 +39,9 @@ const serviceCategories = [
     ]
   },
   {
-    name: 'Comunidade e Cultura',
+    name: 'Cultura e Educação',
     services: [
+      { name: 'Ensino Superior', path: '/services/education', icon: GraduationCap, color: "text-indigo-400" },
       { name: 'X', path: '/services/x', icon: MessageSquare, color: "text-sky-400" },
       { name: 'Negócios Livres', path: '/services/business', icon: Store, color: "text-blue-400" },
       { name: 'Biblioteca Nacional', path: '/services/library', icon: Library, color: "text-orange-400" },

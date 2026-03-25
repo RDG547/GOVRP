@@ -2,7 +2,7 @@ import React from 'react';
 import { Helmet } from 'react-helmet-async';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { Landmark, Tally5, Store, FileText, MessageSquare, Library, Archive, Users, Scale, Gavel, Shield, Vote, Eye, ShieldCheck, Siren, HeartHandshake as Handcuffs, Grid, Wifi, Zap, Droplet, Smartphone, Home, Wrench, Flame } from 'lucide-react';
+import { Landmark, Tally5, Store, FileText, MessageSquare, Library, Archive, Users, Scale, Gavel, Shield, Vote, Eye, ShieldCheck, Siren, HeartHandshake as Handcuffs, Grid, Wifi, Zap, Droplet, Smartphone, Home, Wrench, Flame, GraduationCap, BookOpen } from 'lucide-react';
 import PageHeader from '@/components/layout/PageHeader';
 
 const serviceCategories = [
@@ -27,8 +27,9 @@ const serviceCategories = [
     ]
   },
   {
-    name: 'Comunidade e Cultura',
+    name: 'Cultura e Educação',
     services: [
+      { name: 'Ensino Superior', path: '/services/education', icon: GraduationCap, color: 'text-indigo-400', description: 'Ingresse na universidade, estude cursos profissionalizantes e avance na carreira.' },
       { name: 'X', path: '/services/x', icon: MessageSquare, color: 'text-sky-400', description: 'Conecte-se, compartilhe ideias e debata na rede social oficial.' },
       { name: 'Negócios Livres', path: '/services/business', icon: Store, color: 'text-blue-400', description: 'Compre e venda produtos e serviços no marketplace da comunidade.' },
       { name: 'Biblioteca Nacional', path: '/services/library', icon: Library, color: 'text-orange-400', description: 'Acesse um vasto acervo de livros, artigos e documentos históricos.' },

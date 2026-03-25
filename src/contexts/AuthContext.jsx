@@ -140,13 +140,11 @@ export const AuthProvider = ({ children }) => {
         }
       } finally {
         if (isMounted) setLoading(false);
+        if (safetyTimeout) clearTimeout(safetyTimeout);
       }
     };
 
-    getSession();
-
-    // Safety timeout: if loading is still true after 10 seconds, force it to false
-    const safetyTimeout = setTimeout(() => {
+    let safetyTimeout = setTimeout(() => {
       if (isMounted) {
         console.warn("Safety timeout triggered: forcing loading to false.");
         
@@ -174,6 +172,8 @@ export const AuthProvider = ({ children }) => {
         setLoading(false);
       }
     }, 10000);
+
+    getSession();
 
     const { data: authListener } = supabase.auth.onAuthStateChange(
       async (_event, newSession) => {

@@ -1,7 +1,8 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { Helmet } from 'react-helmet-async';
+import { motion, AnimatePresence } from 'framer-motion';
 import PageHeader from '@/components/layout/PageHeader';
-import { Home, Building2, MapPin, Bath, BedDouble, Car, Plus, Search, Loader2 } from 'lucide-react';
+import { Home, Building2, MapPin, Bath, BedDouble, Car, Plus, Search, Loader2, Key, ShieldCheck, DoorOpen } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
@@ -11,6 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabaseClient';
 import { formatCurrency } from '@/lib/utils';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 const initialProperties = [
     { id: 1, type: 'Apartamento', address: 'Centro', price: 1200, beds: 2, baths: 1, garage: 1, img: 'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?q=80&w=2070&auto=format&fit=crop' },
@@ -27,6 +29,7 @@ const Rent = () => {
     const [propertyType, setPropertyType] = useState('all');
     const [rentedProperty, setRentedProperty] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [actionLoading, setActionLoading] = useState(false);
     const serviceType = 'Aluguel';
 
     const fetchService = useCallback(async () => {
@@ -58,7 +61,7 @@ const Rent = () => {
     }, [properties, searchTerm, propertyType]);
 
     const handleRent = async (property) => {
-        setLoading(true);
+        setActionLoading(true);
         const { data, error } = await supabase.from('user_services').insert({
             user_id: user.id,
             service_type: serviceType,
@@ -72,12 +75,12 @@ const Rent = () => {
             toast({ title: 'Imóvel Alugado!', description: `Você alugou o imóvel em ${property.address}.` });
             setRentedProperty(data);
         }
-        setLoading(false);
+        setActionLoading(false);
     };
 
     const handleCancelRent = async () => {
         if (!rentedProperty) return;
-        setLoading(true);
+        setActionLoading(true);
         const { error } = await supabase.from('user_services').delete().eq('id', rentedProperty.id);
         if (error) {
             toast({ title: 'Erro ao cancelar', variant: 'destructive' });
@@ -85,7 +88,7 @@ const Rent = () => {
             toast({ title: 'Aluguel Cancelado', variant: 'destructive' });
             setRentedProperty(null);
         }
-        setLoading(false);
+        setActionLoading(false);
     };
 
     return (
@@ -104,74 +107,124 @@ const Rent = () => {
                     centered={true}
                 />
 
-                {loading ? <div className="flex justify-center mt-8"><Loader2 className="h-8 w-8 animate-spin" /></div> :
-                rentedProperty ? (
-                    <Card className="glass-effect mt-8 text-center">
-                        <CardHeader>
-                            <CardTitle>Seu Imóvel Alugado</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <p className="text-xl font-semibold">{rentedProperty.plan_name}</p>
-                            <p className="text-lg text-primary">{formatCurrency(rentedProperty.price)}/semana</p>
-                        </CardContent>
-                        <CardFooter className="justify-center">
-                            <Button variant="destructive" onClick={handleCancelRent} disabled={loading}>
-                                {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                                Cancelar Aluguel
-                            </Button>
-                        </CardFooter>
-                    </Card>
-                ) : (
-                    <>
-                        <Card className="glass-effect mt-8 p-6">
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                <div className="relative md:col-span-2">
-                                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                                   <Input placeholder="Buscar por bairro ou tipo..." className="pl-10" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+                <div className="mt-12">
+                    {loading ? (
+                        <div className="flex justify-center py-20"><Loader2 className="h-12 w-12 text-orange-400 animate-spin" /></div>
+                    ) : rentedProperty ? (
+                        <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.5 }}>
+                            <Card className="glass-effect overflow-hidden relative border-orange-500/20 max-w-2xl mx-auto">
+                                <div className="absolute top-0 right-0 w-64 h-64 bg-orange-400/10 rounded-full blur-3xl -mr-20 -mt-20 pointer-events-none" />
+                                <CardHeader className="text-center pb-2">
+                                    <div className="mx-auto w-20 h-20 rounded-full bg-orange-500/10 flex items-center justify-center mb-4 border border-orange-500/20">
+                                        <Key className="h-10 w-10 text-orange-400" />
+                                    </div>
+                                    <CardTitle className="text-3xl font-bold">Seu Contrato Ativo</CardTitle>
+                                    <CardDescription>Residência registrada no seu nome</CardDescription>
+                                </CardHeader>
+                                <CardContent className="pt-6">
+                                    <div className="bg-black/40 rounded-xl p-6 border border-orange-500/10 text-center">
+                                        <p className="text-sm text-muted-foreground uppercase tracking-wider mb-2">Imóvel Vigente</p>
+                                        <p className="text-2xl font-bold text-white mb-4">{rentedProperty.plan_name}</p>
+                                        <div className="flex justify-center items-center gap-2 mb-2">
+                                            <ShieldCheck className="h-5 w-5 text-emerald-400" />
+                                            <span className="text-emerald-400 font-medium">Contrato Validado no Cartório</span>
+                                        </div>
+                                    </div>
+                                    <div className="mt-6 flex justify-between items-center bg-orange-500/5 p-4 rounded-lg">
+                                        <span className="text-muted-foreground">Valor Semanal</span>
+                                        <span className="text-3xl font-bold text-orange-400">{formatCurrency(rentedProperty.price)}</span>
+                                    </div>
+                                </CardContent>
+                                <CardFooter className="justify-center pb-8 pt-4">
+                                    <Button variant="destructive" className="w-full sm:w-auto px-8" onClick={handleCancelRent} disabled={actionLoading}>
+                                        {actionLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <DoorOpen className="mr-2 h-4 w-4" />}
+                                        Rescindir Contrato e Desocupar
+                                    </Button>
+                                </CardFooter>
+                            </Card>
+                        </motion.div>
+                    ) : (
+                        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
+                            <Card className="glass-effect p-6 mb-8 border-orange-500/20 bg-gradient-to-r from-background to-orange-900/10">
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                    <div className="relative md:col-span-2 group">
+                                       <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground group-focus-within:text-orange-400 transition-colors" />
+                                       <Input placeholder="Buscar por bairro ou características..." className="pl-12 h-12 text-lg bg-black/40 border-orange-500/20 focus-visible:ring-orange-500" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+                                    </div>
+                                     <Select value={propertyType} onValueChange={setPropertyType}>
+                                        <SelectTrigger className="h-12 text-base bg-black/40 border-orange-500/20 focus:ring-orange-500">
+                                            <SelectValue placeholder="Tipo de Imóvel" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="all">Todos os Imóveis</SelectItem>
+                                            <SelectItem value="Apartamento">Apartamento Residencial</SelectItem>
+                                            <SelectItem value="Casa">Casa Unifamiliar</SelectItem>
+                                            <SelectItem value="Comercial">Sala Comercial</SelectItem>
+                                        </SelectContent>
+                                    </Select>
                                 </div>
-                                 <Select value={propertyType} onValueChange={setPropertyType}>
-                                    <SelectTrigger><SelectValue placeholder="Tipo de Imóvel" /></SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="all">Todos os Tipos</SelectItem>
-                                        <SelectItem value="Apartamento">Apartamento</SelectItem>
-                                        <SelectItem value="Casa">Casa</SelectItem>
-                                        <SelectItem value="Comercial">Comercial</SelectItem>
-                                    </SelectContent>
-                                </Select>
+                            </Card>
+                            
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                                <AnimatePresence>
+                                    {filteredProperties.map((prop, idx) => (
+                                        <motion.div key={prop.id} initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} transition={{ delay: idx * 0.1 }}>
+                                            <Card className="glass-effect overflow-hidden group hover:border-orange-500/50 hover:shadow-[0_0_30px_-5px_rgba(249,115,22,0.3)] transition-all duration-300 h-full flex flex-col">
+                                                <CardHeader className="p-0 relative">
+                                                    <div className="absolute top-4 left-4 z-10 flex gap-2">
+                                                        <Badge className="bg-orange-500 hover:bg-orange-600 text-white shadow-lg">Disponível</Badge>
+                                                        <Badge variant="secondary" className="bg-black/60 backdrop-blur-md text-white border-0 shadow-lg font-medium">
+                                                            {prop.type === 'Comercial' ? <Building2 className="mr-1 h-3 w-3" /> : <Home className="mr-1 h-3 w-3" />} {prop.type}
+                                                        </Badge>
+                                                    </div>
+                                                    <div className="aspect-video overflow-hidden relative">
+                                                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent z-[5]"></div>
+                                                        <img src={prop.img} alt={prop.type} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
+                                                        <div className="absolute bottom-4 left-4 z-10">
+                                                            <div className="flex items-center gap-2 text-white/90">
+                                                                <MapPin className="h-4 w-4 text-orange-400" />
+                                                                <span className="font-medium text-lg drop-shadow-md">{prop.address}</span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </CardHeader>
+                                                <CardContent className="p-6 flex-grow flex flex-col justify-center">
+                                                    <div className="flex justify-between items-center mb-4">
+                                                        <div className="text-3xl font-black text-white">{formatCurrency(prop.price)}<span className="text-sm font-normal text-muted-foreground">/semana</span></div>
+                                                    </div>
+                                                    
+                                                    <div className="flex items-center gap-4 text-muted-foreground text-sm pt-4 border-t border-white/10">
+                                                        {prop.beds > 0 && <div className="flex items-center gap-2 bg-black/30 px-3 py-1.5 rounded-md flex-1 justify-center"><BedDouble className="h-4 w-4 text-orange-400"/> <span className="font-semibold text-white">{prop.beds}</span></div>}
+                                                        {prop.baths > 0 && <div className="flex items-center gap-2 bg-black/30 px-3 py-1.5 rounded-md flex-1 justify-center"><Bath className="h-4 w-4 text-orange-400"/> <span className="font-semibold text-white">{prop.baths}</span></div>}
+                                                        {prop.garage > 0 && <div className="flex items-center gap-2 bg-black/30 px-3 py-1.5 rounded-md flex-1 justify-center"><Car className="h-4 w-4 text-orange-400"/> <span className="font-semibold text-white">{prop.garage}</span></div>}
+                                                    </div>
+                                                </CardContent>
+                                                <CardFooter className="p-0">
+                                                    <Button 
+                                                        className="w-full rounded-t-none h-14 text-lg font-bold bg-orange-500/10 text-orange-400 hover:bg-orange-500 hover:text-white transition-all duration-300"
+                                                        onClick={() => handleRent(prop)} 
+                                                        disabled={actionLoading}
+                                                    >
+                                                        {actionLoading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Key className="mr-2 h-5 w-5" />}
+                                                        Assinar Contrato
+                                                    </Button>
+                                                </CardFooter>
+                                            </Card>
+                                        </motion.div>
+                                    ))}
+                                </AnimatePresence>
                             </div>
-                        </Card>
-                        
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mt-8">
-                            {filteredProperties.map(prop => (
-                                <Card key={prop.id} className="glass-effect overflow-hidden group">
-                                    <CardHeader className="p-0">
-                                        <div className="aspect-video overflow-hidden">
-                                           <img src={prop.img} alt={prop.type} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-                                        </div>
-                                    </CardHeader>
-                                    <CardContent className="p-4">
-                                        <Badge variant="secondary" className="mb-2">{prop.type === 'Comercial' ? <Building2 className="mr-1 h-3 w-3" /> : <Home className="mr-1 h-3 w-3" />} {prop.type}</Badge>
-                                        <CardTitle className="text-xl">{prop.type} em {prop.address}</CardTitle>
-                                        <div className="flex items-center gap-4 text-muted-foreground text-sm mt-2">
-                                            {prop.beds > 0 && <span className="flex items-center gap-1"><BedDouble className="h-4 w-4"/> {prop.beds}</span>}
-                                            {prop.baths > 0 && <span className="flex items-center gap-1"><Bath className="h-4 w-4"/> {prop.baths}</span>}
-                                            {prop.garage > 0 && <span className="flex items-center gap-1"><Car className="h-4 w-4"/> {prop.garage}</span>}
-                                        </div>
-                                    </CardContent>
-                                    <CardFooter className="flex justify-between items-center p-4 bg-black/10">
-                                        <p className="text-lg font-bold text-primary">{formatCurrency(prop.price)}/semana</p>
-                                        <Button onClick={() => handleRent(prop)} disabled={loading}>Alugar</Button>
-                                    </CardFooter>
-                                </Card>
-                            ))}
-                        </div>
-                         {filteredProperties.length === 0 && (
-                            <div className="text-center py-16 text-muted-foreground">
-                                <p className="text-lg">Nenhum imóvel encontrado com os filtros atuais.</p>
-                            </div>
-                        )}
-                    </>
-                )}
+                            
+                            {filteredProperties.length === 0 && (
+                                <div className="text-center py-20 bg-black/20 rounded-2xl border border-white/5 mt-8">
+                                    <Home className="h-16 w-16 text-muted-foreground/30 mx-auto mb-4" />
+                                    <h3 className="text-xl font-bold text-white mb-2">Nenhum imóvel listado</h3>
+                                    <p className="text-muted-foreground">Tente alterar os filtros de busca para encontrar disponibilidades.</p>
+                                </div>
+                            )}
+                        </motion.div>
+                    )}
+                </div>
             </div>
         </>
     );
