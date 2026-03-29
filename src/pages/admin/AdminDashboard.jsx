@@ -88,7 +88,7 @@ const AdminDashboard = () => {
                 <title>Painel de Administração - {activeTabInfo?.label}</title>
                 <meta name="description" content="Gerencie todos os aspectos do GOV.RP." />
             </Helmet>
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+            <div className="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8 py-6 sm:py-12">
                 <PageHeader
                     icon={Crown}
                     title="Painel de"
@@ -99,19 +99,20 @@ const AdminDashboard = () => {
                 />
 
                 <div className="mt-8">
-                     <nav ref={navRef} className="flex flex-row gap-2 overflow-x-auto custom-scrollbar pb-2 md:pb-0 -mx-4 px-4 md:mx-0 md:px-0 justify-center mb-8">
+                     <nav ref={navRef} className="flex flex-row gap-1 sm:gap-2 overflow-x-auto custom-scrollbar pb-2 md:pb-0 -mx-2 px-2 sm:-mx-4 sm:px-4 md:mx-0 md:px-0 justify-start md:justify-center mb-6 sm:mb-8">
                         {tabs.map(tab => (
                             <button
                                 key={tab.id}
                                 data-tab-id={tab.id}
                                 onClick={() => handleTabChange(tab.id)}
-                                className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium whitespace-nowrap ${activeTab === tab.id
+                                className={`flex items-center gap-1.5 sm:gap-3 px-3 py-2 sm:px-4 sm:py-3 rounded-lg text-xs sm:text-sm font-medium whitespace-nowrap ${activeTab === tab.id
                                     ? 'bg-primary text-primary-foreground'
                                     : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
                                     }`}
                             >
-                                <tab.icon className="w-5 h-5" />
-                                <span>{tab.label}</span>
+                                <tab.icon className="w-4 h-4 sm:w-5 sm:h-5" />
+                                <span className="hidden sm:inline">{tab.label}</span>
+                                <span className="sm:hidden">{tab.label.length > 8 ? tab.label.substring(0, 6) + '…' : tab.label}</span>
                             </button>
                         ))}
                     </nav>
@@ -124,7 +125,7 @@ const AdminDashboard = () => {
                                 animate={{ opacity: 1, y: 0 }}
                                 exit={{ opacity: 0, y: -20 }}
                                 transition={{ duration: 0.3 }}
-                                className="glass-effect p-6 rounded-2xl border"
+                                className="glass-effect p-3 sm:p-6 rounded-2xl border"
                             >
                                 {ActiveComponent && <ActiveComponent stats={stats} growthStats={growthStats} loading={loading} />}
                             </motion.div>

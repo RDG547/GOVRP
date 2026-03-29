@@ -523,18 +523,43 @@ const UserManagement = () => {
                     </PopoverContent>
                 </Popover>
             </div>
-            <div className="overflow-x-auto rounded-lg border border-white/10 w-full">
-                <table className="w-full text-sm text-left text-gray-300 table-fixed">
+            {/* Mobile: Card Layout */}
+            <div className="md:hidden space-y-3">
+                {paginatedUsers.length > 0 ? paginatedUsers.map((user, index) => {
+                    const showSeparator = user.role !== lastRole && lastRole !== null;
+                    lastRole = user.role;
+                    const roleColorClass = roleConfig[user.role]?.color || roleConfig.default.color;
+                    return (
+                        <React.Fragment key={user.id}>
+                            {showSeparator && (
+                                <div className="flex items-center overflow-hidden py-1">
+                                    <Separator className="flex-1 bg-border min-w-0" />
+                                    <span className={`px-4 text-xs font-semibold uppercase whitespace-nowrap ${roleColorClass}`}>{user.role}s</span>
+                                    <Separator className="flex-1 bg-border min-w-0" />
+                                </div>
+                            )}
+                            <UserCard user={user} adminUser={adminUser} setModifyingBalanceUser={setModifyingBalanceUser} setChangingPasswordUser={setChangingPasswordUser} setEditingUser={setEditingUser} handleDeleteUser={handleDeleteUser} setManagingCardLimitUser={setManagingCardLimitUser} deletingUserId={deletingUserId} />
+                        </React.Fragment>
+                    );
+                }) : (
+                    <p className="text-center py-8 text-muted-foreground">Nenhum usuário encontrado com os filtros aplicados.</p>
+                )}
+            </div>
+
+            {/* Desktop: Table Layout */}
+            <div className="hidden md:block overflow-x-auto rounded-lg border border-white/10 w-full">
+                <table className="w-full text-sm text-left text-gray-300">
                     <thead className="text-xs text-gray-400 uppercase bg-black/20">
                         <tr>
-                            <th scope="col" className="px-6 py-3 w-[25%]">Usuário</th>
-                            <th scope="col" className="px-6 py-3 w-[25%]">Email</th>
-                            <th scope="col" className="px-6 py-3 w-[15%]">Saldo</th>
-                            <th scope="col" className="px-6 py-3 text-center w-[15%]">Cargo</th>
-                            <th scope="col" className="px-6 py-3 text-right w-[20%]">Ações</th>
+                            <th scope="col" className="px-6 py-3">Usuário</th>
+                            <th scope="col" className="px-6 py-3">Email</th>
+                            <th scope="col" className="px-6 py-3">Saldo</th>
+                            <th scope="col" className="px-6 py-3 text-center">Cargo</th>
+                            <th scope="col" className="px-6 py-3 text-right">Ações</th>
                         </tr>
                     </thead>
                     <tbody>
+                        {(() => { lastRole = null; return null; })()}
                         {paginatedUsers.length > 0 ? paginatedUsers.map((user, index) => {
                              const showSeparator = user.role !== lastRole && lastRole !== null;
                              lastRole = user.role;
@@ -592,10 +617,82 @@ const UserManagement = () => {
     );
 };
 
+const UserActionButtons = ({ user, adminUser, setModifyingBalanceUser, setChangingPasswordUser, setEditingUser, handleDeleteUser, setManagingCardLimitUser, deletingUserId }) => {
+    const isDeleting = deletingUserId === user.id;
+    return (
+        <>
+            {user.has_bank_account && (
+                <>
+                    <Button variant="ghost" size="icon" onClick={() => setModifyingBalanceUser(user)} title="Modificar Saldo">
+                        <Wallet className="w-4 h-4 text-green-400" />
+                    </Button>
+                    <Button variant="ghost" size="icon" onClick={() => setManagingCardLimitUser(user)} title="Gerenciar Limite do Cartão">
+                        <CreditCard className="w-4 h-4 text-purple-400" />
+                    </Button>
+                </>
+            )}
+            <Button variant="ghost" size="icon" onClick={() => setChangingPasswordUser(user)} title="Alterar Senha">
+                <KeyRound className="w-4 h-4 text-yellow-400" />
+            </Button>
+            <Button variant="ghost" size="icon" onClick={() => setEditingUser({...user})} title="Editar Usuário">
+                <Edit className="w-4 h-4 text-blue-400" />
+            </Button>
+            <Dialog>
+                <DialogTrigger asChild>
+                    <Button variant="ghost" size="icon" disabled={user.id === adminUser.id} title="Excluir Usuário">
+                        <Trash2 className="w-4 h-4 text-red-400" />
+                    </Button>
+                </DialogTrigger>
+                <DialogContent className="glass-effect text-white">
+                    <DialogHeader><DialogTitle>Confirmar Exclusão</DialogTitle><DialogDescription className="text-gray-300">Tem certeza que deseja excluir o usuário {user.full_name}? Esta ação é irreversível e removerá todos os dados associados.</DialogDescription></DialogHeader>
+                    <DialogFooter>
+                        <DialogClose asChild><Button variant="outline" disabled={isDeleting}>Cancelar</Button></DialogClose>
+                        <Button variant="destructive" disabled={isDeleting} onClick={() => handleDeleteUser(user.id, user.full_name)}>
+                            {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                            Excluir Permanentemente
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+        </>
+    );
+};
+
+const UserCard = ({ user, adminUser, setModifyingBalanceUser, setChangingPasswordUser, setEditingUser, handleDeleteUser, setManagingCardLimitUser, deletingUserId }) => {
+    const config = roleConfig[user.role] || roleConfig.default;
+    const Icon = config.icon;
+
+    return (
+        <div className="rounded-lg border border-slate-700 bg-slate-800/30 p-4 space-y-3">
+            <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0 flex-1">
+                    <div className="font-medium text-white truncate">{user.full_name}</div>
+                    <div className="text-xs text-gray-400 truncate">@{user.username}</div>
+                    <div className="text-xs text-gray-500 truncate mt-0.5">{user.email}</div>
+                </div>
+                <Badge className={`text-white ${config.bg} shrink-0 text-xs`}>
+                    <Icon className="w-3 h-3 mr-1"/>
+                    {user.role}
+                </Badge>
+            </div>
+            <div className="flex items-center justify-between">
+                <div className="text-sm">
+                    <span className="text-gray-400">Saldo: </span>
+                    <span className="font-mono text-green-400">
+                        {user.has_bank_account ? formatCurrency(user.balance ?? 0) : <span className="text-gray-500">N/A</span>}
+                    </span>
+                </div>
+            </div>
+            <div className="flex flex-wrap gap-1 pt-1 border-t border-slate-700">
+                <UserActionButtons user={user} adminUser={adminUser} setModifyingBalanceUser={setModifyingBalanceUser} setChangingPasswordUser={setChangingPasswordUser} setEditingUser={setEditingUser} handleDeleteUser={handleDeleteUser} setManagingCardLimitUser={setManagingCardLimitUser} deletingUserId={deletingUserId} />
+            </div>
+        </div>
+    );
+};
+
 const UserRow = ({ user, adminUser, setModifyingBalanceUser, setChangingPasswordUser, setEditingUser, handleDeleteUser, setManagingCardLimitUser, deletingUserId }) => {
     const config = roleConfig[user.role] || roleConfig.default;
     const Icon = config.icon;
-    const isDeleting = deletingUserId === user.id;
 
     return (
         <tr className="border-b border-slate-700 hover:bg-slate-800/50 transition-colors">
@@ -614,39 +711,7 @@ const UserRow = ({ user, adminUser, setModifyingBalanceUser, setChangingPassword
               </Badge>
             </td>
             <td className="px-6 py-4 text-right space-x-2">
-                {user.has_bank_account && (
-                    <>
-                        <Button variant="ghost" size="icon" onClick={() => setModifyingBalanceUser(user)} title="Modificar Saldo">
-                            <Wallet className="w-4 h-4 text-green-400" />
-                        </Button>
-                        <Button variant="ghost" size="icon" onClick={() => setManagingCardLimitUser(user)} title="Gerenciar Limite do Cartão">
-                            <CreditCard className="w-4 h-4 text-purple-400" />
-                        </Button>
-                    </>
-                )}
-                <Button variant="ghost" size="icon" onClick={() => setChangingPasswordUser(user)} title="Alterar Senha">
-                    <KeyRound className="w-4 h-4 text-yellow-400" />
-                </Button>
-                <Button variant="ghost" size="icon" onClick={() => setEditingUser({...user})} title="Editar Usuário">
-                    <Edit className="w-4 h-4 text-blue-400" />
-                </Button>
-                <Dialog>
-                    <DialogTrigger asChild>
-                        <Button variant="ghost" size="icon" disabled={user.id === adminUser.id} title="Excluir Usuário">
-                            <Trash2 className="w-4 h-4 text-red-400" />
-                        </Button>
-                    </DialogTrigger>
-                    <DialogContent className="glass-effect text-white">
-                        <DialogHeader><DialogTitle>Confirmar Exclusão</DialogTitle><DialogDescription className="text-gray-300">Tem certeza que deseja excluir o usuário {user.full_name}? Esta ação é irreversível e removerá todos os dados associados.</DialogDescription></DialogHeader>
-                        <DialogFooter>
-                            <DialogClose asChild><Button variant="outline" disabled={isDeleting}>Cancelar</Button></DialogClose>
-                            <Button variant="destructive" disabled={isDeleting} onClick={() => handleDeleteUser(user.id, user.full_name)}>
-                                {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                                Excluir Permanentemente
-                            </Button>
-                        </DialogFooter>
-                    </DialogContent>
-                </Dialog>
+                <UserActionButtons user={user} adminUser={adminUser} setModifyingBalanceUser={setModifyingBalanceUser} setChangingPasswordUser={setChangingPasswordUser} setEditingUser={setEditingUser} handleDeleteUser={handleDeleteUser} setManagingCardLimitUser={setManagingCardLimitUser} deletingUserId={deletingUserId} />
             </td>
         </tr>
     );

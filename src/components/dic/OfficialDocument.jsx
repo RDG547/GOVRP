@@ -104,17 +104,19 @@ const DocumentContainer = ({ children, className = '' }) => (
 
 const FingerprintSVG = ({ seed }) => {
     const paths = useMemo(() => {
-        let str = seed;
+        let str = String(seed || 'default');
         const result = [];
         for (let i = 0; i < 15; i++) {
             str = str.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0).toString();
-            const p1 = parseInt(str.substring(0, 2), 10) % 100;
-            const p2 = parseInt(str.substring(2, 4), 10) % 100;
-            const p3 = parseInt(str.substring(4, 6), 10) % 100;
-            const p4 = parseInt(str.substring(6, 8), 10) % 100;
-            const p5 = parseInt(str.substring(8, 10), 10) % 100;
-            const p6 = parseInt(str.substring(10, 12), 10) % 100;
-            const d = `M ${20 + p1/5} ${10 + p2/2} C ${p3} ${p4/2}, ${100-p5} ${p6/2}, ${30 + p1/5} ${80 + p2/2}`;
+            // Pad the string to ensure we always have enough characters
+            const padded = str.padEnd(12, '0');
+            const p1 = parseInt(padded.substring(0, 2), 10) || 0;
+            const p2 = parseInt(padded.substring(2, 4), 10) || 0;
+            const p3 = parseInt(padded.substring(4, 6), 10) || 0;
+            const p4 = parseInt(padded.substring(6, 8), 10) || 0;
+            const p5 = parseInt(padded.substring(8, 10), 10) || 0;
+            const p6 = parseInt(padded.substring(10, 12), 10) || 0;
+            const d = `M ${20 + (p1 % 100)/5} ${10 + (p2 % 100)/2} C ${p3 % 100} ${(p4 % 100)/2}, ${100-(p5 % 100)} ${(p6 % 100)/2}, ${30 + (p1 % 100)/5} ${80 + (p2 % 100)/2}`;
             result.push(d);
         }
         return result;

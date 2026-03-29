@@ -35,12 +35,12 @@ const buttonVariants = cva(
 
 const Button = React.forwardRef(({ className, variant, size, asChild = false, ...props }, ref) => {
 	const Comp = asChild ? Slot : motion.button;
+	const motionProps = asChild ? {} : { whileTap: { scale: 0.95 }, transition: { type: "spring", stiffness: 400, damping: 17 } };
 	return (
 		<Comp
 			className={cn(buttonVariants({ variant, size, className }))}
 			ref={ref}
-      whileTap={{ scale: 0.95 }}
-      transition={{ type: "spring", stiffness: 400, damping: 17 }}
+			{...motionProps}
 			{...props}
 		/>
 	);

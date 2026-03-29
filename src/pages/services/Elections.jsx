@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ClipboardSignature, Users, CheckSquare, Calendar, Vote, BarChart3, Loader2, Info } from 'lucide-react';
+import { ClipboardSignature, Users, CheckSquare, Calendar, Vote, BarChart3, Loader2, Info, TrendingUp, User, Ban } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -17,7 +17,50 @@ import { useAuth } from '@/contexts/AuthContext';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
-const CandidatesList = ({ election, onVote, userVote }) => {
+const statusConfig = {
+    Scheduled: { text: 'Agendada', color: 'bg-gray-500/80 text-white' },
+    Candidacy: { text: 'Candidatura', color: 'bg-blue-500/80 text-white' },
+    Voting: { text: 'Votação', color: 'bg-green-500/80 text-white' },
+    Finished: { text: 'Finalizada', color: 'bg-red-500/80 text-white' },
+};
+
+const ElectionOverviewCard = ({ election, onClick, type }) => {
+    const currentStatus = statusConfig[election.status] || { text: election.status, color: 'bg-gray-400/80 text-white' };
+    return (
+        <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            whileHover={{ scale: 1.03 }}
+            transition={{ duration: 0.2 }}
+        >
+            <button
+                onClick={() => onClick(election.id)}
+                className="w-full aspect-square rounded-2xl border border-white/10 bg-gradient-to-br from-white/5 to-white/[0.02] p-5 flex flex-col items-center justify-center gap-3 text-center hover:border-teal-500/40 hover:bg-white/10 transition-all duration-300 group"
+            >
+                <div className={`p-3 rounded-full ${type === 'results' ? 'bg-teal-500/20' : 'bg-blue-500/20'} group-hover:scale-110 transition-transform`}>
+                    {type === 'results' 
+                        ? <BarChart3 className="w-7 h-7 text-teal-400" />
+                        : <Users className="w-7 h-7 text-blue-400" />
+                    }
+                </div>
+                <h4 className="font-bold text-foreground text-sm leading-tight line-clamp-2">{election.name}</h4>
+                <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${currentStatus.color}`}>
+                    {currentStatus.text}
+                </span>
+                {election.election_types && (
+                    <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300">
+                        {election.election_types.name}
+                    </span>
+                )}
+                <p className="text-[10px] text-muted-foreground">
+                    {format(new Date(election.voting_start_date), 'dd/MM/yyyy', { locale: ptBR })}
+                </p>
+            </button>
+        </motion.div>
+    );
+};
+
+const CandidatesList = ({ election, onVote, onNullVote, userVote }) => {
     const [candidates, setCandidates] = useState([]);
     const [loading, setLoading] = useState(true);
     const { toast } = useToast();
@@ -44,31 +87,56 @@ const CandidatesList = ({ election, onVote, userVote }) => {
     if (loading) return <div className="flex justify-center p-8"><Loader2 className="animate-spin" /></div>;
     if (candidates.length === 0) return <p className="text-center p-8 text-muted-foreground">Nenhum candidato encontrado para esta eleição.</p>;
 
+    const isNullVote = userVote === 'null_vote';
+
     return (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {candidates.map(candidate => (
-                <Card key={candidate.id} className={`p-4 flex items-center justify-between gap-4 bg-background/70 ${userVote === candidate.id ? 'border-primary' : ''}`}>
+        <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {candidates.map(candidate => (
+                    <Card key={candidate.id} className={`p-4 flex items-center justify-between gap-4 bg-background/70 ${userVote === candidate.id ? 'border-primary ring-2 ring-primary/30' : ''}`}>
+                        <div className="flex items-center gap-4">
+                            <Avatar className="w-12 h-12">
+                                <AvatarImage src={candidate.campaign_photo_url || candidate.profiles?.avatar_url} alt={candidate.political_name} />
+                                <AvatarFallback>{candidate.political_name?.charAt(0)}</AvatarFallback>
+                            </Avatar>
+                            <div>
+                                <p className="font-semibold">{candidate.political_name}</p>
+                                <p className="text-sm text-muted-foreground">{candidate.political_parties?.acronym || 'Avulso'}</p>
+                            </div>
+                        </div>
+                        {election.status === 'Voting' && (
+                            <Button 
+                                onClick={() => onVote(candidate.id)} 
+                                disabled={!!userVote}
+                                variant={userVote === candidate.id ? 'secondary' : 'default'}
+                            >
+                                {userVote === candidate.id ? 'Votado' : 'Votar'}
+                            </Button>
+                        )}
+                    </Card>
+                ))}
+            </div>
+            {/* Voto Nulo */}
+            {election.status === 'Voting' && (
+                <Card className={`p-4 flex items-center justify-between gap-4 border-dashed ${isNullVote ? 'border-orange-500 ring-2 ring-orange-500/30 bg-orange-500/5' : 'bg-background/50'}`}>
                     <div className="flex items-center gap-4">
-                        <Avatar className="w-12 h-12">
-                            <AvatarImage src={candidate.campaign_photo_url || candidate.profiles.avatar_url} alt={candidate.political_name} />
-                            <AvatarFallback>{candidate.political_name.charAt(0)}</AvatarFallback>
-                        </Avatar>
+                        <div className={`w-12 h-12 rounded-full flex items-center justify-center ${isNullVote ? 'bg-orange-500/20' : 'bg-muted'}`}>
+                            <Ban className={`w-6 h-6 ${isNullVote ? 'text-orange-400' : 'text-muted-foreground'}`} />
+                        </div>
                         <div>
-                            <p className="font-semibold">{candidate.political_name}</p>
-                            <p className="text-sm text-muted-foreground">{candidate.political_parties?.acronym || 'Avulso'}</p>
+                            <p className="font-semibold">Voto Nulo</p>
+                            <p className="text-sm text-muted-foreground">Anular seu voto nesta eleição</p>
                         </div>
                     </div>
-                    {election.status === 'Voting' && (
-                        <Button 
-                            onClick={() => onVote(candidate.id)} 
-                            disabled={!!userVote}
-                            variant={userVote === candidate.id ? 'secondary' : 'default'}
-                        >
-                            {userVote === candidate.id ? 'Votado' : 'Votar'}
-                        </Button>
-                    )}
+                    <Button 
+                        onClick={() => onNullVote()} 
+                        disabled={!!userVote}
+                        variant={isNullVote ? 'secondary' : 'outline'}
+                    >
+                        {isNullVote ? 'Anulado' : 'Anular Voto'}
+                    </Button>
                 </Card>
-            ))}
+            )}
         </div>
     );
 };
@@ -107,8 +175,7 @@ const ElectionResults = ({ electionId }) => {
     }, [electionId, fetchResults]);
 
     if (loading) return <div className="flex justify-center p-8"><Loader2 className="animate-spin" /></div>;
-    if (electionId === 'all') return <p className="text-center p-8 text-muted-foreground">Selecione uma eleição para ver os resultados.</p>;
-    if (results.length === 0) return <p className="text-center p-8 text-muted-foreground">Nenhum resultado disponível para esta eleição.</p>;
+    if (results.length === 0 && electionId !== 'all') return <p className="text-center p-8 text-muted-foreground">Nenhum resultado disponível para esta eleição.</p>;
     
     const totalVotes = results.reduce((sum, r) => sum + Number(r.vote_count), 0);
 
@@ -141,13 +208,6 @@ const getStatus = (election) => {
     if (now >= new Date(election.candidacy_end_date)) return 'Scheduled'; // Gap between candidacy and voting
     if (now >= new Date(election.candidacy_start_date)) return 'Candidacy';
     return 'Scheduled';
-};
-
-const statusConfig = {
-    Scheduled: { text: 'Agendada', color: 'bg-gray-500/80 text-white' },
-    Candidacy: { text: 'Candidatura', color: 'bg-blue-500/80 text-white' },
-    Voting: { text: 'Votação', color: 'bg-green-500/80 text-white' },
-    Finished: { text: 'Finalizada', color: 'bg-red-500/80 text-white' },
 };
 
 const ElectoralCalendar = ({ elections }) => (
@@ -222,7 +282,7 @@ const Elections = () => {
               toast({ title: "Erro ao buscar seus votos", variant: "destructive" });
           } else {
               const votesMap = votesData.reduce((acc, vote) => {
-                  acc[vote.election_id] = vote.candidate_id;
+                  acc[vote.election_id] = vote.candidate_id || 'null_vote';
                   return acc;
               }, {});
               setUserVotes(votesMap);
@@ -240,6 +300,25 @@ const Elections = () => {
             toast({ title: "Erro ao votar", description: data?.message || error.message, variant: "destructive" });
         } else {
             toast({ title: "Voto computado!", description: data.message });
+            fetchElectionsAndVotes();
+        }
+    };
+
+    const handleNullVote = async () => {
+        // Insert a null vote (candidate_id = null) directly
+        const { data, error } = await supabase
+            .from('votes')
+            .insert({ election_id: selectedElection, voter_id: user.id, candidate_id: null });
+        
+        if (error) {
+            // Check if it's a unique constraint violation (already voted)
+            if (error.code === '23505') {
+                toast({ title: "Erro", description: "Você já votou nesta eleição.", variant: "destructive" });
+            } else {
+                toast({ title: "Erro ao anular voto", description: error.message, variant: "destructive" });
+            }
+        } else {
+            toast({ title: "Voto nulo registrado!", description: "Seu voto foi anulado com sucesso." });
             fetchElectionsAndVotes();
         }
     };
@@ -350,9 +429,30 @@ const Elections = () => {
                                     </div>
                                 </CardHeader>
                                 <CardContent>
-                                    {activeDisplay === 'candidatos' && currentElection && <CandidatesList election={currentElection} onVote={handleVote} userVote={userVotes[selectedElection]} />}
-                                    {activeDisplay === 'candidatos' && !currentElection && <p className="text-center p-8 text-muted-foreground">Selecione uma eleição para ver os candidatos.</p>}
-                                    {activeDisplay === 'resultados' && <ElectionResults electionId={selectedElection} />}
+                                    {activeDisplay === 'candidatos' && currentElection && <CandidatesList election={currentElection} onVote={handleVote} onNullVote={handleNullVote} userVote={userVotes[selectedElection]} />}
+                                    {activeDisplay === 'candidatos' && selectedElection === 'all' && (
+                                        elections.length > 0 ? (
+                                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                                                {elections.map(e => (
+                                                    <ElectionOverviewCard key={e.id} election={e} type="candidates" onClick={(id) => setSelectedElection(id)} />
+                                                ))}
+                                            </div>
+                                        ) : (
+                                            <p className="text-center p-8 text-muted-foreground">Nenhuma eleição encontrada.</p>
+                                        )
+                                    )}
+                                    {activeDisplay === 'resultados' && selectedElection === 'all' && (
+                                        elections.length > 0 ? (
+                                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                                                {elections.map(e => (
+                                                    <ElectionOverviewCard key={e.id} election={e} type="results" onClick={(id) => setSelectedElection(id)} />
+                                                ))}
+                                            </div>
+                                        ) : (
+                                            <p className="text-center p-8 text-muted-foreground">Nenhuma eleição encontrada.</p>
+                                        )
+                                    )}
+                                    {activeDisplay === 'resultados' && selectedElection !== 'all' && <ElectionResults electionId={selectedElection} />}
                                     {activeDisplay === 'calendar' && <ElectoralCalendar elections={elections} />}
                                 </CardContent>
                             </Card>

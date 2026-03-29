@@ -151,7 +151,8 @@ export const InternetSpeedProvider = ({ children }) => {
     const skipPaths = [
       '/login', '/register', '/auth/callback', '/update-password', '/forgot-password',
       '/community', '/help', '/about', '/donate', '/country-info',
-      '/contact', '/support', '/faq', '/docs', '/roadmap'
+      '/contact', '/support', '/faq', '/docs', '/roadmap',
+      '/admin-dashboard'
     ];
     if (skipPaths.some(p => currentPath.startsWith(p))) {
       previousPath.current = currentPath;

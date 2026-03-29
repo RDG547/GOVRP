@@ -267,7 +267,7 @@ const PostCard = ({ post, onPostUpdate, onPostDelete, onRepostCreated }) => {
   
       const parts = content.split(new RegExp(`(${urlRegex.source}|${mentionRegex.source}|${hashtagRegex.source})`, 'g'));
       
-      return parts.map((part, index) => {
+      return parts.filter(part => part !== undefined && part !== null && part !== '').map((part, index) => {
         if (part.match(urlRegex)) {
           const safeUrl = normalizeSafeUrl(part);
           if (!safeUrl) return part;

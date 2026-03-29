@@ -1,17 +1,27 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/components/ui/use-toast';
-import { Loader2, FileCheck2, FileX2, Clock, HelpCircle } from 'lucide-react';
+import { Loader2, FileCheck2, FileX2, Clock, HelpCircle, Trash2 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 const StatusIcon = ({ status }) => {
   switch (status) {
     case 'Approved': return <FileCheck2 className="w-8 h-8 text-green-500" />;
     case 'Rejected': return <FileX2 className="w-8 h-8 text-red-500" />;
-    case 'Pending': return <Clock className="w-8 h-8 text-yellow-500" />;
+    case 'Pendente': return <Clock className="w-8 h-8 text-yellow-500" />;
     default: return <HelpCircle className="w-8 h-8 text-gray-500" />;
   }
 };
@@ -20,7 +30,7 @@ const getStatusVariant = (status) => {
   switch (status) {
     case 'Approved': return 'success';
     case 'Rejected': return 'destructive';
-    case 'Pending': return 'secondary';
+    case 'Pendente': return 'secondary';
     default: return 'outline';
   }
 };
@@ -29,7 +39,7 @@ const getStatusTranslation = (status) => {
     switch (status) {
         case 'Approved': return 'Aprovado';
         case 'Rejected': return 'Rejeitado';
-        case 'Pending': return 'Pendente';
+        case 'Pendente': return 'Pendente';
         default: return status;
     }
 };
@@ -39,28 +49,50 @@ const TrackCandidacy = () => {
   const { toast } = useToast();
   const [candidacies, setCandidacies] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [cancelingId, setCancelingId] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const fetchCandidacies = useCallback(async () => {
+    if (!user) return;
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('candidates')
+        .select('*, elections(name)')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setCandidacies(data);
+    } catch (error) {
+      toast({ title: "Erro ao buscar candidaturas", description: error.message, variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  }, [user, toast]);
 
   useEffect(() => {
-    const fetchCandidacies = async () => {
-      if (!user) return;
-      setLoading(true);
-      try {
-        const { data, error } = await supabase
-          .from('candidates')
-          .select('*, elections(name)')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false });
-
-        if (error) throw error;
-        setCandidacies(data);
-      } catch (error) {
-        toast({ title: "Erro ao buscar candidaturas", description: error.message, variant: "destructive" });
-      } finally {
-        setLoading(false);
-      }
-    };
     fetchCandidacies();
-  }, [user, toast]);
+  }, [fetchCandidacies]);
+
+  const handleCancelCandidacy = async () => {
+    if (!cancelingId) return;
+    setIsDeleting(true);
+    try {
+      const { error } = await supabase
+        .from('candidates')
+        .delete()
+        .eq('id', cancelingId);
+      if (error) throw error;
+      toast({ title: "Candidatura cancelada", description: "Sua candidatura foi removida com sucesso." });
+      fetchCandidacies();
+    } catch (error) {
+      toast({ title: "Erro ao cancelar", description: error.message, variant: "destructive" });
+    } finally {
+      setIsDeleting(false);
+      setCancelingId(null);
+    }
+  };
 
   return (
     <div className="mt-4">
@@ -76,7 +108,7 @@ const TrackCandidacy = () => {
                 <div className="flex justify-between items-start">
                   <div>
                     <CardTitle>{candidacy.political_name}</CardTitle>
-                    <CardDescription>Para: {candidacy.elections.name}</CardDescription>
+                    <CardDescription>Para: {candidacy.elections?.name}</CardDescription>
                   </div>
                   <Badge variant={getStatusVariant(candidacy.status)}>{getStatusTranslation(candidacy.status)}</Badge>
                 </div>
@@ -87,13 +119,21 @@ const TrackCandidacy = () => {
                       <p className="text-sm text-muted-foreground">
                           {candidacy.status === 'Approved' && 'Sua candidatura foi aprovada! Você está oficialmente concorrendo.'}
                           {candidacy.status === 'Rejected' && `Sua candidatura foi rejeitada. Motivo: ${candidacy.admin_feedback || 'Não especificado.'}`}
-                          {candidacy.status === 'Pending' && 'Sua candidatura está em análise. Aguarde a avaliação do Tribunal Eleitoral.'}
+                          {candidacy.status === 'Pendente' && 'Sua candidatura está em análise. Aguarde a avaliação do Tribunal Eleitoral.'}
                       </p>
                       <p className="text-xs text-muted-foreground mt-2">
                           Registrado em: {new Date(candidacy.created_at).toLocaleDateString('pt-BR')}
                       </p>
                   </div>
-                   <Button variant="outline" size="sm">Ver Detalhes</Button>
+                  {(candidacy.status === 'Pendente' || candidacy.status === 'Approved') && (
+                    <Button 
+                      variant="destructive" 
+                      size="sm"
+                      onClick={() => setCancelingId(candidacy.id)}
+                    >
+                      <Trash2 className="w-4 h-4 mr-2" /> Cancelar
+                    </Button>
+                  )}
               </CardContent>
             </Card>
           ))}
@@ -104,6 +144,24 @@ const TrackCandidacy = () => {
           <p className="text-muted-foreground mt-2">Você ainda não registrou nenhuma candidatura.</p>
         </div>
       )}
+
+      <AlertDialog open={!!cancelingId} onOpenChange={() => setCancelingId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cancelar Candidatura</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja cancelar esta candidatura? Esta ação é irreversível e você precisará registrar uma nova candidatura se desejar concorrer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Voltar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleCancelCandidacy} disabled={isDeleting} className="bg-destructive hover:bg-destructive/90">
+              {isDeleting ? <Loader2 className="animate-spin mr-2 h-4 w-4" /> : null}
+              Confirmar Cancelamento
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
