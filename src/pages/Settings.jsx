@@ -1,13 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { motion } from 'framer-motion';
+import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabaseClient';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { User, Mail, Phone, Save, Image as ImageIcon, Loader2, Calendar, FileText, Trash2 } from 'lucide-react';
+import { User, Mail, Phone, Save, Image as ImageIcon, Loader2, Calendar, FileText, Trash2, ArrowRight } from 'lucide-react';
 import { formatCPF, formatRG, formatPhone } from '@/lib/utils';
 import {
   ACCEPTED_IMAGE_EXTENSIONS,
@@ -197,6 +198,24 @@ const Settings = () => {
                 {loading ? <Loader2 className="w-5 h-5 mr-2 animate-spin" /> : <Save className="w-5 h-5 mr-2" />}
                 Salvar Alterações
               </Button>
+            </div>
+
+            <div className="border-t border-white/10 pt-6">
+              <div className="rounded-2xl border border-red-500/20 bg-red-500/10 p-5 md:flex md:items-center md:justify-between md:gap-6">
+                <div>
+                  <h2 className="text-xl font-semibold text-white">Solicitar exclusão de conta</h2>
+                  <p className="text-sm text-red-100/90 mt-2">
+                    Caso deseje encerrar sua conta, envie uma solicitação formal. O formulário também pode ser acessado sem login.
+                  </p>
+                </div>
+
+                <Button asChild variant="destructive" className="mt-4 md:mt-0">
+                  <Link to="/account-deletion">
+                    Solicitar Exclusão
+                    <ArrowRight className="w-4 h-4 ml-2" />
+                  </Link>
+                </Button>
+              </div>
             </div>
           </form>
         </motion.div>

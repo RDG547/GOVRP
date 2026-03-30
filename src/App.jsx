@@ -9,6 +9,7 @@ import Register from '@/pages/Register';
 import AuthCallback from '@/pages/AuthCallback';
 import About from '@/pages/About';
 import Contact from '@/pages/Contact';
+import AccountDeletion from '@/pages/AccountDeletion';
 import Support from '@/pages/Support';
 import Terms from '@/pages/Terms';
 import Privacy from '@/pages/Privacy';
@@ -159,6 +160,7 @@ function App() {
                 <Route path="/about" element={<About />} />
                 <Route path="/country-info" element={<CountryInfo />} />
                 <Route path="/contact" element={<Contact />} />
+                <Route path="/account-deletion" element={<AccountDeletion />} />
                 <Route path="/support" element={<Support />} />
                 <Route path="/terms" element={<Terms />} />
                 <Route path="/privacy" element={<Privacy />} />

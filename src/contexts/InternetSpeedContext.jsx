@@ -147,11 +147,18 @@ export const InternetSpeedProvider = ({ children }) => {
     
     // Skip if same path or first load
     if (previousPath.current === currentPath) return;
+
+    if (!user?.id) {
+      previousPath.current = currentPath;
+      setIsLoading(false);
+      if (loadingTimeout.current) clearTimeout(loadingTimeout.current);
+      return;
+    }
     
     const skipPaths = [
       '/login', '/register', '/auth/callback', '/update-password', '/forgot-password',
       '/community', '/help', '/about', '/donate', '/country-info',
-      '/contact', '/support', '/faq', '/docs', '/roadmap',
+      '/contact', '/support', '/faq', '/docs', '/roadmap', '/account-deletion',
       '/admin-dashboard'
     ];
     if (skipPaths.some(p => currentPath.startsWith(p))) {
@@ -186,7 +193,7 @@ export const InternetSpeedProvider = ({ children }) => {
     return () => {
       if (loadingTimeout.current) clearTimeout(loadingTimeout.current);
     };
-  }, [location.pathname, userPlan]);
+  }, [location.pathname, user?.id, userPlan]);
 
   const handleUpgrade = () => {
     setIsLoading(false);
