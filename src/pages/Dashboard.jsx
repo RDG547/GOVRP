@@ -1,7 +1,7 @@
 import React from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import CitizenDashboard from '@/components/dashboard/CitizenDashboard';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Loader2, User, Crown, FolderKanban } from 'lucide-react';
 import {
   AlertDialog,
@@ -12,17 +12,19 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from '@/components/ui/button';
-import { Link } from 'react-router-dom';
 
 const Dashboard = () => {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
+  const effectiveRoles = Array.isArray(user?.effective_roles) ? user.effective_roles : [user?.role].filter(Boolean);
+  const hasPresidentAccess = effectiveRoles.includes('Presidente');
+  const isAdmin = effectiveRoles.includes('Admin') || user?.role === 'Admin';
 
   if (loading) {
     return <div className="flex justify-center items-center h-screen"><Loader2 className="w-16 h-16 animate-spin text-primary" /></div>;
   }
 
-  if (user?.role === 'Admin' || user?.role === 'Presidente') {
+  if (isAdmin || hasPresidentAccess) {
     return (
       <AlertDialog open={true}>
         <AlertDialogContent>
@@ -39,7 +41,7 @@ const Dashboard = () => {
                 <span>Dashboard do Cidadão</span>
               </Button>
             </Link>
-            {(user?.role === 'Presidente' || user?.role === 'Admin') && (
+            {(hasPresidentAccess || isAdmin) && (
               <Link to="/dashboard/president" className="w-full">
                 <Button variant="secondary" className="w-full justify-center gap-3 bg-yellow-500 hover:bg-yellow-600 text-black">
                   <FolderKanban className="w-5 h-5" />
@@ -47,7 +49,7 @@ const Dashboard = () => {
                 </Button>
               </Link>
             )}
-            {user?.role === 'Admin' && (
+            {isAdmin && (
               <Link to="/admin-dashboard" className="w-full">
                 <Button variant="secondary" className="w-full justify-center gap-3 bg-slate-700 hover:bg-slate-800 text-white">
                   <Crown className="w-5 h-5" />

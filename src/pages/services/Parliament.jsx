@@ -1,609 +1,1276 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
-import { motion, AnimatePresence } from 'framer-motion';
-import { supabase } from '@/lib/supabaseClient';
-import { useAuth } from '@/contexts/AuthContext';
-import { autoCloseExpiredVotings } from '@/lib/parliament';
-import { useToast } from '@/components/ui/use-toast';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
-import { Loader2, Scale, Inbox, Vote, Users, ThumbsUp, ThumbsDown, UserX, Send, Check, X, Hand, FileText, Landmark } from 'lucide-react';
-import PageHeader from '@/components/layout/PageHeader';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Progress } from '@/components/ui/progress';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { PieChart, Pie, Cell, Legend, ResponsiveContainer, Tooltip } from 'recharts';
+import {
+  Check,
+  FileText,
+  Hand,
+  Inbox,
+  Landmark,
+  Loader2,
+  ScrollText,
+  Send,
+  ShieldCheck,
+  ThumbsDown,
+  ThumbsUp,
+  UserX,
+  Users,
+  Vote,
+  Scale,
+} from 'lucide-react';
+import { supabase } from '@/lib/supabaseClient';
+import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/components/ui/use-toast';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Progress } from '@/components/ui/progress';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
+import PageHeader from '@/components/layout/PageHeader';
+import GovernanceMigrationAlert from '@/components/parliament/GovernanceMigrationAlert';
+import {
+  PARLIAMENT_MANDATE_DURATION_LABEL,
+  PARLIAMENT_PANEL_ROLES,
+  PARLIAMENT_RULE_SECTIONS,
+  autoCloseExpiredVotings,
+} from '@/lib/parliament';
+import {
+  fetchCommissionGovernanceData,
+  fetchLeadershipGovernanceData,
+  getCommissionHouseSummary,
+  getCommissionStatusMeta,
+  getCommissionTypeLabel,
+  getLeadershipElectionStatusMeta,
+  getLeadershipPositionLabel,
+  isGovernanceSchemaMissing,
+  refreshParliamentGovernanceState,
+} from '@/lib/parliamentGovernance';
+
+const PARLIAMENT_RULE_ICON_MAP = {
+  commissions: Users,
+  terms: FileText,
+  senate: Landmark,
+};
+
+const PLEBISCITE_COLORS = {
+  Sim: '#22c55e',
+  Não: '#ef4444',
+  Abstenção: '#6b7280',
+};
+
+const ParliamentRulesSection = () => (
+  <section className="mt-12">
+    <div className="mb-6 text-center">
+      <h2 className="text-3xl font-bold text-foreground">
+        Estrutura <span className="gradient-text">Institucional</span>
+      </h2>
+      <p className="mx-auto mt-3 max-w-3xl text-muted-foreground">
+        O funcionamento do Parlamento segue regras claras sobre comissões, mandatos mensais, mesa diretora e competências próprias de cada Casa.
+      </p>
+    </div>
+
+    <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+      {PARLIAMENT_RULE_SECTIONS.map((section) => {
+        const Icon = PARLIAMENT_RULE_ICON_MAP[section.id] || FileText;
+
+        return (
+          <Card key={section.id} className="glass-effect h-full border-white/10">
+            <CardHeader>
+              <div className="inline-flex w-fit items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">
+                <Icon className="h-3.5 w-3.5" />
+                Regra
+              </div>
+              <CardTitle>{section.title}</CardTitle>
+              <CardDescription>{section.description}</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {section.items.map((item) => (
+                <div key={item} className="flex items-start gap-3 rounded-xl border border-white/5 bg-white/5 p-4">
+                  <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400" />
+                  <p className="text-sm leading-relaxed text-muted-foreground">{item}</p>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        );
+      })}
+    </div>
+  </section>
+);
 
 const CitizenActions = ({ onPlebAction }) => {
-    const { toast } = useToast();
-    const [loading, setLoading] = useState(false);
-    const [isSuggestOpen, setIsSuggestOpen] = useState(false);
-    const [isPlebChoiceOpen, setIsPlebChoiceOpen] = useState(false);
-    const [isPlebFormOpen, setIsPlebFormOpen] = useState(false);
-    const [suggestionData, setSuggestionData] = useState({ title: '', suggestion: '', target_type: 'house', target_id: '', bill_type: 'PL' });
-    const [plebisciteData, setPlebisciteData] = useState({ title: '', description: '' });
-    const [parliamentarians, setParliamentarians] = useState([]);
-    const [parties, setParties] = useState([]);
-    const [houses, setHouses] = useState([]);
+  const { toast } = useToast();
+  const [loading, setLoading] = useState(false);
+  const [isSuggestOpen, setIsSuggestOpen] = useState(false);
+  const [isPlebChoiceOpen, setIsPlebChoiceOpen] = useState(false);
+  const [isPlebFormOpen, setIsPlebFormOpen] = useState(false);
+  const [suggestionData, setSuggestionData] = useState({
+    title: '',
+    suggestion: '',
+    target_type: 'house',
+    target_id: '',
+    bill_type: 'PL',
+  });
+  const [plebisciteData, setPlebisciteData] = useState({ title: '', description: '' });
+  const [parliamentarians, setParliamentarians] = useState([]);
+  const [parties, setParties] = useState([]);
+  const [houses, setHouses] = useState([]);
 
-    const fetchTargets = useCallback(async () => {
-        setLoading(true);
-        try {
-            const { data: housesData, error: housesError } = await supabase.from('parliament_houses').select('id, name');
-            if (housesError) throw housesError;
-            setHouses(housesData || []);
+  const fetchTargets = useCallback(async () => {
+    setLoading(true);
+    try {
+      const { data: housesData, error: housesError } = await supabase.from('parliament_houses').select('id, name');
+      if (housesError) {
+        throw housesError;
+      }
+      setHouses(housesData || []);
 
-            const { data: partiesData, error: partiesError } = await supabase.from('political_parties').select('id, name').eq('is_active', true);
-            if (partiesError) throw partiesError;
-            setParties(partiesData || []);
+      const { data: partiesData, error: partiesError } = await supabase
+        .from('political_parties')
+        .select('id, name')
+        .eq('is_active', true);
+      if (partiesError) {
+        throw partiesError;
+      }
+      setParties(partiesData || []);
 
-            const { data: membersData, error: membersError } = await supabase
-                .from('profiles')
-                .select('id, full_name')
-                .in('role', ['Deputado', 'Senador']);
-            if (membersError) throw membersError;
-            setParliamentarians((membersData || []).map(m => ({ id: m.id, name: m.full_name })));
+      const { data: membersData, error: membersError } = await supabase
+        .from('profiles')
+        .select('id, full_name')
+        .in('role', ['Deputado', 'Senador']);
+      if (membersError) {
+        throw membersError;
+      }
+      setParliamentarians((membersData || []).map((member) => ({ id: member.id, name: member.full_name })));
+    } catch (error) {
+      toast({
+        title: 'Erro ao carregar destinos',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
+  }, [toast]);
 
-        } catch (error) {
-            toast({ title: "Erro ao buscar alvos da sugestão", description: error.message, variant: "destructive" });
-        } finally {
-            setLoading(false);
-        }
-    }, [toast]);
+  useEffect(() => {
+    if (isSuggestOpen) {
+      fetchTargets();
+    }
+  }, [fetchTargets, isSuggestOpen]);
 
-    useEffect(() => {
-        if (isSuggestOpen) {
-            fetchTargets();
-        }
-    }, [isSuggestOpen, fetchTargets]);
+  const handleSuggestionSubmit = async (event) => {
+    event.preventDefault();
+    setLoading(true);
 
-    const handleSuggestionSubmit = async (e) => {
-        e.preventDefault();
-        setLoading(true);
-        const { data, error } = await supabase.rpc('submit_bill_suggestion', {
-            p_title: `${suggestionData.bill_type}: ${suggestionData.title}`,
-            p_suggestion: suggestionData.suggestion,
-            p_target_type: suggestionData.target_type,
-            p_target_id: suggestionData.target_id
-        });
-        if(error || (data && !data.success)) {
-            toast({ title: "Erro ao enviar sugestão", description: error?.message || data.message, variant: 'destructive' });
-        } else {
-            toast({ title: "Sucesso!", description: data.message });
-            setIsSuggestOpen(false);
-            setSuggestionData({ title: '', suggestion: '', target_type: 'house', target_id: '', bill_type: 'PL' });
-        }
-        setLoading(false);
-    };
+    const { data, error } = await supabase.rpc('submit_bill_suggestion', {
+      p_title: `${suggestionData.bill_type}: ${suggestionData.title}`,
+      p_suggestion: suggestionData.suggestion,
+      p_target_type: suggestionData.target_type,
+      p_target_id: suggestionData.target_id,
+    });
 
-    const handlePlebisciteSubmit = async (e) => {
-        e.preventDefault();
-        setLoading(true);
-        const { data, error } = await supabase.rpc('request_plebiscite', {
-            p_title: plebisciteData.title,
-            p_description: plebisciteData.description
-        });
-        if(error || (data && !data.success)) {
-            toast({ title: "Erro ao solicitar plebiscito", description: error?.message || data.message, variant: 'destructive' });
-        } else {
-            toast({ title: "Sucesso!", description: data.message });
-            setIsPlebFormOpen(false);
-            setPlebisciteData({ title: '', description: '' });
-        }
-        setLoading(false);
-    };
-
-    const getTargetOptions = () => {
-        switch (suggestionData.target_type) {
-            case 'house': return houses;
-            case 'party': return parties;
-            case 'parliamentarian': return parliamentarians;
-            default: return [];
-        }
-    };
-
-    return (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
-            <Dialog open={isSuggestOpen} onOpenChange={setIsSuggestOpen}>
-                <DialogTrigger asChild>
-                    <Card className="glass-effect hover:bg-accent/50 cursor-pointer transition-colors"><CardHeader><CardTitle className="flex items-center gap-2"><Inbox className="w-5 h-5 text-primary"/> Sugerir Projeto</CardTitle><CardDescription>Tem uma ideia para uma nova lei? Envie sua sugestão diretamente.</CardDescription></CardHeader></Card>
-                </DialogTrigger>
-                <DialogContent>
-                    <DialogHeader><DialogTitle>Sugerir Projeto</DialogTitle><DialogDescription>Sua ideia pode se tornar uma lei. Preencha os campos abaixo.</DialogDescription></DialogHeader>
-                    <form onSubmit={handleSuggestionSubmit} className="space-y-4 pt-4">
-                        <div className="space-y-2">
-                            <Label htmlFor="target_type">Enviar Para</Label>
-                             <Select onValueChange={value => setSuggestionData(p => ({...p, target_type: value, target_id: ''}))} value={suggestionData.target_type}>
-                                <SelectTrigger id="target_type"><SelectValue /></SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="house">Casa Legislativa</SelectItem>
-                                    <SelectItem value="party">Partido Político</SelectItem>
-                                    <SelectItem value="parliamentarian">Parlamentar Específico</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
-                         <div className="space-y-2">
-                            <Label htmlFor="target_id">Destinatário Específico</Label>
-                            <Select onValueChange={value => setSuggestionData(p => ({...p, target_id: value}))} value={suggestionData.target_id} disabled={loading}>
-                                <SelectTrigger id="target_id"><SelectValue placeholder={loading ? 'Carregando...' : 'Selecione...'} /></SelectTrigger>
-                                <SelectContent>
-                                    {getTargetOptions().map(t=><SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        <div className="grid grid-cols-3 gap-4">
-                            <div className="col-span-1 space-y-2">
-                                <Label htmlFor="bill_type">Tipo</Label>
-                                <Select value={suggestionData.bill_type} onValueChange={v => setSuggestionData(p => ({...p, bill_type: v}))}>
-                                    <SelectTrigger id="bill_type"><SelectValue /></SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="PL">PL</SelectItem>
-                                        <SelectItem value="PEC">PEC</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                            <div className="col-span-2 space-y-2">
-                                <Label htmlFor="title">Título da Sugestão</Label>
-                                <Input id="title" value={suggestionData.title} onChange={e=>setSuggestionData(p=>({...p, title:e.target.value}))} required/>
-                            </div>
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="suggestion">Sua Sugestão</Label>
-                            <Textarea id="suggestion" value={suggestionData.suggestion} onChange={e=>setSuggestionData(p=>({...p, suggestion:e.target.value}))} required placeholder="Descreva sua ideia de projeto de lei detalhadamente..."/>
-                        </div>
-                        <DialogFooter><Button type="submit" disabled={loading || !suggestionData.target_id}>{loading ? <Loader2 className="animate-spin mr-2" /> : <Send className="w-4 h-4 mr-2" />} Enviar Sugestão</Button></DialogFooter>
-                    </form>
-                </DialogContent>
-            </Dialog>
-
-            <Dialog open={isPlebChoiceOpen} onOpenChange={setIsPlebChoiceOpen}>
-                <DialogTrigger asChild>
-                    <Card className="glass-effect hover:bg-accent/50 cursor-pointer transition-colors"><CardHeader><CardTitle className="flex items-center gap-2"><Vote className="w-5 h-5 text-primary"/> Plebiscitos e Referendos</CardTitle><CardDescription>Participe de consultas populares ou solicite uma nova votação sobre temas importantes.</CardDescription></CardHeader></Card>
-                </DialogTrigger>
-                <DialogContent>
-                    <DialogHeader><DialogTitle>Plebiscitos e Referendos</DialogTitle><DialogDescription>O que você gostaria de fazer?</DialogDescription></DialogHeader>
-                    <div className="flex flex-col gap-4 pt-4">
-                        <Button onClick={() => { setIsPlebChoiceOpen(false); setIsPlebFormOpen(true); }}><FileText className="mr-2 h-4 w-4"/>Solicitar uma nova votação</Button>
-                        <Button variant="secondary" onClick={() => { setIsPlebChoiceOpen(false); onPlebAction(); }}><Hand className="mr-2 h-4 w-4"/>Participar de uma consulta ativa</Button>
-                    </div>
-                </DialogContent>
-            </Dialog>
-
-            <Dialog open={isPlebFormOpen} onOpenChange={setIsPlebFormOpen}>
-                <DialogContent>
-                    <DialogHeader><DialogTitle>Solicitar Plebiscito</DialogTitle><DialogDescription>Proponha um tema para ser votado pela população.</DialogDescription></DialogHeader>
-                    <form onSubmit={handlePlebisciteSubmit} className="space-y-4 pt-4">
-                        <div className="space-y-2"><Label htmlFor="pleb_title">Título do Plebiscito</Label><Input id="pleb_title" value={plebisciteData.title} onChange={e=>setPlebisciteData(p=>({...p, title:e.target.value}))} required/></div>
-                        <div className="space-y-2"><Label htmlFor="pleb_desc">Descrição / Justificativa</Label><Textarea id="pleb_desc" value={plebisciteData.description} onChange={e=>setPlebisciteData(p=>({...p, description:e.target.value}))} required/></div>
-                        <DialogFooter><Button type="submit" disabled={loading}>{loading ? <Loader2 className="animate-spin mr-2"/> : <Send className="w-4 h-4 mr-2" />}Solicitar</Button></DialogFooter>
-                    </form>
-                </DialogContent>
-            </Dialog>
-        </div>
-    );
-};
-
-const ParliamentMembersList = ({ members }) => {
-    if (!members || members.length === 0) {
-        return <p className="text-muted-foreground text-center py-8">Nenhum membro nesta casa no momento.</p>;
+    if (error || (data && !data.success)) {
+      toast({
+        title: 'Erro ao enviar sugestão',
+        description: error?.message || data?.message,
+        variant: 'destructive',
+      });
+    } else {
+      toast({ title: 'Sugestão enviada', description: data.message });
+      setIsSuggestOpen(false);
+      setSuggestionData({
+        title: '',
+        suggestion: '',
+        target_type: 'house',
+        target_id: '',
+        bill_type: 'PL',
+      });
     }
 
-    return (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {members.map(member => (
-                <Card key={member.id} className="glass-effect">
-                    <CardContent className="p-4 flex items-center gap-4">
-                        <Avatar className="w-12 h-12">
-                            <AvatarImage src={member.profile.avatar_url} alt={member.profile.full_name} />
-                            <AvatarFallback>{member.profile.full_name.charAt(0)}</AvatarFallback>
-                        </Avatar>
-                        <div>
-                            <Link to={`/services/x/profile/${member.profile.x_handle}`} className="font-semibold hover:underline">{member.profile.full_name}</Link>
-                            <p className="text-sm text-muted-foreground">{member.political_parties?.name || 'Sem Partido'}</p>
-                        </div>
-                    </CardContent>
-                </Card>
-            ))}
-        </div>
-    );
+    setLoading(false);
+  };
+
+  const handlePlebisciteSubmit = async (event) => {
+    event.preventDefault();
+    setLoading(true);
+
+    const { data, error } = await supabase.rpc('request_plebiscite', {
+      p_title: plebisciteData.title,
+      p_description: plebisciteData.description,
+    });
+
+    if (error || (data && !data.success)) {
+      toast({
+        title: 'Erro ao solicitar plebiscito',
+        description: error?.message || data?.message,
+        variant: 'destructive',
+      });
+    } else {
+      toast({ title: 'Solicitação enviada', description: data.message });
+      setIsPlebFormOpen(false);
+      setPlebisciteData({ title: '', description: '' });
+    }
+
+    setLoading(false);
+  };
+
+  const targetOptions =
+    suggestionData.target_type === 'house'
+      ? houses
+      : suggestionData.target_type === 'party'
+        ? parties
+        : parliamentarians;
+
+  return (
+    <div className="mt-8 grid grid-cols-1 gap-6 md:grid-cols-2">
+      <Dialog open={isSuggestOpen} onOpenChange={setIsSuggestOpen}>
+        <DialogTrigger asChild>
+          <Card className="glass-effect cursor-pointer transition-colors hover:bg-accent/50">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Inbox className="h-5 w-5 text-primary" />
+                Sugerir Projeto
+              </CardTitle>
+              <CardDescription>Envie uma ideia legislativa diretamente ao Parlamento.</CardDescription>
+            </CardHeader>
+          </Card>
+        </DialogTrigger>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Sugerir Projeto</DialogTitle>
+            <DialogDescription>Sua ideia pode se tornar uma proposta legislativa.</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleSuggestionSubmit} className="space-y-4 pt-4">
+            <div className="space-y-2">
+              <Label htmlFor="target_type">Enviar para</Label>
+              <Select
+                value={suggestionData.target_type}
+                onValueChange={(value) =>
+                  setSuggestionData((current) => ({ ...current, target_type: value, target_id: '' }))
+                }
+              >
+                <SelectTrigger id="target_type">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="house">Casa Legislativa</SelectItem>
+                  <SelectItem value="party">Partido Político</SelectItem>
+                  <SelectItem value="parliamentarian">Parlamentar</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="target_id">Destino específico</Label>
+              <Select
+                value={suggestionData.target_id}
+                onValueChange={(value) => setSuggestionData((current) => ({ ...current, target_id: value }))}
+                disabled={loading}
+              >
+                <SelectTrigger id="target_id">
+                  <SelectValue placeholder={loading ? 'Carregando...' : 'Selecione...'} />
+                </SelectTrigger>
+                <SelectContent>
+                  {targetOptions.map((target) => (
+                    <SelectItem key={target.id} value={target.id}>
+                      {target.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="grid grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="bill_type">Tipo</Label>
+                <Select
+                  value={suggestionData.bill_type}
+                  onValueChange={(value) => setSuggestionData((current) => ({ ...current, bill_type: value }))}
+                >
+                  <SelectTrigger id="bill_type">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="PL">PL</SelectItem>
+                    <SelectItem value="PEC">PEC</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="col-span-2 space-y-2">
+                <Label htmlFor="title">Título</Label>
+                <Input
+                  id="title"
+                  value={suggestionData.title}
+                  onChange={(event) => setSuggestionData((current) => ({ ...current, title: event.target.value }))}
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="suggestion">Sugestão</Label>
+              <Textarea
+                id="suggestion"
+                value={suggestionData.suggestion}
+                onChange={(event) => setSuggestionData((current) => ({ ...current, suggestion: event.target.value }))}
+                placeholder="Descreva a ideia de forma detalhada..."
+                required
+              />
+            </div>
+
+            <DialogFooter>
+              <Button type="submit" disabled={loading || !suggestionData.target_id}>
+                {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
+                Enviar Sugestão
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isPlebChoiceOpen} onOpenChange={setIsPlebChoiceOpen}>
+        <DialogTrigger asChild>
+          <Card className="glass-effect cursor-pointer transition-colors hover:bg-accent/50">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Vote className="h-5 w-5 text-primary" />
+                Plebiscitos e Referendos
+              </CardTitle>
+              <CardDescription>Participe de consultas populares ou solicite uma nova votação.</CardDescription>
+            </CardHeader>
+          </Card>
+        </DialogTrigger>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Plebiscitos e Referendos</DialogTitle>
+            <DialogDescription>Escolha a ação que deseja realizar.</DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-4 pt-4">
+            <Button
+              onClick={() => {
+                setIsPlebChoiceOpen(false);
+                setIsPlebFormOpen(true);
+              }}
+            >
+              <FileText className="mr-2 h-4 w-4" />
+              Solicitar nova votação
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setIsPlebChoiceOpen(false);
+                onPlebAction();
+              }}
+            >
+              <Hand className="mr-2 h-4 w-4" />
+              Participar de consulta ativa
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isPlebFormOpen} onOpenChange={setIsPlebFormOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Solicitar Plebiscito</DialogTitle>
+            <DialogDescription>Proponha um tema para consulta popular.</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handlePlebisciteSubmit} className="space-y-4 pt-4">
+            <div className="space-y-2">
+              <Label htmlFor="pleb_title">Título</Label>
+              <Input
+                id="pleb_title"
+                value={plebisciteData.title}
+                onChange={(event) => setPlebisciteData((current) => ({ ...current, title: event.target.value }))}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="pleb_desc">Descrição / Justificativa</Label>
+              <Textarea
+                id="pleb_desc"
+                value={plebisciteData.description}
+                onChange={(event) => setPlebisciteData((current) => ({ ...current, description: event.target.value }))}
+                required
+              />
+            </div>
+            <DialogFooter>
+              <Button type="submit" disabled={loading}>
+                {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
+                Solicitar
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
 };
 
-/**
- * Real-time countdown hook that updates every second.
- */
-const useCountdown = (endDateStr) => {
-    const [timeLeft, setTimeLeft] = useState('');
+const ParliamentMembersList = ({ members = [] }) => {
+  if (!members.length) {
+    return <p className="py-8 text-center text-muted-foreground">Nenhum membro nesta Casa no momento.</p>;
+  }
 
-    useEffect(() => {
-        if (!endDateStr) { setTimeLeft(''); return; }
-        const endTime = new Date(endDateStr).getTime();
-        const tick = () => {
-            const diff = endTime - Date.now();
-            if (diff <= 0) { setTimeLeft('Encerrado'); return; }
-            const h = Math.floor(diff / 3600000);
-            const m = Math.floor((diff % 3600000) / 60000);
-            const s = Math.floor((diff % 60000) / 1000);
-            setTimeLeft(`${h}h ${String(m).padStart(2,'0')}min ${String(s).padStart(2,'0')}s`);
-        };
-        tick();
-        const interval = setInterval(tick, 1000);
-        return () => clearInterval(interval);
-    }, [endDateStr]);
-
-    return timeLeft;
+  return (
+    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+      {members.map((member) => (
+        <Card key={member.id} className="glass-effect">
+          <CardContent className="flex items-center gap-4 p-4">
+            <Avatar className="h-12 w-12">
+              <AvatarImage src={member.profile?.avatar_url} alt={member.profile?.full_name} />
+              <AvatarFallback>{member.profile?.full_name?.charAt(0) || 'P'}</AvatarFallback>
+            </Avatar>
+            <div>
+              {member.profile?.x_handle ? (
+                <Link to={`/services/x/profile/${member.profile.x_handle}`} className="font-semibold hover:underline">
+                  {member.profile.full_name}
+                </Link>
+              ) : (
+                <p className="font-semibold">{member.profile?.full_name || 'Parlamentar'}</p>
+              )}
+              <p className="text-sm text-muted-foreground">{member.political_parties?.name || 'Sem partido'}</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Mandato parlamentar com duração constitucional de {PARLIAMENT_MANDATE_DURATION_LABEL}.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  );
 };
 
-/** Wrapper component for real-time countdown display */
+const useCountdown = (endDate) => {
+  const [timeLeft, setTimeLeft] = useState('');
+
+  useEffect(() => {
+    if (!endDate) {
+      setTimeLeft('');
+      return undefined;
+    }
+
+    const endTime = new Date(endDate).getTime();
+
+    const tick = () => {
+      const difference = endTime - Date.now();
+      if (difference <= 0) {
+        setTimeLeft('Encerrado');
+        return;
+      }
+
+      const hours = Math.floor(difference / 3600000);
+      const minutes = Math.floor((difference % 3600000) / 60000);
+      const seconds = Math.floor((difference % 60000) / 1000);
+      setTimeLeft(`${hours}h ${String(minutes).padStart(2, '0')}min ${String(seconds).padStart(2, '0')}s`);
+    };
+
+    tick();
+    const intervalId = setInterval(tick, 1000);
+    return () => clearInterval(intervalId);
+  }, [endDate]);
+
+  return timeLeft;
+};
+
 const CountdownTimer = ({ endDate }) => {
-    const timeLeft = useCountdown(endDate);
-    if (!timeLeft) return null;
-    return <span className="text-xs text-blue-400">⏱ {timeLeft}</span>;
+  const timeLeft = useCountdown(endDate);
+  if (!timeLeft) {
+    return null;
+  }
+
+  return <span className="text-xs text-blue-400">⏱ {timeLeft}</span>;
 };
 
-const PlebisciteList = ({ plebiscites, userVote, onVote, user }) => {
-    const { toast } = useToast();
-    const [votingOn, setVotingOn] = useState(null);
+const BillList = ({ bills = [] }) => {
+  const [statusFilter, setStatusFilter] = useState('all');
+  const filteredBills =
+    statusFilter === 'all'
+      ? bills
+      : bills.filter(
+          (bill) =>
+            bill.status === statusFilter ||
+            (statusFilter === 'Em votação' && bill.status?.startsWith('Em votação')) ||
+            (statusFilter === 'Aguardando ato presidencial' &&
+              ['Aguardando sanção presidencial', 'Aguardando promulgação presidencial'].includes(bill.status)) ||
+            (statusFilter === 'Convertido em norma' && ['Sancionado', 'Promulgado'].includes(bill.status)) ||
+            (statusFilter === 'Vetado' &&
+              ['Vetado integralmente', 'Vetado parcialmente'].includes(bill.status))
+        );
 
-    const handleVote = async (plebisciteId, vote) => {
-        setVotingOn(plebisciteId);
-        const { data, error } = await supabase.rpc('cast_plebiscite_vote', { p_plebiscite_id: plebisciteId, p_vote: vote });
-        if (error || (data && !data.success)) {
-            toast({ title: "Erro ao votar", description: data?.message || error.message, variant: "destructive" });
-        } else {
-            toast({ title: "Voto computado!", description: data.message });
-            onVote();
-        }
-        setVotingOn(null);
-    };
+  return (
+    <div className="space-y-6">
+      <div className="flex justify-end">
+        <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <SelectTrigger className="w-[200px]">
+            <SelectValue placeholder="Filtrar por status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos os Status</SelectItem>
+            <SelectItem value="Em tramitação">Em Tramitação</SelectItem>
+            <SelectItem value="Em votação">Em Votação</SelectItem>
+            <SelectItem value="Aprovado">Aprovados</SelectItem>
+            <SelectItem value="Aguardando ato presidencial">Aguardando Ato Presidencial</SelectItem>
+            <SelectItem value="Convertido em norma">Convertidos em Norma</SelectItem>
+            <SelectItem value="Vetado">Vetados</SelectItem>
+            <SelectItem value="Rejeitado">Rejeitados</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
 
-    const getStatusInfo = (status) => {
-        switch (status) {
-            case 'Pendente': return { text: 'Em Análise', color: 'bg-yellow-500/20 text-yellow-300' };
-            case 'Ativo': return { text: 'Ativo', color: 'bg-green-500/20 text-green-300' };
-            case 'Rejeitado': return { text: 'Rejeitado', color: 'bg-red-500/20 text-red-300' };
-            case 'Aprovado': return { text: 'Aprovado', color: 'bg-blue-500/20 text-blue-300' };
-            case 'Reprovado': return { text: 'Reprovado', color: 'bg-purple-500/20 text-purple-300' };
-            default: return { text: status, color: 'bg-muted text-muted-foreground' };
-        }
-    };
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+        {filteredBills.length ? (
+          filteredBills.map((bill) => {
+            const activeVoting = bill.votings?.find((voting) => voting.status === 'active');
+            const closedVotings = bill.votings?.filter((voting) => voting.status === 'closed') || [];
+            const latestVoting = activeVoting || closedVotings[0];
+            const allVotes = latestVoting?.votes || [];
+            const votesFor = allVotes.filter((vote) => vote.vote === 'Aprovar').length;
+            const votesAgainst = allVotes.filter((vote) => vote.vote === 'Rejeitar').length;
+            const votesAbstain = allVotes.filter((vote) => vote.vote === 'Abster').length;
+            const totalVotes = votesFor + votesAgainst + votesAbstain;
 
-    const COLORS = { 'Sim': '#22c55e', 'Não': '#ef4444', 'Abstenção': '#6b7280' };
+            const statusMeta = {
+              'Em tramitação': { className: 'bg-yellow-500/20 text-yellow-300', label: 'Em Tramitação' },
+              'Em votação': { className: 'bg-blue-500/20 text-blue-300', label: 'Em Votação' },
+              'Em votação (2ª Casa)': { className: 'bg-indigo-500/20 text-indigo-300', label: 'Em Votação (2ª Casa)' },
+              Aprovado: { className: 'bg-green-500/20 text-green-300', label: 'Aprovado' },
+              'Aguardando sanção presidencial': { className: 'bg-amber-500/20 text-amber-300', label: 'Aguardando sanção presidencial' },
+              'Aguardando promulgação presidencial': { className: 'bg-violet-500/20 text-violet-300', label: 'Aguardando promulgação presidencial' },
+              Sancionado: { className: 'bg-emerald-500/20 text-emerald-300', label: 'Sancionado' },
+              Promulgado: { className: 'bg-cyan-500/20 text-cyan-300', label: 'Promulgado' },
+              'Vetado integralmente': { className: 'bg-rose-500/20 text-rose-300', label: 'Vetado integralmente' },
+              'Vetado parcialmente': { className: 'bg-orange-500/20 text-orange-300', label: 'Vetado parcialmente' },
+              Rejeitado: { className: 'bg-red-500/20 text-red-300', label: 'Rejeitado' },
+            }[bill.status] || { className: 'bg-muted text-muted-foreground', label: bill.status };
 
-    return (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {plebiscites.length > 0 ? plebiscites.map(pleb => {
-                const statusInfo = getStatusInfo(pleb.status);
-                const isVoting = votingOn === pleb.id;
-                const userHasVoted = userVote?.[pleb.id];
-                const canVote = user && user.role !== 'Usuário';
+            return (
+              <motion.div key={bill.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+                <Card className="glass-effect flex h-full flex-col">
+                  <CardHeader>
+                    <div className="flex items-start gap-3">
+                      <Avatar className="h-11 w-11">
+                        <AvatarImage src={bill.author?.avatar_url} alt={bill.author?.full_name} />
+                        <AvatarFallback>{bill.author?.full_name?.charAt(0) || 'P'}</AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1">
+                        <CardTitle className="text-foreground">{bill.title}</CardTitle>
+                        <CardDescription>
+                          Autor: {bill.author?.full_name || 'Desconhecido'} | {bill.house?.name}
+                        </CardDescription>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="flex-grow">
+                    <p className="line-clamp-3 text-sm text-muted-foreground">{bill.summary}</p>
+                    <div className="mt-4 flex flex-wrap items-center gap-2">
+                      <span className={`rounded-full px-2 py-1 text-xs ${statusMeta.className}`}>{statusMeta.label}</span>
+                      <span className="rounded-full bg-muted px-2 py-1 text-xs text-muted-foreground">{bill.type}</span>
+                      {activeVoting?.end_date ? <CountdownTimer endDate={activeVoting.end_date} /> : null}
+                    </div>
+                    {totalVotes ? (
+                      <>
+                        <div className="mt-4 space-y-2">
+                          <div className="flex gap-1">
+                            <Progress value={votesFor} max={totalVotes} className="h-2 flex-1" indicatorClassName="bg-green-500" />
+                            <Progress
+                              value={votesAgainst}
+                              max={totalVotes}
+                              className="h-2 flex-1"
+                              indicatorClassName="bg-red-500"
+                            />
+                            <Progress
+                              value={votesAbstain}
+                              max={totalVotes}
+                              className="h-2 flex-1"
+                              indicatorClassName="bg-gray-500"
+                            />
+                          </div>
+                          <div className="flex justify-between text-xs">
+                            <span className="text-green-400">Aprovar: {votesFor}</span>
+                            <span className="text-red-400">Rejeitar: {votesAgainst}</span>
+                            <span className="text-gray-400">Abster: {votesAbstain}</span>
+                          </div>
+                        </div>
+                      </>
+                    ) : bill.status?.startsWith('Em votação') ? (
+                      <p className="mt-4 text-center text-xs text-muted-foreground">Nenhum voto registrado ainda.</p>
+                    ) : null}
+                  </CardContent>
+                </Card>
+              </motion.div>
+            );
+          })
+        ) : (
+          <p className="col-span-full py-10 text-center text-muted-foreground">
+            Nenhum projeto encontrado para o filtro selecionado.
+          </p>
+        )}
+      </div>
+    </div>
+  );
+};
 
-                const chartData = [
-                    { name: 'Sim', value: pleb.votes_sim || 0 },
-                    { name: 'Não', value: pleb.votes_nao || 0 },
-                    { name: 'Abstenção', value: pleb.votes_abstencao || 0 },
-                ].filter(item => item.value > 0);
+const PlebisciteList = ({ plebiscites = [], userVote = {}, onVote, user }) => {
+  const { toast } = useToast();
+  const [votingOn, setVotingOn] = useState(null);
 
-                return (
-                    <motion.div key={pleb.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-                        <Card className="glass-effect h-full flex flex-col">
-                            <CardHeader>
-                                <CardTitle className="text-foreground">{pleb.title}</CardTitle>
-                                <div className="flex items-center gap-2">
-                                  <Avatar className="h-6 w-6">
-                                    <AvatarImage src={pleb.author_avatar_url} alt={pleb.author_name}/>
-                                    <AvatarFallback>{pleb.author_name?.[0]}</AvatarFallback>
-                                  </Avatar>
-                                  <CardDescription>Sugerido por {pleb.author_name} {formatDistanceToNow(new Date(pleb.created_at), { addSuffix: true, locale: ptBR })}</CardDescription>
-                                </div>
-                            </CardHeader>
-                            <CardContent className="flex-grow">
-                                <p className="text-sm text-muted-foreground">{pleb.description}</p>
-                                {pleb.status === 'Ativo' && pleb.end_date && (
-                                    <div className="mt-3">
-                                        <CountdownTimer endDate={pleb.end_date} />
-                                    </div>
-                                )}
-                                {pleb.status === 'Ativo' && (
-                                    <div className="w-full h-48 mt-4">
-                                        <ResponsiveContainer>
-                                            <PieChart>
-                                                <Pie data={chartData.length > 0 ? chartData : [{ name: 'Sem Votos', value: 1 }]} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={60} fill="#8884d8" label={chartData.length > 0}>
-                                                    {chartData.length > 0 ? chartData.map((entry, index) => (
-                                                        <Cell key={`cell-${index}`} fill={COLORS[entry.name]} />
-                                                    )) : <Cell fill="#4b5563" />}
-                                                </Pie>
-                                                <Tooltip />
-                                                <Legend />
-                                            </PieChart>
-                                        </ResponsiveContainer>
-                                    </div>
-                                )}
-                            </CardContent>
-                            <CardFooter className="flex-col items-start gap-4">
-                                <span className={`px-2 py-1 text-xs rounded-full ${statusInfo.color}`}>{statusInfo.text}</span>
-                                {pleb.status === 'Ativo' && canVote && (
-                                    isVoting ? (
-                                        <div className="w-full flex justify-center"><Loader2 className="animate-spin" /></div>
-                                    ) : (pleb.end_date && new Date(pleb.end_date) < new Date()) ? (
-                                        <p className="text-sm text-red-500 font-bold w-full text-center">Votação Encerrada (Aguardando apuração)</p>
-                                    ) : userHasVoted ? (
-                                        <p className="text-sm text-muted-foreground w-full text-center">Seu voto: <span className="font-bold">{userHasVoted}</span></p>
-                                    ) : (
-                                        <div className="flex gap-2 w-full">
-                                            <Button size="sm" className="flex-1 bg-green-600 hover:bg-green-700" onClick={() => handleVote(pleb.id, 'Sim')}><ThumbsUp className="w-4 h-4 mr-2" />Sim</Button>
-                                            <Button size="sm" className="flex-1 bg-red-600 hover:bg-red-700" onClick={() => handleVote(pleb.id, 'Não')}><ThumbsDown className="w-4 h-4 mr-2" />Não</Button>
-                                            <Button size="sm" className="flex-1 bg-gray-600 hover:bg-gray-700" onClick={() => handleVote(pleb.id, 'Abstenção')}><UserX className="w-4 h-4 mr-2" />Abster</Button>
-                                        </div>
-                                    )
-                                )}
-                                {pleb.status === 'Ativo' && !canVote && (
-                                    <p className="text-sm text-muted-foreground w-full text-center">Apenas cidadãos com cargos podem votar.</p>
-                                )}
-                            </CardFooter>
-                        </Card>
-                    </motion.div>
-                )
-            }) : <p className="col-span-full text-center text-muted-foreground py-10">Nenhum plebiscito encontrado.</p>}
-        </div>
-    );
+  const handleVote = async (plebisciteId, vote) => {
+    setVotingOn(plebisciteId);
+    const { data, error } = await supabase.rpc('cast_plebiscite_vote', {
+      p_plebiscite_id: plebisciteId,
+      p_vote: vote,
+    });
+
+    if (error || (data && !data.success)) {
+      toast({
+        title: 'Erro ao votar',
+        description: data?.message || error?.message,
+        variant: 'destructive',
+      });
+    } else {
+      toast({ title: 'Voto computado', description: data.message });
+      onVote();
+    }
+
+    setVotingOn(null);
+  };
+
+  const getStatusInfo = (status) => {
+    switch (status) {
+      case 'Pendente':
+        return { text: 'Em Análise', color: 'bg-yellow-500/20 text-yellow-300' };
+      case 'Ativo':
+        return { text: 'Ativo', color: 'bg-green-500/20 text-green-300' };
+      case 'Rejeitado':
+        return { text: 'Rejeitado', color: 'bg-red-500/20 text-red-300' };
+      case 'Aprovado':
+        return { text: 'Aprovado', color: 'bg-blue-500/20 text-blue-300' };
+      case 'Reprovado':
+        return { text: 'Reprovado', color: 'bg-purple-500/20 text-purple-300' };
+      default:
+        return { text: status, color: 'bg-muted text-muted-foreground' };
+    }
+  };
+
+  return (
+    <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+      {plebiscites.length ? (
+        plebiscites.map((plebiscite) => {
+          const statusInfo = getStatusInfo(plebiscite.status);
+          const isVoting = votingOn === plebiscite.id;
+          const currentUserVote = userVote?.[plebiscite.id];
+          const canVote = user && user.role !== 'Usuário';
+
+          const chartData = [
+            { name: 'Sim', value: plebiscite.votes_sim || 0 },
+            { name: 'Não', value: plebiscite.votes_nao || 0 },
+            { name: 'Abstenção', value: plebiscite.votes_abstencao || 0 },
+          ].filter((item) => item.value > 0);
+
+          return (
+            <motion.div key={plebiscite.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+              <Card className="glass-effect flex h-full flex-col">
+                <CardHeader>
+                  <CardTitle>{plebiscite.title}</CardTitle>
+                  <div className="flex items-center gap-2">
+                    <Avatar className="h-6 w-6">
+                      <AvatarImage src={plebiscite.author_avatar_url} alt={plebiscite.author_name} />
+                      <AvatarFallback>{plebiscite.author_name?.[0] || 'C'}</AvatarFallback>
+                    </Avatar>
+                    <CardDescription>
+                      Sugerido por {plebiscite.author_name}{' '}
+                      {formatDistanceToNow(new Date(plebiscite.created_at), { addSuffix: true, locale: ptBR })}
+                    </CardDescription>
+                  </div>
+                </CardHeader>
+                <CardContent className="flex-grow">
+                  <p className="text-sm text-muted-foreground">{plebiscite.description}</p>
+                  {plebiscite.status === 'Ativo' && plebiscite.end_date ? (
+                    <div className="mt-3">
+                      <CountdownTimer endDate={plebiscite.end_date} />
+                    </div>
+                  ) : null}
+                  {plebiscite.status === 'Ativo' ? (
+                    <div className="mt-4 h-48 w-full">
+                      <ResponsiveContainer>
+                        <PieChart>
+                          <Pie
+                            data={chartData.length ? chartData : [{ name: 'Sem votos', value: 1 }]}
+                            dataKey="value"
+                            nameKey="name"
+                            cx="50%"
+                            cy="50%"
+                            outerRadius={60}
+                            label={chartData.length > 0}
+                          >
+                            {chartData.length ? (
+                              chartData.map((entry, index) => (
+                                <Cell key={`${entry.name}-${index}`} fill={PLEBISCITE_COLORS[entry.name]} />
+                              ))
+                            ) : (
+                              <Cell fill="#4b5563" />
+                            )}
+                          </Pie>
+                          <Tooltip />
+                          <Legend />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </div>
+                  ) : null}
+                </CardContent>
+                <CardFooter className="flex-col items-start gap-4">
+                  <span className={`rounded-full px-2 py-1 text-xs ${statusInfo.color}`}>{statusInfo.text}</span>
+                  {plebiscite.status === 'Ativo' && canVote ? (
+                    isVoting ? (
+                      <div className="flex w-full justify-center">
+                        <Loader2 className="animate-spin" />
+                      </div>
+                    ) : currentUserVote ? (
+                      <p className="w-full text-center text-sm text-muted-foreground">
+                        Seu voto: <span className="font-bold">{currentUserVote}</span>
+                      </p>
+                    ) : (
+                      <div className="flex w-full gap-2">
+                        <Button size="sm" className="flex-1 bg-green-600 hover:bg-green-700" onClick={() => handleVote(plebiscite.id, 'Sim')}>
+                          <ThumbsUp className="mr-2 h-4 w-4" />
+                          Sim
+                        </Button>
+                        <Button size="sm" className="flex-1 bg-red-600 hover:bg-red-700" onClick={() => handleVote(plebiscite.id, 'Não')}>
+                          <ThumbsDown className="mr-2 h-4 w-4" />
+                          Não
+                        </Button>
+                        <Button size="sm" className="flex-1 bg-gray-600 hover:bg-gray-700" onClick={() => handleVote(plebiscite.id, 'Abstenção')}>
+                          <UserX className="mr-2 h-4 w-4" />
+                          Abster
+                        </Button>
+                      </div>
+                    )
+                  ) : null}
+                </CardFooter>
+              </Card>
+            </motion.div>
+          );
+        })
+      ) : (
+        <p className="col-span-full py-10 text-center text-muted-foreground">Nenhum plebiscito encontrado.</p>
+      )}
+    </div>
+  );
+};
+
+const CommissionList = ({ commissions = [], governanceSchemaReady }) => {
+  const [typeFilter, setTypeFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('all');
+
+  const filteredCommissions = useMemo(
+    () =>
+      commissions.filter((commission) => {
+        const typeMatches = typeFilter === 'all' || commission.type === typeFilter;
+        const statusMatches = statusFilter === 'all' || commission.status === statusFilter;
+        return typeMatches && statusMatches;
+      }),
+    [commissions, statusFilter, typeFilter]
+  );
+
+  return (
+    <div className="space-y-6">
+      {!governanceSchemaReady ? <GovernanceMigrationAlert compact /> : null}
+
+      <div className="flex flex-wrap items-center justify-end gap-2">
+        <Select value={typeFilter} onValueChange={setTypeFilter}>
+          <SelectTrigger className="w-[190px]">
+            <SelectValue placeholder="Filtrar tipo" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos os tipos</SelectItem>
+            <SelectItem value="permanent">Permanentes</SelectItem>
+            <SelectItem value="temporary">Temporárias</SelectItem>
+            <SelectItem value="cpi">CPIs</SelectItem>
+            <SelectItem value="cpmi">CPMIs</SelectItem>
+          </SelectContent>
+        </Select>
+
+        <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <SelectTrigger className="w-[220px]">
+            <SelectValue placeholder="Filtrar status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos os status</SelectItem>
+            {Object.entries({
+              collecting_support: 'Coletando Apoios',
+              pending_plenary: 'Aguardando Plenário',
+              approved_pending_officialization: 'Aguardando Oficialização',
+              active: 'Ativas',
+              completed: 'Encerradas',
+              rejected: 'Rejeitadas',
+            }).map(([value, label]) => (
+              <SelectItem key={value} value={value}>
+                {label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        {filteredCommissions.length ? (
+          filteredCommissions.map((commission) => {
+            const statusMeta = getCommissionStatusMeta(commission.status);
+
+            return (
+              <Card key={commission.id} className="glass-effect flex h-full flex-col">
+                <CardHeader>
+                  <div className="mb-3 flex flex-wrap items-center gap-2">
+                    <Badge variant="outline" className="border-white/10 bg-white/5 text-muted-foreground">
+                      {getCommissionTypeLabel(commission.type)}
+                    </Badge>
+                    <Badge variant="outline" className={statusMeta.className}>
+                      {statusMeta.label}
+                    </Badge>
+                    <Badge variant="outline" className="border-white/10 bg-white/5 text-muted-foreground">
+                      {getCommissionHouseSummary(commission)}
+                    </Badge>
+                  </div>
+                  <CardTitle>{commission.title}</CardTitle>
+                  <CardDescription>{commission.summary}</CardDescription>
+                </CardHeader>
+                <CardContent className="flex-grow space-y-4">
+                  <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                    <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Objetivo</p>
+                    <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{commission.purpose}</p>
+                  </div>
+
+                  {commission.supportStatusByHouse?.length ? (
+                    <div className="grid gap-3 md:grid-cols-2">
+                      {commission.supportStatusByHouse.map((item) => (
+                        <div key={item.house.id} className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                          <p className="text-sm font-medium text-foreground">{item.house.name}</p>
+                          <p className="mt-1 text-sm text-muted-foreground">
+                            Apoios: <span className="font-medium text-foreground">{item.signed}</span> de{' '}
+                            <span className="font-medium text-foreground">{item.required}</span>
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
+
+                  <div className="grid gap-4 md:grid-cols-3">
+                    <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                      <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Composição</p>
+                      <p className="mt-2 text-sm text-foreground">{commission.members.length} integrante(s)</p>
+                    </div>
+                    <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                      <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Relatoria</p>
+                      <p className="mt-2 text-sm text-foreground">
+                        {commission.reporter?.profile?.full_name || 'Relator não designado'}
+                      </p>
+                    </div>
+                    <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                      <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Relatório Final</p>
+                      <p className="mt-2 text-sm text-foreground">{commission.final_report ? 'Protocolado' : 'Pendente'}</p>
+                    </div>
+                  </div>
+
+                  {commission.final_report ? (
+                    <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-4">
+                      <p className="text-xs uppercase tracking-[0.24em] text-emerald-200">Relatório final</p>
+                      <p className="mt-2 line-clamp-4 text-sm leading-relaxed text-emerald-50/90">{commission.final_report}</p>
+                    </div>
+                  ) : null}
+                </CardContent>
+              </Card>
+            );
+          })
+        ) : (
+          <p className="col-span-full py-10 text-center text-muted-foreground">
+            Nenhuma comissão encontrada para o filtro selecionado.
+          </p>
+        )}
+      </div>
+    </div>
+  );
+};
+
+const LeadershipList = ({ houseId, houses = [], terms = [], elections = [], governanceSchemaReady }) => {
+  const filteredTerms = houseId === 'all' ? terms : terms.filter((term) => term.house_id === houseId);
+  const filteredElections = houseId === 'all' ? elections : elections.filter((election) => election.house_id === houseId);
+
+  return (
+    <div className="space-y-6">
+      {!governanceSchemaReady ? <GovernanceMigrationAlert compact /> : null}
+
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+        {filteredTerms.filter((term) => term.status === 'active').length ? (
+          filteredTerms
+            .filter((term) => term.status === 'active')
+            .map((term) => (
+              <Card key={term.id} className="glass-effect border-white/10">
+                <CardHeader>
+                  <div className="mb-3 flex flex-wrap items-center gap-2">
+                    <Badge variant="outline" className="border-white/10 bg-white/5 text-muted-foreground">
+                      {term.house?.name}
+                    </Badge>
+                    <Badge variant="outline" className="border-emerald-500/30 bg-emerald-500/15 text-emerald-300">
+                      Mandato Ativo
+                    </Badge>
+                  </div>
+                  <CardTitle>{getLeadershipPositionLabel(term.house?.name || '', term.position)}</CardTitle>
+                  <CardDescription>
+                    Mandato até {new Date(`${term.term_end_date}T00:00:00`).toLocaleDateString('pt-BR')}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="flex items-center gap-4">
+                  <Avatar className="h-14 w-14">
+                    <AvatarImage src={term.member?.profile?.avatar_url} />
+                    <AvatarFallback>{term.member?.profile?.full_name?.charAt(0) || 'P'}</AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <p className="text-lg font-semibold text-foreground">
+                      {term.member?.profile?.full_name || 'Parlamentar'}
+                    </p>
+                    <p className="text-sm text-muted-foreground">Mandato mensal da mesa diretora.</p>
+                  </div>
+                </CardContent>
+              </Card>
+            ))
+        ) : (
+          <Card className="glass-effect border-white/10">
+            <CardContent className="p-6 text-sm text-muted-foreground">
+              Nenhum mandato ativo de mesa diretora foi registrado no filtro atual.
+            </CardContent>
+          </Card>
+        )}
+      </div>
+
+      <Card className="glass-effect border-white/10">
+        <CardHeader>
+          <CardTitle>Histórico de Eleições Internas</CardTitle>
+          <CardDescription>
+            Acompanhe a abertura, o resultado e o status das disputas internas de cada Casa.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {filteredElections.length ? (
+            filteredElections.map((election) => {
+              const statusMeta = getLeadershipElectionStatusMeta(election.status);
+              return (
+                <Card key={election.id} className="border-white/10 bg-background/50">
+                  <CardHeader>
+                    <div className="mb-3 flex flex-wrap items-center gap-2">
+                      <Badge variant="outline" className={statusMeta.className}>
+                        {statusMeta.label}
+                      </Badge>
+                      <Badge variant="outline" className="border-white/10 bg-white/5 text-muted-foreground">
+                        {election.house?.name}
+                      </Badge>
+                    </div>
+                    <CardTitle>{election.title}</CardTitle>
+                    <CardDescription>
+                      {getLeadershipPositionLabel(election.house?.name || '', election.position)}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {election.description ? (
+                      <p className="text-sm text-muted-foreground">{election.description}</p>
+                    ) : null}
+                    {election.winner ? (
+                      <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-4">
+                        <p className="text-xs uppercase tracking-[0.24em] text-emerald-200">Eleito</p>
+                        <p className="mt-2 text-sm text-emerald-50">
+                          {election.winner.profile?.full_name || 'Parlamentar'}
+                        </p>
+                      </div>
+                    ) : null}
+                    <div className="grid gap-3 md:grid-cols-2">
+                      {election.candidates.map((candidate) => (
+                        <div key={candidate.id} className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                          <div className="flex items-center gap-3">
+                            <Avatar className="h-10 w-10">
+                              <AvatarImage src={candidate.member?.profile?.avatar_url} />
+                              <AvatarFallback>{candidate.member?.profile?.full_name?.charAt(0) || 'C'}</AvatarFallback>
+                            </Avatar>
+                            <div>
+                              <p className="font-medium text-foreground">
+                                {candidate.member?.profile?.full_name || 'Parlamentar'}
+                              </p>
+                              <p className="text-sm text-muted-foreground">{candidate.votes} voto(s)</p>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })
+          ) : (
+            <p className="py-6 text-center text-sm text-muted-foreground">
+              Nenhuma eleição interna registrada para o filtro selecionado.
+            </p>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
 };
 
 const Parliament = () => {
-    const { toast } = useToast();
-    const [houses, setHouses] = useState([]);
-    const [bills, setBills] = useState([]);
-    const [plebiscites, setPlebiscites] = useState([]);
-    const [userPlebiscitesVotes, setUserPlebiscitesVotes] = useState({});
-    const [allMembers, setAllMembers] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const { user } = useAuth();
-    const [parliamentMember, setParliamentMember] = useState(null);
-    const [activeTab, setActiveTab] = useState('members');
-    const [selectedHouse, setSelectedHouse] = useState('all');
+  const { toast } = useToast();
+  const { user } = useAuth();
+  const [houses, setHouses] = useState([]);
+  const [bills, setBills] = useState([]);
+  const [plebiscites, setPlebiscites] = useState([]);
+  const [userPlebiscitesVotes, setUserPlebiscitesVotes] = useState({});
+  const [allMembers, setAllMembers] = useState([]);
+  const [commissions, setCommissions] = useState([]);
+  const [leadershipTerms, setLeadershipTerms] = useState([]);
+  const [leadershipElections, setLeadershipElections] = useState([]);
+  const [governanceSchemaReady, setGovernanceSchemaReady] = useState(true);
+  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('members');
+  const [selectedHouse, setSelectedHouse] = useState('all');
 
-    const fetchParliamentData = useCallback(async () => {
-        setLoading(true);
-        try {
-            // Auto-close any expired votings before fetching data
-            await autoCloseExpiredVotings(supabase);
-            const { data: housesData, error: housesError } = await supabase.from('parliament_houses').select('*');
-            if (housesError) throw housesError;
-            setHouses(housesData || []);
+  const fetchParliamentData = useCallback(async () => {
+    setLoading(true);
+    try {
+      await autoCloseExpiredVotings(supabase);
 
-            const { data: membersData, error: membersError } = await supabase.from('parliament_members').select('*, profile:profiles(*), political_parties:political_parties(*)');
-            if (membersError) throw membersError;
-            setAllMembers(membersData || []);
-
-            const { data: billsData, error: billsError } = await supabase.from('bills').select('*, author:profiles(full_name, avatar_url), house:parliament_houses(id, name)').order('created_at', { ascending: false });
-            if (billsError) throw billsError;
-
-            // Fetch voting data for all bills
-            const billIds = (billsData || []).map(b => b.id);
-            let votingsMap = {};
-            if (billIds.length > 0) {
-                const { data: votingsData } = await supabase
-                    .from('parliament_votings')
-                    .select('id, status, end_date, house_id, related_id, votes:parliament_voting_votes(vote, member_id, member:parliament_members(user:profiles(full_name, role)))')
-                    .eq('type', 'bill')
-                    .in('related_id', billIds);
-                
-                if (votingsData) {
-                    votingsData.forEach(v => {
-                        if (!votingsMap[v.related_id]) votingsMap[v.related_id] = [];
-                        votingsMap[v.related_id].push(v);
-                    });
-                }
-            }
-            
-            const enrichedBills = (billsData || []).map(bill => ({
-                ...bill,
-                votings: votingsMap[bill.id] || [],
-            }));
-            setBills(enrichedBills);
-
-            const { data: plebiscitesData, error: plebiscitesError } = await supabase
-                .from('plebiscites')
-                .select(`id, title, description, status, author_id, start_date, end_date, created_at, updated_at, approved_by_house_id, author_name, author_avatar_url, votes_sim, votes_nao, votes_abstencao`)
-                .order('created_at', { ascending: false });
-
-            if (plebiscitesError) throw plebiscitesError;
-
-            setPlebiscites(plebiscitesData || []);
-
-            if (user) {
-                const { data: memberStatus, error: memberStatusError } = await supabase.from('parliament_members').select('id, house_id').eq('user_id', user.id).limit(1).maybeSingle();
-                if (memberStatusError && memberStatusError.code !== 'PGRST116') throw memberStatusError;
-                setParliamentMember(memberStatus);
-
-                const { data: plebVotes, error: plebVotesError } = await supabase.from('plebiscite_votes').select('plebiscite_id, vote').eq('voter_id', user.id);
-                if (plebVotesError) throw plebVotesError;
-                setUserPlebiscitesVotes(plebVotes.reduce((acc, v) => ({ ...acc, [v.plebiscite_id]: v.vote }), {}));
-            }
-        } catch (error) {
-            toast({ title: "Erro ao carregar dados do parlamento", description: error.message, variant: "destructive" });
-        } finally {
-            setLoading(false);
+      const governanceRefresh = await refreshParliamentGovernanceState(supabase).catch((error) => {
+        if (isGovernanceSchemaMissing(error)) {
+          return { schemaReady: false, error };
         }
-    }, [toast, user]);
+        throw error;
+      });
 
-    useEffect(() => {
-        fetchParliamentData();
+      const { data: housesData, error: housesError } = await supabase.from('parliament_houses').select('*');
+      if (housesError) {
+        throw housesError;
+      }
+      setHouses(housesData || []);
 
-        const channel = supabase.channel('plebiscite_votes')
-          .on('postgres_changes', { event: '*', schema: 'public', table: 'plebiscite_votes' }, fetchParliamentData)
-          .subscribe();
+      const { data: membersData, error: membersError } = await supabase
+        .from('parliament_members')
+        .select('*, profile:profiles(*), political_parties:political_parties(*)');
+      if (membersError) {
+        throw membersError;
+      }
+      setAllMembers(membersData || []);
 
-        return () => {
-            supabase.removeChannel(channel);
-        };
-    }, [fetchParliamentData]);
+      const { data: billsData, error: billsError } = await supabase
+        .from('bills')
+        .select('*, author:profiles(full_name, avatar_url), house:parliament_houses(id, name)')
+        .order('created_at', { ascending: false });
+      if (billsError) {
+        throw billsError;
+      }
 
-    if (loading) return <div className="flex justify-center items-center min-h-[60vh]"><Loader2 className="w-12 h-12 animate-spin text-primary" /></div>;
+      const billIds = (billsData || []).map((bill) => bill.id);
+      let votingsMap = {};
+      if (billIds.length) {
+        const { data: votingsData, error: votingsError } = await supabase
+          .from('parliament_votings')
+          .select('id, status, end_date, house_id, related_id, votes:parliament_voting_votes(vote, member_id)')
+          .eq('type', 'bill')
+          .in('related_id', billIds);
 
-    const filteredMembers = selectedHouse === 'all' ? allMembers : allMembers.filter(m => m.house_id === selectedHouse);
-    const filteredBills = selectedHouse === 'all' ? bills : bills.filter(b => b.house_id === selectedHouse);
-    const membersByHouse = houses.reduce((acc, house) => {
-        acc[house.id] = filteredMembers.filter(m => m.house_id === house.id);
-        return acc;
-    }, {});
+        if (votingsError) {
+          throw votingsError;
+        }
 
+        (votingsData || []).forEach((voting) => {
+          if (!votingsMap[voting.related_id]) {
+            votingsMap[voting.related_id] = [];
+          }
+          votingsMap[voting.related_id].push(voting);
+        });
+      }
 
+      setBills(
+        (billsData || []).map((bill) => ({
+          ...bill,
+          votings: votingsMap[bill.id] || [],
+        }))
+      );
+
+      const { data: plebiscitesData, error: plebiscitesError } = await supabase
+        .from('plebiscites')
+        .select('id, title, description, status, author_id, start_date, end_date, created_at, updated_at, approved_by_house_id, author_name, author_avatar_url, votes_sim, votes_nao, votes_abstencao')
+        .order('created_at', { ascending: false });
+      if (plebiscitesError) {
+        throw plebiscitesError;
+      }
+      setPlebiscites(plebiscitesData || []);
+
+      const [commissionsResponse, leadershipResponse] = await Promise.all([
+        fetchCommissionGovernanceData(supabase),
+        fetchLeadershipGovernanceData(supabase),
+      ]);
+
+      setCommissions(commissionsResponse.commissions || []);
+      setLeadershipTerms(leadershipResponse.terms || []);
+      setLeadershipElections(leadershipResponse.elections || []);
+      setGovernanceSchemaReady(
+        Boolean(governanceRefresh?.schemaReady) &&
+          Boolean(commissionsResponse.schemaReady) &&
+          Boolean(leadershipResponse.schemaReady)
+      );
+
+      if (user) {
+        const { data: plebVotes, error: plebVotesError } = await supabase
+          .from('plebiscite_votes')
+          .select('plebiscite_id, vote')
+          .eq('voter_id', user.id);
+        if (plebVotesError) {
+          throw plebVotesError;
+        }
+        setUserPlebiscitesVotes(
+          (plebVotes || []).reduce((accumulator, vote) => {
+            accumulator[vote.plebiscite_id] = vote.vote;
+            return accumulator;
+          }, {})
+        );
+      } else {
+        setUserPlebiscitesVotes({});
+      }
+    } catch (error) {
+      toast({
+        title: 'Erro ao carregar dados do parlamento',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
+  }, [toast, user]);
+
+  useEffect(() => {
+    fetchParliamentData();
+  }, [fetchParliamentData]);
+
+  if (loading) {
     return (
-        <>
-            <Helmet><title>Parlamento Cidadão - GOV.RP</title><meta name="description" content="Acompanhe as atividades legislativas, projetos de lei e participe da vida política." /></Helmet>
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-                <PageHeader icon={Scale} title="Parlamento" gradientText="Cidadão" description="O coração legislativo da nação. Acompanhe, sugira e participe." iconColor="text-yellow-400" centered={true} />
-                <CitizenActions onPlebAction={() => setActiveTab('plebiscites')} />
-                <div className="mt-12">
-                     <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                        <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
-                            <TabsList className="grid w-full grid-cols-3 md:w-auto">
-                                <TabsTrigger value="members">Membros</TabsTrigger>
-                                <TabsTrigger value="bills">Projetos</TabsTrigger>
-                                <TabsTrigger value="plebiscites">Plebiscitos</TabsTrigger>
-                            </TabsList>
-                             <Select onValueChange={setSelectedHouse} value={selectedHouse}>
-                                <SelectTrigger className="w-full md:w-[240px]"><SelectValue placeholder="Filtrar por Casa" /></SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="all">Todas as Casas</SelectItem>
-                                    {houses.map(h => <SelectItem key={h.id} value={h.id}>{h.name}</SelectItem>)}
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        <TabsContent value="members">
-                            { (selectedHouse === 'all' ? houses : houses.filter(h => h.id === selectedHouse)).map(house => (
-                                <div key={house.id} className="mb-8">
-                                    <h2 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl flex items-center gap-3 mb-4"><Landmark className="w-6 h-6"/>{house.name}</h2>
-                                    <ParliamentMembersList members={membersByHouse[house.id]} />
-                                </div>
-                            ))}
-                        </TabsContent>
-                        <TabsContent value="bills"><BillList bills={filteredBills} user={user} parliamentMember={parliamentMember} onAction={fetchParliamentData} /></TabsContent>
-                        <TabsContent value="plebiscites"><PlebisciteList plebiscites={plebiscites} userVote={userPlebiscitesVotes} onVote={fetchParliamentData} user={user} /></TabsContent>
-                    </Tabs>
+      <div className="flex min-h-[60vh] items-center justify-center">
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  const filteredMembers = selectedHouse === 'all' ? allMembers : allMembers.filter((member) => member.house_id === selectedHouse);
+  const filteredBills = selectedHouse === 'all' ? bills : bills.filter((bill) => bill.house_id === selectedHouse);
+  const filteredCommissions =
+    selectedHouse === 'all'
+      ? commissions
+      : commissions.filter((commission) => commission.houses.some((house) => house.id === selectedHouse));
+
+  const membersByHouse = houses.reduce((accumulator, house) => {
+    accumulator[house.id] = filteredMembers.filter((member) => member.house_id === house.id);
+    return accumulator;
+  }, {});
+
+  const hasParliamentPanel = PARLIAMENT_PANEL_ROLES.includes(user?.role);
+
+  return (
+    <>
+      <Helmet>
+        <title>Parlamento Cidadão - GOV.RP</title>
+        <meta name="description" content="Acompanhe as atividades legislativas, comissões e a mesa diretora do Parlamento." />
+      </Helmet>
+
+      <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
+        <PageHeader
+          icon={Scale}
+          title="Parlamento"
+          gradientText="Cidadão"
+          description="Acompanhe projetos, comissões, eleições internas e a composição institucional do poder legislativo."
+          iconColor="text-yellow-400"
+          centered={true}
+        >
+          {hasParliamentPanel ? (
+            <Button asChild>
+              <Link to="/services/parliament/panel">Ir para o Painel Parlamentar</Link>
+            </Button>
+          ) : null}
+        </PageHeader>
+
+        <CitizenActions onPlebAction={() => setActiveTab('plebiscites')} />
+        <ParliamentRulesSection />
+
+        <div className="mt-12">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <div className="mb-8 flex flex-col items-center justify-between gap-4 md:flex-row">
+              <TabsList className="grid w-full grid-cols-5 md:w-auto">
+                <TabsTrigger value="members">Membros</TabsTrigger>
+                <TabsTrigger value="bills">Projetos</TabsTrigger>
+                <TabsTrigger value="commissions">Comissões</TabsTrigger>
+                <TabsTrigger value="leadership">Mesa Diretora</TabsTrigger>
+                <TabsTrigger value="plebiscites">Plebiscitos</TabsTrigger>
+              </TabsList>
+
+              <Select onValueChange={setSelectedHouse} value={selectedHouse}>
+                <SelectTrigger className="w-full md:w-[260px]">
+                  <SelectValue placeholder="Filtrar por Casa" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas as Casas</SelectItem>
+                  {houses.map((house) => (
+                    <SelectItem key={house.id} value={house.id}>
+                      {house.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <TabsContent value="members">
+              {(selectedHouse === 'all' ? houses : houses.filter((house) => house.id === selectedHouse)).map((house) => (
+                <div key={house.id} className="mb-8">
+                  <h2 className="mb-4 flex items-center gap-3 text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
+                    <Landmark className="h-6 w-6" />
+                    {house.name}
+                  </h2>
+                  <ParliamentMembersList members={membersByHouse[house.id]} />
                 </div>
-            </div>
-        </>
-    );
-};
+              ))}
+            </TabsContent>
 
-const BillList = ({ bills, user, parliamentMember, onAction }) => {
-    const [statusFilter, setStatusFilter] = useState('all');
-    
-    const filteredBills = statusFilter === 'all' ? bills : bills.filter(b => b.status === statusFilter || (statusFilter === 'Em votação' && b.status?.startsWith('Em votação')));
+            <TabsContent value="bills">
+              <BillList bills={filteredBills} />
+            </TabsContent>
 
-    return (
-        <div className="space-y-6">
-            <div className="flex justify-end">
-                <Select value={statusFilter} onValueChange={setStatusFilter}>
-                    <SelectTrigger className="w-[200px]">
-                        <SelectValue placeholder="Filtrar por status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="all">Todos os Status</SelectItem>
-                        <SelectItem value="Em tramitação">Em Tramitação</SelectItem>
-                        <SelectItem value="Em votação">Em Votação</SelectItem>
-                        <SelectItem value="Aprovado">Aprovados</SelectItem>
-                        <SelectItem value="Rejeitado">Rejeitados</SelectItem>
-                    </SelectContent>
-                </Select>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredBills.length > 0 ? filteredBills.map(bill => {
-                // Get votes from parliament_votings system (the official voting mechanism)
-                const activeVoting = bill.votings?.find(v => v.status === 'active');
-                const closedVotings = bill.votings?.filter(v => v.status === 'closed') || [];
-                const latestVoting = activeVoting || closedVotings[0];
-                const allVotes = latestVoting?.votes || [];
-                
-                const votesFor = allVotes.filter(v => v.vote === 'Aprovar').length;
-                const votesAgainst = allVotes.filter(v => v.vote === 'Rejeitar').length;
-                const votesAbstain = allVotes.filter(v => v.vote === 'Abster').length;
-                const totalVotes = votesFor + votesAgainst + votesAbstain;
+            <TabsContent value="commissions">
+              <CommissionList commissions={filteredCommissions} governanceSchemaReady={governanceSchemaReady} />
+            </TabsContent>
 
-                const statusConfig = {
-                    'Em tramitação': { class: 'bg-yellow-500/20 text-yellow-300', label: 'Em Tramitação' },
-                    'Em votação': { class: 'bg-blue-500/20 text-blue-300', label: 'Em Votação' },
-                    'Em votação (2ª Casa)': { class: 'bg-indigo-500/20 text-indigo-300', label: 'Em Votação (2ª Casa)' },
-                    'Aprovado': { class: 'bg-green-500/20 text-green-300', label: 'Aprovado' },
-                    'Rejeitado': { class: 'bg-red-500/20 text-red-300', label: 'Rejeitado' },
-                };
-                const statusInfo = statusConfig[bill.status] || { class: 'bg-muted text-muted-foreground', label: bill.status };
+            <TabsContent value="leadership">
+              <LeadershipList
+                houseId={selectedHouse}
+                houses={houses}
+                terms={leadershipTerms}
+                elections={leadershipElections}
+                governanceSchemaReady={governanceSchemaReady}
+              />
+            </TabsContent>
 
-                // Time remaining uses the CountdownTimer component for real-time updates
-
-                return (
-                    <motion.div key={bill.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-                        <Card className="glass-effect h-full flex flex-col">
-                            <CardHeader>
-                                <div className="flex items-start gap-3">
-                                    <Avatar className="h-11 w-11">
-                                        <AvatarImage src={bill.author?.avatar_url} alt={bill.author?.full_name} />
-                                        <AvatarFallback>{bill.author?.full_name?.charAt(0) || 'A'}</AvatarFallback>
-                                    </Avatar>
-                                    <div className="flex-1">
-                                        <CardTitle className="text-foreground">{bill.title}</CardTitle>
-                                        <CardDescription>Autor: {bill.author?.full_name || 'Desconhecido'} | {bill.house?.name}</CardDescription>
-                                    </div>
-                                </div>
-                            </CardHeader>
-                            <CardContent className="flex-grow">
-                                <p className="text-sm text-muted-foreground line-clamp-3">{bill.summary}</p>
-                                <div className="mt-4 flex items-center gap-2 flex-wrap">
-                                    <span className={`px-2 py-1 text-xs rounded-full ${statusInfo.class}`}>{statusInfo.label}</span>
-                                    <span className="px-2 py-1 text-xs rounded-full bg-muted text-muted-foreground">{bill.type}</span>
-                                    {activeVoting?.end_date && <CountdownTimer endDate={activeVoting.end_date} />}
-                                </div>
-                                {totalVotes > 0 && (
-                                    <>
-                                        <Collapsible className="mt-4">
-                                            <CollapsibleTrigger asChild><Button variant="link" className="p-0 h-auto text-sm"><Users className="w-4 h-4 mr-2"/>Ver Votos ({totalVotes})</Button></CollapsibleTrigger>
-                                            <CollapsibleContent className="mt-2 space-y-2 text-xs max-h-40 overflow-y-auto">
-                                                {allVotes.map((vote, idx) => (
-                                                    <div key={idx} className="flex justify-between items-center gap-2">
-                                                        <div className="flex flex-col">
-                                                            <span className="font-medium">{vote.member?.user?.full_name || 'Membro'}</span>
-                                                            <span className="text-[10px] text-muted-foreground">{vote.member?.user?.role || ''}</span>
-                                                        </div>
-                                                        <span className={`font-bold whitespace-nowrap ${vote.vote === 'Aprovar' ? 'text-green-400' : vote.vote === 'Rejeitar' ? 'text-red-400' : 'text-gray-400'}`}>{vote.vote}</span>
-                                                    </div>
-                                                ))}
-                                            </CollapsibleContent>
-                                        </Collapsible>
-                                        <div className="mt-4 space-y-2">
-                                            <div className="flex gap-1">
-                                                <Progress value={votesFor} max={totalVotes} className="flex-1 h-2" indicatorClassName="bg-green-500" />
-                                                <Progress value={votesAgainst} max={totalVotes} className="flex-1 h-2" indicatorClassName="bg-red-500" />
-                                                <Progress value={votesAbstain} max={totalVotes} className="flex-1 h-2" indicatorClassName="bg-gray-500" />
-                                            </div>
-                                            <div className="flex justify-between text-xs">
-                                                <span className="text-green-400">Aprovar: {votesFor}</span>
-                                                <span className="text-red-400">Rejeitar: {votesAgainst}</span>
-                                                <span className="text-gray-400">Abster: {votesAbstain}</span>
-                                            </div>
-                                        </div>
-                                    </>
-                                )}
-                                {totalVotes === 0 && (bill.status?.startsWith('Em votação')) && (
-                                    <p className="text-xs text-muted-foreground mt-4 text-center">Nenhum voto registrado ainda.</p>
-                                )}
-                            </CardContent>
-                        </Card>
-                    </motion.div>
-                )
-            }) : <p className="col-span-full text-center text-muted-foreground py-10">Nenhum projeto de lei encontrado{statusFilter !== 'all' ? ` com o status selecionado` : ''}.</p>}
-            </div>
+            <TabsContent value="plebiscites">
+              <PlebisciteList plebiscites={plebiscites} userVote={userPlebiscitesVotes} onVote={fetchParliamentData} user={user} />
+            </TabsContent>
+          </Tabs>
         </div>
-    );
+      </div>
+    </>
+  );
 };
 
 export default Parliament;

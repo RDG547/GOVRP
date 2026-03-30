@@ -31,6 +31,8 @@ import Documentation from '@/pages/Documentation';
 import ErrorPage from '@/pages/ErrorPage';
 import SupportUs from '@/pages/SupportUs';
 import UnderConstruction from '@/pages/UnderConstruction';
+import ComingSoon from '@/pages/ComingSoon';
+import MaintenanceMode from '@/pages/MaintenanceMode';
 import { AnimatePresence } from 'framer-motion';
 import Dashboard from '@/pages/Dashboard';
 import CitizenDashboard from '@/components/dashboard/CitizenDashboard';
@@ -48,6 +50,7 @@ import ParticlesBackground from '@/components/ParticlesBackground';
 import BetaAccessWall from '@/pages/BetaAccessWall';
 import ScrollToTop from '@/components/ScrollToTop';
 import DailyCheckInPopup from '@/components/DailyCheckInPopup';
+import ElectionOfficeAwardPopup from '@/components/ElectionOfficeAwardPopup';
 import { InternetSpeedProvider } from '@/contexts/InternetSpeedContext';
 
 import SocialX from '@/pages/services/SocialX';
@@ -95,6 +98,8 @@ import PresidentDashboard from '@/pages/dashboards/panels/PresidentDashboard';
 import PrisonRouteGuard from '@/components/PrisonRouteGuard';
 import { isPrisonSentenceActive } from '@/lib/prison';
 import { PARLIAMENT_PANEL_ROLES } from '@/lib/parliament';
+import ServiceAvailabilityGate from '@/components/ServiceAvailabilityGate';
+import EntrepreneurPortal from '@/pages/services/EntrepreneurPortal';
 
 const MainLayout = ({ children }) => {
   const location = useLocation();
@@ -119,6 +124,14 @@ const MainLayout = ({ children }) => {
     </>
   );
 };
+
+const ManagedServiceRoute = ({ serviceKey, children }) => (
+  <ServiceProtectedRoute>
+    <ServiceAvailabilityGate serviceKey={serviceKey}>
+      {children}
+    </ServiceAvailabilityGate>
+  </ServiceProtectedRoute>
+);
 
 function App() {
   const location = useLocation();
@@ -159,6 +172,8 @@ function App() {
                 <Route path="/docs" element={<Documentation />} />
                 <Route path="/tutorial" element={<TutorialPage />} />
                 <Route path="/under-construction" element={<UnderConstruction />} />
+                <Route path="/coming-soon" element={<ComingSoon />} />
+                <Route path="/maintenance" element={<MaintenanceMode />} />
                 <Route path="/beta-access" element={<BetaAccessWall />} />
                 
                 <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
@@ -168,14 +183,15 @@ function App() {
                 <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
                 
                 <Route path="/services" element={<ServiceProtectedRoute><Services /></ServiceProtectedRoute>} />
-                <Route path="/services/bank" element={<ServiceProtectedRoute><Bank /></ServiceProtectedRoute>} />
-                <Route path="/services/business" element={<ServiceProtectedRoute><Business /></ServiceProtectedRoute>} />
-                <Route path="/services/business/product/:productId" element={<ServiceProtectedRoute><ProductDetails /></ServiceProtectedRoute>} />
-                <Route path="/services/inventory" element={<ServiceProtectedRoute><InventoryPage /></ServiceProtectedRoute>} />
-                <Route path="/services/dic" element={<ServiceProtectedRoute><DIC /></ServiceProtectedRoute>} />
-                <Route path="/services/prison" element={<ServiceProtectedRoute><Prison /></ServiceProtectedRoute>} />
+                <Route path="/services/bank" element={<ManagedServiceRoute serviceKey="/services/bank"><Bank /></ManagedServiceRoute>} />
+                <Route path="/services/business" element={<ManagedServiceRoute serviceKey="/services/business"><Business /></ManagedServiceRoute>} />
+                <Route path="/services/business/product/:productId" element={<ManagedServiceRoute serviceKey="/services/business"><ProductDetails /></ManagedServiceRoute>} />
+                <Route path="/services/inventory" element={<ManagedServiceRoute serviceKey="/services/business"><InventoryPage /></ManagedServiceRoute>} />
+                <Route path="/services/dic" element={<ManagedServiceRoute serviceKey="/services/dic"><DIC /></ManagedServiceRoute>} />
+                <Route path="/services/prison" element={<ManagedServiceRoute serviceKey="/services/prison"><Prison /></ManagedServiceRoute>} />
+                <Route path="/services/entrepreneur-portal" element={<ManagedServiceRoute serviceKey="/services/entrepreneur-portal"><EntrepreneurPortal /></ManagedServiceRoute>} />
                 
-                <Route path="/services/x" element={<ServiceProtectedRoute><SocialX /></ServiceProtectedRoute>}>
+                <Route path="/services/x" element={<ManagedServiceRoute serviceKey="/services/x"><SocialX /></ManagedServiceRoute>}>
                     <Route index element={<Navigate to="feed" replace />} />
                     <Route path="feed" element={<XFeed />} />
                     <Route path="post/:postId" element={<PostDetails />} />
@@ -186,42 +202,42 @@ function App() {
                     <Route path="profile/:handle" element={<XProfile />} />
                 </Route>
                 
-                <Route path="/services/elections" element={<ServiceProtectedRoute><Elections /></ServiceProtectedRoute>} />
+                <Route path="/services/elections" element={<ManagedServiceRoute serviceKey="/services/elections"><Elections /></ManagedServiceRoute>} />
 
-                <Route path="/services/political-parties" element={<ServiceProtectedRoute><PoliticalParties /></ServiceProtectedRoute>} />
-                <Route path="/services/political-parties/:partyId" element={<ServiceProtectedRoute><PartyPage /></ServiceProtectedRoute>} />
+                <Route path="/services/political-parties" element={<ManagedServiceRoute serviceKey="/services/political-parties"><PoliticalParties /></ManagedServiceRoute>} />
+                <Route path="/services/political-parties/:partyId" element={<ManagedServiceRoute serviceKey="/services/political-parties"><PartyPage /></ManagedServiceRoute>} />
                 
-                <Route path="/services/parliament" element={<ServiceProtectedRoute><ServiceAccess requiredRoles={PARLIAMENT_PANEL_ROLES} citizenPath="/services/parliament/citizen" panelPath="/services/parliament/panel" /></ServiceProtectedRoute>} />
-                <Route path="/services/parliament/citizen" element={<ServiceProtectedRoute><Parliament /></ServiceProtectedRoute>} />
-                <Route path="/services/parliament/panel" element={<RoleProtectedRoute roles={PARLIAMENT_PANEL_ROLES}><ParliamentPanel /></RoleProtectedRoute>} />
+                <Route path="/services/parliament" element={<ManagedServiceRoute serviceKey="/services/parliament"><ServiceAccess requiredRoles={PARLIAMENT_PANEL_ROLES} citizenPath="/services/parliament/citizen" panelPath="/services/parliament/panel" /></ManagedServiceRoute>} />
+                <Route path="/services/parliament/citizen" element={<ManagedServiceRoute serviceKey="/services/parliament"><Parliament /></ManagedServiceRoute>} />
+                <Route path="/services/parliament/panel" element={<ManagedServiceRoute serviceKey="/services/parliament"><RoleProtectedRoute roles={PARLIAMENT_PANEL_ROLES}><ParliamentPanel /></RoleProtectedRoute></ManagedServiceRoute>} />
 
-                <Route path="/services/penal-system" element={<ServiceProtectedRoute><ServiceAccess requiredRoles={['Juiz', 'Admin']} citizenPath="/services/penal-system/citizen" panelPath="/services/penal-system/panel" /></ServiceProtectedRoute>} />
-                <Route path="/services/penal-system/citizen" element={<ServiceProtectedRoute><PenalSystem /></ServiceProtectedRoute>} />
-                <Route path="/services/penal-system/panel" element={<RoleProtectedRoute roles={['Juiz', 'Admin']}><PenalSystemPanel /></RoleProtectedRoute>} />
+                <Route path="/services/penal-system" element={<ManagedServiceRoute serviceKey="/services/penal-system"><ServiceAccess requiredRoles={['Juiz', 'Admin']} citizenPath="/services/penal-system/citizen" panelPath="/services/penal-system/panel" /></ManagedServiceRoute>} />
+                <Route path="/services/penal-system/citizen" element={<ManagedServiceRoute serviceKey="/services/penal-system"><PenalSystem /></ManagedServiceRoute>} />
+                <Route path="/services/penal-system/panel" element={<ManagedServiceRoute serviceKey="/services/penal-system"><RoleProtectedRoute roles={['Juiz', 'Admin']}><PenalSystemPanel /></RoleProtectedRoute></ManagedServiceRoute>} />
                 
-                <Route path="/services/police" element={<ServiceProtectedRoute><ServiceAccess requiredRoles={['Policial', 'Admin']} citizenPath="/services/police/citizen" panelPath="/services/police/panel" /></ServiceProtectedRoute>} />
-                <Route path="/services/police/citizen" element={<ServiceProtectedRoute><Police /></ServiceProtectedRoute>} />
-                <Route path="/services/police/panel" element={<RoleProtectedRoute roles={['Policial', 'Admin']}><PolicePanel /></RoleProtectedRoute>} />
+                <Route path="/services/police" element={<ManagedServiceRoute serviceKey="/services/police"><ServiceAccess requiredRoles={['Policial', 'Admin']} citizenPath="/services/police/citizen" panelPath="/services/police/panel" /></ManagedServiceRoute>} />
+                <Route path="/services/police/citizen" element={<ManagedServiceRoute serviceKey="/services/police"><Police /></ManagedServiceRoute>} />
+                <Route path="/services/police/panel" element={<ManagedServiceRoute serviceKey="/services/police"><RoleProtectedRoute roles={['Policial', 'Admin']}><PolicePanel /></RoleProtectedRoute></ManagedServiceRoute>} />
 
-                <Route path="/services/agies" element={<ServiceProtectedRoute><ServiceAccess requiredRoles={['Agente Secreto', 'Admin']} citizenPath="/services/agies/citizen" panelPath="/services/agies/panel" /></ServiceProtectedRoute>} />
-                <Route path="/services/agies/citizen" element={<ServiceProtectedRoute><AGIES /></ServiceProtectedRoute>} />
-                <Route path="/services/agies/panel" element={<RoleProtectedRoute roles={['Agente Secreto', 'Admin']}><AGIESPanel /></RoleProtectedRoute>} />
+                <Route path="/services/agies" element={<ManagedServiceRoute serviceKey="/services/agies"><ServiceAccess requiredRoles={['Agente Secreto', 'Admin']} citizenPath="/services/agies/citizen" panelPath="/services/agies/panel" /></ManagedServiceRoute>} />
+                <Route path="/services/agies/citizen" element={<ManagedServiceRoute serviceKey="/services/agies"><AGIES /></ManagedServiceRoute>} />
+                <Route path="/services/agies/panel" element={<ManagedServiceRoute serviceKey="/services/agies"><RoleProtectedRoute roles={['Agente Secreto', 'Admin']}><AGIESPanel /></RoleProtectedRoute></ManagedServiceRoute>} />
 
-                <Route path="/services/armed-forces" element={<ServiceProtectedRoute><ServiceAccess requiredRoles={['Militar', 'Admin']} citizenPath="/services/armed-forces/citizen" panelPath="/services/armed-forces/panel" /></ServiceProtectedRoute>} />
-                <Route path="/services/armed-forces/citizen" element={<ServiceProtectedRoute><ArmedForces /></ServiceProtectedRoute>} />
-                <Route path="/services/armed-forces/panel" element={<RoleProtectedRoute roles={['Militar', 'Admin']}><ArmedForcesPanel /></RoleProtectedRoute>} />
+                <Route path="/services/armed-forces" element={<ManagedServiceRoute serviceKey="/services/armed-forces"><ServiceAccess requiredRoles={['Militar', 'Admin']} citizenPath="/services/armed-forces/citizen" panelPath="/services/armed-forces/panel" /></ManagedServiceRoute>} />
+                <Route path="/services/armed-forces/citizen" element={<ManagedServiceRoute serviceKey="/services/armed-forces"><ArmedForces /></ManagedServiceRoute>} />
+                <Route path="/services/armed-forces/panel" element={<ManagedServiceRoute serviceKey="/services/armed-forces"><RoleProtectedRoute roles={['Militar', 'Admin']}><ArmedForcesPanel /></RoleProtectedRoute></ManagedServiceRoute>} />
 
-                <Route path="/services/library" element={<ServiceProtectedRoute><Library /></ServiceProtectedRoute>} />
-                <Route path="/services/digital-archive" element={<ServiceProtectedRoute><DigitalArchive /></ServiceProtectedRoute>} />
+                <Route path="/services/library" element={<ManagedServiceRoute serviceKey="/services/library"><Library /></ManagedServiceRoute>} />
+                <Route path="/services/digital-archive" element={<ManagedServiceRoute serviceKey="/services/digital-archive"><DigitalArchive /></ManagedServiceRoute>} />
                 
-                <Route path="/services/internet" element={<ServiceProtectedRoute><Internet /></ServiceProtectedRoute>} />
-                <Route path="/services/electricity" element={<ServiceProtectedRoute><Electricity /></ServiceProtectedRoute>} />
-                <Route path="/services/water" element={<ServiceProtectedRoute><Water /></ServiceProtectedRoute>} />
-                <Route path="/services/phone" element={<ServiceProtectedRoute><PhoneService /></ServiceProtectedRoute>} />
-                <Route path="/services/rent" element={<ServiceProtectedRoute><Rent /></ServiceProtectedRoute>} />
-                <Route path="/services/maintenance" element={<ServiceProtectedRoute><Maintenance /></ServiceProtectedRoute>} />
-                <Route path="/services/gas" element={<ServiceProtectedRoute><Gas /></ServiceProtectedRoute>} />
-                <Route path="/services/education" element={<ServiceProtectedRoute><Education /></ServiceProtectedRoute>} />
+                <Route path="/services/internet" element={<ManagedServiceRoute serviceKey="/services/internet"><Internet /></ManagedServiceRoute>} />
+                <Route path="/services/electricity" element={<ManagedServiceRoute serviceKey="/services/electricity"><Electricity /></ManagedServiceRoute>} />
+                <Route path="/services/water" element={<ManagedServiceRoute serviceKey="/services/water"><Water /></ManagedServiceRoute>} />
+                <Route path="/services/phone" element={<ManagedServiceRoute serviceKey="/services/phone"><PhoneService /></ManagedServiceRoute>} />
+                <Route path="/services/rent" element={<ManagedServiceRoute serviceKey="/services/rent"><Rent /></ManagedServiceRoute>} />
+                <Route path="/services/maintenance" element={<ManagedServiceRoute serviceKey="/services/maintenance"><Maintenance /></ManagedServiceRoute>} />
+                <Route path="/services/gas" element={<ManagedServiceRoute serviceKey="/services/gas"><Gas /></ManagedServiceRoute>} />
+                <Route path="/services/education" element={<ManagedServiceRoute serviceKey="/services/education"><Education /></ManagedServiceRoute>} />
 
                 <Route path="/admin-dashboard" element={<AdminProtectedRoute><AdminDashboardPage /></AdminProtectedRoute>} />
                 <Route path="/admin-dashboard/:tab" element={<AdminProtectedRoute><AdminDashboardPage /></AdminProtectedRoute>} />
@@ -235,6 +251,7 @@ function App() {
           <Toaster />
           {!isAuthCallback && <CookieConsent />}
           {!isAuthCallback && <DailyCheckInPopup />}
+          {!isAuthCallback && <ElectionOfficeAwardPopup />}
         </div>
       </div>
     </AuthProvider>

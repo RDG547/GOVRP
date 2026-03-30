@@ -58,7 +58,7 @@ const TrackCandidacy = () => {
     try {
       const { data, error } = await supabase
         .from('candidates')
-        .select('*, elections(name)')
+        .select('*, elections(name), vice:profiles!candidates_vice_candidate_id_fkey(full_name)')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
@@ -109,6 +109,9 @@ const TrackCandidacy = () => {
                   <div>
                     <CardTitle>{candidacy.political_name}</CardTitle>
                     <CardDescription>Para: {candidacy.elections?.name}</CardDescription>
+                    {candidacy.vice?.full_name ? (
+                      <CardDescription>Vice na chapa: {candidacy.vice.full_name}</CardDescription>
+                    ) : null}
                   </div>
                   <Badge variant={getStatusVariant(candidacy.status)}>{getStatusTranslation(candidacy.status)}</Badge>
                 </div>

@@ -21,6 +21,9 @@ const CandidateCard = ({ candidate }) => (
       <div>
         <CardTitle>{candidate.political_name}</CardTitle>
         <p className="text-sm text-muted-foreground">{candidate.elections.name}</p>
+        {candidate.vice?.full_name ? (
+          <p className="text-xs text-muted-foreground mt-1">Vice na chapa: {candidate.vice.full_name}</p>
+        ) : null}
         {candidate.political_parties && (
           <Badge variant="secondary" className="mt-2 flex items-center gap-1 w-fit">
             <Landmark className="w-3 h-3" /> {candidate.political_parties.acronym}
@@ -60,7 +63,7 @@ const ConsultCandidates = () => {
 
         const { data: candidatesData, error: candidatesError } = await supabase
           .from('candidates')
-          .select('*, elections(name), political_parties(acronym)')
+          .select('*, elections(name), political_parties(acronym), vice:profiles!candidates_vice_candidate_id_fkey(full_name)')
           .eq('status', 'Approved');
 
         if (candidatesError) throw candidatesError;

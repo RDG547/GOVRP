@@ -180,7 +180,7 @@ const EditUserDialog = ({ user, onFinish, onUpdate }) => {
         setIsProcessing(false);
     };
 
-    const availableRoles = ['Usuário', 'Cidadão', 'Admin', 'Presidente', 'Presidente da Câmara', 'Presidente do Senado', 'Deputado', 'Senador', 'Juiz', 'Policial', 'Ministro', 'Agente Secreto', 'Militar'];
+    const availableRoles = ['Usuário', 'Cidadão', 'Admin', 'Presidente', 'Vice-Presidente', 'Presidente da Câmara', 'Presidente da Câmara dos Deputados', 'Vice-Presidente da Câmara dos Deputados', 'Presidente do Senado', 'Vice-Presidente do Senado', 'Vice-Presidente do Senado Federal', 'Presidente do STF', 'Deputado', 'Senador', 'Juiz', 'Policial', 'Ministro', 'Agente Secreto', 'Militar'];
 
     return (
         <DialogContent className="glass-effect text-white">
@@ -343,8 +343,14 @@ const ManageCardLimitDialog = ({ user, onFinish, onUpdate }) => {
 const roleConfig = {
     'Admin': { color: 'text-red-400', bg: 'bg-red-500/80', icon: Crown },
     'Presidente': { color: 'text-yellow-400', bg: 'bg-yellow-500/80', icon: Crown },
+    'Vice-Presidente': { color: 'text-amber-300', bg: 'bg-amber-500/80', icon: Crown },
     'Presidente da Câmara': { color: 'text-sky-300', bg: 'bg-sky-600/80', icon: Gavel },
+    'Presidente da Câmara dos Deputados': { color: 'text-sky-300', bg: 'bg-sky-600/80', icon: Gavel },
+    'Vice-Presidente da Câmara dos Deputados': { color: 'text-cyan-300', bg: 'bg-cyan-600/80', icon: Gavel },
     'Presidente do Senado': { color: 'text-blue-300', bg: 'bg-blue-600/80', icon: Gavel },
+    'Vice-Presidente do Senado': { color: 'text-indigo-300', bg: 'bg-indigo-600/80', icon: Gavel },
+    'Vice-Presidente do Senado Federal': { color: 'text-indigo-300', bg: 'bg-indigo-600/80', icon: Gavel },
+    'Presidente do STF': { color: 'text-zinc-200', bg: 'bg-zinc-600/80', icon: Gavel },
     'Ministro': { color: 'text-purple-400', bg: 'bg-purple-500/80', icon: Briefcase },
     'Senador': { color: 'text-blue-400', bg: 'bg-blue-500/80', icon: Scale },
     'Deputado': { color: 'text-sky-400', bg: 'bg-sky-500/80', icon: Scale },
@@ -359,7 +365,7 @@ const roleConfig = {
 
 const USERS_PER_PAGE = 12;
 const roleOrder = [
-    'Admin', 'Presidente', 'Presidente da Câmara', 'Presidente do Senado', 'Ministro', 'Senador', 'Deputado',
+    'Admin', 'Presidente', 'Vice-Presidente', 'Presidente da Câmara', 'Presidente da Câmara dos Deputados', 'Vice-Presidente da Câmara dos Deputados', 'Presidente do Senado', 'Vice-Presidente do Senado', 'Vice-Presidente do Senado Federal', 'Presidente do STF', 'Ministro', 'Senador', 'Deputado',
     'Juiz', 'Policial', 'Agente Secreto', 'Militar', 'Cidadão', 'Usuário'
 ];
 

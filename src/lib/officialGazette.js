@@ -4,6 +4,7 @@ const OFFICIAL_GAZETTE_TYPE_ORDER = [
   'Emenda Constitucional',
   'Decreto',
   'Medida Provisoria',
+  'Veto Presidencial',
   'Nomeacao e Exoneracao',
   'Licitacao e Contrato',
   'Ato Judicial',
@@ -29,6 +30,10 @@ const OFFICIAL_GAZETTE_TYPE_META = {
   'Medida Provisoria': {
     label: 'Medidas Provisorias',
     description: 'Normas com forca de lei em situacoes urgentes.',
+  },
+  'Veto Presidencial': {
+    label: 'Vetos Presidenciais',
+    description: 'Atos presidenciais de veto total ou parcial a projetos aprovados.',
   },
   'Nomeacao e Exoneracao': {
     label: 'Nomeacoes e Exoneracoes',
@@ -70,6 +75,10 @@ const normalizeGazetteType = (rawType = '') => {
 
   if (normalized.includes('medida provisoria') || normalized === 'mp') {
     return 'Medida Provisoria';
+  }
+
+  if (normalized.includes('veto')) {
+    return 'Veto Presidencial';
   }
 
   if (normalized.includes('nomea') || normalized.includes('exonera')) {

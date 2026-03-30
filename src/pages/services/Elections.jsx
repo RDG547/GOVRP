@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ClipboardSignature, Users, CheckSquare, Calendar, Vote, BarChart3, Loader2, Info, TrendingUp, User, Ban } from 'lucide-react';
+import { ClipboardSignature, Users, CheckSquare, Calendar, Vote, BarChart3, Loader2, Info, TrendingUp, User, Ban, Landmark, AlertTriangle, Scale } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -16,6 +16,7 @@ import TrackCandidacy from './elections/TrackCandidacy';
 import { useAuth } from '@/contexts/AuthContext';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { fetchExecutiveConstitutionalState } from '@/lib/executiveGovernance';
 
 const statusConfig = {
     Scheduled: { text: 'Agendada', color: 'bg-gray-500/80 text-white' },
@@ -70,7 +71,7 @@ const CandidatesList = ({ election, onVote, onNullVote, userVote }) => {
             setLoading(true);
             let { data, error } = await supabase
                 .from('candidates')
-                .select('*, political_parties(acronym, logo_url), profiles!candidates_user_id_fkey(avatar_url)')
+                .select('*, political_parties(acronym, logo_url), profiles!candidates_user_id_fkey(avatar_url), vice:profiles!candidates_vice_candidate_id_fkey(full_name, avatar_url)')
                 .eq('status', 'Approved')
                 .eq('election_id', election.id);
 
@@ -102,6 +103,11 @@ const CandidatesList = ({ election, onVote, onNullVote, userVote }) => {
                             <div>
                                 <p className="font-semibold">{candidate.political_name}</p>
                                 <p className="text-sm text-muted-foreground">{candidate.political_parties?.acronym || 'Avulso'}</p>
+                                {election.election_types?.requires_vice_candidate && (
+                                  <p className="text-xs text-muted-foreground">
+                                    Vice na chapa: {candidate.vice?.full_name || 'Não informado'}
+                                  </p>
+                                )}
                             </div>
                         </div>
                         {election.status === 'Voting' && (
@@ -141,28 +147,29 @@ const CandidatesList = ({ election, onVote, onNullVote, userVote }) => {
     );
 };
 
-const ElectionResults = ({ electionId }) => {
+const ElectionResults = ({ election }) => {
     const [results, setResults] = useState([]);
+    const [candidateMeta, setCandidateMeta] = useState({});
     const [loading, setLoading] = useState(true);
     const { toast } = useToast();
 
     const fetchResults = useCallback(async () => {
-        const { data, error } = await supabase.rpc('get_election_results', { p_election_id: electionId });
+        const { data, error } = await supabase.rpc('get_election_results', { p_election_id: election.id });
         if (error) {
             toast({ title: "Erro ao buscar resultados", description: error.message, variant: "destructive" });
         } else {
             setResults(data);
         }
         setLoading(false);
-    }, [electionId, toast]);
+    }, [election?.id, toast]);
 
     useEffect(() => {
-        if (electionId !== 'all') {
+        if (election?.id) {
             setLoading(true);
             fetchResults();
 
-            const channel = supabase.channel(`election_results_${electionId}`)
-                .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'votes', filter: `election_id=eq.${electionId}` }, fetchResults)
+            const channel = supabase.channel(`election_results_${election.id}`)
+                .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'votes', filter: `election_id=eq.${election.id}` }, fetchResults)
                 .subscribe();
 
             return () => {
@@ -170,12 +177,42 @@ const ElectionResults = ({ electionId }) => {
             };
         } else {
             setResults([]);
+            setCandidateMeta({});
             setLoading(false);
         }
-    }, [electionId, fetchResults]);
+    }, [election?.id, fetchResults]);
+
+    useEffect(() => {
+        const fetchCandidateMeta = async () => {
+            if (!election?.id || !election?.election_types?.requires_vice_candidate) {
+                setCandidateMeta({});
+                return;
+            }
+
+            const { data, error } = await supabase
+              .from('candidates')
+              .select('id, vice:profiles!candidates_vice_candidate_id_fkey(full_name)')
+              .eq('election_id', election.id)
+              .eq('status', 'Approved');
+
+            if (error) {
+              toast({ title: "Erro ao buscar composição das chapas", description: error.message, variant: "destructive" });
+              return;
+            }
+
+            setCandidateMeta(
+              (data || []).reduce((accumulator, candidate) => {
+                accumulator[candidate.id] = candidate;
+                return accumulator;
+              }, {})
+            );
+        };
+
+        fetchCandidateMeta();
+    }, [election?.id, election?.election_types?.requires_vice_candidate, toast]);
 
     if (loading) return <div className="flex justify-center p-8"><Loader2 className="animate-spin" /></div>;
-    if (results.length === 0 && electionId !== 'all') return <p className="text-center p-8 text-muted-foreground">Nenhum resultado disponível para esta eleição.</p>;
+    if (results.length === 0 && election?.id) return <p className="text-center p-8 text-muted-foreground">Nenhum resultado disponível para esta eleição.</p>;
     
     const totalVotes = results.reduce((sum, r) => sum + Number(r.vote_count), 0);
 
@@ -184,7 +221,14 @@ const ElectionResults = ({ electionId }) => {
             {results.map(result => (
                 <div key={result.candidate_id}>
                     <div className="flex justify-between font-semibold">
-                        <span>{result.political_name} ({result.party_name || 'Avulso'})</span>
+                        <div>
+                          <span>{result.political_name} ({result.party_name || 'Avulso'})</span>
+                          {candidateMeta[result.candidate_id]?.vice?.full_name && (
+                            <p className="text-xs font-normal text-muted-foreground">
+                              Vice na chapa: {candidateMeta[result.candidate_id].vice.full_name}
+                            </p>
+                          )}
+                        </div>
                         <span>{result.vote_count} votos ({totalVotes > 0 ? ((result.vote_count / totalVotes) * 100).toFixed(2) : 0}%)</span>
                     </div>
                     <div className="w-full bg-gray-700 rounded-full h-4 mt-1">
@@ -247,6 +291,92 @@ const ElectoralCalendar = ({ elections }) => (
     </motion.div>
 );
 
+const ExecutiveConstitutionCard = ({ executiveState }) => {
+    if (!executiveState) {
+        return null;
+    }
+
+    const currentPresident = executiveState.currentPresidentProfile?.full_name || 'Sem presidente em exercício';
+    const currentVice = executiveState.currentViceProfile?.full_name || 'Vice-Presidente não definido';
+    const currentTermLabel = executiveState.currentTerm
+      ? `${format(new Date(executiveState.currentTerm.term_start_at), 'dd/MM/yyyy HH:mm', { locale: ptBR })} até ${format(new Date(executiveState.currentTerm.term_end_at), 'dd/MM/yyyy HH:mm', { locale: ptBR })}`
+      : 'Nenhum mandato presidencial mensal ativo foi identificado.';
+
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="mt-8"
+      >
+        <Card className="glass-effect border-blue-500/20 bg-gradient-to-br from-blue-500/10 via-background to-slate-950/80">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-3 text-2xl">
+              <Landmark className="w-7 h-7 text-blue-400" />
+              Estrutura Constitucional do Executivo
+            </CardTitle>
+            <CardDescription>
+              A Presidência e a Vice-Presidência são eleitas simultaneamente por voto direto, com mandato de 1 mês e apenas 1 reeleição consecutiva.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+              <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+                <p className="text-sm text-muted-foreground">Presidente da República</p>
+                <p className="text-lg font-semibold text-foreground mt-1">{currentPresident}</p>
+              </div>
+              <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+                <p className="text-sm text-muted-foreground">Vice-Presidente</p>
+                <p className="text-lg font-semibold text-foreground mt-1">{currentVice}</p>
+              </div>
+              <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+                <p className="text-sm text-muted-foreground">Mandato Atual</p>
+                <p className="text-sm font-medium text-foreground mt-1">{currentTermLabel}</p>
+              </div>
+            </div>
+
+            <div className={`rounded-xl border p-4 ${executiveState.isVacant ? 'border-amber-500/30 bg-amber-500/10' : 'border-emerald-500/20 bg-emerald-500/10'}`}>
+              <div className="flex items-start gap-3">
+                {executiveState.isVacant ? (
+                  <AlertTriangle className="w-5 h-5 text-amber-300 mt-0.5 shrink-0" />
+                ) : (
+                  <Vote className="w-5 h-5 text-emerald-300 mt-0.5 shrink-0" />
+                )}
+                <div>
+                  <p className="font-semibold text-foreground">
+                    {executiveState.isVacant ? 'Vacância presidencial identificada' : 'Mandato presidencial ativo'}
+                  </p>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {executiveState.isVacant
+                      ? `Na ausência de Presidente em exercício, assume sucessivamente ${executiveState.actingAuthority?.label || 'a autoridade sucessória disponível'}.`
+                      : 'O chefe do Executivo exerce a direção superior da administração federal, sanciona ou veta projetos e pode editar medidas provisórias.'}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <Scale className="w-5 h-5 text-indigo-300" />
+                <h4 className="font-semibold text-foreground">Linha de Sucessão</h4>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+                {executiveState.successionLine.map((entry, index) => (
+                  <div key={entry.key} className="rounded-xl border border-white/10 bg-white/5 p-4">
+                    <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">{index + 1}º na ordem</p>
+                    <p className="font-semibold text-foreground mt-2">{entry.label}</p>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      {entry.profile?.full_name || (entry.is_cda ? 'Assunção excepcional colegiada' : 'Sem ocupante definido')}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </motion.div>
+    );
+};
+
 const ServiceActionSimple = ({ title, description, icon: Icon, onAction }) => (
     <button 
         className="w-full text-left p-4 rounded-lg bg-white/5 hover:bg-white/10 transition-all duration-200 flex items-start gap-4"
@@ -262,31 +392,42 @@ const Elections = () => {
     const { toast } = useToast();
     const [activeDisplay, setActiveDisplay] = useState(null);
     const [elections, setElections] = useState([]);
+    const [executiveState, setExecutiveState] = useState(null);
     const [selectedElection, setSelectedElection] = useState('all');
     const [isRegisterOpen, setIsRegisterOpen] = useState(false);
     const [isTrackOpen, setIsTrackOpen] = useState(false);
     const [userVotes, setUserVotes] = useState({});
 
     const fetchElectionsAndVotes = useCallback(async () => {
-        await supabase.rpc('update_election_statuses'); // Update statuses on page load
-        const { data: electionsData, error: electionsError } = await supabase.from('elections').select('*, election_types(name)').order('voting_start_date', { ascending: false });
-        if (electionsError) {
-            toast({ title: "Erro ao carregar eleições", description: electionsError.message, variant: "destructive" });
-        } else {
-            setElections(electionsData);
-        }
+        try {
+          await supabase.rpc('update_election_statuses');
+          const [electionsResponse, executiveResponse] = await Promise.all([
+            supabase.from('elections').select('*, election_types(name, requires_vice_candidate, voting_system)').order('voting_start_date', { ascending: false }),
+            fetchExecutiveConstitutionalState(supabase),
+          ]);
 
-        if (user?.id) {
-          const { data: votesData, error: votesError } = await supabase.from('votes').select('election_id, candidate_id').eq('voter_id', user.id);
-          if (votesError) {
-              toast({ title: "Erro ao buscar seus votos", variant: "destructive" });
-          } else {
-              const votesMap = votesData.reduce((acc, vote) => {
-                  acc[vote.election_id] = vote.candidate_id || 'null_vote';
-                  return acc;
-              }, {});
-              setUserVotes(votesMap);
+          const { data: electionsData, error: electionsError } = electionsResponse;
+          if (electionsError) {
+              throw electionsError;
           }
+
+          setElections(electionsData || []);
+          setExecutiveState(executiveResponse);
+
+          if (user?.id) {
+            const { data: votesData, error: votesError } = await supabase.from('votes').select('election_id, candidate_id').eq('voter_id', user.id);
+            if (votesError) {
+                toast({ title: "Erro ao buscar seus votos", variant: "destructive" });
+            } else {
+                const votesMap = votesData.reduce((acc, vote) => {
+                    acc[vote.election_id] = vote.candidate_id || 'null_vote';
+                    return acc;
+                }, {});
+                setUserVotes(votesMap);
+            }
+          }
+        } catch (error) {
+          toast({ title: "Erro ao carregar eleições", description: error.message, variant: "destructive" });
         }
     }, [toast, user?.id]);
 
@@ -364,6 +505,8 @@ const Elections = () => {
                     iconColor="text-teal-400"
                     centered={true}
                 />
+
+                <ExecutiveConstitutionCard executiveState={executiveState} />
 
                 <Tabs defaultValue="cidadao" className="w-full">
                     <TabsList className="grid w-full grid-cols-2 md:grid-cols-3 h-auto">
@@ -452,7 +595,7 @@ const Elections = () => {
                                             <p className="text-center p-8 text-muted-foreground">Nenhuma eleição encontrada.</p>
                                         )
                                     )}
-                                    {activeDisplay === 'resultados' && selectedElection !== 'all' && <ElectionResults electionId={selectedElection} />}
+                                    {activeDisplay === 'resultados' && selectedElection !== 'all' && <ElectionResults election={currentElection} />}
                                     {activeDisplay === 'calendar' && <ElectoralCalendar elections={elections} />}
                                 </CardContent>
                             </Card>

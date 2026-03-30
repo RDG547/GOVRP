@@ -5,6 +5,7 @@ import ErrorPage from '@/pages/ErrorPage';
 import PageHeader from '@/components/layout/PageHeader';
 import { Shield, Gavel, Award, Scale, Users as MinisterIcon, Loader2, Eye, ShieldCheck as ArmedForcesIcon, Siren } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { PARLIAMENT_LEADERSHIP_ROLES } from '@/lib/parliament';
 
 const PresidentDashboard = lazy(() => import('./panels/PresidentDashboard'));
 const MinisterDashboard = lazy(() => import('./panels/MinisterDashboard'));
@@ -68,8 +69,18 @@ const dashboards = {
 
 const RoleDashboard = () => {
   const { user } = useAuth();
+  const rolePool = Array.isArray(user?.effective_roles)
+    ? user.effective_roles
+    : [user?.role].filter(Boolean);
   
-  const roleKey = ['Deputado', 'Senador'].includes(user?.role) ? 'Parlamentar' : user?.role;
+  const roleKey =
+    rolePool.includes('Presidente')
+      ? 'Presidente'
+      : ['Deputado', 'Senador', ...PARLIAMENT_LEADERSHIP_ROLES].some((role) => rolePool.includes(role))
+      ? 'Parlamentar'
+      : rolePool.includes('Presidente do STF')
+        ? 'Juiz'
+        : user?.role;
   const dashboardConfig = dashboards[roleKey];
 
   if (!dashboardConfig) {

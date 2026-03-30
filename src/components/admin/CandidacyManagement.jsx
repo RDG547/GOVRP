@@ -28,6 +28,7 @@ const statusConfig = {
 
 const CandidacyManagement = () => {
     const [candidates, setCandidates] = useState([]);
+    const [elections, setElections] = useState([]);
     const [loading, setLoading] = useState(true);
     const [selectedCandidate, setSelectedCandidate] = useState(null);
     const [isActionModalOpen, setIsActionModalOpen] = useState(false);
@@ -35,6 +36,7 @@ const CandidacyManagement = () => {
     const [feedback, setFeedback] = useState('');
     const [isProcessing, setIsProcessing] = useState(false);
     const [filterStatus, setFilterStatus] = useState('all');
+    const [filterElection, setFilterElection] = useState('all');
     const [searchTerm, setSearchTerm] = useState('');
     const [editForm, setEditForm] = useState({ political_name: '', bio: '', proposals: '' });
 
@@ -57,6 +59,7 @@ const CandidacyManagement = () => {
                 election_id,
                 election:elections(id, name),
                 user:profiles!candidates_user_id_fkey(full_name, avatar_url),
+                vice:profiles!candidates_vice_candidate_id_fkey(full_name, avatar_url),
                 party:political_parties(name, acronym)
             `)
             .order('created_at', { ascending: false });
@@ -78,6 +81,23 @@ const CandidacyManagement = () => {
     useEffect(() => {
         fetchCandidates();
     }, [fetchCandidates]);
+
+    useEffect(() => {
+        const fetchElections = async () => {
+            const { data, error } = await supabase
+                .from('elections')
+                .select('id, name, created_at')
+                .order('created_at', { ascending: false });
+
+            if (error) {
+                toast({ title: "Erro ao buscar eleições", description: error.message, variant: "destructive" });
+            } else {
+                setElections(data || []);
+            }
+        };
+
+        fetchElections();
+    }, [toast]);
 
     const handleActionClick = (candidate, type) => {
         setSelectedCandidate(candidate);
@@ -142,6 +162,7 @@ const CandidacyManagement = () => {
     };
 
     const filteredCandidates = candidates.filter(c => {
+        if (filterElection !== 'all' && c.election_id !== filterElection) return false;
         if (!searchTerm) return true;
         const term = searchTerm.toLowerCase();
         return (
@@ -151,6 +172,26 @@ const CandidacyManagement = () => {
             c.party?.name?.toLowerCase().includes(term)
         );
     });
+
+    const groupedCandidates = filteredCandidates.reduce((accumulator, candidate) => {
+        const electionId = candidate.election_id || 'unknown';
+        if (!accumulator[electionId]) {
+            accumulator[electionId] = {
+                election: candidate.election || { id: electionId, name: 'Eleição não identificada' },
+                candidates: [],
+            };
+        }
+        accumulator[electionId].candidates.push(candidate);
+        return accumulator;
+    }, {});
+
+    const orderedGroups = elections
+        .map((election) => groupedCandidates[election.id])
+        .filter(Boolean);
+
+    if (groupedCandidates.unknown) {
+        orderedGroups.push(groupedCandidates.unknown);
+    }
 
     return (
         <div className="space-y-6">
@@ -175,54 +216,98 @@ const CandidacyManagement = () => {
                             <SelectItem value="Rejected">Rejeitados</SelectItem>
                         </SelectContent>
                     </Select>
+                    <Select value={filterElection} onValueChange={setFilterElection}>
+                        <SelectTrigger className="w-56">
+                            <SelectValue placeholder="Filtrar por eleição" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">Todas as eleições</SelectItem>
+                            {elections.map((election) => (
+                                <SelectItem key={election.id} value={election.id}>
+                                    {election.name}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
                 </div>
             </div>
 
             {loading ? (
                 <div className="flex justify-center py-10"><Loader2 className="w-8 h-8 animate-spin text-blue-400" /></div>
             ) : filteredCandidates.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {filteredCandidates.map(candidate => {
-                        const status = statusConfig[candidate.status] || statusConfig.Pendente;
+                <div className="space-y-8">
+                    {orderedGroups.map((group) => {
+                        const pendingCount = group.candidates.filter((candidate) => candidate.status === 'Pendente').length;
+
                         return (
-                            <Card key={candidate.id} className="glass-effect flex flex-col">
-                                <CardHeader className="flex flex-row items-start gap-4">
-                                    <Avatar className="h-16 w-16 border shrink-0">
-                                        <AvatarImage src={candidate.campaign_photo_url || candidate.user?.avatar_url} alt={candidate.political_name} />
-                                        <AvatarFallback>{candidate.political_name?.charAt(0)}</AvatarFallback>
-                                    </Avatar>
-                                    <div className="flex-1 min-w-0">
-                                        <CardTitle className="truncate">{candidate.political_name}</CardTitle>
-                                        <CardDescription className="truncate">{candidate.user?.full_name}</CardDescription>
-                                        <CardDescription className="truncate">Eleição: {candidate.election?.name}</CardDescription>
-                                        <CardDescription className="truncate">Partido: {candidate.party ? `${candidate.party.name} (${candidate.party.acronym})` : 'Independente'}</CardDescription>
+                            <section key={group.election.id} className="space-y-4">
+                                <div className="rounded-2xl border border-white/10 bg-background/20 p-5">
+                                    <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                                        <div>
+                                            <h3 className="text-xl font-bold text-white">{group.election.name}</h3>
+                                            <p className="text-sm text-muted-foreground">
+                                                {group.candidates.length} candidatura(s) nesta eleição.
+                                            </p>
+                                        </div>
+                                        <div className="flex flex-wrap gap-2">
+                                            <Badge className="border bg-blue-500/15 text-blue-300 border-blue-500/30">
+                                                Total: {group.candidates.length}
+                                            </Badge>
+                                            <Badge className="border bg-yellow-500/15 text-yellow-300 border-yellow-500/30">
+                                                Pendentes: {pendingCount}
+                                            </Badge>
+                                        </div>
                                     </div>
-                                </CardHeader>
-                                <CardContent className="flex-1">
-                                    <Badge className={`${status.color} border`}>{status.label}</Badge>
-                                    {candidate.admin_feedback && (
-                                        <p className="text-xs text-muted-foreground mt-2 italic">Feedback: {candidate.admin_feedback}</p>
-                                    )}
-                                </CardContent>
-                                <CardFooter className="gap-2 flex-wrap">
-                                    {candidate.status === 'Pendente' && (
-                                        <>
-                                            <Button size="sm" className="bg-green-600 hover:bg-green-700" onClick={() => handleActionClick(candidate, 'approve')}>
-                                                <Check className="w-4 h-4 mr-1" /> Aprovar
-                                            </Button>
-                                            <Button size="sm" variant="destructive" onClick={() => handleActionClick(candidate, 'reject')}>
-                                                <X className="w-4 h-4 mr-1" /> Rejeitar
-                                            </Button>
-                                        </>
-                                    )}
-                                    <Button size="sm" variant="outline" onClick={() => handleActionClick(candidate, 'edit')}>
-                                        <Edit className="w-4 h-4 mr-1" /> Editar
-                                    </Button>
-                                    <Button size="sm" variant="destructive" onClick={() => handleActionClick(candidate, 'delete')}>
-                                        <Trash2 className="w-4 h-4 mr-1" /> Excluir
-                                    </Button>
-                                </CardFooter>
-                            </Card>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                                    {group.candidates.map((candidate) => {
+                                        const status = statusConfig[candidate.status] || statusConfig.Pendente;
+                                        return (
+                                            <Card key={candidate.id} className="glass-effect flex flex-col">
+                                                <CardHeader className="flex flex-row items-start gap-4">
+                                                    <Avatar className="h-16 w-16 border shrink-0">
+                                                        <AvatarImage src={candidate.campaign_photo_url || candidate.user?.avatar_url} alt={candidate.political_name} />
+                                                        <AvatarFallback>{candidate.political_name?.charAt(0)}</AvatarFallback>
+                                                    </Avatar>
+                                                    <div className="flex-1 min-w-0">
+                                                        <CardTitle className="truncate">{candidate.political_name}</CardTitle>
+                                                        <CardDescription className="truncate">{candidate.user?.full_name}</CardDescription>
+                                                        {candidate.vice?.full_name ? (
+                                                        <CardDescription className="truncate">Vice na chapa: {candidate.vice.full_name}</CardDescription>
+                                                        ) : null}
+                                                        <CardDescription className="truncate">Partido: {candidate.party ? `${candidate.party.name} (${candidate.party.acronym})` : 'Independente'}</CardDescription>
+                                                    </div>
+                                                </CardHeader>
+                                                <CardContent className="flex-1">
+                                                    <Badge className={`${status.color} border`}>{status.label}</Badge>
+                                                    {candidate.admin_feedback && (
+                                                        <p className="text-xs text-muted-foreground mt-2 italic">Feedback: {candidate.admin_feedback}</p>
+                                                    )}
+                                                </CardContent>
+                                                <CardFooter className="gap-2 flex-wrap">
+                                                    {candidate.status === 'Pendente' && (
+                                                        <>
+                                                            <Button size="sm" className="bg-green-600 hover:bg-green-700" onClick={() => handleActionClick(candidate, 'approve')}>
+                                                                <Check className="w-4 h-4 mr-1" /> Aprovar
+                                                            </Button>
+                                                            <Button size="sm" variant="destructive" onClick={() => handleActionClick(candidate, 'reject')}>
+                                                                <X className="w-4 h-4 mr-1" /> Rejeitar
+                                                            </Button>
+                                                        </>
+                                                    )}
+                                                    <Button size="sm" variant="outline" onClick={() => handleActionClick(candidate, 'edit')}>
+                                                        <Edit className="w-4 h-4 mr-1" /> Editar
+                                                    </Button>
+                                                    <Button size="sm" variant="destructive" onClick={() => handleActionClick(candidate, 'delete')}>
+                                                        <Trash2 className="w-4 h-4 mr-1" /> Excluir
+                                                    </Button>
+                                                </CardFooter>
+                                            </Card>
+                                        );
+                                    })}
+                                </div>
+                            </section>
                         );
                     })}
                 </div>

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Menu, X, ChevronDown, Settings, LayoutDashboard, Tally5, Landmark, Store, FileText, Library, Archive, MessageSquare, Users, Newspaper, Home as HomeIcon, Heart, HelpCircle, Headphones as Headset, Grid, Mail, BookOpen, LogOut, Scale, Gavel, Shield, Vote, Eye, ShieldCheck, Crown, HeartHandshake as Handcuffs, Map, Siren, Wifi, Zap, Droplet, Smartphone, Wrench, Milestone, LogIn, UserPlus, FolderKanban, User, Flame, GraduationCap } from 'lucide-react';
+import { Menu, X, ChevronDown, Settings, LayoutDashboard, Tally5, Landmark, Store, FileText, Library, Archive, MessageSquare, Users, Newspaper, Home as HomeIcon, Heart, HelpCircle, Headphones as Headset, Grid, Mail, BookOpen, LogOut, Scale, Gavel, Shield, Vote, Eye, ShieldCheck, Crown, HeartHandshake as Handcuffs, Map, Siren, Wifi, Zap, Droplet, Smartphone, Wrench, Milestone, LogIn, UserPlus, FolderKanban, User, Flame, GraduationCap, Briefcase, Building2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
@@ -39,11 +39,17 @@ const serviceCategories = [
     ]
   },
   {
+    name: 'Economia',
+    services: [
+      { name: 'Portal do Empreendedor', path: '/services/entrepreneur-portal', icon: Briefcase, color: "text-cyan-400" },
+      { name: 'Negócios Livres', path: '/services/business', icon: Store, color: "text-blue-400" },
+    ]
+  },
+  {
     name: 'Cultura e Educação',
     services: [
       { name: 'Ensino Superior', path: '/services/education', icon: GraduationCap, color: "text-indigo-400" },
       { name: 'X', path: '/services/x', icon: MessageSquare, color: "text-sky-400" },
-      { name: 'Negócios Livres', path: '/services/business', icon: Store, color: "text-blue-400" },
       { name: 'Biblioteca Nacional', path: '/services/library', icon: Library, color: "text-orange-400" },
       { name: 'Acervo Digital', path: '/services/digital-archive', icon: Archive, color: "text-rose-400" },
     ]
@@ -133,6 +139,9 @@ const Navbar = () => {
     toast({ title: 'Você saiu da sua conta.' });
     navigate('/');
   };
+  const effectiveRoles = Array.isArray(user?.effective_roles) ? user.effective_roles : [user?.role].filter(Boolean);
+  const hasPresidentAccess = effectiveRoles.includes('Presidente');
+  const isAdmin = effectiveRoles.includes('Admin') || user?.role === 'Admin';
   
   const handleServicesEnter = () => { clearTimeout(servicesTimeoutRef.current); setServicesOpen(true); };
   const handleServicesLeave = () => { servicesTimeoutRef.current = setTimeout(() => setServicesOpen(false), 200); };
@@ -144,7 +153,7 @@ const Navbar = () => {
 
   const handleDashboardClick = (e) => {
     e.preventDefault();
-    if (user?.role === 'Admin' || user?.role === 'Presidente') {
+    if (isAdmin || hasPresidentAccess) {
       setIsDashboardAlertOpen(true);
     } else {
       navigate('/dashboard/citizen');
@@ -187,7 +196,7 @@ const Navbar = () => {
                         <button onClick={handleServicesClick} className="flex items-center gap-2 text-foreground hover:text-primary transition-colors cursor-pointer font-medium"><LayoutDashboard className="w-4 h-4" /><span>{link.name}</span><ChevronDown className={`w-4 h-4 transition-transform ${servicesOpen ? 'rotate-180' : ''}`} /></button>
                         <AnimatePresence>
                           {servicesOpen && (
-                            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }} className="absolute top-full left-1/2 -translate-x-1/2 mt-4 grid grid-cols-2 gap-1 w-[28rem] bg-popover border border-border rounded-lg shadow-2xl p-2">
+                            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }} className="absolute top-full left-1/2 -translate-x-1/2 mt-4 grid grid-cols-2 gap-1 w-[32rem] bg-popover border border-border rounded-lg shadow-2xl p-2 max-h-[70vh] overflow-y-auto custom-scrollbar">
                                {serviceCategories.map((category) => (
                                  <div key={category.name} className="p-2">
                                    <h3 className="font-semibold text-sm text-muted-foreground px-2 mb-2">{category.name}</h3>
@@ -290,7 +299,7 @@ const Navbar = () => {
                 <span>Dashboard do Cidadão</span>
               </Button>
             </Link>
-            {(user?.role === 'Presidente' || user?.role === 'Admin') && (
+            {(hasPresidentAccess || isAdmin) && (
               <Link to="/dashboard/president" className="w-full" onClick={() => setIsDashboardAlertOpen(false)}>
                 <Button variant="secondary" className="w-full justify-center gap-3 bg-yellow-500 hover:bg-yellow-600 text-black">
                   <FolderKanban className="w-5 h-5" />
@@ -298,7 +307,7 @@ const Navbar = () => {
                 </Button>
               </Link>
             )}
-            {user?.role === 'Admin' && (
+            {isAdmin && (
               <Link to="/admin-dashboard" className="w-full" onClick={() => setIsDashboardAlertOpen(false)}>
                 <Button variant="secondary" className="w-full justify-center gap-3 bg-slate-700 hover:bg-slate-800 text-white">
                   <Crown className="w-5 h-5" />

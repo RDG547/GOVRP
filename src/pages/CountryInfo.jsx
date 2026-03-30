@@ -320,7 +320,7 @@ const CountryInfo = () => {
             <TabsContent value="governo" className="mt-0 outline-none">
               <DetailedSection title="Governo e Política" icon={Landmark} description="Estrutura de estado e representação política.">
                 <DetailItem icon={Landmark} label="Forma de Governo" value="República Presidencialista." />
-                <DetailItem icon={Vote} label="Partidos e Eleições" value="Sistema multipartidário. Eleições diretas a cada 4 anos para presidente, deputados e senadores." />
+                <DetailItem icon={Vote} label="Partidos e Eleições" value="Sistema multipartidário. Eleições diretas para Presidente e Vice-Presidente em chapa conjunta, além de eleições legislativas regulares para deputados e senadores com mandatos mensais." />
                 <DetailItem icon={BookOpen} label="Sistema Jurídico" value="Baseado no Direito Civil, com a Constituição Federal como lei suprema." />
               </DetailedSection>
             </TabsContent>

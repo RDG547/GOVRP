@@ -7,6 +7,7 @@ import AuthWall from '@/components/AuthWall';
 
 const RoleProtectedRoute = ({ children, roles }) => {
   const { user, session, loading } = useAuth();
+  const effectiveRoles = Array.isArray(user?.effective_roles) ? user.effective_roles : [user?.role].filter(Boolean);
 
   if (loading) {
     return (
@@ -29,7 +30,7 @@ const RoleProtectedRoute = ({ children, roles }) => {
     );
   }
 
-  if (!roles.includes(user.role)) {
+  if (!roles.some((role) => effectiveRoles.includes(role))) {
     return <ErrorPage 
               title="Acesso Negado" 
               message="Você não possui as permissões necessárias para visualizar esta página." 

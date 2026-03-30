@@ -25,8 +25,16 @@ import { normalizeSafeUrl, openUrlInNewTab } from '@/lib/security';
 const roleBadges = {
     'Fundador': { icon: Crown, color: 'text-yellow-400', label: 'Fundador da Plataforma' },
     'Presidente': { icon: Shield, color: 'text-blue-400', label: 'Presidente' },
+    'Vice-Presidente': { icon: Crown, color: 'text-amber-300', label: 'Vice-Presidente da República' },
     'Deputado': { icon: Scale, color: 'text-green-400', label: 'Deputado' },
     'Senador': { icon: Scale, color: 'text-red-400', label: 'Senador' },
+    'Presidente da Câmara': { icon: Scale, color: 'text-sky-300', label: 'Presidente da Câmara dos Deputados' },
+    'Presidente da Câmara dos Deputados': { icon: Scale, color: 'text-sky-300', label: 'Presidente da Câmara dos Deputados' },
+    'Vice-Presidente da Câmara dos Deputados': { icon: Scale, color: 'text-cyan-300', label: 'Vice-Presidente da Câmara dos Deputados' },
+    'Presidente do Senado': { icon: Scale, color: 'text-indigo-300', label: 'Presidente do Senado' },
+    'Vice-Presidente do Senado': { icon: Scale, color: 'text-violet-300', label: 'Vice-Presidente do Senado' },
+    'Vice-Presidente do Senado Federal': { icon: Scale, color: 'text-violet-300', label: 'Vice-Presidente do Senado' },
+    'Presidente do STF': { icon: Scale, color: 'text-zinc-200', label: 'Presidente do STF' },
 };
 
 const PoliticalSeal = ({ role }) => {

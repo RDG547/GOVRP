@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { Loader2, X } from 'lucide-react';
+import { Loader2, X, Shield, User, Crown, LayoutDashboard } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { Button } from '@/components/ui/button';
-import { Shield, User, Crown, LayoutDashboard } from 'lucide-react';
 
 const ServiceAccess = ({ requiredRoles, citizenPath, panelPath, isDashboard = false }) => {
     const { user, loading } = useAuth();
@@ -13,7 +12,11 @@ const ServiceAccess = ({ requiredRoles, citizenPath, panelPath, isDashboard = fa
 
     useEffect(() => {
         if (!loading && user) {
-            const userRoles = Array.isArray(user.role) ? user.role : [user.role];
+            const userRoles = Array.isArray(user?.effective_roles)
+                ? user.effective_roles
+                : Array.isArray(user.role)
+                    ? user.role
+                    : [user.role].filter(Boolean);
             const hasRequiredRole = requiredRoles.some(role => userRoles.includes(role));
             
             if (hasRequiredRole) {

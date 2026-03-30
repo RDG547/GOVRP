@@ -59,6 +59,7 @@
     "react-phone-number-input": "^3.4.3",
     "react-router-dom": "^6.30.3",
     "recharts": "^2.10.3",
+    "stripe": "^21.0.1",
     "tailwind-merge": "^2.0.0",
     "tailwindcss-animate": "^1.0.7",
     "zod": "^3.22.4"

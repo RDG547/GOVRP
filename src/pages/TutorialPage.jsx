@@ -72,7 +72,7 @@ const tutorialSections = [
       },
       {
         subTitle: 'Eleições e Parlamento',
-        description: 'Participe das eleições para eleger presidente, deputados e senadores. Se você for eleito para o Parlamento, poderá propor, debater e votar em leis que moldarão o futuro da nação. Cada voto conta!',
+        description: 'Participe das eleições para eleger Presidente e Vice-Presidente em chapa conjunta, além de deputados e senadores. Se você for eleito para o Parlamento, poderá propor, debater e votar em leis; se chegar ao Executivo, poderá sancionar, vetar, promulgar e editar medidas provisórias dentro dos limites constitucionais.',
       },
     ],
   },

@@ -179,7 +179,9 @@ const CreatePostForm = forwardRef(({ onPostCreated }, ref) => {
             onPostCreated(newPost);
 
             // If the user is the President, auto-publish as news
-            if (user.role === 'Presidente') {
+            const effectiveRoles = Array.isArray(user?.effective_roles) ? user.effective_roles : [user?.role].filter(Boolean);
+
+            if (effectiveRoles.includes('Presidente')) {
               try {
                 await publishPresidentPostNews(supabase, {
                   post: newPost,

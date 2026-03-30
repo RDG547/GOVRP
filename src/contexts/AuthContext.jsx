@@ -1,9 +1,28 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { isPrisonSentenceActive } from '@/lib/prison';
+import { fetchExecutiveConstitutionalState } from '@/lib/executiveGovernance';
+import {
+  fetchElectionOfficeSyncState,
+  resolveActiveElectionOfficeRolesForUser,
+  syncElectionOffices,
+} from '@/lib/electionOfficeSync';
 
 const AuthContext = createContext();
 const AUTH_FAILURE_MESSAGE = 'Credenciais inválidas. Verifique seus dados e tente novamente.';
+const EFFECTIVE_ROLE_TITLES = new Set([
+  'Presidente',
+  'Vice-Presidente',
+  'Deputado',
+  'Senador',
+  'Presidente da Câmara',
+  'Presidente da Câmara dos Deputados',
+  'Vice-Presidente da Câmara dos Deputados',
+  'Presidente do Senado',
+  'Vice-Presidente do Senado',
+  'Vice-Presidente do Senado Federal',
+  'Presidente do STF',
+]);
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
@@ -18,6 +37,58 @@ export const AuthProvider = ({ children }) => {
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
   const [triggerTutorial, setTriggerTutorial] = useState(false);
+
+  const decorateProfileWithEffectiveRoles = useCallback(async (profile) => {
+    if (!profile?.id) {
+      return profile;
+    }
+
+    try {
+      const [executiveState, electionOfficeState] = await Promise.all([
+        fetchExecutiveConstitutionalState(supabase),
+        fetchElectionOfficeSyncState(supabase).catch((error) => {
+          console.error('Error fetching election office sync state:', error);
+          return null;
+        }),
+      ]);
+      const effectiveRoles = new Set([profile.role].filter(Boolean));
+      const titleRoles = Array.isArray(profile?.titles)
+        ? profile.titles.filter((title) => EFFECTIVE_ROLE_TITLES.has(title))
+        : [];
+      const grantedOfficeRoles = resolveActiveElectionOfficeRolesForUser(electionOfficeState, profile.id);
+      let executiveTicketRole = null;
+
+      titleRoles.forEach((roleTitle) => effectiveRoles.add(roleTitle));
+      grantedOfficeRoles.forEach((officeRole) => effectiveRoles.add(officeRole));
+
+      if (executiveState?.currentPresidentProfile?.id === profile.id) {
+        effectiveRoles.add('Presidente');
+        executiveTicketRole = 'Presidente';
+      } else if (executiveState?.currentViceProfile?.id === profile.id) {
+        effectiveRoles.add('Vice-Presidente');
+        executiveTicketRole = 'Vice-Presidente';
+      }
+
+      if (executiveState?.isVacant && executiveState?.actingAuthority?.profile?.id === profile.id) {
+        effectiveRoles.add('Presidente');
+      }
+
+      return {
+        ...profile,
+        effective_roles: [...effectiveRoles],
+        executive_ticket_role: executiveTicketRole,
+        acting_executive_authority: Boolean(
+          executiveState?.isVacant && executiveState?.actingAuthority?.profile?.id === profile.id
+        ),
+      };
+    } catch (error) {
+      console.error('Error resolving effective executive roles:', error);
+      return {
+        ...profile,
+        effective_roles: [profile.role].filter(Boolean),
+      };
+    }
+  }, []);
 
   const logout = useCallback(async () => {
     try {
@@ -38,6 +109,9 @@ export const AuthProvider = ({ children }) => {
   const fetchUserProfile = useCallback(async (currentSession) => {
     if (currentSession?.user) {
       try {
+        await syncElectionOffices().catch((error) => {
+          console.error('Error syncing election offices before profile fetch:', error);
+        });
         await supabase.rpc('check_and_update_prisoner_status');
 
         const { data: profile, error } = await supabase
@@ -64,14 +138,14 @@ export const AuthProvider = ({ children }) => {
             await logout();
             return null;
           } else {
-            return newProfile;
+            return decorateProfileWithEffectiveRoles(newProfile);
           }
         } else if (error) {
           console.error("Error fetching profile, logging out.", error);
           await logout();
           return null;
         } else {
-          return profile;
+          return decorateProfileWithEffectiveRoles(profile);
         }
       } catch (e) {
         console.error("Exception fetching profile, logging out.", e);
@@ -80,11 +154,16 @@ export const AuthProvider = ({ children }) => {
       }
     }
     return null;
-  }, [logout]);
+  }, [decorateProfileWithEffectiveRoles, logout]);
 
-  const refreshUser = useCallback(async () => {
+  const refreshUser = useCallback(async ({ skipSync = false } = {}) => {
     if (session?.user?.id) {
       try {
+        if (!skipSync) {
+          await syncElectionOffices().catch((error) => {
+            console.error('Error syncing election offices during refresh:', error);
+          });
+        }
         await supabase.rpc('check_and_update_prisoner_status');
         const { data: profile, error } = await supabase
           .from('profiles')
@@ -92,13 +171,35 @@ export const AuthProvider = ({ children }) => {
           .eq('id', session.user.id)
           .single();
         if (profile && !error) {
-            setUser(profile);
+            const decoratedProfile = await decorateProfileWithEffectiveRoles(profile);
+            setUser(decoratedProfile);
         }
       } catch (error) {
         console.error('Error refreshing user profile:', error);
       }
     }
-  }, [session?.user?.id]);
+  }, [decorateProfileWithEffectiveRoles, session?.user?.id]);
+
+  const syncOfficeStateForSessionUser = useCallback(async () => {
+    if (!session?.user?.id) {
+      return;
+    }
+
+    try {
+      const result = await syncElectionOffices();
+      const changedUserIds = Array.isArray(result?.changedUserIds) ? result.changedUserIds : [];
+      const grantedUserIds = Array.isArray(result?.grantedUserIds) ? result.grantedUserIds : [];
+
+      if (
+        changedUserIds.includes(session.user.id) ||
+        grantedUserIds.includes(session.user.id)
+      ) {
+        await refreshUser({ skipSync: true });
+      }
+    } catch (error) {
+      console.error('Error synchronizing election office state for the active session:', error);
+    }
+  }, [refreshUser, session?.user?.id]);
 
   useEffect(() => {
     if (!session?.user?.id || !isPrisonSentenceActive(user)) {
@@ -113,6 +214,24 @@ export const AuthProvider = ({ children }) => {
       window.clearInterval(intervalId);
     };
   }, [refreshUser, session?.user?.id, user]);
+
+  useEffect(() => {
+    if (!session?.user?.id) {
+      return undefined;
+    }
+
+    const initialTimeout = window.setTimeout(() => {
+      syncOfficeStateForSessionUser();
+    }, 1500);
+    const intervalId = window.setInterval(() => {
+      syncOfficeStateForSessionUser();
+    }, 60000);
+
+    return () => {
+      window.clearTimeout(initialTimeout);
+      window.clearInterval(intervalId);
+    };
+  }, [session?.user?.id, syncOfficeStateForSessionUser]);
 
 
   useEffect(() => {

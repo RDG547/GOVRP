@@ -1,16 +1,26 @@
 import { publishBillResultNews, publishBillProposedNews, publishBillVotingStartedNews } from './newsPublisher';
-import { publishOfficialGazetteEntry, mapBillTypeToGazetteType as getGazetteType } from './officialGazette';
 
-const HOUSE_PRESIDENT_ROLES = [
+export const HOUSE_PRESIDENT_ROLES = [
   'Presidente da Câmara',
   'Presidente da Câmara dos Deputados',
   'Presidente do Senado',
 ];
 
+export const HOUSE_VICE_PRESIDENT_ROLES = [
+  'Vice-Presidente da Câmara dos Deputados',
+  'Vice-Presidente do Senado',
+  'Vice-Presidente do Senado Federal',
+];
+
+export const PARLIAMENT_LEADERSHIP_ROLES = [
+  ...HOUSE_PRESIDENT_ROLES,
+  ...HOUSE_VICE_PRESIDENT_ROLES,
+];
+
 export const PARLIAMENT_PANEL_ROLES = [
   'Deputado',
   'Senador',
-  ...HOUSE_PRESIDENT_ROLES,
+  ...PARLIAMENT_LEADERSHIP_ROLES,
   'Admin',
   'Presidente',
 ];
@@ -18,11 +28,47 @@ export const PARLIAMENT_PANEL_ROLES = [
 export const canManageParliamentVoting = (role) =>
   role === 'Admin' || role === 'Presidente' || HOUSE_PRESIDENT_ROLES.includes(role);
 
+export const PARLIAMENT_MANDATE_DURATION_LABEL = '1 mês';
+
+export const PARLIAMENT_RULE_SECTIONS = [
+  {
+    id: 'commissions',
+    title: 'Comissões e Inquéritos',
+    description:
+      'Cada Casa conta com comissões permanentes e temporárias, além de instrumentos de investigação parlamentar.',
+    items: [
+      'Comissões temporárias dependem de aprovação por maioria simples em plenário e de oficialização pelo Presidente da respectiva Casa.',
+      'CPI e CPMI são instauradas por requerimento de um terço dos membros da Casa competente.',
+      'Toda comissão de inquérito deve designar um Relator responsável pelo Relatório Final.',
+    ],
+  },
+  {
+    id: 'terms',
+    title: 'Mandatos e Mesa Diretora',
+    description:
+      'A organização interna da Câmara e do Senado segue mandatos curtos e renováveis para os cargos legislativos.',
+    items: [
+      `Deputados Federais e Senadores exercem mandato de ${PARLIAMENT_MANDATE_DURATION_LABEL}.`,
+      `A Câmara dos Deputados deve eleger Presidente e Vice-Presidente para mandatos de ${PARLIAMENT_MANDATE_DURATION_LABEL}.`,
+      `O Senado Federal deve eleger Presidente e Vice-Presidente para mandatos de ${PARLIAMENT_MANDATE_DURATION_LABEL}.`,
+    ],
+  },
+  {
+    id: 'senate',
+    title: 'Competência Privativa do Senado',
+    description:
+      'O Senado possui atribuições próprias em matérias político-institucionais de alta relevância.',
+    items: [
+      'Compete privativamente ao Senado processar e julgar Ministros do STF nos crimes de responsabilidade e nos processos de impeachment.',
+    ],
+  },
+];
+
 const getTodayDate = () => new Date().toISOString().slice(0, 10);
 
-const getFutureDate = (yearsAhead = 4) => {
+const getFutureDate = (monthsAhead = 1) => {
   const date = new Date();
-  date.setFullYear(date.getFullYear() + yearsAhead);
+  date.setMonth(date.getMonth() + monthsAhead);
   return date.toISOString().slice(0, 10);
 };
 
@@ -379,6 +425,22 @@ export const finalizeParliamentVotingIfReady = async (
   voteTotals.abstain += nonVoterAbstentions;
 
   // Determine if bill or suggestion
+  if (voting.type === 'commission' && voting.related_id) {
+    const { data, error } = await supabase.rpc('finalize_temporary_commission_voting', {
+      p_commission_id: voting.related_id,
+    });
+
+    if (error) {
+      throw error;
+    }
+
+    return {
+      finalized: data?.success !== false,
+      approved: Boolean(data?.approved),
+      message: data?.message || 'Votação de comissão encerrada.',
+    };
+  }
+
   if (voting.type === 'bill' && voting.related_id) {
     // Fetch the bill to know its type
     const { data: bill, error: billFetchError } = await supabase
@@ -438,28 +500,21 @@ export const finalizeParliamentVotingIfReady = async (
           };
         }
       } else if (otherHouseResult.wasApproved) {
-        // Both houses approved! PEC is fully approved
+        // Both houses approved! PEC now depends on presidential promulgation
         await supabase.rpc('update_bill_status', {
           p_bill_id: bill.id,
-          p_new_status: 'Aprovado',
+          p_new_status: 'Aguardando promulgação presidencial',
         });
 
-        // Publish news and DOU
+        // Publish news, but don't push to the Official Gazette until the Executive acts
         try {
           await publishBillResultNews(supabase, {
             bill,
             approved: true,
             houseName: 'ambas as Casas Legislativas',
           });
-          await publishOfficialGazetteEntry(supabase, {
-            title: bill.title,
-            summary: bill.summary || `PEC aprovada por ambas as casas do Parlamento.`,
-            content: bill.full_text || bill.summary || 'Publicação legislativa oficial.',
-            type: 'Emenda Constitucional',
-            sourceId: bill.id,
-          });
         } catch (newsError) {
-          console.error('Erro ao publicar notícia/DOU da PEC:', newsError);
+          console.error('Erro ao publicar notícia da PEC:', newsError);
         }
 
         // Close this voting by bypassing RLS
@@ -468,7 +523,7 @@ export const finalizeParliamentVotingIfReady = async (
         return {
           finalized: true,
           approved: true,
-          message: 'PEC aprovada por ambas as casas do Parlamento! Publicada no Diário Oficial.',
+          message: 'PEC aprovada por ambas as casas do Parlamento e encaminhada para promulgação presidencial.',
         };
       } else {
         // Other house rejected - PEC is fully rejected
@@ -513,8 +568,8 @@ export const finalizeParliamentVotingIfReady = async (
         console.error('Erro ao publicar notícia de rejeição da PEC:', newsError);
       }
     } else {
-      // PL: simple majority in one house is sufficient
-      const newStatus = approved ? 'Aprovado' : 'Rejeitado';
+      // Projetos de lei aprovados seguem para sanção presidencial
+      const newStatus = approved ? 'Aguardando sanção presidencial' : 'Rejeitado';
       await supabase.rpc('update_bill_status', {
         p_bill_id: bill.id,
         p_new_status: newStatus,
@@ -526,18 +581,8 @@ export const finalizeParliamentVotingIfReady = async (
           approved,
           houseName: bill.house?.name,
         });
-
-        if (approved) {
-          await publishOfficialGazetteEntry(supabase, {
-            title: bill.title,
-            summary: bill.summary || `Projeto de lei aprovado por ${bill.house?.name || 'Casa Legislativa'}.`,
-            content: bill.full_text || bill.summary || 'Publicação legislativa oficial.',
-            type: bill.type || 'Lei',
-            sourceId: bill.id,
-          });
-        }
       } catch (newsError) {
-        console.error('Erro ao publicar notícia/DOU do projeto:', newsError);
+        console.error('Erro ao publicar notícia do projeto:', newsError);
       }
     }
   }

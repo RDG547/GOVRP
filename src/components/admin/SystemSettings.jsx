@@ -12,6 +12,13 @@ import { formatCurrency, parseCurrency } from '@/lib/utils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger, DialogClose } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import {
+    normalizeServiceAvailabilitySettings,
+    resolveServiceMode,
+    SERVICE_AVAILABILITY_SETTINGS_KEY,
+    SERVICE_CATEGORIES,
+    SERVICE_MODE_OPTIONS,
+} from '@/lib/serviceCatalog';
 
 const FinanceInfo = ({ finances, loading }) => (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
@@ -547,6 +554,107 @@ const AssetManager = ({ onUpdate, assetType }) => {
     );
 };
 
+const ServiceAvailabilityManager = ({ serviceAvailability, onModeChange, onSave, saving }) => {
+    const totalServices = SERVICE_CATEGORIES.reduce((sum, category) => sum + category.services.length, 0);
+    const activeCount = SERVICE_CATEGORIES.reduce((sum, category) => (
+        sum + category.services.filter((service) => resolveServiceMode(serviceAvailability, service.key) === 'active').length
+    ), 0);
+    const comingSoonCount = SERVICE_CATEGORIES.reduce((sum, category) => (
+        sum + category.services.filter((service) => resolveServiceMode(serviceAvailability, service.key) === 'coming_soon').length
+    ), 0);
+    const maintenanceCount = SERVICE_CATEGORIES.reduce((sum, category) => (
+        sum + category.services.filter((service) => resolveServiceMode(serviceAvailability, service.key) === 'maintenance').length
+    ), 0);
+
+    return (
+        <Card className="glass-effect">
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-white">
+                    <Building className="w-5 h-5 text-cyan-400" />
+                    Disponibilidade dos Serviços
+                </CardTitle>
+                <CardDescription>
+                    Defina quais serviços ficam ativos, entram em modo "Em Breve" ou exibem a página de manutenção.
+                </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="rounded-xl bg-background/30 p-4">
+                        <p className="text-sm text-muted-foreground">Ativos</p>
+                        <p className="text-2xl font-bold text-emerald-400">{activeCount} / {totalServices}</p>
+                    </div>
+                    <div className="rounded-xl bg-background/30 p-4">
+                        <p className="text-sm text-muted-foreground">Em breve</p>
+                        <p className="text-2xl font-bold text-cyan-400">{comingSoonCount}</p>
+                    </div>
+                    <div className="rounded-xl bg-background/30 p-4">
+                        <p className="text-sm text-muted-foreground">Em manutenção</p>
+                        <p className="text-2xl font-bold text-amber-400">{maintenanceCount}</p>
+                    </div>
+                </div>
+
+                <div className="space-y-6">
+                    {SERVICE_CATEGORIES.map((category) => (
+                        <div key={category.name} className="space-y-3">
+                            <div>
+                                <h3 className="text-lg font-semibold text-white">{category.name}</h3>
+                                <p className="text-sm text-muted-foreground">
+                                    Ajuste o comportamento de acesso para os serviços deste grupo.
+                                </p>
+                            </div>
+                            <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                                {category.services.map((service) => (
+                                    <div
+                                        key={service.key}
+                                        className="rounded-2xl border border-white/10 bg-background/20 p-4"
+                                    >
+                                        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                                            <div className="flex gap-3">
+                                                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white/5">
+                                                    <service.icon className={`w-5 h-5 ${service.color}`} />
+                                                </div>
+                                                <div>
+                                                    <p className="font-semibold text-white">{service.name}</p>
+                                                    <p className="text-sm text-muted-foreground">{service.description}</p>
+                                                    <p className="mt-2 text-xs text-muted-foreground">{service.path}</p>
+                                                </div>
+                                            </div>
+                                            <div className="w-full lg:w-56">
+                                                <Label className="mb-2 block">Estado da rota</Label>
+                                                <Select
+                                                    value={resolveServiceMode(serviceAvailability, service.key)}
+                                                    onValueChange={(value) => onModeChange(service.key, value)}
+                                                >
+                                                    <SelectTrigger>
+                                                        <SelectValue placeholder="Selecione o modo" />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        {SERVICE_MODE_OPTIONS.map((option) => (
+                                                            <SelectItem key={option.value} value={option.value}>
+                                                                {option.label}
+                                                            </SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </CardContent>
+            <CardFooter className="justify-end">
+                <Button onClick={onSave} disabled={saving}>
+                    {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                    Salvar Disponibilidade
+                </Button>
+            </CardFooter>
+        </Card>
+    );
+};
+
 const SystemSettings = () => {
     const { toast } = useToast();
     const [settings, setSettings] = useState({
@@ -592,6 +700,19 @@ const SystemSettings = () => {
         }));
     };
 
+    const handleServiceAvailabilityChange = (serviceKey, mode) => {
+        setSettings((prev) => ({
+            ...prev,
+            service_availability: {
+                ...normalizeServiceAvailabilitySettings(prev.service_availability),
+                [serviceKey]: {
+                    mode,
+                    updated_at: new Date().toISOString(),
+                },
+            },
+        }));
+    };
+
     const handleSaveSettings = async () => {
         setSaving(true);
         const { error } = await supabase
@@ -606,6 +727,25 @@ const SystemSettings = () => {
         setSaving(false);
     };
 
+    const handleSaveServiceAvailability = async () => {
+        setSaving(true);
+
+        const { error } = await supabase
+            .from('system_settings')
+            .upsert({
+                key: SERVICE_AVAILABILITY_SETTINGS_KEY,
+                value: normalizeServiceAvailabilitySettings(settings.service_availability),
+            });
+
+        if (error) {
+            toast({ title: "Erro ao salvar disponibilidade", description: error.message, variant: "destructive" });
+        } else {
+            toast({ title: "Sucesso", description: "Disponibilidade dos serviços atualizada." });
+        }
+
+        setSaving(false);
+    };
+
     const weekDays = [ { value: 0, label: 'Domingo' }, { value: 1, label: 'Segunda-feira' }, { value: 2, label: 'Terça-feira' }, { value: 3, label: 'Quarta-feira' }, { value: 4, label: 'Quinta-feira' }, { value: 5, label: 'Sexta-feira' }, { value: 6, label: 'Sábado' }];
 
     if (loading) {
@@ -614,9 +754,10 @@ const SystemSettings = () => {
 
     return (
         <Tabs defaultValue="government" className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
+            <TabsList className="grid w-full grid-cols-3">
                 <TabsTrigger value="government"><Building className="mr-2 h-4 w-4" />Governo</TabsTrigger>
                 <TabsTrigger value="users"><User className="mr-2 h-4 w-4" />Usuários</TabsTrigger>
+                <TabsTrigger value="services"><FileCheck2 className="mr-2 h-4 w-4" />Serviços</TabsTrigger>
             </TabsList>
             <TabsContent value="government" className="mt-6">
                 <div className="space-y-6">
@@ -673,6 +814,14 @@ const SystemSettings = () => {
                         </CardContent>
                     </Card>
                 </div>
+            </TabsContent>
+            <TabsContent value="services" className="mt-6">
+                <ServiceAvailabilityManager
+                    serviceAvailability={normalizeServiceAvailabilitySettings(settings.service_availability)}
+                    onModeChange={handleServiceAvailabilityChange}
+                    onSave={handleSaveServiceAvailability}
+                    saving={saving}
+                />
             </TabsContent>
         </Tabs>
     );

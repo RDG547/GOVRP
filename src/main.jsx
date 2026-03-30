@@ -19,7 +19,7 @@ if (import.meta.env.PROD && typeof window !== 'undefined' && 'serviceWorker' in 
 ReactDOM.createRoot(document.getElementById('root')).render(
   // Removido React.StrictMode para evitar renderizações duplas em desenvolvimento que causam toasts duplicados.
   <HelmetProvider>
-    <BrowserRouter>
+    <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <ThemeProvider>
           <Toaster />
           <CartProvider>

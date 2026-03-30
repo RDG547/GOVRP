@@ -137,6 +137,15 @@ const SectionContent = ({ id }) => {
               <li>Fiscalizar as ações do poder executivo.</li>
               <li>Representar os interesses dos seus eleitores.</li>
             </ul>
+            <p>O módulo legislativo também segue diretrizes institucionais específicas:</p>
+            <ul>
+              <li>Deputados e Senadores exercem mandato de 1 mês.</li>
+              <li>Cada Casa deve manter mesa diretora com Presidente e Vice-Presidente.</li>
+              <li>Comissões temporárias dependem de maioria simples em plenário.</li>
+              <li>CPI e CPMI dependem de requerimento de um terço dos membros.</li>
+              <li>Toda comissão de inquérito deve ter Relator e Relatório Final.</li>
+              <li>Compete privativamente ao Senado julgar Ministros do STF nos crimes de responsabilidade e impeachment.</li>
+            </ul>
             <p>Cidadãos também podem participar sugerindo projetos aos parlamentares.</p>
           </ServiceCard>
           <ServiceCard icon={Gavel} title="Sistema Penal" description="Consulte registros criminais e o status do sistema prisional." color="text-amber-400">
@@ -156,6 +165,15 @@ const SectionContent = ({ id }) => {
               <li>Votar em seus representantes.</li>
               <li>Acompanhar a apuração dos votos em tempo real.</li>
             </ul>
+            <p>O módulo eleitoral e executivo também segue diretrizes constitucionais específicas:</p>
+            <ul>
+              <li>Presidente e Vice-Presidente são eleitos simultaneamente por voto direto, em chapa conjunta.</li>
+              <li>O mandato presidencial dura 1 mês.</li>
+              <li>É permitida apenas 1 reeleição presidencial consecutiva.</li>
+              <li>Na vacância, assumem sucessivamente o Presidente da Câmara, o Presidente do Senado e o Presidente do STF.</li>
+              <li>Esgotada a sucessão, o Conselho dos Administradores (CDA) assume excepcionalmente a reestruturação do Executivo.</li>
+            </ul>
+            <p>Compete privativamente ao Presidente nomear e exonerar ministros, dirigir a administração federal, sancionar, promulgar, publicar leis, vetar projetos e editar medidas provisórias com validade máxima de 1 semana.</p>
           </ServiceCard>
           <ServiceCard icon={Siren} title="Polícia" description="Acesse os serviços do departamento de polícia e registre ocorrências." color="text-indigo-400">
             <p>O Departamento de Polícia é responsável pela segurança e ordem. Cidadãos podem registrar ocorrências, enquanto o painel restrito a membros da corporação permite:</p>
