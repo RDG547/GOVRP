@@ -1,6 +1,8 @@
 import { syncElectionOfficesHandler } from '../server/elections/http.js';
+import { adminUpdateUserHandler } from '../server/admin/http.js';
 
 const ROUTE_HANDLERS = {
+  '/api/admin/update-user': adminUpdateUserHandler,
   '/api/elections/sync-offices': syncElectionOfficesHandler,
 };
 

@@ -158,7 +158,7 @@ export const InternetSpeedProvider = ({ children }) => {
     const skipPaths = [
       '/login', '/register', '/auth/callback', '/update-password', '/forgot-password',
       '/community', '/help', '/about', '/donate', '/country-info',
-      '/contact', '/support', '/faq', '/docs', '/roadmap', '/account-deletion',
+      '/contact', '/support', '/faq', '/docs', '/account-deletion',
       '/admin-dashboard'
     ];
     if (skipPaths.some(p => currentPath.startsWith(p))) {

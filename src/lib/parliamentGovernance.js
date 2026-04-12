@@ -4,6 +4,7 @@ import {
   PARLIAMENT_LEADERSHIP_ROLES,
   autoCloseExpiredVotings,
 } from './parliament';
+import { resolveParliamentHouseIdFromRole } from './roleResolution';
 
 export const PARLIAMENT_HOUSE_IDS = {
   chamber: 'a1b2c3d4-e5f6-7890-1234-567890abcdef',
@@ -199,21 +200,6 @@ export const getLeadershipPositionLabel = (houseName = '', position = '') => {
 
 export const canManageParliamentGovernance = (role = '') =>
   role === 'Admin' || role === 'Presidente' || PARLIAMENT_LEADERSHIP_ROLES.includes(role);
-
-export const resolveParliamentHouseIdFromRole = (role = '', houses = []) => {
-  const senateRoles = ['Senador', 'Presidente do Senado', 'Vice-Presidente do Senado', 'Vice-Presidente do Senado Federal'];
-  const chamberRoles = ['Deputado', 'Presidente da Câmara', 'Presidente da Câmara dos Deputados', 'Vice-Presidente da Câmara dos Deputados'];
-
-  if (senateRoles.includes(role)) {
-    return houses.find((house) => isSenateHouseName(house.name))?.id || PARLIAMENT_HOUSE_IDS.senate;
-  }
-
-  if (chamberRoles.includes(role)) {
-    return houses.find((house) => !isSenateHouseName(house.name))?.id || PARLIAMENT_HOUSE_IDS.chamber;
-  }
-
-  return null;
-};
 
 export const getLeadershipElectionStatusMeta = (status = '') => {
   switch (status) {

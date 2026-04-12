@@ -44,6 +44,7 @@ import {
   PARLIAMENT_RULE_SECTIONS,
   autoCloseExpiredVotings,
 } from '@/lib/parliament';
+import { fetchElectionOfficeSyncState } from '@/lib/electionOfficeSync';
 import {
   fetchCommissionGovernanceData,
   fetchLeadershipGovernanceData,
@@ -55,6 +56,7 @@ import {
   isGovernanceSchemaMissing,
   refreshParliamentGovernanceState,
 } from '@/lib/parliamentGovernance';
+import { filterCompatibleParliamentMembers } from '@/lib/roleResolution';
 
 const PARLIAMENT_RULE_ICON_MAP = {
   commissions: Users,
@@ -129,7 +131,13 @@ const CitizenActions = ({ onPlebAction }) => {
   const fetchTargets = useCallback(async () => {
     setLoading(true);
     try {
-      const { data: housesData, error: housesError } = await supabase.from('parliament_houses').select('id, name');
+      const [{ data: housesData, error: housesError }, syncState] = await Promise.all([
+        supabase.from('parliament_houses').select('id, name'),
+        fetchElectionOfficeSyncState(supabase).catch((error) => {
+          console.error('Erro ao carregar cargos eleitorais para sugestões parlamentares:', error);
+          return null;
+        }),
+      ]);
       if (housesError) {
         throw housesError;
       }
@@ -145,13 +153,29 @@ const CitizenActions = ({ onPlebAction }) => {
       setParties(partiesData || []);
 
       const { data: membersData, error: membersError } = await supabase
-        .from('profiles')
-        .select('id, full_name')
-        .in('role', ['Deputado', 'Senador']);
+        .from('parliament_members')
+        .select('id, user_id, house_id, term_start_date, term_end_date, profile:profiles(id, full_name, role, titles)');
       if (membersError) {
         throw membersError;
       }
-      setParliamentarians((membersData || []).map((member) => ({ id: member.id, name: member.full_name })));
+
+      const compatibleMembers = filterCompatibleParliamentMembers(
+        membersData || [],
+        syncState,
+        housesData || []
+      );
+
+      setParliamentarians(
+        [...new Map(
+          compatibleMembers.map((member) => [
+            member.user_id,
+            {
+              id: member.user_id,
+              name: member.profile?.full_name || 'Parlamentar',
+            },
+          ])
+        ).values()]
+      );
     } catch (error) {
       toast({
         title: 'Erro ao carregar destinos',
@@ -1054,7 +1078,13 @@ const Parliament = () => {
         throw error;
       });
 
-      const { data: housesData, error: housesError } = await supabase.from('parliament_houses').select('*');
+      const [{ data: housesData, error: housesError }, syncState] = await Promise.all([
+        supabase.from('parliament_houses').select('*'),
+        fetchElectionOfficeSyncState(supabase).catch((error) => {
+          console.error('Erro ao carregar cargos eleitorais do parlamento:', error);
+          return null;
+        }),
+      ]);
       if (housesError) {
         throw housesError;
       }
@@ -1066,7 +1096,9 @@ const Parliament = () => {
       if (membersError) {
         throw membersError;
       }
-      setAllMembers(membersData || []);
+      setAllMembers(
+        filterCompatibleParliamentMembers(membersData || [], syncState, housesData || [])
+      );
 
       const { data: billsData, error: billsError } = await supabase
         .from('bills')
@@ -1179,7 +1211,10 @@ const Parliament = () => {
     return accumulator;
   }, {});
 
-  const hasParliamentPanel = PARLIAMENT_PANEL_ROLES.includes(user?.role);
+  const rolePool = Array.isArray(user?.effective_roles)
+    ? user.effective_roles
+    : [user?.role].filter(Boolean);
+  const hasParliamentPanel = rolePool.some((role) => PARLIAMENT_PANEL_ROLES.includes(role));
 
   return (
     <>

@@ -13,7 +13,6 @@ import AccountDeletion from '@/pages/AccountDeletion';
 import Support from '@/pages/Support';
 import Terms from '@/pages/Terms';
 import Privacy from '@/pages/Privacy';
-import Roadmap from '@/pages/Roadmap';
 import Services from '@/pages/Services';
 import Bank from '@/pages/services/Bank';
 import Business from '@/pages/services/Business';
@@ -164,7 +163,6 @@ function App() {
                 <Route path="/support" element={<Support />} />
                 <Route path="/terms" element={<Terms />} />
                 <Route path="/privacy" element={<Privacy />} />
-                <Route path="/roadmap" element={<Roadmap />} />
                 <Route path="/faq" element={<FAQ />} />
                 <Route path="/donation" element={<DonationPage />} />
                 <Route path="/support-us" element={<SupportUs />} />

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Menu, X, ChevronDown, Settings, LayoutDashboard, Tally5, Landmark, Store, FileText, Library, Archive, MessageSquare, Users, Newspaper, Home as HomeIcon, Heart, HelpCircle, Headphones as Headset, Grid, Mail, BookOpen, LogOut, Scale, Gavel, Shield, Vote, Eye, ShieldCheck, Crown, HeartHandshake as Handcuffs, Map, Siren, Wifi, Zap, Droplet, Smartphone, Wrench, Milestone, LogIn, UserPlus, FolderKanban, User, Flame, GraduationCap, Briefcase, Building2 } from 'lucide-react';
+import { Menu, X, ChevronDown, Settings, LayoutDashboard, Tally5, Landmark, Store, FileText, Library, Archive, MessageSquare, Users, Newspaper, Home as HomeIcon, Heart, HelpCircle, Headphones as Headset, Grid, Mail, BookOpen, LogOut, Scale, Gavel, Shield, Vote, Eye, ShieldCheck, Crown, HeartHandshake as Handcuffs, Map, Siren, Wifi, Zap, Droplet, Smartphone, Wrench, LogIn, UserPlus, FolderKanban, User, Flame, GraduationCap, Briefcase, Building2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
@@ -73,7 +73,6 @@ const helpLinks = [
     { name: 'Suporte', path: '/support', icon: Headset, color: "text-blue-400" },
     { name: 'FAQ', path: '/faq', icon: HelpCircle, color: "text-yellow-400" },
     { name: 'Docs', path: '/docs', icon: BookOpen, color: "text-green-400" },
-    { name: 'Roadmap', path: '/roadmap', icon: Milestone, color: "text-purple-400" },
 ];
 
 const Navbar = () => {

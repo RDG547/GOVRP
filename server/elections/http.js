@@ -203,6 +203,36 @@ const resolveElectionAssignments = async (supabase, election) => {
     };
   }
 
+  if (officeRole === 'Deputado' || officeRole === 'Senador') {
+    // O parlamento opera com múltiplos mandatos legislativos ativos por eleição.
+    // Para manter a posse automática consistente entre Câmara e Senado,
+    // consideramos eleitos todos os candidatos aprovados com ao menos um voto válido.
+    const legislativeWinners = results
+      .filter((result) => Number(result.vote_count || 0) > 0)
+      .map((result) => candidateMap[result.candidate_id])
+      .filter((candidate) => candidate?.user_id);
+
+    return {
+      electionId: election.id,
+      officeRole,
+      termStartAt,
+      termEndAt,
+      termActive,
+      impactedProfileIds,
+      assignments: termActive
+        ? legislativeWinners.map((candidate) => ({
+            userId: candidate.user_id,
+            officeRole,
+            electionId: election.id,
+            electionName: election.name,
+            termStartAt,
+            termEndAt,
+          }))
+        : [],
+      status: legislativeWinners.length ? (termActive ? 'settled' : 'expired') : 'no_votes',
+    };
+  }
+
   if (electionType?.voting_system === 'majoritarian') {
     const sortedResults = [...results].sort(
       (left, right) => Number(right.vote_count || 0) - Number(left.vote_count || 0)
