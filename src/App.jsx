@@ -51,6 +51,7 @@ import BetaAccessWall from '@/pages/BetaAccessWall';
 import ScrollToTop from '@/components/ScrollToTop';
 import DailyCheckInPopup from '@/components/DailyCheckInPopup';
 import ElectionOfficeAwardPopup from '@/components/ElectionOfficeAwardPopup';
+import SalaryPaymentPopup from '@/components/SalaryPaymentPopup';
 import { InternetSpeedProvider } from '@/contexts/InternetSpeedContext';
 
 import SocialX from '@/pages/services/SocialX';
@@ -251,6 +252,7 @@ function App() {
           <Toaster />
           {!isAuthCallback && <CookieConsent />}
           {!isAuthCallback && <DailyCheckInPopup />}
+          {!isAuthCallback && <SalaryPaymentPopup />}
           {!isAuthCallback && <ElectionOfficeAwardPopup />}
         </div>
       </div>

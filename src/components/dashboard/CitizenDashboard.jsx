@@ -73,6 +73,8 @@ const ActivityIcon = ({ type }) => {
         'bill_suggestion_received_party': { icon: Award, color: 'text-yellow-400', bg: 'bg-yellow-500/20' },
         'daily_check_in': { icon: Calendar, color: 'text-emerald-400', bg: 'bg-emerald-500/20' },
         'daily_check_in_reward': { icon: Calendar, color: 'text-emerald-400', bg: 'bg-emerald-500/20' },
+        'salary_payment': { icon: Banknote, color: 'text-emerald-400', bg: 'bg-emerald-500/20' },
+        'salary': { icon: Banknote, color: 'text-emerald-400', bg: 'bg-emerald-500/20' },
         'political_points_awarded': { icon: Landmark, color: 'text-amber-400', bg: 'bg-amber-500/20' },
         'default': { icon: Bell, color: 'text-gray-400', bg: 'bg-gray-500/20' }
     };

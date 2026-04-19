@@ -86,5 +86,10 @@ export const filterCompatibleParliamentMembers = (members = [], syncState = null
       id: member.user_id,
     };
 
-    return profileMatchesParliamentHouse(profile, syncState, member.house_id, houses);
+    const hasMatchingRole = profileMatchesParliamentHouse(profile, syncState, member.house_id, houses);
+    const hasRegisteredHouse = !houses.length || houses.some((house) => house?.id === member.house_id);
+
+    // The active parliament membership itself is authoritative enough for UI listings
+    // when role sync is temporarily delayed.
+    return hasMatchingRole || hasRegisteredHouse;
   });

@@ -11,7 +11,12 @@ import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Button } from '@/components/ui/button'; // Import the Button component
-import { fetchOfficialGazetteEntries, getOfficialGazetteTypeMeta } from '@/lib/officialGazette';
+import {
+    fetchOfficialGazetteEntries,
+    formatOfficialGazettePublicationDate,
+    getOfficialGazetteTypeMeta,
+    isOfficialGazetteDecreeType,
+} from '@/lib/officialGazette';
 
 const NewsCard = ({ item, type }) => {
     const isArticle = type === 'article';
@@ -22,6 +27,11 @@ const NewsCard = ({ item, type }) => {
     const author = isArticle ? item.author?.full_name : null;
     const category = isArticle ? item.category?.name : getOfficialGazetteTypeMeta(item.type).label;
     const publishedAt = item.published_at || item.created_at;
+    const publishedAtLabel = isArticle
+        ? format(new Date(publishedAt), "dd 'de' MMMM, yyyy", { locale: ptBR })
+        : formatOfficialGazettePublicationDate(publishedAt, {
+            includeTime: isOfficialGazetteDecreeType(item.type),
+        });
 
     return (
         <motion.div
@@ -47,7 +57,7 @@ const NewsCard = ({ item, type }) => {
                     <p className="text-sm text-muted-foreground line-clamp-3">{description}</p>
                 </CardContent>
                 <CardFooter className="flex justify-between items-center text-xs text-muted-foreground">
-                    <span>{format(new Date(publishedAt), "dd 'de' MMMM, yyyy", { locale: ptBR })}</span>
+                    <span>{publishedAtLabel}</span>
                     {isArticle && (
                         <Link to={link} className="flex items-center text-primary hover:underline">
                             Ler mais <ArrowRight className="w-4 h-4 ml-1" />

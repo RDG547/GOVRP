@@ -20,6 +20,11 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import {
+    getGovernmentBudgetTotal,
+    haveGovernmentBudgetAreasChanged,
+    rebalanceGovernmentBudgetAreas,
+} from '@/lib/governmentBudget';
 import { publishOfficialGazetteEntry } from '@/lib/officialGazette';
 import {
     EXECUTIVE_SPECIAL_OFFICES,
@@ -225,7 +230,10 @@ const DecreeManager = ({ decrees, onUpdate }) => {
     };
 
     const handlePublish = async (decreeId, isPublished) => {
-        const { error } = await supabase.from('decrees').update({ is_published: !isPublished, published_at: new Date() }).eq('id', decreeId);
+        const { error } = await supabase
+            .from('decrees')
+            .update({ is_published: !isPublished, published_at: new Date().toISOString() })
+            .eq('id', decreeId);
          if (error) {
             toast({ title: 'Erro ao publicar', variant: 'destructive' });
         } else {
@@ -292,6 +300,7 @@ const BudgetManager = ({ budget, treasuryBalance, onUpdate, setActiveTab }) => {
     const [editingArea, setEditingArea] = useState(null);
     const [tempValue, setTempValue] = useState(0);
     const [inputValue, setInputValue] = useState("R$ 0,00");
+    const safeTreasuryBalance = Math.max(0, Math.floor(Number(treasuryBalance) || 0));
 
     const areaIcons = {
         'Saúde': { icon: HeartPulse, color: 'text-red-400' },
@@ -310,43 +319,31 @@ const BudgetManager = ({ budget, treasuryBalance, onUpdate, setActiveTab }) => {
 
     useEffect(() => {
         if (budget && budget.areas) {
-            const allAreaNames = ['Saúde', 'Segurança', 'Defesa', 'Educação', 'Tecnologia', 'Meio Ambiente', 'Infraestrutura', 'Cultura', 'Relações Exteriores', 'Economia', 'Pesquisa'];
-            const budgetAreas = budget.areas || [];
-            const newAreas = allAreaNames.map(name => {
-                const existing = budgetAreas.find(a => a.name === name);
-                return { name, allocated_value: existing ? existing.allocated_value : 0 };
-            });
-            
-            // Auto-adjust proportionally if total exceeds treasury
-            const totalAllocated = newAreas.reduce((sum, area) => sum + (area.allocated_value || 0), 0);
-            if (totalAllocated > treasuryBalance && totalAllocated > 0) {
-                const ratio = treasuryBalance / totalAllocated;
-                const adjustedAreas = newAreas.map(area => ({
-                    ...area,
-                    allocated_value: Math.floor((area.allocated_value || 0) * ratio)
-                }));
-                setAreas(adjustedAreas);
-                
-                // Auto-save adjusted budget
+            const adjustedAreas = rebalanceGovernmentBudgetAreas(budget.areas, safeTreasuryBalance);
+            setAreas(adjustedAreas);
+
+            if (haveGovernmentBudgetAreasChanged(budget.areas, adjustedAreas)) {
                 const saveAdjusted = async () => {
                     await supabase
                         .from('system_settings')
-                        .update({ value: { areas: adjustedAreas } })
+                        .update({ value: { ...budget, areas: adjustedAreas } })
                         .eq('key', 'government_budget');
                 };
+
                 saveAdjusted();
-            } else {
-                setAreas(newAreas);
             }
         }
-    }, [budget, treasuryBalance]);
+    }, [budget, safeTreasuryBalance]);
 
     useEffect(() => {
         setInputValue(formatCurrency(tempValue, true));
     }, [tempValue]);
 
-    const totalAllocated = areas.reduce((sum, area) => sum + (area.allocated_value || 0), 0);
-    const availableToAllocate = treasuryBalance - (totalAllocated - (editingArea?.allocated_value || 0));
+    const totalAllocated = getGovernmentBudgetTotal(areas);
+    const availableToAllocate = Math.max(
+        0,
+        safeTreasuryBalance - (totalAllocated - (editingArea?.allocated_value || 0))
+    );
 
     const handleEditArea = (area) => {
         setEditingArea(area);
@@ -356,8 +353,8 @@ const BudgetManager = ({ budget, treasuryBalance, onUpdate, setActiveTab }) => {
     };
 
     const handleUpdateAreaValue = () => {
-        const maxAllowed = availableToAllocate + (editingArea?.allocated_value || 0);
-        let finalValue = tempValue;
+        const maxAllowed = Math.max(0, availableToAllocate + (editingArea?.allocated_value || 0));
+        let finalValue = Math.max(0, tempValue);
 
         if (tempValue > maxAllowed) {
             finalValue = maxAllowed;
@@ -373,9 +370,9 @@ const BudgetManager = ({ budget, treasuryBalance, onUpdate, setActiveTab }) => {
 
     const handleSave = async () => {
         setIsSaving(true);
-        const currentTotalAllocated = areas.reduce((sum, area) => sum + (area.allocated_value || 0), 0);
+        const currentTotalAllocated = getGovernmentBudgetTotal(areas);
 
-        if (currentTotalAllocated > treasuryBalance) {
+        if (currentTotalAllocated > safeTreasuryBalance) {
             toast({ title: 'Orçamento Inválido', description: 'O valor alocado excede o saldo do cofre público.', variant: 'destructive' });
             setIsSaving(false);
             return;
@@ -410,7 +407,7 @@ const BudgetManager = ({ budget, treasuryBalance, onUpdate, setActiveTab }) => {
         <Card className="glass-effect h-full flex flex-col">
             <CardHeader>
                 <CardTitle className="flex items-center gap-2"><PiggyBank className="w-6 h-6 text-primary" />Orçamento Governamental</CardTitle>
-                <CardDescription>Distribua os recursos do cofre público. Disponível: <span className="text-green-400 font-bold">{formatCurrency(treasuryBalance - totalAllocated)}</span></CardDescription>
+                <CardDescription>Distribua os recursos do cofre público. Disponível: <span className="text-green-400 font-bold">{formatCurrency(Math.max(0, safeTreasuryBalance - totalAllocated))}</span></CardDescription>
             </CardHeader>
             <CardContent className="flex-grow space-y-4 overflow-y-auto max-h-[500px] pr-4 custom-scrollbar">
                 {areas.map((area) => {
@@ -433,8 +430,8 @@ const BudgetManager = ({ budget, treasuryBalance, onUpdate, setActiveTab }) => {
             <CardFooter className="flex-col items-stretch gap-4 pt-6">
                 <div className="text-center text-sm font-bold">
                     <p>Total Alocado: {formatCurrency(totalAllocated)}</p>
-                    <p className="text-xs text-muted-foreground">Disponível no Cofre: {formatCurrency(treasuryBalance)}</p>
-                    <Progress value={(totalAllocated / treasuryBalance) * 100} className="mt-2 h-2"/>
+                    <p className="text-xs text-muted-foreground">Disponível no Cofre: {formatCurrency(safeTreasuryBalance)}</p>
+                    <Progress value={safeTreasuryBalance > 0 ? (totalAllocated / safeTreasuryBalance) * 100 : 0} className="mt-2 h-2"/>
                 </div>
                 <Button onClick={handleSave} disabled={isSaving}>
                     <Save className="mr-2 h-4 w-4" />
@@ -460,12 +457,12 @@ const BudgetManager = ({ budget, treasuryBalance, onUpdate, setActiveTab }) => {
                             />
                         </div>
                         <div>
-                             <Label>Alocação Visual ({(((tempValue || 0) / (availableToAllocate + (editingArea?.allocated_value || 0) || 1)) * 100).toFixed(2)}%)</Label>
+                             <Label>Alocação Visual ({(((Math.max(0, tempValue) || 0) / (Math.max(0, availableToAllocate + (editingArea?.allocated_value || 0)) || 1)) * 100).toFixed(2)}%)</Label>
                              <div onPointerDown={(e) => e.stopPropagation()} onTouchStart={(e) => e.stopPropagation()}>
                                <Slider
-                                  value={[tempValue]}
-                                  onValueChange={(val) => setTempValue(val[0])}
-                                  max={availableToAllocate + (editingArea?.allocated_value || 0)}
+                                  value={[Math.max(0, tempValue)]}
+                                  onValueChange={(val) => setTempValue(Math.max(0, val[0]))}
+                                  max={Math.max(0, availableToAllocate + (editingArea?.allocated_value || 0))}
                                   step={1000}
                                />
                              </div>
@@ -1320,11 +1317,28 @@ const PresidentDashboard = () => {
             }, {});
 
             const budgetData = settingsMap.government_budget || { areas: [] };
-            setBudget(budgetData);
+            const adjustedBudgetAreas = rebalanceGovernmentBudgetAreas(
+                budgetData.areas,
+                financesRes.data.treasury_balance
+            );
+            const normalizedBudgetData = { ...budgetData, areas: adjustedBudgetAreas };
+
+            if (haveGovernmentBudgetAreasChanged(budgetData.areas, adjustedBudgetAreas)) {
+                const { error: budgetSaveError } = await supabase
+                    .from('system_settings')
+                    .update({ value: normalizedBudgetData })
+                    .eq('key', 'government_budget');
+
+                if (budgetSaveError) {
+                    throw budgetSaveError;
+                }
+            }
+
+            setBudget(normalizedBudgetData);
             setTaxes(settingsMap.tax_rates || { product_tax: 0, service_tax: 0, transaction_tax: { type: 'percentage', value: 0 } });
             setServicePrices(settingsMap.basic_service_prices || {});
 
-            const totalAllocated = budgetData.areas ? budgetData.areas.reduce((sum, area) => sum + (area.allocated_value || 0), 0) : 0;
+            const totalAllocated = getGovernmentBudgetTotal(adjustedBudgetAreas);
             setDeficit(financesRes.data.treasury_balance - totalAllocated);
 
         } catch (error) {
@@ -1369,7 +1383,9 @@ const PresidentDashboard = () => {
         ? `${formatCurrency(govFinances.corporate_card_used)} / ${formatCurrency(govFinances.corporate_card_limit)}`
         : 'R$ 0,00';
 
-    const availableTreasury = govFinances ? govFinances.treasury_balance - (budget?.areas?.reduce((sum, area) => sum + (area.allocated_value || 0), 0) || 0) : 0;
+    const availableTreasury = govFinances
+        ? Math.max(0, govFinances.treasury_balance - getGovernmentBudgetTotal(budget?.areas || []))
+        : 0;
 
     return (
         <>

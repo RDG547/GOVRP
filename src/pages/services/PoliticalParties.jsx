@@ -219,8 +219,7 @@ const PoliticalParties = () => {
                             const memberCount = party.members?.length || 0;
                             const isActive = memberCount >= 5;
                             const isUserParty = userAffiliation?.party_id === party.id;
-                            const userMemberRecord = party.members.find(m => m.profile?.id === user?.id);
-                            const userIsLeader = userMemberRecord?.role === 'Dono' || userMemberRecord?.role === 'Presidente';
+                            const userIsLeader = [party.owner_id, party.president_id, party.vice_president_id].includes(user?.id);
 
                             return (
                                 <motion.div key={party.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>

@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Link } from 'react-router-dom';
 import { Loader2, Send, MessageCircle, Repeat2, Heart, BarChart2, Trash2 } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
-import Comment from './Comment';
+import Comment from '@/components/social-x/Comment';
 import { useAuth } from '@/contexts/AuthContext';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';

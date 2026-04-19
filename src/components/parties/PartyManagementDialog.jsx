@@ -22,6 +22,12 @@ import { buildStoragePath } from '@/lib/security';
 
 const politicalOrientations = ['Extrema Esquerda', 'Esquerda', 'Centro-Esquerda', 'Centro', 'Centro-Direita', 'Direita', 'Extrema-Direita'];
 const roleHierarchy = { 'Dono': 4, 'Presidente': 3, 'Vice-Presidente': 2, 'Membro': 1 };
+const partyRoleLabels = {
+    'Dono': 'Dono(a) do Partido',
+    'Presidente': 'Presidente do Partido',
+    'Vice-Presidente': 'Vice-Presidente do Partido',
+    'Membro': 'Membro do Partido',
+};
 
 const EditPartyForm = ({ party, onAction, closeDialog, userRole, members }) => {
     const { toast } = useToast();
@@ -166,18 +172,26 @@ const PartyManagementDialog = ({ party, onAction, isFromDetailsPage = false }) =
     const [expelReason, setExpelReason] = useState('');
     const [memberToExpel, setMemberToExpel] = useState(null);
     const [isExpelDialogOpen, setIsExpelDialogOpen] = useState(false);
-    
-    const userMemberRecord = members.find(m => m.user_id === user.id);
-    const userRole = userMemberRecord?.role;
+
+    const getEffectivePartyRole = useCallback((userId) => {
+        if (!userId) {
+            return null;
+        }
+
+        if (party.owner_id === userId) return 'Dono';
+        if (party.president_id === userId) return 'Presidente';
+        if (party.vice_president_id === userId) return 'Vice-Presidente';
+        return 'Membro';
+    }, [party.owner_id, party.president_id, party.vice_president_id]);
+
+    const getMemberPartyRoleLabel = useCallback((userId) => {
+        const roleKey = getEffectivePartyRole(userId) || 'Membro';
+        return partyRoleLabels[roleKey] || partyRoleLabels.Membro;
+    }, [getEffectivePartyRole]);
+
+    const userRole = getEffectivePartyRole(user?.id);
     const canManageMembers = userRole === 'Dono' || userRole === 'Presidente';
     const canManageRequests = userRole === 'Dono' || userRole === 'Presidente' || userRole === 'Vice-Presidente';
-
-    const getMemberPartyRole = (member) => {
-        if (party.owner_id === member.user_id) return "Dono(a) do Partido";
-        if (party.president_id === member.user_id) return "Presidente do Partido";
-        if (party.vice_president_id === member.user_id) return "Vice-Presidente do Partido";
-        return "Membro do Partido";
-    };
 
     const fetchData = useCallback(async (tab) => {
         setLoading(true);
@@ -193,14 +207,26 @@ const PartyManagementDialog = ({ party, onAction, isFromDetailsPage = false }) =
             } else if (tab === 'members' || tab === 'edit') {
                 const { data, error } = await supabase.from('party_members').select('*, user_id, profile:profiles(id, full_name, avatar_url, role)').eq('party_id', party.id);
                 if (error) throw error;
-                setMembers(data.map(m => ({ ...m, role: getMemberPartyRole({ user_id: m.user_id })})).sort((a, b) => (roleHierarchy[b.role] || 0) - (roleHierarchy[a.role] || 0)) || []);
+                setMembers(
+                    (data || [])
+                        .map((member) => {
+                            const partyRole = getEffectivePartyRole(member.user_id) || 'Membro';
+
+                            return {
+                                ...member,
+                                party_role: partyRole,
+                                party_role_label: getMemberPartyRoleLabel(member.user_id),
+                            };
+                        })
+                        .sort((left, right) => (roleHierarchy[right.party_role] || 0) - (roleHierarchy[left.party_role] || 0))
+                );
             }
         } catch (error) {
             toast({ title: 'Erro ao buscar dados', description: error.message, variant: 'destructive' });
         } finally {
             setLoading(false);
         }
-    }, [party.id, toast]);
+    }, [getEffectivePartyRole, getMemberPartyRoleLabel, party.id, toast]);
 
     useEffect(() => {
         if (isOpen) {
@@ -279,7 +305,7 @@ const PartyManagementDialog = ({ party, onAction, isFromDetailsPage = false }) =
                         {loading ? <Loader2 className="animate-spin mx-auto" /> : (
                             <div className="space-y-2 max-h-80 overflow-y-auto">
                                 {members.length > 0 ? members.map(m => {
-                                    const memberRoleLevel = roleHierarchy[m.role] || 0;
+                                    const memberRoleLevel = roleHierarchy[m.party_role] || 0;
                                     const userRoleLevel = roleHierarchy[userRole] || 0;
                                     const canExpel = canManageMembers && userRoleLevel > memberRoleLevel;
 
@@ -290,7 +316,7 @@ const PartyManagementDialog = ({ party, onAction, isFromDetailsPage = false }) =
                                                 <div>
                                                     <p className="font-medium">{m.profile.full_name}</p>
                                                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                                        <Badge variant="secondary" className="flex items-center gap-1"><Building size={12}/>{getMemberPartyRole({user_id: m.user_id})}</Badge>
+                                                        <Badge variant="secondary" className="flex items-center gap-1"><Building size={12}/>{m.party_role_label}</Badge>
                                                         <Badge variant="outline" className="flex items-center gap-1"><User size={12}/>{m.profile.role}</Badge>
                                                     </div>
                                                 </div>

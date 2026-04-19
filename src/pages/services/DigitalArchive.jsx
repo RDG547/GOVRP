@@ -17,8 +17,10 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
     fetchOfficialGazetteEntries,
+    formatOfficialGazettePublicationDate,
     getOfficialGazetteTypeMeta,
     getOfficialGazetteTypes,
+    isOfficialGazetteDecreeType,
 } from '@/lib/officialGazette';
 
 const DigitalArchive = () => {
@@ -40,23 +42,6 @@ const DigitalArchive = () => {
         };
         fetchEntries();
     }, [toast]);
-
-    const formatPublicationDate = (dateString, includeTime = false) => {
-        if (!dateString) return 'Data não disponível';
-        const date = new Date(dateString);
-        const options = {
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric',
-            timeZone: 'America/Sao_Paulo'
-        };
-        if (includeTime) {
-            options.hour = '2-digit';
-            options.minute = '2-digit';
-            options.second = '2-digit';
-        }
-        return new Intl.DateTimeFormat('pt-BR', options).format(date);
-    };
 
     const availableTypes = getOfficialGazetteTypes(entries);
     const filteredEntries =
@@ -129,7 +114,9 @@ const DigitalArchive = () => {
                                                 <div className="flex w-full items-center justify-between gap-3">
                                                     <span className="text-xs font-semibold uppercase tracking-wider bg-primary/10 text-primary px-2 py-1 rounded-full">{typeMeta.label}</span>
                                                     <span className="text-xs text-muted-foreground">
-                                                        {formatPublicationDate(entry.published_at, entry.type === 'Decreto')}
+                                                        {formatOfficialGazettePublicationDate(entry.published_at, {
+                                                            includeTime: isOfficialGazetteDecreeType(entry.type),
+                                                        })}
                                                     </span>
                                                 </div>
                                             </CardFooter>
@@ -139,7 +126,10 @@ const DigitalArchive = () => {
                                         <DialogHeader>
                                             <DialogTitle className="text-2xl">{entry.title}</DialogTitle>
                                             <DialogDescription>
-                                                Publicado em: {formatPublicationDate(entry.published_at, entry.type?.includes('Decreto'))}
+                                                Publicado em:{' '}
+                                                {formatOfficialGazettePublicationDate(entry.published_at, {
+                                                    includeTime: isOfficialGazetteDecreeType(entry.type),
+                                                })}
                                                 <br />
                                                 Tipo: {typeMeta.label}
                                             </DialogDescription>

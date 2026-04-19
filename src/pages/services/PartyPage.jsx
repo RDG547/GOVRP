@@ -231,7 +231,17 @@ const PartyPage = () => {
     };
 
     const userMemberRecord = party?.members.find(m => m.profile?.id === user?.id);
-    const userRole = userMemberRecord?.role;
+    const userRole = !user?.id
+        ? null
+        : party?.owner_id === user.id
+            ? 'Dono'
+            : party?.president_id === user.id
+                ? 'Presidente'
+                : party?.vice_president_id === user.id
+                    ? 'Vice-Presidente'
+                    : userMemberRecord
+                        ? 'Membro'
+                        : null;
     const canManage = userRole === 'Dono' || userRole === 'Presidente' || userRole === 'Vice-Presidente';
     const isOwner = userRole === 'Dono';
 

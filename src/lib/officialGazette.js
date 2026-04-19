@@ -109,6 +109,39 @@ const normalizeGazetteType = (rawType = '') => {
   return rawType;
 };
 
+export const isOfficialGazetteDecreeType = (rawType = '') =>
+  normalizeGazetteType(rawType) === 'Decreto';
+
+export const formatOfficialGazettePublicationDate = (
+  dateString,
+  { includeTime = false, timeZone = 'America/Sao_Paulo' } = {}
+) => {
+  if (!dateString) {
+    return 'Data não disponível';
+  }
+
+  const formattedDate = new Date(dateString);
+
+  if (Number.isNaN(formattedDate.getTime())) {
+    return 'Data não disponível';
+  }
+
+  const options = {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    timeZone,
+  };
+
+  if (includeTime) {
+    options.hour = '2-digit';
+    options.minute = '2-digit';
+    options.second = '2-digit';
+  }
+
+  return new Intl.DateTimeFormat('pt-BR', options).format(formattedDate);
+};
+
 export const mapBillTypeToGazetteType = (billType = '') => {
   const normalized = stripAccents(billType).toUpperCase();
 

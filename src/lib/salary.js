@@ -14,6 +14,55 @@ export const SALARY_TABLE = [
   { role: 'Ministro', title: 'Ministro de Estado', salary: 17500 },
 ];
 
+const SALARY_ROLE_PRIORITY = [
+  'Presidente',
+  'Vice-Presidente',
+  'Presidente do Senado',
+  'Presidente da Câmara',
+  'Ministro',
+  'Senador',
+  'Deputado',
+];
+
+const SALARY_ROLE_ALIASES = {
+  'Presidente da Camara': 'Presidente da Câmara',
+  'Presidente da Câmara dos Deputados': 'Presidente da Câmara',
+  'Vice-Presidente da Câmara dos Deputados': 'Deputado',
+  'Vice-Presidente do Senado': 'Senador',
+  'Vice-Presidente do Senado Federal': 'Senador',
+};
+
+const SALARY_INFO_BY_ROLE = SALARY_TABLE.reduce((accumulator, item) => {
+  accumulator[item.role] = item;
+  return accumulator;
+}, {});
+
+const dedupe = (values = []) => [...new Set(values.filter(Boolean))];
+
+export const normalizeSalaryRole = (role = '') => {
+  if (!role) {
+    return null;
+  }
+
+  return SALARY_ROLE_ALIASES[role] || (SALARY_INFO_BY_ROLE[role] ? role : null);
+};
+
+export const getSalaryInfoByRole = (role = '') => {
+  const normalizedRole = normalizeSalaryRole(role);
+  return normalizedRole ? SALARY_INFO_BY_ROLE[normalizedRole] || null : null;
+};
+
+export const resolveSalaryInfoFromRolePool = (rolePool = []) => {
+  const normalizedRolePool = dedupe(rolePool.map((role) => normalizeSalaryRole(role)).filter(Boolean));
+  const salaryRole = SALARY_ROLE_PRIORITY.find((role) => normalizedRolePool.includes(role));
+
+  if (!salaryRole) {
+    return null;
+  }
+
+  return SALARY_INFO_BY_ROLE[salaryRole] || null;
+};
+
 /**
  * Process salary payments for all eligible officials.
  * This should be called by a cron job every Monday at 10:00 AM.
@@ -48,6 +97,27 @@ export async function getLastPaymentDate() {
   return data?.paid_at;
 }
 
+export async function getLatestSalaryPayment(userId) {
+  if (!userId) {
+    return null;
+  }
+
+  const { data, error } = await supabase
+    .from('salary_payments')
+    .select('*')
+    .eq('user_id', userId)
+    .order('paid_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    console.error('Error fetching latest salary payment:', error);
+    return null;
+  }
+
+  return data || null;
+}
+
 /**
  * Get salary payment history.
  */
@@ -69,3 +139,33 @@ export async function getSalaryHistory(userId = null, limit = 20) {
   }
   return data;
 }
+
+export const getWeeklyPayrollWindowStart = (referenceDate = new Date()) => {
+  const reference = new Date(referenceDate);
+  const daysSinceMonday = (reference.getDay() + 6) % 7;
+
+  reference.setDate(reference.getDate() - daysSinceMonday);
+  reference.setHours(10, 0, 0, 0);
+
+  return reference;
+};
+
+export const shouldTriggerWeeklySalaryProcessing = (lastPaymentDate, referenceDate = new Date()) => {
+  const currentPayrollWindowStart = getWeeklyPayrollWindowStart(referenceDate);
+
+  if (referenceDate.getTime() < currentPayrollWindowStart.getTime()) {
+    return false;
+  }
+
+  if (!lastPaymentDate) {
+    return true;
+  }
+
+  const lastPaymentTimestamp = new Date(lastPaymentDate).getTime();
+
+  if (Number.isNaN(lastPaymentTimestamp)) {
+    return true;
+  }
+
+  return lastPaymentTimestamp < currentPayrollWindowStart.getTime();
+};

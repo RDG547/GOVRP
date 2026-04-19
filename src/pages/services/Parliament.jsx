@@ -56,7 +56,7 @@ import {
   isGovernanceSchemaMissing,
   refreshParliamentGovernanceState,
 } from '@/lib/parliamentGovernance';
-import { filterCompatibleParliamentMembers } from '@/lib/roleResolution';
+import { filterCompatibleParliamentMembers, resolvePrimaryRole } from '@/lib/roleResolution';
 
 const PARLIAMENT_RULE_ICON_MAP = {
   commissions: Users,
@@ -164,17 +164,91 @@ const CitizenActions = ({ onPlebAction }) => {
         syncState,
         housesData || []
       );
+      const activeAssignments = Array.isArray(syncState?.active_assignments)
+        ? syncState.active_assignments.filter((assignment) => {
+            if (!assignment?.user_id || !['Deputado', 'Senador'].includes(assignment?.office_role)) {
+              return false;
+            }
+
+            if (!assignment.term_end_at) {
+              return true;
+            }
+
+            return new Date(assignment.term_end_at).getTime() > Date.now();
+          })
+        : [];
+
+      const memberProfileMap = compatibleMembers.reduce((accumulator, member) => {
+        if (member?.user_id && member?.profile) {
+          accumulator[member.user_id] = member.profile;
+        }
+
+        return accumulator;
+      }, {});
+
+      const missingProfileIds = [...new Set(
+        activeAssignments
+          .map((assignment) => assignment.user_id)
+          .filter((userId) => userId && !memberProfileMap[userId])
+      )];
+
+      let fallbackProfilesMap = {};
+      if (missingProfileIds.length) {
+        const { data: missingProfiles, error: missingProfilesError } = await supabase
+          .from('profiles')
+          .select('id, full_name, role, titles')
+          .in('id', missingProfileIds);
+
+        if (missingProfilesError) {
+          throw missingProfilesError;
+        }
+
+        fallbackProfilesMap = (missingProfiles || []).reduce((accumulator, profile) => {
+          accumulator[profile.id] = profile;
+          return accumulator;
+        }, {});
+      }
+
+      const parliamentariansMap = new Map();
+
+      compatibleMembers.forEach((member) => {
+        const memberHouse = (housesData || []).find((house) => house.id === member.house_id);
+        const fallbackRole = memberHouse?.name?.toLowerCase().includes('senado') ? 'Senador' : 'Deputado';
+        const resolvedRole = resolvePrimaryRole(
+          {
+            ...(member.profile || {}),
+            id: member.user_id,
+          },
+          syncState,
+          fallbackRole
+        );
+        const displayRole = ['Deputado', 'Senador'].includes(resolvedRole) ? resolvedRole : fallbackRole;
+        const fullName = member.profile?.full_name || 'Parlamentar';
+
+        parliamentariansMap.set(member.user_id, {
+          id: member.user_id,
+          name: `${fullName} (${displayRole})`,
+          role: displayRole,
+        });
+      });
+
+      activeAssignments.forEach((assignment) => {
+        if (parliamentariansMap.has(assignment.user_id)) {
+          return;
+        }
+
+        const profile = fallbackProfilesMap[assignment.user_id] || memberProfileMap[assignment.user_id];
+        const fullName = profile?.full_name || 'Parlamentar';
+
+        parliamentariansMap.set(assignment.user_id, {
+          id: assignment.user_id,
+          name: `${fullName} (${assignment.office_role})`,
+          role: assignment.office_role,
+        });
+      });
 
       setParliamentarians(
-        [...new Map(
-          compatibleMembers.map((member) => [
-            member.user_id,
-            {
-              id: member.user_id,
-              name: member.profile?.full_name || 'Parlamentar',
-            },
-          ])
-        ).values()]
+        [...parliamentariansMap.values()].sort((left, right) => left.name.localeCompare(right.name, 'pt-BR'))
       );
     } catch (error) {
       toast({
@@ -290,7 +364,7 @@ const CitizenActions = ({ onPlebAction }) => {
                 <SelectContent>
                   <SelectItem value="house">Casa Legislativa</SelectItem>
                   <SelectItem value="party">Partido Político</SelectItem>
-                  <SelectItem value="parliamentarian">Parlamentar</SelectItem>
+                  <SelectItem value="parliamentarian">Parlamentar Específico</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -464,7 +538,7 @@ const ParliamentMembersList = ({ members = [] }) => {
               ) : (
                 <p className="font-semibold">{member.profile?.full_name || 'Parlamentar'}</p>
               )}
-              <p className="text-sm text-muted-foreground">{member.political_parties?.name || 'Sem partido'}</p>
+              <p className="text-sm text-muted-foreground">{member.party?.name || 'Sem partido'}</p>
               <p className="mt-1 text-xs text-muted-foreground">
                 Mandato parlamentar com duração constitucional de {PARLIAMENT_MANDATE_DURATION_LABEL}.
               </p>
@@ -1092,7 +1166,7 @@ const Parliament = () => {
 
       const { data: membersData, error: membersError } = await supabase
         .from('parliament_members')
-        .select('*, profile:profiles(*), political_parties:political_parties(*)');
+        .select('*, profile:profiles(*), party:political_parties(name, acronym, logo_url)');
       if (membersError) {
         throw membersError;
       }
