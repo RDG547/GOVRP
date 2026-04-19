@@ -24,6 +24,8 @@ export const EFFECTIVE_ROLE_PRIORITY = [
 
 const dedupe = (values = []) => [...new Set(values.filter(Boolean))];
 const todayDate = () => new Date().toISOString().slice(0, 10);
+const SENATE_PARLIAMENTARY_ROLES = ['Senador', 'Presidente do Senado', 'Vice-Presidente do Senado', 'Vice-Presidente do Senado Federal'];
+const CHAMBER_PARLIAMENTARY_ROLES = ['Deputado', 'Presidente da Câmara', 'Presidente da Câmara dos Deputados', 'Vice-Presidente da Câmara dos Deputados'];
 
 export const getStoredTitles = (profile = {}) =>
   Array.isArray(profile?.titles) ? profile.titles.filter(Boolean) : [];
@@ -54,20 +56,46 @@ export const resolvePrimaryRole = (profile = {}, syncState = null, fallbackRole 
 export const isActiveDateOnly = (dateValue) => !dateValue || dateValue >= todayDate();
 
 export const resolveParliamentHouseIdFromRole = (role = '', houses = []) => {
-  const senateRoles = ['Senador', 'Presidente do Senado', 'Vice-Presidente do Senado', 'Vice-Presidente do Senado Federal'];
-  const chamberRoles = ['Deputado', 'Presidente da Câmara', 'Presidente da Câmara dos Deputados', 'Vice-Presidente da Câmara dos Deputados'];
   const senateHouse = houses.find((house) => house?.name?.toLowerCase().includes('senado'));
   const chamberHouse = houses.find((house) => house?.id !== senateHouse?.id);
 
-  if (senateRoles.includes(role)) {
+  if (SENATE_PARLIAMENTARY_ROLES.includes(role)) {
     return senateHouse?.id || null;
   }
 
-  if (chamberRoles.includes(role)) {
+  if (CHAMBER_PARLIAMENTARY_ROLES.includes(role)) {
     return chamberHouse?.id || null;
   }
 
   return null;
+};
+
+export const resolveLegislativeRoleFromPool = (rolePool = []) => {
+  if (rolePool.some((role) => SENATE_PARLIAMENTARY_ROLES.includes(role))) {
+    return 'Senador';
+  }
+
+  if (rolePool.some((role) => CHAMBER_PARLIAMENTARY_ROLES.includes(role))) {
+    return 'Deputado';
+  }
+
+  return null;
+};
+
+export const resolveLegislativeRoleForHouse = (profile = {}, syncState = null, houseId = null, houses = []) => {
+  const rolePool = getProfileRolePool(profile, syncState);
+  const legislativeRole = resolveLegislativeRoleFromPool(rolePool);
+
+  if (!legislativeRole) {
+    return null;
+  }
+
+  if (!houseId || !houses.length) {
+    return legislativeRole;
+  }
+
+  const expectedHouseId = resolveParliamentHouseIdFromRole(legislativeRole, houses);
+  return !expectedHouseId || expectedHouseId === houseId ? legislativeRole : null;
 };
 
 export const profileMatchesParliamentHouse = (profile = {}, syncState = null, houseId, houses = []) =>
@@ -86,10 +114,5 @@ export const filterCompatibleParliamentMembers = (members = [], syncState = null
       id: member.user_id,
     };
 
-    const hasMatchingRole = profileMatchesParliamentHouse(profile, syncState, member.house_id, houses);
-    const hasRegisteredHouse = !houses.length || houses.some((house) => house?.id === member.house_id);
-
-    // The active parliament membership itself is authoritative enough for UI listings
-    // when role sync is temporarily delayed.
-    return hasMatchingRole || hasRegisteredHouse;
+    return Boolean(resolveLegislativeRoleForHouse(profile, syncState, member.house_id, houses));
   });

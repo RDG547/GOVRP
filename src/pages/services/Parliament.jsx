@@ -56,7 +56,7 @@ import {
   isGovernanceSchemaMissing,
   refreshParliamentGovernanceState,
 } from '@/lib/parliamentGovernance';
-import { filterCompatibleParliamentMembers, resolvePrimaryRole } from '@/lib/roleResolution';
+import { filterCompatibleParliamentMembers, resolveLegislativeRoleForHouse } from '@/lib/roleResolution';
 
 const PARLIAMENT_RULE_ICON_MAP = {
   commissions: Users,
@@ -212,17 +212,20 @@ const CitizenActions = ({ onPlebAction }) => {
       const parliamentariansMap = new Map();
 
       compatibleMembers.forEach((member) => {
-        const memberHouse = (housesData || []).find((house) => house.id === member.house_id);
-        const fallbackRole = memberHouse?.name?.toLowerCase().includes('senado') ? 'Senador' : 'Deputado';
-        const resolvedRole = resolvePrimaryRole(
+        const displayRole = resolveLegislativeRoleForHouse(
           {
             ...(member.profile || {}),
             id: member.user_id,
           },
           syncState,
-          fallbackRole
+          member.house_id,
+          housesData || []
         );
-        const displayRole = ['Deputado', 'Senador'].includes(resolvedRole) ? resolvedRole : fallbackRole;
+
+        if (!displayRole) {
+          return;
+        }
+
         const fullName = member.profile?.full_name || 'Parlamentar';
 
         parliamentariansMap.set(member.user_id, {
