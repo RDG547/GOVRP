@@ -42,6 +42,7 @@ import PageHeader from '@/components/layout/PageHeader';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/supabaseClient';
+import { fetchWithSessionAuth } from '@/lib/apiAuth';
 
 // ═══════════════════════════════════════════════════════════════
 // BUSINESS TYPE CATALOG — all company types with costs & details
@@ -587,6 +588,30 @@ const EntrepreneurPortal = () => {
   const [activeTab, setActiveTab] = useState('catalog');
   const [myBusinesses, setMyBusinesses] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [businessTariffs, setBusinessTariffs] = useState({});
+
+  // Fetch base tariffs for registration fees
+  useEffect(() => {
+    const fetchTariffs = async () => {
+      const { data } = await supabase.from('system_settings').select('value').eq('key', 'base_tariffs').single();
+      if (data?.value) setBusinessTariffs(data.value);
+    };
+    fetchTariffs();
+  }, []);
+
+  // Merge tariffs into business types
+  const TARIFF_KEY_MAP = {
+    banco: 'biz_banco', construtora: 'biz_construtora', fabrica: 'biz_fabrica',
+    loja: 'biz_loja', transportadora: 'biz_transportadora', consultoria: 'biz_consultoria',
+    seguranca: 'biz_seguranca', distribuidora: 'biz_distribuidora',
+  };
+  const businessTypes = BUSINESS_TYPES.map(bt => {
+    const tariffKey = TARIFF_KEY_MAP[bt.id];
+    if (tariffKey && businessTariffs[tariffKey] != null) {
+      return { ...bt, registrationFee: businessTariffs[tariffKey] };
+    }
+    return bt;
+  });
 
   // Fetch user's businesses from Supabase
   useEffect(() => {
@@ -632,9 +657,9 @@ const EntrepreneurPortal = () => {
   }, [user?.id]);
 
   const filteredTypes = useMemo(() => {
-    if (!searchQuery.trim()) return BUSINESS_TYPES;
+    if (!searchQuery.trim()) return businessTypes;
     const q = searchQuery.toLowerCase();
-    return BUSINESS_TYPES.filter(
+    return businessTypes.filter(
       (b) =>
         b.name.toLowerCase().includes(q) ||
         b.category.toLowerCase().includes(q) ||
@@ -645,7 +670,7 @@ const EntrepreneurPortal = () => {
   const totalRevenue = myBusinesses.reduce((s, b) => s + b.revenue, 0);
   const totalEmployees = myBusinesses.reduce((s, b) => s + b.employees, 0);
   const totalMonthlyCosts = myBusinesses.reduce((s, b) => {
-    const type = BUSINESS_TYPES.find((t) => t.id === b.type);
+    const type = businessTypes.find((t) => t.id === b.type);
     return s + (type ? Object.values(type.monthlyCosts).reduce((a, v) => a + v, 0) : 0);
   }, 0);
 
@@ -659,31 +684,23 @@ const EntrepreneurPortal = () => {
 
     try {
       const companyName = `${business.name} do ${user?.full_name?.split(' ')[0] || 'Cidadão'}`;
-
-      // Insert into Supabase
-      const { data: newBiz, error: insertError } = await supabase
-        .from('businesses')
-        .insert({
-          owner_id: user.id,
-          business_type_id: business.id,
-          name: companyName,
+      const response = await fetchWithSessionAuth('/api/businesses/register', {
+        method: 'POST',
+        body: JSON.stringify({
+          businessTypeId: business.id,
+          companyName,
           description: business.description,
-          status: 'pending',
-          employees: business.minEmployees,
-          monthly_revenue: 0,
-        })
-        .select()
-        .single();
-
-      if (insertError) throw insertError;
-
-      // Record the registration transaction
-      await supabase.from('business_transactions').insert({
-        business_id: newBiz.id,
-        type: 'registration',
-        amount: -business.registrationFee,
-        description: `Taxa de registro: ${companyName}`,
+          minEmployees: business.minEmployees,
+          registrationFee: business.registrationFee,
+        }),
       });
+      const payload = await response.json().catch(() => ({}));
+
+      if (!response.ok || !payload?.success) {
+        throw new Error(payload?.error || payload?.message || 'Nao foi possivel registrar a empresa.');
+      }
+
+      const newBiz = payload.business;
 
       setMyBusinesses((prev) => [
         {
@@ -703,7 +720,7 @@ const EntrepreneurPortal = () => {
 
       toast({
         title: '🎉 Empresa registrada com sucesso!',
-        description: `${companyName} foi criada e está pendente de aprovação.`,
+        description: payload?.message || `${companyName} foi criada e está pendente de aprovação.`,
       });
     } catch (err) {
       console.error('Erro ao registrar empresa:', err);

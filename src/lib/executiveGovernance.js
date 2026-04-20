@@ -1,5 +1,5 @@
-import { mapBillTypeToGazetteType, publishOfficialGazetteEntry } from '@/lib/officialGazette';
-import { PARLIAMENT_HOUSE_IDS } from '@/lib/parliamentGovernance';
+import { mapBillTypeToGazetteType, publishOfficialGazetteEntry } from './officialGazette.js';
+import { PARLIAMENT_HOUSE_IDS } from './parliamentGovernance.js';
 
 export const EXECUTIVE_GOVERNANCE_SETTINGS_KEY = 'executive_governance';
 export const PRESIDENTIAL_TERM_MONTHS = 1;
@@ -132,9 +132,40 @@ const normalizeExecutiveGovernanceValue = (rawValue = {}) => {
         reason: '',
         triggered_by: null,
       };
+  const presidentialSuccession =
+    value.presidentialSuccession && typeof value.presidentialSuccession === 'object'
+      ? {
+          promoted_president_id:
+            value.presidentialSuccession.promoted_president_id ||
+            value.presidentialSuccession.promotedPresidentId ||
+            null,
+          previous_vice_id:
+            value.presidentialSuccession.previous_vice_id ||
+            value.presidentialSuccession.previousViceId ||
+            null,
+          former_president_id:
+            value.presidentialSuccession.former_president_id ||
+            value.presidentialSuccession.formerPresidentId ||
+            null,
+          term_election_id:
+            value.presidentialSuccession.term_election_id ||
+            value.presidentialSuccession.termElectionId ||
+            null,
+          promoted_at:
+            value.presidentialSuccession.promoted_at ||
+            value.presidentialSuccession.promotedAt ||
+            null,
+          reason: value.presidentialSuccession.reason || '',
+          triggered_by:
+            value.presidentialSuccession.triggered_by ||
+            value.presidentialSuccession.triggeredBy ||
+            null,
+        }
+      : null;
 
   return {
     officeVacancy,
+    presidentialSuccession,
     specialAppointments:
       value.specialAppointments && typeof value.specialAppointments === 'object'
         ? value.specialAppointments
@@ -176,7 +207,7 @@ const fetchPartiesMap = async (supabase, partyIds = []) => {
 
   const { data, error } = await supabase
     .from('political_parties')
-    .select('id, name, acronym, logo_url')
+    .select('id, name, acronym, logo_url, ideology')
     .in('id', ids);
 
   if (error) {
@@ -580,12 +611,23 @@ export const fetchExecutiveConstitutionalState = async (supabase) => {
 
   const settings = await attachProfilesToSettings(supabase, settingsRow.value);
   const officeVacancy = settings.officeVacancy || { vacant: false };
+  const presidentialSuccession = settings.presidentialSuccession || null;
+  const successionApplies =
+    Boolean(currentTerm?.id) &&
+    Boolean(presidentialSuccession?.promoted_president_id) &&
+    (!presidentialSuccession?.term_election_id ||
+      presidentialSuccession.term_election_id === currentTerm.id);
   const vacancyStillApplies =
+    !successionApplies &&
     officeVacancy.vacant &&
     (!currentTerm || !officeVacancy.since || new Date(officeVacancy.since) >= new Date(currentTerm.term_start_at));
 
-  const currentPresidentProfile = currentTerm?.winner?.profile || null;
-  const currentViceProfile = currentTerm?.winner?.vice_profile || null;
+  const electedPresidentProfile = currentTerm?.winner?.profile || null;
+  const electedViceProfile = currentTerm?.winner?.vice_profile || null;
+  const currentPresidentProfile = successionApplies
+    ? electedViceProfile || null
+    : electedPresidentProfile;
+  const currentViceProfile = successionApplies ? null : electedViceProfile;
   const isVacant = vacancyStillApplies || !currentPresidentProfile || !currentTerm;
   const actingAuthority = !isVacant
     ? {
@@ -601,7 +643,10 @@ export const fetchExecutiveConstitutionalState = async (supabase) => {
     currentTerm,
     currentPresidentProfile,
     currentViceProfile,
+    electedPresidentProfile,
+    electedViceProfile,
     officeVacancy,
+    presidentialSuccession,
     isVacant,
     actingAuthority,
     successionLine,

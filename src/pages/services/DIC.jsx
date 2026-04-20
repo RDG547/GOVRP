@@ -18,9 +18,10 @@ import jsPDF from 'jspdf';
 import { OfficialDocument } from '@/components/dic/OfficialDocument';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
-const docFees = {
-    CNH: 0.00, Passport: 0.00, CNPJ: 0.00, CTD: 0.00,
-    'Título de Eleitor': 0.00, 'Certificado de Reservista': 0.00, 'Certidão de Casamento': 0.00, 'Registro Profissional': 0.00,
+const TARIFF_TO_DOC_MAP = {
+    doc_CNH: 'CNH', doc_Passport: 'Passport', doc_CNPJ: 'CNPJ', doc_CTD: 'CTD',
+    doc_Titulo_Eleitor: 'Título de Eleitor', doc_Certificado_Reservista: 'Certificado de Reservista',
+    doc_Certidao_Casamento: 'Certidão de Casamento', doc_Registro_Profissional: 'Registro Profissional',
 };
 
 const docInfo = {
@@ -110,6 +111,7 @@ const DIC = () => {
     const [activeTab, setActiveTab] = useState("documents");
     const [affiliation, setAffiliation] = useState(null);
     const [isGeneratingAllPdfs, setIsGeneratingAllPdfs] = useState(false);
+    const [docFees, setDocFees] = useState({});
     const docRefs = useRef({});
 
     const getDoc = useCallback((type, isValid = true) => documents.find(d => d.type === type && d.is_valid === isValid), [documents]);
@@ -133,6 +135,15 @@ const DIC = () => {
             } else {
                 setAffiliation(affiliationData);
             }
+
+            const { data: tariffData } = await supabase.from('system_settings').select('value').eq('key', 'base_tariffs').single();
+            if (tariffData?.value) {
+                const fees = {};
+                Object.entries(TARIFF_TO_DOC_MAP).forEach(([tariffKey, docType]) => {
+                    fees[docType] = tariffData.value[tariffKey] || 0;
+                });
+                setDocFees(fees);
+            }
         } catch (error) {
             console.error(error);
             toast({ title: "Erro", description: "Não foi possível carregar seus dados.", variant: "destructive" });
@@ -148,7 +159,7 @@ const DIC = () => {
             setLoading(false);
         }
     }, [user?.id, fetchAllData]);
-    
+
     const handleTabChange = async (value) => {
         setActiveTab(value);
         if (value === 'history' && user) {
@@ -210,7 +221,7 @@ const DIC = () => {
                 const spacing = 20;
                 combinedCanvas.width = frontCanvas.width + (backCanvas ? backCanvas.width + spacing : 0);
                 combinedCanvas.height = Math.max(frontCanvas.height, backCanvas ? backCanvas.height : 0);
-                
+
                 ctx.drawImage(frontCanvas, 0, 0);
                 if (backCanvas) {
                     ctx.drawImage(backCanvas, frontCanvas.width + spacing, 0);
@@ -234,14 +245,14 @@ const DIC = () => {
             toast({ title: "Erro ao Gerar", description: "Ocorreu um problema ao capturar o documento.", variant: "destructive" });
         }
     };
-    
+
     const handleGenerateAllDocs = async () => {
         const validDocs = documents.filter(d => d.is_valid);
         if (validDocs.length === 0) {
             toast({ title: "Aviso", description: "Nenhum documento válido para gerar." });
             return;
         }
-        
+
         setIsGeneratingAllPdfs(true);
         toast({ title: "Gerando PDF...", description: "Isso pode levar alguns segundos. O download começará em breve." });
 
@@ -250,47 +261,47 @@ const DIC = () => {
             let isFirstPage = true;
             const pagePadding = 40;
             const docSpacing = 20;
-        
+
             for (const doc of validDocs) {
                 const frontElement = docRefs.current[`${doc.id}-front`];
                 const backElement = docRefs.current[`${doc.id}-back`];
-        
+
                 if (frontElement) {
                     if (!isFirstPage) {
                         pdf.addPage();
                     }
                     isFirstPage = false;
-        
+
                     const frontCanvas = await html2canvas(frontElement, { scale: 2, backgroundColor: null, useCORS: true });
                     const pageWidth = pdf.internal.pageSize.getWidth();
                     const pageHeight = pdf.internal.pageSize.getHeight();
-                    
+
                     const availableWidth = pageWidth - (pagePadding * 2);
-                    
+
                     let yPos = pagePadding;
-    
+
                     pdf.setFontSize(16);
                     pdf.text(`${docInfo[doc.type]?.name || 'Documento'} - Frente`, pagePadding, yPos);
                     yPos += 10;
-    
+
                     const frontScale = availableWidth / frontCanvas.width;
                     const frontImgWidth = frontCanvas.width * frontScale;
                     const frontImgHeight = frontCanvas.height * frontScale;
-                    
+
                     pdf.addImage(frontCanvas.toDataURL('image/png'), 'PNG', pagePadding, yPos, frontImgWidth, frontImgHeight);
                     yPos += frontImgHeight + docSpacing;
-    
+
                     if (backElement) {
                         const backCanvas = await html2canvas(backElement, { scale: 2, backgroundColor: null, useCORS: true });
-                        
+
                         pdf.setFontSize(16);
                         pdf.text(`${docInfo[doc.type]?.name || 'Documento'} - Verso`, pagePadding, yPos);
                         yPos += 10;
-    
+
                         const backScale = availableWidth / backCanvas.width;
                         const backImgWidth = backCanvas.width * backScale;
                         const backImgHeight = backCanvas.height * backScale;
-    
+
                         if (yPos + backImgHeight > pageHeight - pagePadding) {
                             pdf.addPage();
                             yPos = pagePadding;
@@ -298,12 +309,12 @@ const DIC = () => {
                             pdf.text(`${docInfo[doc.type]?.name || 'Documento'} - Verso`, pagePadding, yPos);
                             yPos += 10;
                         }
-    
+
                         pdf.addImage(backCanvas.toDataURL('image/png'), 'PNG', pagePadding, yPos, backImgWidth, backImgHeight);
                     }
                 }
             }
-        
+
             pdf.save(`documentos_govrp_${user.username}.pdf`);
             toast({ title: "Sucesso", description: "PDF com todos os documentos gerado." });
         } catch (error) {
@@ -536,7 +547,7 @@ const DIC = () => {
                     );
                 })}
             </div>
-            
+
             <Dialog open={!!visualizingDoc} onOpenChange={() => setVisualizingDoc(null)}>
                 <DialogContent className="max-w-fit overflow-visible p-0 border-0 bg-transparent shadow-none [&>button]:hidden data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95">
                     {visualizingDoc && <OfficialDocument user={visualizingDoc.user || user} doc={visualizingDoc} onBack={() => setVisualizingDoc(null)} />}

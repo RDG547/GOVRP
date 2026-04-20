@@ -8,12 +8,25 @@ import {
   getServiceByKey,
   resolveServiceMode,
 } from '@/lib/serviceCatalog';
+import { useAuth } from '@/contexts/AuthContext';
 
 const ServiceAvailabilityGate = ({ serviceKey, children }) => {
+  const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [serviceMode, setServiceMode] = useState('active');
 
+  const rolePool = Array.isArray(user?.effective_roles)
+    ? user.effective_roles
+    : [user?.role].filter(Boolean);
+  const isAdmin = rolePool.includes('Admin') || user?.role === 'Admin';
+
   useEffect(() => {
+    if (isAdmin) {
+      setLoading(false);
+      setServiceMode('active');
+      return undefined;
+    }
+
     let isMounted = true;
 
     const fetchAvailability = async () => {
@@ -39,7 +52,7 @@ const ServiceAvailabilityGate = ({ serviceKey, children }) => {
     return () => {
       isMounted = false;
     };
-  }, [serviceKey]);
+  }, [serviceKey, isAdmin]);
 
   if (loading) {
     return (

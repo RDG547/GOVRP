@@ -56,10 +56,21 @@ export const AuthProvider = ({ children }) => {
         ? profile.titles.filter((title) => EFFECTIVE_ROLE_TITLES.has(title))
         : [];
       const grantedOfficeRoles = resolveActiveElectionOfficeRolesForUser(electionOfficeState, profile.id);
+      const filteredGrantedOfficeRoles = grantedOfficeRoles.filter((officeRole) => {
+        if (officeRole === 'Presidente') {
+          return executiveState?.currentPresidentProfile?.id === profile.id;
+        }
+
+        if (officeRole === 'Vice-Presidente') {
+          return executiveState?.currentViceProfile?.id === profile.id;
+        }
+
+        return true;
+      });
       let executiveTicketRole = null;
 
       titleRoles.forEach((roleTitle) => effectiveRoles.add(roleTitle));
-      grantedOfficeRoles.forEach((officeRole) => effectiveRoles.add(officeRole));
+      filteredGrantedOfficeRoles.forEach((officeRole) => effectiveRoles.add(officeRole));
 
       if (executiveState?.currentPresidentProfile?.id === profile.id) {
         effectiveRoles.add('Presidente');

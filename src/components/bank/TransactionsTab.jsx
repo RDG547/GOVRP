@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { formatCurrency } from '@/lib/utils';
-import { ArrowUpRight, ArrowDownLeft, Banknote, ShoppingCart, Landmark, Coins as HandCoins, Repeat, Loader2, ArrowRightLeft } from 'lucide-react';
+import { ArrowUpRight, ArrowDownLeft, Banknote, ShoppingCart, Landmark, Coins as HandCoins, Repeat, Loader2, ArrowRightLeft, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import ReceiptDownloadDialog from './ReceiptDownloadDialog';
 import { supabase } from '@/lib/supabaseClient';
@@ -55,13 +55,13 @@ const TransactionRow = ({ transaction, onShowReceipt }) => {
             if (isSent) return `Para: ${transaction.other_party_name || 'Desconhecido'}`;
             return `De: ${transaction.other_party_name || 'Desconhecido'}`;
         }
-        
+
         if (transaction.metadata?.platform) {
             return `Compra em ${transaction.metadata.platform}`;
         }
         return transaction.description || '';
     };
-    
+
     const getBadgeVariant = () => {
         if (isExchange) return 'secondary';
         return isSent ? 'destructive' : 'success';
@@ -104,10 +104,20 @@ const TransactionRow = ({ transaction, onShowReceipt }) => {
     );
 };
 
+const ITEMS_PER_PAGE = 10;
+
 const TransactionsTab = ({ transactions }) => {
     const { toast } = useToast();
     const [selectedReceipt, setSelectedReceipt] = useState(null);
     const [loadingReceipt, setLoadingReceipt] = useState(false);
+    const [currentPage, setCurrentPage] = useState(1);
+
+    const totalPages = Math.max(1, Math.ceil((transactions?.length || 0) / ITEMS_PER_PAGE));
+    const paginatedTransactions = useMemo(() => {
+        if (!transactions) return [];
+        const start = (currentPage - 1) * ITEMS_PER_PAGE;
+        return transactions.slice(start, start + ITEMS_PER_PAGE);
+    }, [transactions, currentPage]);
 
     const handleShowReceipt = async (transactionId) => {
         setLoadingReceipt(true);
@@ -126,7 +136,7 @@ const TransactionsTab = ({ transactions }) => {
         }
         setLoadingReceipt(false);
     };
-    
+
     return (
         <>
         <Card className="glass-effect overflow-hidden">
@@ -153,8 +163,8 @@ const TransactionsTab = ({ transactions }) => {
                                     </TableCell>
                                 </TableRow>
                             )}
-                            {transactions && transactions.length > 0 ? (
-                                transactions.map(tx => <TransactionRow key={tx.id} transaction={tx} onShowReceipt={handleShowReceipt}/>)
+                            {paginatedTransactions.length > 0 ? (
+                                paginatedTransactions.map(tx => <TransactionRow key={tx.id} transaction={tx} onShowReceipt={handleShowReceipt}/>)
                             ) : (
                                 <TableRow>
                                     <TableCell colSpan="4" className="text-center text-muted-foreground py-8">
@@ -165,10 +175,26 @@ const TransactionsTab = ({ transactions }) => {
                         </TableBody>
                     </Table>
                 </div>
+                {transactions && transactions.length > ITEMS_PER_PAGE && (
+                    <div className="flex items-center justify-between border-t border-border px-4 py-3 sm:px-6">
+                        <p className="text-sm text-muted-foreground">
+                            Mostrando {((currentPage - 1) * ITEMS_PER_PAGE) + 1}–{Math.min(currentPage * ITEMS_PER_PAGE, transactions.length)} de {transactions.length}
+                        </p>
+                        <div className="flex items-center gap-2">
+                            <Button variant="outline" size="sm" disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)}>
+                                <ChevronLeft className="w-4 h-4 mr-1" /> Anterior
+                            </Button>
+                            <span className="text-sm font-medium text-foreground">{currentPage} / {totalPages}</span>
+                            <Button variant="outline" size="sm" disabled={currentPage === totalPages} onClick={() => setCurrentPage(p => p + 1)}>
+                                Próximo <ChevronRight className="w-4 h-4 ml-1" />
+                            </Button>
+                        </div>
+                    </div>
+                )}
             </CardContent>
         </Card>
-        <ReceiptDownloadDialog 
-            receipt={selectedReceipt} 
+        <ReceiptDownloadDialog
+            receipt={selectedReceipt}
             onBack={() => setSelectedReceipt(null)}
         />
         </>

@@ -3,8 +3,8 @@ import {
   HOUSE_VICE_PRESIDENT_ROLES,
   PARLIAMENT_LEADERSHIP_ROLES,
   autoCloseExpiredVotings,
-} from './parliament';
-import { resolveParliamentHouseIdFromRole } from './roleResolution';
+} from './parliament.js';
+import { resolveParliamentHouseIdFromRole } from './roleResolution.js';
 
 export const PARLIAMENT_HOUSE_IDS = {
   chamber: 'a1b2c3d4-e5f6-7890-1234-567890abcdef',

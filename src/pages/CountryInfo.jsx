@@ -144,15 +144,15 @@ const CountryInfo = () => {
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <div className="flex justify-center mb-8">
               <TabsList className="bg-slate-900/50 border border-white/10 h-auto flex flex-wrap justify-center p-1 rounded-2xl gap-1">
-                <TabsTrigger value="constituticao" className="rounded-xl px-4 py-2 data-[state=active]:bg-blue-600 data-[state=active]:text-white">Constituição</TabsTrigger>
-                <TabsTrigger value="transparencia" className="rounded-xl px-4 py-2 data-[state=active]:bg-emerald-600 data-[state=active]:text-white">Transparência (Salários)</TabsTrigger>
-                <TabsTrigger value="geografia" className="rounded-xl px-4 py-2 data-[state=active]:bg-blue-600 data-[state=active]:text-white">Geografia</TabsTrigger>
-                <TabsTrigger value="demografia" className="rounded-xl px-4 py-2 data-[state=active]:bg-blue-600 data-[state=active]:text-white">Demografia</TabsTrigger>
-                <TabsTrigger value="economia" className="rounded-xl px-4 py-2 data-[state=active]:bg-blue-600 data-[state=active]:text-white">Economia</TabsTrigger>
-                <TabsTrigger value="governo" className="rounded-xl px-4 py-2 data-[state=active]:bg-blue-600 data-[state=active]:text-white">Governo e Política</TabsTrigger>
-                <TabsTrigger value="cultura" className="rounded-xl px-4 py-2 data-[state=active]:bg-blue-600 data-[state=active]:text-white">Cultura e Sociedade</TabsTrigger>
-                <TabsTrigger value="infraestrutura" className="rounded-xl px-4 py-2 data-[state=active]:bg-blue-600 data-[state=active]:text-white">Infraestrutura</TabsTrigger>
-                <TabsTrigger value="internacional" className="rounded-xl px-4 py-2 data-[state=active]:bg-blue-600 data-[state=active]:text-white">Relações Internacionais</TabsTrigger>
+                <TabsTrigger value="constituticao" className="rounded-xl px-4 py-2 data-[state=active]:bg-blue-600 data-[state=active]:text-white"><ScrollText className="w-4 h-4 mr-1.5 inline-block" />Constituição</TabsTrigger>
+                <TabsTrigger value="transparencia" className="rounded-xl px-4 py-2 data-[state=active]:bg-emerald-600 data-[state=active]:text-white"><DollarSign className="w-4 h-4 mr-1.5 inline-block" />Transparência (Salários)</TabsTrigger>
+                <TabsTrigger value="geografia" className="rounded-xl px-4 py-2 data-[state=active]:bg-blue-600 data-[state=active]:text-white"><Mountain className="w-4 h-4 mr-1.5 inline-block" />Geografia</TabsTrigger>
+                <TabsTrigger value="demografia" className="rounded-xl px-4 py-2 data-[state=active]:bg-blue-600 data-[state=active]:text-white"><Users className="w-4 h-4 mr-1.5 inline-block" />Demografia</TabsTrigger>
+                <TabsTrigger value="economia" className="rounded-xl px-4 py-2 data-[state=active]:bg-blue-600 data-[state=active]:text-white"><Landmark className="w-4 h-4 mr-1.5 inline-block" />Economia</TabsTrigger>
+                <TabsTrigger value="governo" className="rounded-xl px-4 py-2 data-[state=active]:bg-blue-600 data-[state=active]:text-white"><Building className="w-4 h-4 mr-1.5 inline-block" />Governo e Política</TabsTrigger>
+                <TabsTrigger value="cultura" className="rounded-xl px-4 py-2 data-[state=active]:bg-blue-600 data-[state=active]:text-white"><BookOpen className="w-4 h-4 mr-1.5 inline-block" />Cultura e Sociedade</TabsTrigger>
+                <TabsTrigger value="infraestrutura" className="rounded-xl px-4 py-2 data-[state=active]:bg-blue-600 data-[state=active]:text-white"><Lightbulb className="w-4 h-4 mr-1.5 inline-block" />Infraestrutura</TabsTrigger>
+                <TabsTrigger value="internacional" className="rounded-xl px-4 py-2 data-[state=active]:bg-blue-600 data-[state=active]:text-white"><Globe className="w-4 h-4 mr-1.5 inline-block" />Relações Internacionais</TabsTrigger>
               </TabsList>
             </div>
 
@@ -226,7 +226,7 @@ const CountryInfo = () => {
                   </div>
                   <h2 className="text-3xl font-bold text-foreground">Salários dos Servidores Públicos</h2>
                   <p className="text-muted-foreground mt-2">
-                    Consulte os valores salariais dos ocupantes de cargos públicos. Os salários são pagos semanalmente, 
+                    Consulte os valores salariais dos ocupantes de cargos públicos. Os salários são pagos semanalmente,
                     toda <strong className="text-foreground">Segunda-feira às 10h da manhã</strong>, com recursos do Cofre da União.
                   </p>
                 </div>
@@ -268,7 +268,7 @@ const CountryInfo = () => {
                 <div className="mt-4 flex items-start gap-3 rounded-lg border border-blue-500/20 bg-blue-500/5 p-4">
                   <Landmark className="h-5 w-5 text-blue-400 flex-shrink-0 mt-0.5" />
                   <div className="text-sm text-muted-foreground">
-                    <strong className="text-foreground">Nota:</strong> Todos os pagamentos são realizados automaticamente a cada segunda-feira e 
+                    <strong className="text-foreground">Nota:</strong> Todos os pagamentos são realizados automaticamente a cada segunda-feira e
                     publicados no Diário Oficial da União para garantir total transparência com os cidadãos.
                   </div>
                 </div>
@@ -283,7 +283,7 @@ const CountryInfo = () => {
                 <DetailItem icon={Sun} label="Clima" value="Predominantemente tropical, com regiões áridas no nordeste e temperadas no sul." />
               </DetailedSection>
             </TabsContent>
-            
+
             <TabsContent value="demografia" className="mt-0 outline-none">
               <DetailedSection title="Dados Demográficos" icon={Users} description="Estatísticas populacionais e socioculturais.">
                 <DetailItem icon={User} label="População" value="150 milhões de habitantes. 60% urbana, 40% rural." />
@@ -295,17 +295,17 @@ const CountryInfo = () => {
 
             <TabsContent value="economia" className="mt-0 outline-none">
               <DetailedSection title="Economia" icon={DollarSign} description="Indicadores econômicos e base financeira nacional.">
-                <DetailItem 
-                  icon={DollarSign} 
-                  label="PIB (Produto Interno Bruto)" 
-                  value={loading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'R$ 3.000.150,34'} 
+                <DetailItem
+                  icon={DollarSign}
+                  label="PIB (Produto Interno Bruto)"
+                  value={loading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'R$ 3.000.150,34'}
                 />
                 <DetailItem icon={Factory} label="Setores Econômicos" value="Serviços (65%), Indústria (25%), Agricultura (10%)." />
                 <DetailItem icon={Droplet} label="Moeda" value="Real (R$)." />
                 <DetailItem icon={Handshake} label="Comércio Exterior" value="Principais parceiros: China, EUA, Argentina. Exporta soja, minério de ferro e tecnologia." />
-                <DetailItem 
-                  icon={surplusDeficit >= 0 ? ArrowUp : ArrowDown} 
-                  label={surplusDeficit >= 0 ? 'Superávit' : 'Déficit'} 
+                <DetailItem
+                  icon={surplusDeficit >= 0 ? ArrowUp : ArrowDown}
+                  label={surplusDeficit >= 0 ? 'Superávit' : 'Déficit'}
                   value={loading ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
                   ) : (

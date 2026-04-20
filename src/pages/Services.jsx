@@ -8,29 +8,30 @@ import PageHeader from '@/components/layout/PageHeader';
 import { supabase } from '@/lib/supabaseClient';
 import {
   fetchServiceAvailabilitySettings,
+  SERVICE_MODE_META,
   resolveServiceMode,
   SERVICE_CATEGORIES,
 } from '@/lib/serviceCatalog';
 
-const SERVICE_MODE_META = {
-  active: {
-    badge: null,
-    cta: 'Acessar Serviço',
-  },
-  coming_soon: {
-    badge: 'Em breve',
-    badgeClassName: 'bg-cyan-500/15 text-cyan-300 border-cyan-500/30',
-    cta: 'Ver lançamento',
-  },
-  maintenance: {
-    badge: 'Em manutenção',
-    badgeClassName: 'bg-amber-500/15 text-amber-300 border-amber-500/30',
-    cta: 'Ver atualização',
-  },
-};
-
 const ServiceCard = ({ service, mode }) => {
-  const modeMeta = SERVICE_MODE_META[mode] || SERVICE_MODE_META.active;
+  const baseModeMeta = SERVICE_MODE_META[mode] || SERVICE_MODE_META.active;
+  const modeMeta = {
+    ...baseModeMeta,
+    badge: mode === 'active' ? null : baseModeMeta.label,
+    badgeClassName:
+      mode === 'coming_soon'
+        ? 'bg-cyan-500/15 text-cyan-300 border-cyan-500/30'
+        : mode === 'maintenance'
+          ? 'bg-amber-500/15 text-amber-300 border-amber-500/30'
+          : '',
+    cta:
+      mode === 'coming_soon'
+        ? 'Ver lançamento'
+        : mode === 'maintenance'
+          ? 'Ver atualização'
+          : 'Acessar Serviço',
+  };
+  const ModeIcon = modeMeta.icon;
 
   return (
     <motion.div
@@ -49,6 +50,7 @@ const ServiceCard = ({ service, mode }) => {
               </div>
               {modeMeta.badge ? (
                 <Badge className={`${modeMeta.badgeClassName} border whitespace-nowrap`}>
+                  <ModeIcon className="mr-1 h-3.5 w-3.5" />
                   {modeMeta.badge}
                 </Badge>
               ) : null}

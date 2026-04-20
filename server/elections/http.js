@@ -1,5 +1,13 @@
 import process from 'node:process';
 import { createClient } from '@supabase/supabase-js';
+import {
+  canRunForPresidency,
+  fetchExecutiveConstitutionalState,
+  fetchExecutiveGovernanceSettings,
+  fetchPotentialRunningMates,
+  fetchPresidentialElectionHistory,
+  saveExecutiveGovernanceSettings,
+} from '../../src/lib/executiveGovernance.js';
 
 const TRACKED_OFFICE_ROLES = ['Presidente', 'Vice-Presidente', 'Deputado', 'Senador'];
 const OFFICE_LABELS = {
@@ -20,6 +28,11 @@ const PARLIAMENT_HOUSE_IDS = {
 };
 const EXECUTIVE_GOVERNANCE_SETTINGS_KEY = 'executive_governance';
 const ELECTION_OFFICE_SYNC_SETTINGS_KEY = 'election_office_sync';
+const ACTIVE_CANDIDACY_STATUSES = ['Pendente', 'Approved'];
+const VICE_CANDIDACY_INVITATION_TYPE = 'vice_candidacy_invitation';
+const VICE_CANDIDACY_TRACKER_TYPE = 'vice_candidacy_request_sent';
+const VICE_CANDIDACY_ACCEPTED_TYPE = 'vice_candidacy_request_accepted';
+const VICE_CANDIDACY_REJECTED_TYPE = 'vice_candidacy_request_rejected';
 
 let serverSupabase;
 
@@ -64,6 +77,11 @@ const getRequiredServerEnv = (name) => {
   return value;
 };
 
+const getPublicServerKey = () =>
+  process.env.VITE_SUPABASE_PUBLISHABLE_KEY?.trim() ||
+  process.env.VITE_SUPABASE_ANON_KEY?.trim() ||
+  '';
+
 const getServerSupabase = () => {
   if (!serverSupabase) {
     serverSupabase = createClient(
@@ -81,8 +99,347 @@ const getServerSupabase = () => {
   return serverSupabase;
 };
 
+const getUserScopedSupabase = (accessToken) =>
+  createClient(
+    getRequiredServerEnv('VITE_SUPABASE_URL'),
+    getPublicServerKey() || getRequiredServerEnv('VITE_SUPABASE_ANON_KEY'),
+    {
+      global: {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      },
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+    }
+  );
+
 const dedupe = (values = []) => [...new Set(values.filter(Boolean))];
 const toDateOnly = (value) => (typeof value === 'string' ? value.slice(0, 10) : '');
+const trimString = (value) => (typeof value === 'string' ? value.trim() : '');
+const getNotificationMetadata = (notification) =>
+  notification?.metadata && typeof notification.metadata === 'object' ? notification.metadata : {};
+const resolveProfileDisplayName = (profile, fallback = 'Cidadão') =>
+  trimString(profile?.full_name) ||
+  trimString(profile?.username) ||
+  trimString(profile?.x_handle) ||
+  fallback;
+const isPendingNotificationStatus = (status) => trimString(status).toLowerCase() === 'pending';
+
+const readJsonBody = async (request) => {
+  if (request.body && typeof request.body === 'object') {
+    return request.body;
+  }
+
+  if (typeof request.body === 'string') {
+    return request.body.trim() ? JSON.parse(request.body) : {};
+  }
+
+  return await new Promise((resolve, reject) => {
+    let rawBody = '';
+
+    request.on('data', (chunk) => {
+      rawBody += chunk;
+    });
+
+    request.on('end', () => {
+      if (!rawBody.trim()) {
+        resolve({});
+        return;
+      }
+
+      try {
+        resolve(JSON.parse(rawBody));
+      } catch (error) {
+        reject(new Error('Corpo JSON invalido.'));
+      }
+    });
+
+    request.on('error', reject);
+  });
+};
+
+const getBearerToken = (request) => {
+  const authorization = request.headers?.authorization || request.headers?.Authorization;
+
+  if (!authorization || !authorization.toLowerCase().startsWith('bearer ')) {
+    return null;
+  }
+
+  return authorization.slice(7).trim();
+};
+
+const createHttpError = (message, statusCode) => {
+  const error = new Error(message);
+  error.statusCode = statusCode;
+  return error;
+};
+
+const ensureAuthenticatedRequester = async (supabase, request) => {
+  const token = getBearerToken(request);
+
+  if (!token) {
+    throw createHttpError('Sessao invalida.', 401);
+  }
+
+  const { data: authData, error: authError } = await supabase.auth.getUser(token);
+
+  if (authError || !authData?.user?.id) {
+    throw createHttpError('Nao foi possivel validar a sessao do usuario.', 401);
+  }
+
+  return {
+    user: authData.user,
+    accessToken: token,
+  };
+};
+
+const fetchProfileById = async (supabase, profileId) => {
+  if (!profileId) {
+    return null;
+  }
+
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id, full_name, username, avatar_url, role, x_handle')
+    .eq('id', profileId)
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  return data || null;
+};
+
+const fetchPartyMembership = async (supabase, userId) => {
+  if (!userId) {
+    return null;
+  }
+
+  const { data, error } = await supabase
+    .from('party_members')
+    .select('party_id')
+    .eq('user_id', userId)
+    .maybeSingle();
+
+  if (error && error.code !== 'PGRST116') {
+    throw error;
+  }
+
+  return data?.party_id || null;
+};
+
+const fetchPartyById = async (supabase, partyId) => {
+  if (!partyId) {
+    return null;
+  }
+
+  const { data, error } = await supabase
+    .from('political_parties')
+    .select('id, name, acronym')
+    .eq('id', partyId)
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  return data || null;
+};
+
+const fetchUserNotificationsByType = async (supabase, userId, type) => {
+  if (!userId || !type) {
+    return [];
+  }
+
+  const { data, error } = await supabase
+    .from('notifications')
+    .select('id, user_id, sender_id, type, content, link, is_read, metadata, created_at')
+    .eq('user_id', userId)
+    .eq('type', type)
+    .order('created_at', { ascending: false })
+    .limit(100);
+
+  if (error) {
+    throw error;
+  }
+
+  return data || [];
+};
+
+const matchesViceRequestMetadata = (
+  metadata,
+  {
+    electionId = null,
+    candidateUserId = null,
+    viceCandidateId = null,
+    status = 'pending',
+  } = {}
+) => {
+  const normalizedMetadata = metadata && typeof metadata === 'object' ? metadata : {};
+  const notificationStatus = trimString(normalizedMetadata.status || 'pending').toLowerCase();
+
+  if (status && notificationStatus !== trimString(status).toLowerCase()) {
+    return false;
+  }
+
+  if (electionId && normalizedMetadata.election_id !== electionId) {
+    return false;
+  }
+
+  if (candidateUserId && normalizedMetadata.candidate_user_id !== candidateUserId) {
+    return false;
+  }
+
+  if (viceCandidateId && normalizedMetadata.vice_candidate_id !== viceCandidateId) {
+    return false;
+  }
+
+  return true;
+};
+
+const updateNotificationMetadata = async (supabase, notificationId, metadata, extraPatch = {}) => {
+  if (!notificationId) {
+    return;
+  }
+
+  const { error } = await supabase
+    .from('notifications')
+    .update({
+      metadata,
+      ...extraPatch,
+    })
+    .eq('id', notificationId);
+
+  if (error) {
+    throw error;
+  }
+};
+
+const updateTrackerNotificationsStatus = async (
+  supabase,
+  {
+    candidateUserId,
+    electionId,
+    viceCandidateId,
+    nextStatus,
+    extraMetadata = {},
+  }
+) => {
+  if (!candidateUserId || !electionId || !viceCandidateId || !nextStatus) {
+    return;
+  }
+
+  const trackerNotifications = await fetchUserNotificationsByType(
+    supabase,
+    candidateUserId,
+    VICE_CANDIDACY_TRACKER_TYPE
+  );
+
+  const matchingTrackers = trackerNotifications.filter((notification) =>
+    matchesViceRequestMetadata(getNotificationMetadata(notification), {
+      electionId,
+      viceCandidateId,
+      status: 'pending',
+    })
+  );
+
+  for (const tracker of matchingTrackers) {
+    const currentMetadata = getNotificationMetadata(tracker);
+    await updateNotificationMetadata(supabase, tracker.id, {
+      ...currentMetadata,
+      status: nextStatus,
+      responded_at: new Date().toISOString(),
+      ...extraMetadata,
+    });
+  }
+};
+
+const fetchActiveCandidacyForUser = async (supabase, userId) => {
+  if (!userId) {
+    return null;
+  }
+
+  const { data, error } = await supabase
+    .from('candidates')
+    .select('id, election_id, user_id, vice_candidate_id, status')
+    .eq('user_id', userId)
+    .in('status', ACTIVE_CANDIDACY_STATUSES)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error && error.code !== 'PGRST116') {
+    throw error;
+  }
+
+  return data || null;
+};
+
+const fetchElectionParticipantConflicts = async (supabase, electionId, participantIds = []) => {
+  const ids = dedupe(participantIds);
+
+  if (!electionId || !ids.length) {
+    return [];
+  }
+
+  const { data, error } = await supabase
+    .from('candidates')
+    .select('id, election_id, user_id, vice_candidate_id, status')
+    .eq('election_id', electionId)
+    .in('status', ACTIVE_CANDIDACY_STATUSES)
+    .or(
+      ids
+        .flatMap((id) => [`user_id.eq.${id}`, `vice_candidate_id.eq.${id}`])
+        .join(',')
+    );
+
+  if (error) {
+    throw error;
+  }
+
+  return data || [];
+};
+
+const fetchElectionById = async (supabase, electionId) => {
+  if (!electionId) {
+    return null;
+  }
+
+  const { data, error } = await supabase
+    .from('elections')
+    .select('id, name, status, election_type_id, election_types(id, name, voting_system, requires_vice_candidate)')
+    .eq('id', electionId)
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  return data || null;
+};
+
+const ensurePresidentialElectionSubmissionAllowed = async (supabase, election, requesterId) => {
+  if (!election?.id || !election?.election_types?.requires_vice_candidate) {
+    throw createHttpError('Esta rota atende apenas candidaturas presidenciais em chapa.', 400);
+  }
+
+  if (election.status !== 'Candidacy') {
+    throw createHttpError('A janela de registro desta eleição não está aberta.', 400);
+  }
+
+  const presidentialHistory = await fetchPresidentialElectionHistory(supabase);
+
+  if (!canRunForPresidency(presidentialHistory.elections, requesterId)) {
+    throw createHttpError(
+      'Voce ja venceu as duas ultimas eleicoes presidenciais consecutivas e nao pode disputar novamente agora.',
+      400
+    );
+  }
+};
 
 const addOneMonth = (dateValue) => {
   const date = new Date(dateValue);
@@ -697,6 +1054,494 @@ export const syncElectionOfficesHandler = async (request, response) => {
     console.error('[elections:sync-offices]', error);
     json(response, 500, {
       error: error instanceof Error ? error.message : 'Não foi possível sincronizar os cargos eleitorais.',
+    });
+  }
+};
+
+export const submitPresidentialCandidacyHandler = async (request, response) => {
+  if (!ensureMethod(request, response, 'POST')) {
+    return;
+  }
+
+  const supabase = getServerSupabase();
+
+  try {
+    const { user: requester } = await ensureAuthenticatedRequester(supabase, request);
+    const payload = await readJsonBody(request);
+    const electionId = trimString(payload.electionId);
+    const selectedViceCandidateId = trimString(payload.viceCandidateId);
+    const politicalName = trimString(payload.politicalName);
+    const bio = trimString(payload.bio);
+    const proposals = trimString(payload.proposals);
+    const campaignPhotoUrl = trimString(payload.campaignPhotoUrl);
+
+    if (!electionId || !selectedViceCandidateId || !politicalName || !bio || !proposals || !campaignPhotoUrl) {
+      throw createHttpError('Dados incompletos para registrar a chapa presidencial.', 400);
+    }
+
+    if (selectedViceCandidateId === requester.id) {
+      throw createHttpError('Voce nao pode escolher a si mesmo como vice-presidente.', 400);
+    }
+
+    const election = await fetchElectionById(supabase, electionId);
+
+    if (!election?.id) {
+      throw createHttpError('Eleicao nao encontrada.', 404);
+    }
+
+    await ensurePresidentialElectionSubmissionAllowed(supabase, election, requester.id);
+
+    const [
+      requesterProfile,
+      viceProfile,
+      requesterPartyId,
+      activeCandidacy,
+      pendingTrackerNotifications,
+      vicePendingInvitations,
+      electionParticipantConflicts,
+    ] = await Promise.all([
+      fetchProfileById(supabase, requester.id),
+      fetchProfileById(supabase, selectedViceCandidateId),
+      fetchPartyMembership(supabase, requester.id),
+      fetchActiveCandidacyForUser(supabase, requester.id),
+      fetchUserNotificationsByType(supabase, requester.id, VICE_CANDIDACY_TRACKER_TYPE),
+      fetchUserNotificationsByType(supabase, selectedViceCandidateId, VICE_CANDIDACY_INVITATION_TYPE),
+      fetchElectionParticipantConflicts(supabase, electionId, [requester.id, selectedViceCandidateId]),
+    ]);
+
+    if (!requesterProfile?.id) {
+      throw createHttpError('Perfil do candidato nao encontrado.', 404);
+    }
+
+    if (!viceProfile?.id) {
+      throw createHttpError('Perfil do vice-presidente nao encontrado.', 404);
+    }
+
+    if (['Admin', 'Presidente'].includes(viceProfile.role)) {
+      throw createHttpError('O usuario selecionado nao pode compor a chapa como vice-presidente.', 400);
+    }
+
+    if (activeCandidacy?.id) {
+      throw createHttpError('Voce ja possui uma candidatura ativa no momento.', 409);
+    }
+
+    if (
+      pendingTrackerNotifications.some((notification) =>
+        isPendingNotificationStatus(getNotificationMetadata(notification).status)
+      )
+    ) {
+      throw createHttpError('Ja existe uma chapa presidencial aguardando aceite do vice em seu nome.', 409);
+    }
+
+    if (
+      vicePendingInvitations.some((notification) =>
+        matchesViceRequestMetadata(getNotificationMetadata(notification), {
+          electionId,
+          status: 'pending',
+        })
+      )
+    ) {
+      throw createHttpError('O vice selecionado ja possui um convite pendente para esta eleicao.', 409);
+    }
+
+    if (electionParticipantConflicts.length) {
+      throw createHttpError(
+        'Um dos participantes ja esta vinculado a outra candidatura ativa nesta eleicao.',
+        409
+      );
+    }
+
+    const party = await fetchPartyById(supabase, requesterPartyId);
+    const candidateName = resolveProfileDisplayName(requesterProfile, 'Candidato');
+    const viceName = resolveProfileDisplayName(viceProfile, 'Vice indicado');
+    const nowIso = new Date().toISOString();
+
+    const invitationMetadata = {
+      status: 'pending',
+      submitted_at: nowIso,
+      election_id: election.id,
+      election_name: election.name,
+      party_id: party?.id || null,
+      party_name: party?.name || null,
+      party_acronym: party?.acronym || null,
+      candidate_user_id: requester.id,
+      candidate_name: candidateName,
+      vice_candidate_id: viceProfile.id,
+      vice_candidate_name: viceName,
+      political_name: politicalName,
+      bio,
+      proposals,
+      campaign_photo_url: campaignPhotoUrl,
+    };
+
+    const trackerMetadata = {
+      ...invitationMetadata,
+      status: 'pending',
+    };
+
+    const { data: invitationRow, error: invitationError } = await supabase.from('notifications')
+      .insert({
+        user_id: viceProfile.id,
+        sender_id: requester.id,
+        type: VICE_CANDIDACY_INVITATION_TYPE,
+        content: `${candidateName} convidou voce para compor a chapa presidencial da eleicao "${election.name}".`,
+        link: '/services/elections',
+        is_read: false,
+        metadata: invitationMetadata,
+      })
+      .select('id')
+      .single();
+
+    if (invitationError) {
+      throw invitationError;
+    }
+
+    const { error: trackerError } = await supabase.from('notifications').insert({
+        user_id: requester.id,
+        sender_id: requester.id,
+        type: VICE_CANDIDACY_TRACKER_TYPE,
+        content: `Convite de vice-presidente enviado para ${viceName} na eleicao "${election.name}".`,
+        link: '/services/elections',
+        is_read: false,
+        metadata: trackerMetadata,
+      });
+
+    if (trackerError) {
+      if (invitationRow?.id) {
+        await supabase.from('notifications').delete().eq('id', invitationRow.id);
+      }
+      throw trackerError;
+    }
+
+    json(response, 200, {
+      success: true,
+      pendingViceApproval: true,
+      message:
+        'O convite foi enviado ao vice escolhido. A candidatura seguira para analise quando ele aceitar a chapa.',
+    });
+  } catch (error) {
+    const statusCode = error?.statusCode || 500;
+
+    console.error('[elections:submit-presidential-candidacy]', error);
+    json(response, statusCode, {
+      error:
+        error instanceof Error ? error.message : 'Nao foi possivel registrar a chapa presidencial.',
+    });
+  }
+};
+
+export const respondViceCandidacyInvitationHandler = async (request, response) => {
+  if (!ensureMethod(request, response, 'POST')) {
+    return;
+  }
+
+  const supabase = getServerSupabase();
+
+  try {
+    const { user: requester } = await ensureAuthenticatedRequester(supabase, request);
+    const payload = await readJsonBody(request);
+    const invitationNotificationId = trimString(payload.notificationId);
+    const accepted = Boolean(payload.accepted);
+
+    if (!invitationNotificationId) {
+      throw createHttpError('Convite nao informado.', 400);
+    }
+
+    const { data: invitationNotification, error: invitationError } = await supabase
+      .from('notifications')
+      .select('id, user_id, sender_id, type, content, link, is_read, metadata, created_at')
+      .eq('id', invitationNotificationId)
+      .maybeSingle();
+
+    if (invitationError) {
+      throw invitationError;
+    }
+
+    if (!invitationNotification?.id || invitationNotification.type !== VICE_CANDIDACY_INVITATION_TYPE) {
+      throw createHttpError('Convite de vice nao encontrado.', 404);
+    }
+
+    if (invitationNotification.user_id !== requester.id) {
+      throw createHttpError('Voce nao tem permissao para responder este convite.', 403);
+    }
+
+    const invitationMetadata = getNotificationMetadata(invitationNotification);
+
+    if (!matchesViceRequestMetadata(invitationMetadata, { status: 'pending' })) {
+      throw createHttpError('Este convite de vice ja foi respondido.', 409);
+    }
+
+    const electionId = trimString(invitationMetadata.election_id);
+    const candidateUserId = trimString(invitationMetadata.candidate_user_id);
+    const viceCandidateId = trimString(invitationMetadata.vice_candidate_id || requester.id);
+
+    if (!electionId || !candidateUserId || !viceCandidateId) {
+      throw createHttpError('Os dados do convite estao incompletos.', 400);
+    }
+
+    const [
+      election,
+      candidateProfile,
+      viceProfile,
+      candidateActiveCandidacy,
+      electionParticipantConflicts,
+    ] = await Promise.all([
+      fetchElectionById(supabase, electionId),
+      fetchProfileById(supabase, candidateUserId),
+      fetchProfileById(supabase, viceCandidateId),
+      fetchActiveCandidacyForUser(supabase, candidateUserId),
+      fetchElectionParticipantConflicts(supabase, electionId, [candidateUserId, viceCandidateId]),
+    ]);
+
+    if (!election?.id) {
+      throw createHttpError('A eleicao vinculada a este convite nao foi encontrada.', 404);
+    }
+
+    if (election.status !== 'Candidacy') {
+      throw createHttpError('A fase de candidaturas desta eleicao ja foi encerrada.', 400);
+    }
+
+    if (!candidateProfile?.id || !viceProfile?.id) {
+      throw createHttpError('Nao foi possivel localizar os perfis da chapa.', 404);
+    }
+
+    const candidateName = resolveProfileDisplayName(candidateProfile, 'Candidato');
+    const viceName = resolveProfileDisplayName(viceProfile, 'Vice indicado');
+
+    if (!accepted) {
+      await updateNotificationMetadata(supabase, invitationNotification.id, {
+        ...invitationMetadata,
+        status: 'rejected',
+        responded_at: new Date().toISOString(),
+      }, { is_read: true });
+
+      await updateTrackerNotificationsStatus(supabase, {
+        candidateUserId,
+        electionId,
+        viceCandidateId,
+        nextStatus: 'rejected',
+      });
+
+      const { error: candidateNotificationError } = await supabase.from('notifications').insert({
+        user_id: candidateUserId,
+        sender_id: requester.id,
+        type: VICE_CANDIDACY_REJECTED_TYPE,
+        content: `${viceName} recusou compor sua chapa presidencial na eleicao "${election.name}". Escolha outro vice para seguir.`,
+        link: '/services/elections',
+        is_read: false,
+        metadata: {
+          election_id: electionId,
+          election_name: election.name,
+          vice_candidate_id: viceCandidateId,
+          vice_candidate_name: viceName,
+        },
+      });
+
+      if (candidateNotificationError) {
+        throw candidateNotificationError;
+      }
+
+      json(response, 200, {
+        success: true,
+        message: 'Convite recusado. O candidato ja foi notificado para indicar outro vice.',
+      });
+      return;
+    }
+
+    if (candidateActiveCandidacy?.id) {
+      throw createHttpError('O candidato ja possui uma candidatura ativa e este convite nao pode mais ser aceito.', 409);
+    }
+
+    if (electionParticipantConflicts.length) {
+      throw createHttpError(
+        'Um dos participantes ja esta vinculado a outra candidatura ativa nesta eleicao.',
+        409
+      );
+    }
+
+    const { data: candidateRow, error: candidateInsertError } = await supabase
+      .from('candidates')
+      .insert({
+        election_id: electionId,
+        user_id: candidateUserId,
+        party_id: invitationMetadata.party_id || null,
+        vice_candidate_id: viceCandidateId,
+        political_name: trimString(invitationMetadata.political_name),
+        bio: trimString(invitationMetadata.bio),
+        proposals: trimString(invitationMetadata.proposals),
+        campaign_photo_url: trimString(invitationMetadata.campaign_photo_url),
+        status: 'Pendente',
+      })
+      .select('id')
+      .single();
+
+    if (candidateInsertError) {
+      throw candidateInsertError;
+    }
+
+    await updateNotificationMetadata(supabase, invitationNotification.id, {
+      ...invitationMetadata,
+      status: 'accepted',
+      responded_at: new Date().toISOString(),
+      candidate_id: candidateRow?.id || null,
+    }, { is_read: true });
+
+    await updateTrackerNotificationsStatus(supabase, {
+      candidateUserId,
+      electionId,
+      viceCandidateId,
+      nextStatus: 'accepted',
+      extraMetadata: {
+        candidate_id: candidateRow?.id || null,
+      },
+    });
+
+    const { error: acceptedNotificationError } = await supabase.from('notifications').insert({
+      user_id: candidateUserId,
+      sender_id: requester.id,
+      type: VICE_CANDIDACY_ACCEPTED_TYPE,
+      content: `${viceName} aceitou compor sua chapa presidencial na eleicao "${election.name}". A candidatura foi enviada para analise.`,
+      link: '/services/elections',
+      is_read: false,
+      metadata: {
+        election_id: electionId,
+        election_name: election.name,
+        vice_candidate_id: viceCandidateId,
+        vice_candidate_name: viceName,
+        candidate_id: candidateRow?.id || null,
+      },
+    });
+
+    if (acceptedNotificationError) {
+      throw acceptedNotificationError;
+    }
+
+    json(response, 200, {
+      success: true,
+      message: 'Chapa aceita com sucesso. A candidatura presidencial foi enviada para analise.',
+    });
+  } catch (error) {
+    const statusCode = error?.statusCode || 500;
+
+    console.error('[elections:respond-vice-candidacy-invitation]', error);
+    json(response, statusCode, {
+      error:
+        error instanceof Error ? error.message : 'Nao foi possivel responder ao convite de vice.',
+    });
+  }
+};
+
+export const resignPresidencyHandler = async (request, response) => {
+  if (!ensureMethod(request, response, 'POST')) {
+    return;
+  }
+
+  const supabase = getServerSupabase();
+
+  try {
+    const { user: requester, accessToken } = await ensureAuthenticatedRequester(supabase, request);
+    const executiveState = await fetchExecutiveConstitutionalState(supabase);
+    const currentPresidentId = executiveState?.currentPresidentProfile?.id || null;
+    const currentViceId = executiveState?.currentViceProfile?.id || null;
+
+    if (!currentPresidentId || currentPresidentId !== requester.id) {
+      throw createHttpError('Apenas o presidente em exercicio pode registrar a renuncia.', 403);
+    }
+
+    const userScopedSupabase = getUserScopedSupabase(accessToken);
+    const { data, error } = await userScopedSupabase.rpc('resign_presidency');
+
+    if (error || !data?.success) {
+      throw createHttpError(data?.message || error?.message || 'Nao foi possivel registrar a renuncia presidencial.', 400);
+    }
+
+    if (currentViceId && executiveState?.currentTerm?.id) {
+      const settings = await fetchExecutiveGovernanceSettings(supabase);
+
+      await saveExecutiveGovernanceSettings(supabase, {
+        ...settings.value,
+        officeVacancy: {
+          vacant: false,
+          since: null,
+          reason: '',
+          triggered_by: null,
+        },
+        presidentialSuccession: {
+          promoted_president_id: currentViceId,
+          previous_vice_id: currentViceId,
+          former_president_id: currentPresidentId,
+          term_election_id: executiveState.currentTerm.id,
+          promoted_at: new Date().toISOString(),
+          reason: 'Renuncia presidencial',
+          triggered_by: requester.id,
+        },
+      });
+
+      const { error: successionNotificationError } = await supabase.from('notifications').insert([
+        {
+          user_id: currentViceId,
+          sender_id: requester.id,
+          type: 'executive_succession',
+          content: 'Com a renuncia presidencial, voce assumiu automaticamente a Presidencia da Republica.',
+          link: '/dashboard/president',
+          is_read: false,
+          metadata: {
+            succession_type: 'vice_assumed_presidency',
+            term_election_id: executiveState.currentTerm.id,
+            former_president_id: currentPresidentId,
+          },
+        },
+        {
+          user_id: currentPresidentId,
+          sender_id: requester.id,
+          type: 'executive_succession',
+          content: 'Sua renuncia foi registrada e a Vice-Presidencia assumiu automaticamente a Presidencia da Republica.',
+          link: '/services/elections',
+          is_read: false,
+          metadata: {
+            succession_type: 'vice_assumed_presidency',
+            term_election_id: executiveState.currentTerm.id,
+            successor_id: currentViceId,
+          },
+        },
+      ]);
+
+      if (successionNotificationError) {
+        throw successionNotificationError;
+      }
+
+      json(response, 200, {
+        success: true,
+        viceAssumedOffice: true,
+        message: 'Renuncia registrada com sucesso. O vice-presidente assumiu automaticamente a Presidencia.',
+      });
+      return;
+    }
+
+    const settings = await fetchExecutiveGovernanceSettings(supabase);
+    await saveExecutiveGovernanceSettings(supabase, {
+      ...settings.value,
+      officeVacancy: {
+        vacant: true,
+        since: new Date().toISOString(),
+        reason: 'Renuncia presidencial',
+        triggered_by: requester.id,
+      },
+      presidentialSuccession: null,
+    });
+
+    json(response, 200, {
+      success: true,
+      viceAssumedOffice: false,
+      message: 'Renuncia registrada com sucesso. O cargo presidencial ficou vago por ausencia de vice ativo.',
+    });
+  } catch (error) {
+    const statusCode = error?.statusCode || 500;
+
+    console.error('[elections:resign-presidency]', error);
+    json(response, statusCode, {
+      error:
+        error instanceof Error ? error.message : 'Nao foi possivel registrar a renuncia presidencial.',
     });
   }
 };

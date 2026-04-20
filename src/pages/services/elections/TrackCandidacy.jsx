@@ -48,6 +48,7 @@ const TrackCandidacy = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [candidacies, setCandidacies] = useState([]);
+  const [pendingViceRequests, setPendingViceRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [cancelingId, setCancelingId] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -56,14 +57,31 @@ const TrackCandidacy = () => {
     if (!user) return;
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('candidates')
-        .select('*, elections(name), vice:profiles!candidates_vice_candidate_id_fkey(full_name)')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
+      const [candidaciesResponse, viceRequestsResponse] = await Promise.all([
+        supabase
+          .from('candidates')
+          .select('*, elections(name), vice:profiles!candidates_vice_candidate_id_fkey(full_name)')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false }),
+        supabase
+          .from('notifications')
+          .select('id, content, created_at, metadata')
+          .eq('user_id', user.id)
+          .eq('type', 'vice_candidacy_request_sent')
+          .order('created_at', { ascending: false })
+          .limit(10),
+      ]);
 
-      if (error) throw error;
-      setCandidacies(data);
+      if (candidaciesResponse.error) throw candidaciesResponse.error;
+      if (viceRequestsResponse.error) throw viceRequestsResponse.error;
+
+      setCandidacies(candidaciesResponse.data || []);
+      setPendingViceRequests(
+        (viceRequestsResponse.data || []).filter((notification) => {
+          const status = `${notification?.metadata?.status || ''}`.toLowerCase();
+          return status === 'pending' || status === 'rejected';
+        })
+      );
     } catch (error) {
       toast({ title: "Erro ao buscar candidaturas", description: error.message, variant: "destructive" });
     } finally {
@@ -100,8 +118,47 @@ const TrackCandidacy = () => {
         <div className="flex justify-center items-center py-16">
           <Loader2 className="w-12 h-12 animate-spin text-primary" />
         </div>
-      ) : candidacies.length > 0 ? (
+      ) : candidacies.length > 0 || pendingViceRequests.length > 0 ? (
         <div className="space-y-6">
+          {pendingViceRequests.map((request) => {
+            const status = `${request?.metadata?.status || ''}`.toLowerCase();
+            const isRejected = status === 'rejected';
+
+            return (
+              <Card key={request.id} className="glass-effect border-blue-500/20">
+                <CardHeader>
+                  <div className="flex justify-between items-start gap-4">
+                    <div>
+                      <CardTitle>{request.metadata?.political_name || 'Chapa presidencial em montagem'}</CardTitle>
+                      <CardDescription>
+                        Para: {request.metadata?.election_name || 'Eleição presidencial'}
+                      </CardDescription>
+                      <CardDescription>
+                        Vice indicado: {request.metadata?.vice_candidate_name || 'Aguardando resposta'}
+                      </CardDescription>
+                    </div>
+                    <Badge variant={isRejected ? 'destructive' : 'secondary'}>
+                      {isRejected ? 'Vice recusou' : 'Aguardando vice'}
+                    </Badge>
+                  </div>
+                </CardHeader>
+                <CardContent className="flex flex-col md:flex-row items-center gap-6">
+                  <StatusIcon status={isRejected ? 'Rejected' : 'Pendente'} />
+                  <div className="flex-grow">
+                    <p className="text-sm text-muted-foreground">
+                      {isRejected
+                        ? 'O vice indicado recusou compor a chapa. Você já pode voltar ao formulário e escolher outro nome.'
+                        : 'O convite foi enviado ao vice indicado. Assim que ele aceitar, a candidatura seguirá automaticamente para análise.'}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Registrado em: {new Date(request.created_at).toLocaleString('pt-BR')}
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+
           {candidacies.map(candidacy => (
             <Card key={candidacy.id} className="glass-effect">
               <CardHeader>

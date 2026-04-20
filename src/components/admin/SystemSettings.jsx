@@ -7,16 +7,37 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
-import { Loader2, Save, DollarSign, Landmark, CreditCard, HeartHandshake as Handshake, FileCheck2, PiggyBank, CandlestickChart, Building, User, Eraser, FileText } from 'lucide-react';
+import {
+    Loader2,
+    Save,
+    DollarSign,
+    Landmark,
+    CreditCard,
+    HeartHandshake as Handshake,
+    FileCheck2,
+    PiggyBank,
+    CandlestickChart,
+    Building,
+    User,
+    Eraser,
+    FileText,
+    PlusCircle,
+    MinusCircle,
+    Target,
+    Globe,
+} from 'lucide-react';
 import { formatCurrency, parseCurrency } from '@/lib/utils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger, DialogClose } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
+    GLOBAL_SERVICE_AVAILABILITY_KEY,
     normalizeServiceAvailabilitySettings,
+    resolveGlobalServiceMode,
     resolveServiceMode,
     SERVICE_AVAILABILITY_SETTINGS_KEY,
     SERVICE_CATEGORIES,
+    SERVICE_MODE_META,
     SERVICE_MODE_OPTIONS,
 } from '@/lib/serviceCatalog';
 
@@ -105,9 +126,9 @@ const TreasuryManager = ({ onUpdate }) => {
                 </div>
             </CardContent>
             <CardFooter className="gap-2">
-                <Button onClick={() => handleAction('add')} disabled={saving} variant="secondary">Adicionar</Button>
-                <Button onClick={() => handleAction('remove')} disabled={saving} variant="destructive">Remover</Button>
-                <Button onClick={() => handleAction('set')} disabled={saving}>Definir Valor Exato</Button>
+                <Button onClick={() => handleAction('add')} disabled={saving} variant="secondary"><PlusCircle className="mr-2 h-4 w-4" />Adicionar</Button>
+                <Button onClick={() => handleAction('remove')} disabled={saving} variant="destructive"><MinusCircle className="mr-2 h-4 w-4" />Remover</Button>
+                <Button onClick={() => handleAction('set')} disabled={saving}><Target className="mr-2 h-4 w-4" />Definir Valor Exato</Button>
             </CardFooter>
         </Card>
     );
@@ -531,11 +552,11 @@ const AssetManager = ({ onUpdate, assetType }) => {
                         <Select onValueChange={setCurrencyCode} value={currencyCode}>
                             <SelectTrigger><SelectValue placeholder="Selecione uma moeda..." /></SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="USD">USD</SelectItem>
-                                <SelectItem value="EUR">EUR</SelectItem>
-                                <SelectItem value="GBP">GBP</SelectItem>
-                                <SelectItem value="JPY">JPY</SelectItem>
-                                <SelectItem value="CNY">CNY</SelectItem>
+                                <SelectItem value="USD"><span className="text-lg">🇺🇸</span> Dólar Americano (USD)</SelectItem>
+                                <SelectItem value="EUR"><span className="text-lg">🇪🇺</span> Euro (EUR)</SelectItem>
+                                <SelectItem value="GBP"><span className="text-lg">🇬🇧</span> Libra Esterlina (GBP)</SelectItem>
+                                <SelectItem value="JPY"><span className="text-lg">🇯🇵</span> Iene Japonês (JPY)</SelectItem>
+                                <SelectItem value="CNY"><span className="text-lg">🇨🇳</span> Yuan Chinês (CNY)</SelectItem>
                             </SelectContent>
                         </Select>
                     </div>
@@ -546,15 +567,18 @@ const AssetManager = ({ onUpdate, assetType }) => {
                 </div>
             </CardContent>
             <CardFooter className="gap-2">
-                {assetType === 'investment' && <Button onClick={() => handleAction('add')} disabled={saving} variant="secondary">Adicionar</Button>}
-                {assetType === 'investment' && <Button onClick={() => handleAction('remove')} disabled={saving} variant="destructive">Remover</Button>}
-                <Button onClick={() => handleAction('set')} disabled={saving}>Definir Valor Exato</Button>
+                {assetType === 'investment' && <Button onClick={() => handleAction('add')} disabled={saving} variant="secondary"><PlusCircle className="mr-2 h-4 w-4" />Adicionar</Button>}
+                {assetType === 'investment' && <Button onClick={() => handleAction('remove')} disabled={saving} variant="destructive"><MinusCircle className="mr-2 h-4 w-4" />Remover</Button>}
+                <Button onClick={() => handleAction('set')} disabled={saving}><Target className="mr-2 h-4 w-4" />Definir Valor Exato</Button>
             </CardFooter>
         </Card>
     );
 };
 
 const ServiceAvailabilityManager = ({ serviceAvailability, onModeChange, onSave, saving }) => {
+    const globalMode = resolveGlobalServiceMode(serviceAvailability);
+    const globalModeMeta = SERVICE_MODE_META[globalMode] || SERVICE_MODE_META.active;
+    const GlobalModeIcon = globalModeMeta.icon || Globe;
     const totalServices = SERVICE_CATEGORIES.reduce((sum, category) => sum + category.services.length, 0);
     const activeCount = SERVICE_CATEGORIES.reduce((sum, category) => (
         sum + category.services.filter((service) => resolveServiceMode(serviceAvailability, service.key) === 'active').length
@@ -580,16 +604,69 @@ const ServiceAvailabilityManager = ({ serviceAvailability, onModeChange, onSave,
             <CardContent className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="rounded-xl bg-background/30 p-4">
-                        <p className="text-sm text-muted-foreground">Ativos</p>
+                        <div className="flex items-center gap-2">
+                            <SERVICE_MODE_META.active.icon className="h-4 w-4 text-emerald-400" />
+                            <p className="text-sm text-muted-foreground">Ativos</p>
+                        </div>
                         <p className="text-2xl font-bold text-emerald-400">{activeCount} / {totalServices}</p>
                     </div>
                     <div className="rounded-xl bg-background/30 p-4">
-                        <p className="text-sm text-muted-foreground">Em breve</p>
+                        <div className="flex items-center gap-2">
+                            <SERVICE_MODE_META.coming_soon.icon className="h-4 w-4 text-cyan-400" />
+                            <p className="text-sm text-muted-foreground">Em breve</p>
+                        </div>
                         <p className="text-2xl font-bold text-cyan-400">{comingSoonCount}</p>
                     </div>
                     <div className="rounded-xl bg-background/30 p-4">
-                        <p className="text-sm text-muted-foreground">Em manutenção</p>
+                        <div className="flex items-center gap-2">
+                            <SERVICE_MODE_META.maintenance.icon className="h-4 w-4 text-amber-400" />
+                            <p className="text-sm text-muted-foreground">Em manutenção</p>
+                        </div>
                         <p className="text-2xl font-bold text-amber-400">{maintenanceCount}</p>
+                    </div>
+                </div>
+
+                <div className="rounded-2xl border border-white/10 bg-background/20 p-4">
+                    <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                        <div className="flex gap-3">
+                            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white/5">
+                                <Globe className="h-5 w-5 text-primary" />
+                            </div>
+                            <div>
+                                <p className="font-semibold text-white">Modo global do portal</p>
+                                <p className="text-sm text-muted-foreground">
+                                    Defina se o GOV.RP inteiro fica ativo, em breve ou em manutencao.
+                                </p>
+                                <div className="mt-2 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-muted-foreground">
+                                    <GlobalModeIcon className="h-3.5 w-3.5" />
+                                    <span>Estado atual: {globalModeMeta.label}</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="w-full lg:w-56">
+                            <Label className="mb-2 block">Estado do portal</Label>
+                            <Select
+                                value={globalMode}
+                                onValueChange={(value) => onModeChange(GLOBAL_SERVICE_AVAILABILITY_KEY, value)}
+                            >
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Selecione o modo" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {SERVICE_MODE_OPTIONS.map((option) => {
+                                        const OptionIcon = option.icon;
+                                        return (
+                                            <SelectItem key={option.value} value={option.value}>
+                                                <div className="flex items-center gap-2">
+                                                    <OptionIcon className="h-4 w-4" />
+                                                    <span>{option.label}</span>
+                                                </div>
+                                            </SelectItem>
+                                        );
+                                    })}
+                                </SelectContent>
+                            </Select>
+                        </div>
                     </div>
                 </div>
 
@@ -629,11 +706,17 @@ const ServiceAvailabilityManager = ({ serviceAvailability, onModeChange, onSave,
                                                         <SelectValue placeholder="Selecione o modo" />
                                                     </SelectTrigger>
                                                     <SelectContent>
-                                                        {SERVICE_MODE_OPTIONS.map((option) => (
-                                                            <SelectItem key={option.value} value={option.value}>
-                                                                {option.label}
-                                                            </SelectItem>
-                                                        ))}
+                                                        {SERVICE_MODE_OPTIONS.map((option) => {
+                                                            const OptionIcon = option.icon;
+                                                            return (
+                                                                <SelectItem key={option.value} value={option.value}>
+                                                                    <div className="flex items-center gap-2">
+                                                                        <OptionIcon className="h-4 w-4" />
+                                                                        <span>{option.label}</span>
+                                                                    </div>
+                                                                </SelectItem>
+                                                            );
+                                                        })}
                                                     </SelectContent>
                                                 </Select>
                                             </div>
@@ -645,7 +728,7 @@ const ServiceAvailabilityManager = ({ serviceAvailability, onModeChange, onSave,
                     ))}
                 </div>
             </CardContent>
-            <CardFooter className="justify-end">
+            <CardFooter className="justify-center">
                 <Button onClick={onSave} disabled={saving}>
                     {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
                     Salvar Disponibilidade

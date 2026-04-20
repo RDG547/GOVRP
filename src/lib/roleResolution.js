@@ -1,4 +1,4 @@
-import { resolveActiveElectionOfficeRolesForUser } from './electionOfficeSync';
+import { resolveActiveElectionOfficeRolesForUser } from './electionOfficeSync.js';
 
 export const EFFECTIVE_ROLE_PRIORITY = [
   'Admin',

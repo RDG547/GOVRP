@@ -52,6 +52,7 @@ import ScrollToTop from '@/components/ScrollToTop';
 import DailyCheckInPopup from '@/components/DailyCheckInPopup';
 import ElectionOfficeAwardPopup from '@/components/ElectionOfficeAwardPopup';
 import SalaryPaymentPopup from '@/components/SalaryPaymentPopup';
+import ViceCandidacyDecisionPopup from '@/components/ViceCandidacyDecisionPopup';
 import { InternetSpeedProvider } from '@/contexts/InternetSpeedContext';
 
 import SocialX from '@/pages/services/SocialX';
@@ -101,6 +102,7 @@ import { isPrisonSentenceActive } from '@/lib/prison';
 import { PARLIAMENT_PANEL_ROLES } from '@/lib/parliament';
 import ServiceAvailabilityGate from '@/components/ServiceAvailabilityGate';
 import EntrepreneurPortal from '@/pages/services/EntrepreneurPortal';
+import GlobalSiteAvailabilityGate from '@/components/GlobalSiteAvailabilityGate';
 
 const MainLayout = ({ children }) => {
   const location = useLocation();
@@ -141,6 +143,20 @@ function App() {
 
   return (
     <AuthProvider>
+      <AppShell location={location} theme={theme} isAuthCallback={isAuthCallback} />
+    </AuthProvider>
+  );
+}
+
+const AppShell = ({ location, theme, isAuthCallback }) => {
+  const { user } = useAuth();
+  const rolePool = Array.isArray(user?.effective_roles)
+    ? user.effective_roles
+    : [user?.role].filter(Boolean);
+  const isAdmin = rolePool.includes('Admin') || user?.role === 'Admin';
+
+  return (
+    <GlobalSiteAvailabilityGate pathname={location.pathname} isAdmin={isAdmin}>
       <div className={`${theme} min-h-screen bg-background text-foreground custom-scrollbar`}>
         {!isAuthCallback && <ParticlesBackground />}
         <div className="relative z-10">
@@ -253,11 +269,12 @@ function App() {
           {!isAuthCallback && <CookieConsent />}
           {!isAuthCallback && <DailyCheckInPopup />}
           {!isAuthCallback && <SalaryPaymentPopup />}
+          {!isAuthCallback && <ViceCandidacyDecisionPopup />}
           {!isAuthCallback && <ElectionOfficeAwardPopup />}
         </div>
       </div>
-    </AuthProvider>
+    </GlobalSiteAvailabilityGate>
   );
-}
+};
 
 export default App;

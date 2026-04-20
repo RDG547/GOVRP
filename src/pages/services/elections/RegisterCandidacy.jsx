@@ -11,7 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, Vote, AlertTriangle, Upload, X } from 'lucide-react';
+import { Loader2, Vote, AlertTriangle, Upload, X, Clock } from 'lucide-react';
 import {
   buildStoragePath,
   ACCEPTED_IMAGE_EXTENSIONS,
@@ -25,6 +25,7 @@ import {
   fetchPresidentialElectionHistory,
   getConsecutivePresidentialWins,
 } from '@/lib/executiveGovernance';
+import { fetchWithSessionAuth } from '@/lib/apiAuth';
 
 const candidacySchema = z.object({
   election_id: z.string().uuid('Selecione uma eleição válida.'),
@@ -47,6 +48,7 @@ const RegisterCandidacy = ({ onFinished }) => {
   const [imagePreview, setImagePreview] = useState(null);
   const [imageError, setImageError] = useState('');
   const [existingCandidacy, setExistingCandidacy] = useState(null);
+  const [pendingViceInvitation, setPendingViceInvitation] = useState(null);
   const [viceCandidates, setViceCandidates] = useState([]);
   const [loadingViceCandidates, setLoadingViceCandidates] = useState(false);
   const [presidentialElections, setPresidentialElections] = useState([]);
@@ -74,28 +76,28 @@ const RegisterCandidacy = ({ onFinished }) => {
       setLoading(true);
 
       try {
-        const { data: existingData, error: existingError } = await supabase
-          .from('candidates')
-          .select('*, elections(name), vice:profiles!candidates_vice_candidate_id_fkey(full_name)')
-          .eq('user_id', user.id)
-          .in('status', ['Pendente', 'Approved']);
-
-        if (existingError) {
-          throw existingError;
-        }
-
-        if (existingData?.length) {
-          setExistingCandidacy(existingData[0]);
-          setLoading(false);
-          return;
-        }
-
         const [
+          existingResponse,
+          pendingViceResponse,
           electionsResponse,
           partiesResponse,
           partyMemberResponse,
           presidentialHistoryResponse,
         ] = await Promise.all([
+          supabase
+            .from('candidates')
+            .select('*, elections(name), vice:profiles!candidates_vice_candidate_id_fkey(full_name)')
+            .eq('user_id', user.id)
+            .in('status', ['Pendente', 'Approved']),
+          user?.id
+            ? supabase
+                .from('notifications')
+                .select('id, content, created_at, metadata')
+                .eq('user_id', user.id)
+                .eq('type', 'vice_candidacy_request_sent')
+                .order('created_at', { ascending: false })
+                .limit(10)
+            : Promise.resolve({ data: [], error: null }),
           supabase
             .from('elections')
             .select('id, name, election_type_id, election_types(name, requires_vice_candidate, voting_system)')
@@ -108,16 +110,30 @@ const RegisterCandidacy = ({ onFinished }) => {
           fetchPresidentialElectionHistory(supabase),
         ]);
 
+        if (existingResponse.error) {
+          throw existingResponse.error;
+        }
         if (electionsResponse.error) {
           throw electionsResponse.error;
         }
         if (partiesResponse.error) {
           throw partiesResponse.error;
         }
+        if (pendingViceResponse.error) {
+          throw pendingViceResponse.error;
+        }
         if (partyMemberResponse.error && partyMemberResponse.error.code !== 'PGRST116') {
           throw partyMemberResponse.error;
         }
 
+        const existingData = existingResponse.data || [];
+        const pendingInvitation =
+          (pendingViceResponse.data || []).find(
+            (notification) => `${notification?.metadata?.status || ''}`.toLowerCase() === 'pending'
+          ) || null;
+
+        setExistingCandidacy(existingData[0] || null);
+        setPendingViceInvitation(existingData.length ? null : pendingInvitation);
         setElections(electionsResponse.data || []);
         setParties(partiesResponse.data || []);
         setPresidentialElections(presidentialHistoryResponse.elections || []);
@@ -277,10 +293,33 @@ const RegisterCandidacy = ({ onFinished }) => {
 
       const finalImageUrl = supabase.storage.from('public-assets').getPublicUrl(uploadData.path).data.publicUrl;
 
+      if (requiresViceCandidate) {
+        const response = await fetchWithSessionAuth('/api/elections/submit-candidacy', {
+          method: 'POST',
+          body: JSON.stringify({
+            electionId: values.election_id,
+            viceCandidateId: values.vice_candidate_id,
+            politicalName: values.political_name,
+            bio: values.bio,
+            proposals: values.proposals,
+            campaignPhotoUrl: finalImageUrl,
+          }),
+        });
+        const payload = await response.json().catch(() => ({}));
+
+        if (!response.ok) {
+          throw new Error(payload?.error || 'Não foi possível registrar a candidatura presidencial.');
+        }
+
+        toast({ title: 'Convite enviado!', description: payload.message });
+        onFinished?.();
+        return;
+      }
+
       const { data, error } = await supabase.rpc('submit_candidacy', {
         p_election_id: values.election_id,
         p_party_id: values.party_id === 'none' ? null : values.party_id,
-        p_vice_candidate_id: requiresViceCandidate ? values.vice_candidate_id : null,
+        p_vice_candidate_id: null,
         p_political_name: values.political_name,
         p_bio: values.bio,
         p_proposals: values.proposals,
@@ -351,6 +390,43 @@ const RegisterCandidacy = ({ onFinished }) => {
           <Button variant="destructive" onClick={handleCancelCandidacy} disabled={isSubmitting}>
             {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Cancelar Candidatura Atual
+          </Button>
+        </CardFooter>
+      </Card>
+    );
+  }
+
+  if (pendingViceInvitation) {
+    const pendingMetadata = pendingViceInvitation.metadata || {};
+
+    return (
+      <Card className="glass-effect border-none shadow-none">
+        <CardHeader className="text-center">
+          <div className="mx-auto mb-4 p-4 rounded-full bg-blue-500/20">
+            <Clock className="w-12 h-12 text-blue-300" />
+          </div>
+          <CardTitle className="text-xl">Chapa Aguardando Aceite do Vice</CardTitle>
+          <CardDescription className="text-base">
+            O vice indicado ainda precisa aceitar a composição da chapa antes que a candidatura siga para análise.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="p-4 rounded-xl border border-white/10 bg-white/5 space-y-2">
+            <p className="font-semibold text-foreground">{pendingMetadata.political_name || 'Candidatura presidencial'}</p>
+            <p className="text-sm text-muted-foreground">
+              Eleição: {pendingMetadata.election_name || 'Eleição presidencial'}
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Vice indicado: {pendingMetadata.vice_candidate_name || 'Aguardando resposta'}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Enviado em: {new Date(pendingViceInvitation.created_at).toLocaleString('pt-BR')}
+            </p>
+          </div>
+        </CardContent>
+        <CardFooter className="flex justify-center">
+          <Button variant="outline" onClick={() => onFinished?.()}>
+            Fechar
           </Button>
         </CardFooter>
       </Card>

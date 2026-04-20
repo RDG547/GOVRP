@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Banknote, Briefcase, Clock3, Loader2, X } from 'lucide-react';
+import { AlertTriangle, Banknote, Briefcase, Clock3, Loader2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabaseClient';
@@ -61,6 +61,7 @@ const formatPaidAt = (dateValue) => {
 const SalaryPaymentPopup = () => {
   const { user, refreshUser } = useAuth();
   const [payment, setPayment] = useState(null);
+  const [failureNotification, setFailureNotification] = useState(null);
   const [isVisible, setIsVisible] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const errorCooldownUntilRef = useRef(0);
@@ -86,9 +87,9 @@ const SalaryPaymentPopup = () => {
 
   const salaryInfo = useMemo(
     () =>
-      getSalaryInfoByRole(payment?.role) ||
+      getSalaryInfoByRole(payment?.role || failureNotification?.metadata?.role) ||
       currentSalaryInfo,
-    [currentSalaryInfo, payment?.role]
+    [currentSalaryInfo, failureNotification?.metadata?.role, payment?.role]
   );
 
   const markPaymentAsSeen = useCallback(
@@ -105,8 +106,14 @@ const SalaryPaymentPopup = () => {
   );
 
   const syncPopupState = useCallback(
-    (latestPayment) => {
+    (latestPayment, latestFailureNotification = null) => {
       setPayment(latestPayment || null);
+      setFailureNotification(latestFailureNotification || null);
+
+      if (latestFailureNotification?.id) {
+        setIsVisible(true);
+        return;
+      }
 
       if (!latestPayment || !popupStorageKey) {
         setIsVisible(false);
@@ -121,16 +128,42 @@ const SalaryPaymentPopup = () => {
     [popupStorageKey]
   );
 
-  const refreshLatestPayment = useCallback(async () => {
+  const fetchPendingFailureNotification = useCallback(async () => {
+    if (!user?.id) {
+      return null;
+    }
+
+    const { data, error } = await supabase
+      .from('notifications')
+      .select('id, content, created_at, type, metadata, is_read')
+      .eq('user_id', user.id)
+      .eq('type', 'salary_payment_failed')
+      .order('created_at', { ascending: false })
+      .limit(20);
+
+    if (error) {
+      console.error('Erro ao buscar notificacoes de falha salarial:', error);
+      return null;
+    }
+
+    return (data || []).find((entry) => !entry?.metadata?.popup_shown_at) || null;
+  }, [user?.id]);
+
+  const refreshLatestStatus = useCallback(async () => {
     if (!user?.id) {
       setPayment(null);
+      setFailureNotification(null);
       setIsVisible(false);
       return;
     }
 
-    const latestPayment = await getLatestSalaryPayment(user.id);
-    syncPopupState(latestPayment);
-  }, [syncPopupState, user?.id]);
+    const [latestPayment, latestFailureNotification] = await Promise.all([
+      getLatestSalaryPayment(user.id),
+      fetchPendingFailureNotification(),
+    ]);
+
+    syncPopupState(latestPayment, latestFailureNotification);
+  }, [fetchPendingFailureNotification, syncPopupState, user?.id]);
 
   const attemptAutomaticSalaryProcessing = useCallback(
     async ({ force = false } = {}) => {
@@ -162,7 +195,7 @@ const SalaryPaymentPopup = () => {
         }
 
         await processWeeklySalaries();
-        await Promise.all([refreshUser(), refreshLatestPayment()]);
+        await Promise.all([refreshUser(), refreshLatestStatus()]);
       } catch (error) {
         console.error('Erro ao processar salários automaticamente:', error);
         errorCooldownUntilRef.current = Date.now() + PROCESS_ERROR_COOLDOWN_MS;
@@ -170,7 +203,7 @@ const SalaryPaymentPopup = () => {
         setIsProcessing(false);
       }
     },
-    [currentSalaryInfo, isProcessing, processStorageKey, refreshLatestPayment, refreshUser, user?.id]
+    [currentSalaryInfo, isProcessing, processStorageKey, refreshLatestStatus, refreshUser, user?.id]
   );
 
   useEffect(() => {
@@ -181,14 +214,14 @@ const SalaryPaymentPopup = () => {
     }
 
     const initialTimer = window.setTimeout(() => {
-      refreshLatestPayment();
+      refreshLatestStatus();
       attemptAutomaticSalaryProcessing({ force: true });
     }, 2500);
 
     return () => {
       window.clearTimeout(initialTimer);
     };
-  }, [attemptAutomaticSalaryProcessing, refreshLatestPayment, user?.id]);
+  }, [attemptAutomaticSalaryProcessing, refreshLatestStatus, user?.id]);
 
   useEffect(() => {
     if (!user?.id) {
@@ -196,14 +229,14 @@ const SalaryPaymentPopup = () => {
     }
 
     const intervalId = window.setInterval(() => {
-      refreshLatestPayment();
+      refreshLatestStatus();
       attemptAutomaticSalaryProcessing();
     }, PROCESS_CHECK_INTERVAL_MS);
 
     return () => {
       window.clearInterval(intervalId);
     };
-  }, [attemptAutomaticSalaryProcessing, refreshLatestPayment, user?.id]);
+  }, [attemptAutomaticSalaryProcessing, refreshLatestStatus, user?.id]);
 
   useEffect(() => {
     if (!user?.id) {
@@ -221,7 +254,21 @@ const SalaryPaymentPopup = () => {
           filter: `user_id=eq.${user.id}`,
         },
         async () => {
-          await Promise.all([refreshUser(), refreshLatestPayment()]);
+          await Promise.all([refreshUser(), refreshLatestStatus()]);
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'notifications',
+          filter: `user_id=eq.${user.id}`,
+        },
+        async (payload) => {
+          if (payload.new?.type === 'salary_payment_failed') {
+            await refreshLatestStatus();
+          }
         }
       )
       .subscribe();
@@ -229,23 +276,76 @@ const SalaryPaymentPopup = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [refreshLatestPayment, refreshUser, user?.id]);
+  }, [refreshLatestStatus, refreshUser, user?.id]);
 
   const handleDismiss = useCallback(() => {
-    if (payment) {
+    if (failureNotification?.id) {
+      const nextMetadata = {
+        ...(failureNotification.metadata || {}),
+        popup_pending: false,
+        popup_shown_at: new Date().toISOString(),
+      };
+
+      supabase
+        .from('notifications')
+        .update({
+          is_read: true,
+          metadata: nextMetadata,
+        })
+        .eq('id', failureNotification.id)
+        .eq('user_id', user.id)
+        .then(({ error }) => {
+          if (error) {
+            console.error('Erro ao marcar aviso de salario como exibido:', error);
+          }
+        });
+    } else if (payment) {
       markPaymentAsSeen(payment);
     }
 
     setIsVisible(false);
-  }, [markPaymentAsSeen, payment]);
+  }, [failureNotification, markPaymentAsSeen, payment, user?.id]);
 
-  if (!user || !payment || !isVisible) {
+  if (!user || !isVisible || (!payment && !failureNotification)) {
     return null;
   }
 
-  const paymentAmount = resolvePaymentAmount(payment) || salaryInfo?.salary || 0;
-  const roleLabel = salaryInfo?.title || salaryInfo?.role || payment?.role || 'Cargo público';
-  const paidAtLabel = formatPaidAt(payment.paid_at || payment.created_at);
+  const popupMode = failureNotification ? 'failure' : 'success';
+  const paymentAmount =
+    popupMode === 'failure'
+      ? Number(failureNotification?.metadata?.expected_amount || salaryInfo?.salary || 0)
+      : resolvePaymentAmount(payment) || salaryInfo?.salary || 0;
+  const roleLabel =
+    salaryInfo?.title ||
+    salaryInfo?.role ||
+    failureNotification?.metadata?.role ||
+    payment?.role ||
+    'Cargo público';
+  const paidAtLabel = formatPaidAt(
+    popupMode === 'failure'
+      ? failureNotification?.created_at
+      : payment?.paid_at || payment?.created_at
+  );
+  const popupTitle = popupMode === 'failure' ? 'Salário não processado' : 'Salário depositado';
+  const popupDescription =
+    popupMode === 'failure'
+      ? failureNotification?.content || 'Nao foi possivel pagar o seu salario semanal por falta de verba.'
+      : 'O pagamento automático do seu cargo já caiu na conta.';
+  const popupStatusText =
+    popupMode === 'failure'
+      ? 'Nao foi possivel concluir o repasse semanal por falta de verba no governo.'
+      : 'Repasse semanal concluído automaticamente.';
+  const Icon = popupMode === 'failure' ? AlertTriangle : Banknote;
+  const accentClassName =
+    popupMode === 'failure'
+      ? 'from-red-500 to-amber-500 shadow-red-500/25'
+      : 'from-emerald-500 to-teal-500 shadow-emerald-500/25';
+  const containerClassName =
+    popupMode === 'failure'
+      ? 'border-red-500/20 bg-gradient-to-b from-slate-900 via-slate-900 to-red-950/40 shadow-red-500/10'
+      : 'border-emerald-500/20 bg-gradient-to-b from-slate-900 via-slate-900 to-emerald-950/40 shadow-emerald-500/10';
+  const iconAccentClassName = popupMode === 'failure' ? 'text-amber-300' : 'text-emerald-300';
+  const headlineAccentClassName = popupMode === 'failure' ? 'text-red-300/90' : 'text-emerald-300/90';
 
   return (
     <AnimatePresence>
@@ -263,7 +363,7 @@ const SalaryPaymentPopup = () => {
         transition={{ type: 'spring', stiffness: 280, damping: 22 }}
         className="fixed inset-0 z-[73] flex items-center justify-center p-4 pointer-events-none"
       >
-        <div className="relative w-full max-w-md pointer-events-auto rounded-3xl border border-emerald-500/20 bg-gradient-to-b from-slate-900 via-slate-900 to-emerald-950/40 p-6 shadow-2xl shadow-emerald-500/10">
+        <div className={`relative w-full max-w-md pointer-events-auto rounded-3xl border p-6 shadow-2xl ${containerClassName}`}>
           <button
             onClick={handleDismiss}
             className="absolute right-4 top-4 rounded-full p-2 text-muted-foreground transition-colors hover:bg-white/10 hover:text-foreground"
@@ -272,23 +372,23 @@ const SalaryPaymentPopup = () => {
           </button>
 
           <div className="space-y-5 text-center">
-            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-emerald-500 to-teal-500 shadow-lg shadow-emerald-500/25">
-              <Banknote className="h-8 w-8 text-white" />
+            <div className={`mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br shadow-lg ${accentClassName}`}>
+              <Icon className="h-8 w-8 text-white" />
             </div>
 
             <div className="space-y-2">
-              <p className="text-sm font-medium uppercase tracking-[0.28em] text-emerald-300/90">
-                Salário Depositado
+              <p className={`text-sm font-medium uppercase tracking-[0.28em] ${headlineAccentClassName}`}>
+                {popupTitle}
               </p>
               <h3 className="text-2xl font-bold text-foreground">{formatCurrency(paymentAmount)}</h3>
               <p className="text-sm text-muted-foreground">
-                O pagamento automático do seu cargo já caiu na conta.
+                {popupDescription}
               </p>
             </div>
 
             <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-left">
               <div className="flex items-center gap-3">
-                <Briefcase className="h-4 w-4 text-emerald-300" />
+                <Briefcase className={`h-4 w-4 ${iconAccentClassName}`} />
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Cargo</p>
                   <p className="mt-1 text-sm text-foreground">{roleLabel}</p>
@@ -296,25 +396,31 @@ const SalaryPaymentPopup = () => {
               </div>
 
               <div className="mt-4 flex items-center gap-3">
-                <Clock3 className="h-4 w-4 text-emerald-300" />
+                <Clock3 className={`h-4 w-4 ${iconAccentClassName}`} />
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Pagamento</p>
+                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                    {popupMode === 'failure' ? 'Registro' : 'Pagamento'}
+                  </p>
                   <p className="mt-1 text-sm text-foreground">{paidAtLabel}</p>
                 </div>
               </div>
 
               <div className="mt-4 flex items-center gap-3">
-                <Banknote className="h-4 w-4 text-emerald-300" />
+                <Icon className={`h-4 w-4 ${iconAccentClassName}`} />
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Situação</p>
-                  <p className="mt-1 text-sm text-foreground">Repasse semanal concluído automaticamente.</p>
+                  <p className="mt-1 text-sm text-foreground">{popupStatusText}</p>
                 </div>
               </div>
             </div>
 
             <Button
               onClick={handleDismiss}
-              className="w-full bg-gradient-to-r from-emerald-600 to-teal-500 text-white hover:from-emerald-700 hover:to-teal-600"
+              className={`w-full text-white ${
+                popupMode === 'failure'
+                  ? 'bg-gradient-to-r from-red-600 to-amber-500 hover:from-red-700 hover:to-amber-600'
+                  : 'bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-700 hover:to-teal-600'
+              }`}
             >
               {isProcessing ? (
                 <>

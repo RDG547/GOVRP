@@ -1,4 +1,4 @@
-import { publishBillResultNews, publishBillProposedNews, publishBillVotingStartedNews } from './newsPublisher';
+import { publishBillResultNews, publishBillProposedNews, publishBillVotingStartedNews } from './newsPublisher.js';
 
 export const HOUSE_PRESIDENT_ROLES = [
   'Presidente da Câmara',

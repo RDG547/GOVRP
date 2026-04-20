@@ -1,6 +1,8 @@
 import {
   Archive,
+  CheckCircle2,
   Building2,
+  Clock3,
   Droplet,
   Eye,
   FileText,
@@ -25,12 +27,33 @@ import {
 } from 'lucide-react';
 
 export const SERVICE_AVAILABILITY_SETTINGS_KEY = 'service_availability';
+export const GLOBAL_SERVICE_AVAILABILITY_KEY = '__site__';
 
 export const SERVICE_MODE_OPTIONS = [
-  { value: 'active', label: 'Ativo', description: 'O serviço funciona normalmente para todos os usuários.' },
-  { value: 'coming_soon', label: 'Em breve', description: 'O serviço exibe a página de lançamento futuro.' },
-  { value: 'maintenance', label: 'Em manutenção', description: 'O serviço exibe o aviso de manutenção temporária.' },
+  {
+    value: 'active',
+    label: 'Ativo',
+    icon: CheckCircle2,
+    description: 'O serviço funciona normalmente para todos os usuários.',
+  },
+  {
+    value: 'coming_soon',
+    label: 'Em breve',
+    icon: Clock3,
+    description: 'O serviço exibe a página de lançamento futuro.',
+  },
+  {
+    value: 'maintenance',
+    label: 'Em manutenção',
+    icon: Wrench,
+    description: 'O serviço exibe o aviso de manutenção temporária.',
+  },
 ];
+
+export const SERVICE_MODE_META = SERVICE_MODE_OPTIONS.reduce((accumulator, option) => {
+  accumulator[option.value] = option;
+  return accumulator;
+}, {});
 
 export const SERVICE_CATEGORIES = [
   {
@@ -114,6 +137,9 @@ export const normalizeServiceAvailabilitySettings = (value) => {
 
 export const resolveServiceMode = (serviceAvailability, serviceKey) =>
   serviceAvailability?.[serviceKey]?.mode || 'active';
+
+export const resolveGlobalServiceMode = (serviceAvailability) =>
+  resolveServiceMode(serviceAvailability, GLOBAL_SERVICE_AVAILABILITY_KEY);
 
 export const fetchServiceAvailabilitySettings = async (supabase) => {
   const { data, error } = await supabase

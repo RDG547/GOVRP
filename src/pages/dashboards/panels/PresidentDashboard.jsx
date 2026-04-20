@@ -11,7 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger, DialogClose } from '@/components/ui/dialog';
 import { Slider } from '@/components/ui/slider';
-import { Loader2, Landmark, Users, Briefcase, FileSignature, Edit, Plus, Save, Trash2, Megaphone, TrendingUp, TrendingDown, CreditCard, School as University, PiggyBank, HeartHandshake as Handshake, BrainCircuit, HeartPulse, Shield, Anchor, BookOpen, Microscope, Recycle, TramFront as Tram, Globe, Palette, Cpu, Building, Coins, Percent, Wifi, Smartphone, Droplet, Flame, Zap, Package, Package2, PackageCheck, UserPlus, FilePlus, UserX, LogOut, AlertTriangle, Clock3 } from 'lucide-react';
+import { Loader2, Landmark, Users, Briefcase, FileSignature, Edit, Plus, Save, Trash2, Megaphone, TrendingUp, TrendingDown, CreditCard, School as University, PiggyBank, HeartHandshake as Handshake, BrainCircuit, HeartPulse, Shield, Anchor, BookOpen, Microscope, Recycle, TramFront as Tram, Globe, Palette, Cpu, Building, Coins, Percent, Wifi, Smartphone, Droplet, Flame, Zap, Package, Package2, PackageCheck, UserPlus, FilePlus, UserX, LogOut, AlertTriangle, Clock3, LayoutDashboard, Settings, Ban, CircleSlash, Power, PowerOff, Lock, ChevronLeft, FileText, Store, Gavel, DollarSign, Wrench, Banknote, Scale, HardHat, Leaf, Car, IdCard, FileCheck, Receipt, Building2 } from 'lucide-react';
 import { formatCurrency, parseCurrency } from '@/lib/utils';
 import PageHeader from '@/components/layout/PageHeader';
 import { Progress } from '@/components/ui/progress';
@@ -32,9 +32,23 @@ import {
     createExecutiveProvisionalMeasure,
     dismissExecutiveSpecialOffice,
     fetchExecutiveConstitutionalState,
-    markExecutiveOfficeVacancy,
     reviewPresidentialBill,
 } from '@/lib/executiveGovernance';
+import { fetchWithSessionAuth } from '@/lib/apiAuth';
+
+const MINISTRY_INFO = {
+    'Ministério da Justiça': { icon: Scale, color: 'text-amber-400', bgColor: 'bg-amber-500/20' },
+    'Ministério da Defesa': { icon: Shield, color: 'text-red-400', bgColor: 'bg-red-500/20' },
+    'Ministério da Economia': { icon: Coins, color: 'text-emerald-400', bgColor: 'bg-emerald-500/20' },
+    'Ministério da Saúde': { icon: HeartPulse, color: 'text-rose-400', bgColor: 'bg-rose-500/20' },
+    'Ministério da Educação': { icon: BookOpen, color: 'text-blue-400', bgColor: 'bg-blue-500/20' },
+    'Ministério da Infraestrutura': { icon: HardHat, color: 'text-orange-400', bgColor: 'bg-orange-500/20' },
+    'Ministério do Meio Ambiente': { icon: Leaf, color: 'text-green-400', bgColor: 'bg-green-500/20' },
+    'Ministério de Relações Exteriores': { icon: Globe, color: 'text-sky-400', bgColor: 'bg-sky-500/20' },
+    'Ministério da Cultura': { icon: Palette, color: 'text-purple-400', bgColor: 'bg-purple-500/20' },
+    'Ministério de Pesquisa': { icon: Microscope, color: 'text-cyan-400', bgColor: 'bg-cyan-500/20' },
+    'Ministério da Tecnologia': { icon: Cpu, color: 'text-violet-400', bgColor: 'bg-violet-500/20' },
+};
 
 const MinisterManager = ({ ministers, onUpdate }) => {
     const { toast } = useToast();
@@ -44,12 +58,7 @@ const MinisterManager = ({ ministers, onUpdate }) => {
     const [selectedMinistry, setSelectedMinistry] = useState('');
     const [isSaving, setIsSaving] = useState(false);
 
-    const allMinistries = [
-        'Ministério da Justiça', 'Ministério da Defesa', 'Ministério da Economia',
-        'Ministério da Saúde', 'Ministério da Educação', 'Ministério da Infraestrutura',
-        'Ministério do Meio Ambiente', 'Ministério de Relações Exteriores', 'Ministério da Cultura',
-        'Ministério de Pesquisa', 'Ministério da Tecnologia'
-    ];
+    const allMinistries = Object.keys(MINISTRY_INFO);
 
     const availableMinistries = allMinistries.filter(
         (ministry) => !ministers.some((minister) => minister.ministry === ministry)
@@ -116,29 +125,15 @@ const MinisterManager = ({ ministers, onUpdate }) => {
     };
 
     return (
-        <Card className="glass-effect h-full flex flex-col">
-            <CardHeader>
-                <CardTitle className="flex items-center gap-2"><Briefcase className="w-6 h-6 text-primary" />Gabinete de Ministros</CardTitle>
-                <CardDescription>Nomeie e exonere os ministros do seu governo.</CardDescription>
-            </CardHeader>
-            <CardContent className="flex-grow space-y-4">
-                {ministers.length > 0 ? ministers.map(minister => (
-                    <div key={minister.id} className="flex items-center justify-between p-3 bg-slate-800/50 rounded-lg">
-                        <div>
-                            <p className="font-semibold">{minister.profile.full_name}</p>
-                            <p className="text-sm text-muted-foreground">{minister.ministry}</p>
-                        </div>
-                        <Button variant="destructive" size="sm" onClick={() => handleDismiss(minister)}>
-                            <UserX className="mr-2 h-4 w-4" />
-                            Exonerar
-                        </Button>
-                    </div>
-                )) : <p className="text-center text-muted-foreground py-4">Nenhum ministro nomeado.</p>}
-            </CardContent>
-            <CardFooter>
-                 <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <div className="space-y-6">
+            <div className="flex items-center justify-between">
+                <div>
+                    <h3 className="text-xl font-semibold flex items-center gap-2"><Briefcase className="w-5 h-5 text-primary" /> Gabinete de Ministros</h3>
+                    <p className="text-sm text-muted-foreground mt-1">Nomeie e exonere os ministros do seu governo.</p>
+                </div>
+                <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                     <DialogTrigger asChild>
-                        <Button className="w-full"><UserPlus className="mr-2 h-4 w-4" /> Nomear Ministro</Button>
+                        <Button><UserPlus className="w-4 h-4 mr-2" /> Nomear Ministro</Button>
                     </DialogTrigger>
                     <DialogContent>
                         <DialogHeader>
@@ -175,8 +170,42 @@ const MinisterManager = ({ ministers, onUpdate }) => {
                         </DialogFooter>
                     </DialogContent>
                 </Dialog>
-            </CardFooter>
-        </Card>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {allMinistries.map(ministry => {
+                    const info = MINISTRY_INFO[ministry];
+                    const MinIcon = info.icon;
+                    const minister = ministers.find(m => m.ministry === ministry);
+                    return (
+                        <Card key={ministry} className={`glass-effect transition-colors ${minister ? 'border-primary/30' : 'opacity-60'}`}>
+                            <CardHeader className="pb-3">
+                                <div className="flex items-center gap-3">
+                                    <div className={`p-2 rounded-lg ${info.bgColor}`}>
+                                        <MinIcon className={`w-5 h-5 ${info.color}`} />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <CardTitle className="text-sm font-semibold truncate">{ministry.replace('Ministério ', 'Min. ')}</CardTitle>
+                                        {minister ? (
+                                            <CardDescription className="truncate">{minister.profile.full_name}</CardDescription>
+                                        ) : (
+                                            <CardDescription className="text-muted-foreground/50 italic">Vago</CardDescription>
+                                        )}
+                                    </div>
+                                </div>
+                            </CardHeader>
+                            {minister && (
+                                <CardFooter className="pt-0">
+                                    <Button variant="destructive" size="sm" className="w-full" onClick={() => handleDismiss(minister)}>
+                                        <UserX className="mr-1 h-3 w-3" /> Exonerar
+                                    </Button>
+                                </CardFooter>
+                            )}
+                        </Card>
+                    );
+                })}
+            </div>
+        </div>
     );
 };
 
@@ -668,109 +697,124 @@ const LoanManager = ({ onUpdate, setActiveTab, govFinances }) => {
     );
 };
 
-const ServicePriceManager = ({ servicePrices, onUpdate, setActiveTab }) => {
-    const { toast } = useToast();
-    const [prices, setPrices] = useState({});
-    const [isSaving, setIsSaving] = useState(false);
+const TARIFF_GROUPS = {
+    'Emissão de Documentos': {
+        groupIcon: FileText,
+        tariffs: [
+            { key: 'doc_CNH', label: 'CNH', icon: Car },
+            { key: 'doc_Passport', label: 'Passaporte', icon: Globe },
+            { key: 'doc_CNPJ', label: 'CNPJ', icon: Building2 },
+            { key: 'doc_CTD', label: 'Carteira de Trabalho Digital', icon: IdCard },
+            { key: 'doc_Titulo_Eleitor', label: 'Título de Eleitor', icon: FileCheck },
+            { key: 'doc_Certificado_Reservista', label: 'Certificado de Reservista', icon: Shield },
+            { key: 'doc_Certidao_Casamento', label: 'Certidão de Casamento', icon: FileSignature },
+            { key: 'doc_Registro_Profissional', label: 'Registro Profissional', icon: Briefcase },
+        ]
+    },
+    'Criação de Empresas': {
+        groupIcon: Store,
+        tariffs: [
+            { key: 'biz_banco', label: 'Banco', icon: Landmark },
+            { key: 'biz_construtora', label: 'Construtora', icon: HardHat },
+            { key: 'biz_fabrica', label: 'Fábrica', icon: Building },
+            { key: 'biz_loja', label: 'Loja / Comércio', icon: Store },
+            { key: 'biz_transportadora', label: 'Transportadora', icon: Tram },
+            { key: 'biz_consultoria', label: 'Consultoria', icon: BrainCircuit },
+            { key: 'biz_seguranca', label: 'Empresa de Segurança', icon: Shield },
+            { key: 'biz_distribuidora', label: 'Distribuidora', icon: Package },
+        ]
+    },
+    'Multas': {
+        groupIcon: Gavel,
+        tariffs: [
+            { key: 'fine_leve', label: 'Infração Leve', icon: AlertTriangle },
+            { key: 'fine_media', label: 'Infração Média', icon: AlertTriangle },
+            { key: 'fine_grave', label: 'Infração Grave', icon: Ban },
+            { key: 'fine_gravissima', label: 'Infração Gravíssima', icon: Ban },
+        ]
+    },
+};
 
-    const serviceGroups = {
-        'Internet': {
-            groupIcon: Wifi,
-            services: [
-                { key: 'Internet_Básico', label: 'Plano Básico', icon: Package },
-                { key: 'Internet_Ultra', label: 'Plano Ultra', icon: Package2 },
-                { key: 'Internet_Mega', label: 'Plano Mega', icon: PackageCheck },
-            ]
-        },
-        'Telefonia': {
-            groupIcon: Smartphone,
-            services: [
-                { key: 'Telefonia_Básico', label: 'Plano Básico', icon: Package },
-                { key: 'Telefonia_Intermediário', label: 'Plano Intermediário', icon: Package2 },
-                { key: 'Telefonia_Premium', label: 'Plano Premium', icon: PackageCheck },
-            ]
-        },
-        'Energia': {
-            groupIcon: Zap,
-            services: [
-                { key: 'Energia Elétrica', label: 'Energia Elétrica', icon: Zap },
-            ]
-        },
-        'Água': {
-            groupIcon: Droplet,
-            services: [
-                { key: 'Água', label: 'Água', icon: Droplet },
-            ]
-        },
-        'Gás': {
-            groupIcon: Flame,
-            services: [
-                { key: 'Gás', label: 'Gás', icon: Flame },
-            ]
-        }
-    };
+const TARIFF_GROUP_KEYS = Object.keys(TARIFF_GROUPS);
+
+const TariffManager = ({ baseTariffs, onUpdate }) => {
+    const { toast } = useToast();
+    const [tariffs, setTariffs] = useState({});
+    const [isSaving, setIsSaving] = useState(false);
+    const [activeTariffTab, setActiveTariffTab] = useState(TARIFF_GROUP_KEYS[0]);
 
     useEffect(() => {
-        if (servicePrices) {
-            setPrices(servicePrices);
+        if (baseTariffs) {
+            setTariffs(baseTariffs);
         }
-    }, [servicePrices]);
+    }, [baseTariffs]);
 
-    const handlePriceChange = (key, value) => {
-        setPrices(prev => ({ ...prev, [key]: parseCurrency(value) }));
+    const handleTariffChange = (key, value) => {
+        setTariffs(prev => ({ ...prev, [key]: parseCurrency(value) }));
     };
 
     const handleSave = async () => {
         setIsSaving(true);
-        const { error } = await supabase.from('system_settings').update({ value: prices }).eq('key', 'basic_service_prices');
+        const { error } = await supabase.from('system_settings').upsert({ key: 'base_tariffs', value: tariffs });
         if (error) {
-            toast({ title: 'Erro ao salvar preços', description: error.message, variant: 'destructive' });
+            toast({ title: 'Erro ao salvar tarifas', description: error.message, variant: 'destructive' });
         } else {
-            toast({ title: 'Preços dos serviços atualizados!' });
+            toast({ title: 'Tarifas atualizadas com sucesso!' });
             onUpdate();
-            setActiveTab('finances');
         }
         setIsSaving(false);
     };
 
+    const groupData = TARIFF_GROUPS[activeTariffTab];
+    const GroupIcon = groupData.groupIcon;
+
     return (
         <Card className="glass-effect">
             <CardHeader>
-                <CardTitle>Preços dos Serviços Básicos</CardTitle>
-                <CardDescription>Defina o valor semanal para os serviços essenciais.</CardDescription>
+                <CardTitle className="flex items-center gap-2"><Receipt className="w-5 h-5 text-primary" /> Valores de Tarifas Base</CardTitle>
+                <CardDescription>Defina os valores cobrados para emissão de documentos, criação de empresas e multas.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-                {Object.entries(serviceGroups).map(([groupName, groupData]) => {
-                    const GroupIcon = groupData.groupIcon;
-                    return (
-                        <div key={groupName} className="space-y-4">
+                <Tabs value={activeTariffTab} onValueChange={setActiveTariffTab} className="w-full">
+                    <TabsList className="w-full grid grid-cols-3">
+                        {TARIFF_GROUP_KEYS.map(groupName => {
+                            const GIcon = TARIFF_GROUPS[groupName].groupIcon;
+                            return (
+                                <TabsTrigger key={groupName} value={groupName} className="text-xs sm:text-sm">
+                                    <GIcon className="w-4 h-4 mr-1.5" />
+                                    {groupName.split(' ').slice(-1)[0]}
+                                </TabsTrigger>
+                            );
+                        })}
+                    </TabsList>
+                </Tabs>
+
+                <div className="flex items-center gap-2 mb-2">
+                    <GroupIcon className="w-5 h-5 text-primary" />
+                    <h4 className="font-semibold text-lg text-foreground">{activeTariffTab}</h4>
+                </div>
+
+                <div className="space-y-3">
+                    {groupData.tariffs.map(({ key, label, icon: TariffIcon }) => (
+                        <div key={key} className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
-                                <GroupIcon className="w-5 h-5 text-primary" />
-                                <h4 className="font-semibold text-lg text-foreground">{groupName}</h4>
-                                <Separator className="flex-grow ml-2" />
+                                <TariffIcon className="w-4 h-4 text-muted-foreground" />
+                                <Label htmlFor={key}>{label}</Label>
                             </div>
-                            {groupData.services.map(({ key, label, icon: ServiceIcon }) => (
-                                <div key={key} className="flex items-center justify-between pl-4">
-                                     <div className="flex items-center gap-2">
-                                        <ServiceIcon className="w-4 h-4 text-muted-foreground" />
-                                        <Label htmlFor={key}>{label}</Label>
-                                    </div>
-                                    <Input
-                                        id={key}
-                                        value={formatCurrency(prices[key] || 0, true)}
-                                        onChange={(e) => handlePriceChange(key, e.target.value)}
-                                        className="w-32"
-                                    />
-                                </div>
-                            ))}
+                            <Input
+                                id={key}
+                                value={formatCurrency(tariffs[key] || 0, true)}
+                                onChange={(e) => handleTariffChange(key, e.target.value)}
+                                className="w-32"
+                            />
                         </div>
-                    );
-                })}
+                    ))}
+                </div>
             </CardContent>
             <CardFooter>
-                 <Button onClick={handleSave} disabled={isSaving} className="w-full">
+                <Button onClick={handleSave} disabled={isSaving} className="w-full">
                     <Save className="mr-2 h-4 w-4" />
-                    {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : 'Salvar Preços'}
+                    {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : 'Salvar Tarifas'}
                 </Button>
             </CardFooter>
         </Card>
@@ -1065,10 +1109,12 @@ const BillReviewManager = ({ executiveState, onUpdate, actorId }) => {
                                 </Button>
                                 {!isPromulgationOnly && (
                                     <>
-                                        <Button variant="outline" onClick={() => openReviewDialog(bill, 'veto_total')}>
+                                        <Button variant="outline" className="border-red-500/50 text-red-400 hover:bg-red-500/10 hover:text-red-300" onClick={() => openReviewDialog(bill, 'veto_total')}>
+                                            <Ban className="mr-2 h-4 w-4" />
                                             Veto total
                                         </Button>
-                                        <Button variant="outline" onClick={() => openReviewDialog(bill, 'veto_partial')}>
+                                        <Button variant="outline" className="border-orange-500/50 text-orange-400 hover:bg-orange-500/10 hover:text-orange-300" onClick={() => openReviewDialog(bill, 'veto_partial')}>
+                                            <CircleSlash className="mr-2 h-4 w-4" />
                                             Veto parcial
                                         </Button>
                                     </>
@@ -1274,6 +1320,506 @@ const ResignationManager = ({ onResign }) => {
     );
 };
 
+const ENTERPRISE_SECTORS = [
+    { value: 'Internet', label: 'Internet', icon: Wifi, color: 'text-cyan-400', bgColor: 'bg-cyan-500/20' },
+    { value: 'Energia Elétrica', label: 'Energia Elétrica', icon: Zap, color: 'text-yellow-400', bgColor: 'bg-yellow-500/20' },
+    { value: 'Água', label: 'Água', icon: Droplet, color: 'text-blue-400', bgColor: 'bg-blue-500/20' },
+    { value: 'Telefonia', label: 'Telefonia', icon: Smartphone, color: 'text-violet-400', bgColor: 'bg-violet-500/20' },
+    { value: 'Gás', label: 'Gás', icon: Flame, color: 'text-orange-500', bgColor: 'bg-orange-500/20' },
+    { value: 'Outros', label: 'Outros', icon: Building, color: 'text-gray-400', bgColor: 'bg-gray-500/20' },
+];
+
+const SECTOR_SERVICE_KEYS = {
+    'Internet': [
+        { key: 'Internet_Básico', label: 'Plano Básico', icon: Package },
+        { key: 'Internet_Ultra', label: 'Plano Ultra', icon: Package2 },
+        { key: 'Internet_Mega', label: 'Plano Mega', icon: PackageCheck },
+    ],
+    'Telefonia': [
+        { key: 'Telefonia_Básico', label: 'Plano Básico', icon: Package },
+        { key: 'Telefonia_Intermediário', label: 'Plano Intermediário', icon: Package2 },
+        { key: 'Telefonia_Premium', label: 'Plano Premium', icon: PackageCheck },
+    ],
+    'Energia Elétrica': [
+        { key: 'Energia Elétrica', label: 'Energia Elétrica', icon: Zap },
+    ],
+    'Água': [
+        { key: 'Água', label: 'Água', icon: Droplet },
+    ],
+    'Gás': [
+        { key: 'Gás', label: 'Gás', icon: Flame },
+    ],
+};
+
+const ENTERPRISE_COST_LABELS = {
+    employees: 'Funcionários',
+    infrastructure: 'Infraestrutura',
+    maintenance: 'Manutenção',
+    energy: 'Energia',
+    licenses: 'Licenças',
+};
+
+const EnterpriseDetailView = ({ enterprise, onBack, onUpdate }) => {
+    const { toast } = useToast();
+    const sectorInfo = ENTERPRISE_SECTORS.find(s => s.value === enterprise.sector) || ENTERPRISE_SECTORS[5];
+    const SectorIcon = sectorInfo.icon;
+    const sectorServices = SECTOR_SERVICE_KEYS[enterprise.sector] || [];
+
+    const [prices, setPrices] = useState({});
+    const [costs, setCosts] = useState({});
+    const [savingPrices, setSavingPrices] = useState(false);
+    const [savingCosts, setSavingCosts] = useState(false);
+    const [loadingData, setLoadingData] = useState(true);
+
+    useEffect(() => {
+        const loadData = async () => {
+            setLoadingData(true);
+            const [pricesRes, costsRes] = await Promise.all([
+                supabase.from('system_settings').select('value').eq('key', 'basic_service_prices').single(),
+                supabase.from('system_settings').select('value').eq('key', 'enterprise_costs').single(),
+            ]);
+            if (pricesRes.data?.value) setPrices(pricesRes.data.value);
+            if (costsRes.data?.value?.[enterprise.id]) setCosts(costsRes.data.value[enterprise.id]);
+            setLoadingData(false);
+        };
+        loadData();
+    }, [enterprise.id]);
+
+    const handlePriceChange = (key, value) => {
+        setPrices(prev => ({ ...prev, [key]: parseCurrency(value) }));
+    };
+
+    const handleCostChange = (key, value) => {
+        setCosts(prev => ({ ...prev, [key]: parseCurrency(value) }));
+    };
+
+    const handleSavePrices = async () => {
+        setSavingPrices(true);
+        const { error } = await supabase.from('system_settings').update({ value: prices }).eq('key', 'basic_service_prices');
+        if (error) {
+            toast({ title: 'Erro ao salvar preços', description: error.message, variant: 'destructive' });
+        } else {
+            toast({ title: 'Preços atualizados!' });
+            onUpdate?.();
+        }
+        setSavingPrices(false);
+    };
+
+    const handleSaveCosts = async () => {
+        setSavingCosts(true);
+        const { data: existing } = await supabase.from('system_settings').select('value').eq('key', 'enterprise_costs').single();
+        const allCosts = existing?.value || {};
+        allCosts[enterprise.id] = costs;
+        const { error } = await supabase.from('system_settings').upsert({ key: 'enterprise_costs', value: allCosts });
+        if (error) {
+            toast({ title: 'Erro ao salvar custos', description: error.message, variant: 'destructive' });
+        } else {
+            toast({ title: 'Custos operacionais atualizados!' });
+            onUpdate?.();
+        }
+        setSavingCosts(false);
+    };
+
+    const totalMonthlyCost = Object.values(costs).reduce((sum, v) => sum + (Number(v) || 0), 0);
+
+    if (loadingData) return <div className="flex justify-center py-8"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
+
+    return (
+        <div className="space-y-6">
+            <div className="flex items-center gap-4">
+                <Button variant="ghost" size="sm" onClick={onBack}>
+                    <ChevronLeft className="w-4 h-4 mr-1" /> Voltar
+                </Button>
+                <div className="flex items-center gap-3">
+                    <div className={`p-2 rounded-lg ${sectorInfo.bgColor}`}><SectorIcon className={`w-6 h-6 ${sectorInfo.color}`} /></div>
+                    <div>
+                        <h3 className="text-xl font-semibold">{enterprise.name}</h3>
+                        <p className="text-sm text-muted-foreground">{sectorInfo.label} • {enterprise.is_active ? 'Ativa' : 'Inativa'}</p>
+                    </div>
+                </div>
+            </div>
+
+            {enterprise.description && (
+                <Card className="glass-effect">
+                    <CardContent className="pt-4">
+                        <p className="text-sm text-muted-foreground">{enterprise.description}</p>
+                    </CardContent>
+                </Card>
+            )}
+
+            {sectorServices.length > 0 && (
+                <Card className="glass-effect">
+                    <CardHeader>
+                        <CardTitle className="text-lg flex items-center gap-2"><DollarSign className="w-5 h-5 text-primary" /> Preços dos Serviços</CardTitle>
+                        <CardDescription>Defina o valor semanal para os serviços desta estatal.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        {sectorServices.map(({ key, label, icon: ServiceIcon }) => (
+                            <div key={key} className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                    <ServiceIcon className={`w-4 h-4 ${sectorInfo.color}`} />
+                                    <Label htmlFor={`price-${key}`}>{label}</Label>
+                                </div>
+                                <Input
+                                    id={`price-${key}`}
+                                    value={formatCurrency(prices[key] || 0, true)}
+                                    onChange={(e) => handlePriceChange(key, e.target.value)}
+                                    className="w-32"
+                                />
+                            </div>
+                        ))}
+                    </CardContent>
+                    <CardFooter>
+                        <Button onClick={handleSavePrices} disabled={savingPrices} className="w-full">
+                            {savingPrices ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                            Salvar Preços
+                        </Button>
+                    </CardFooter>
+                </Card>
+            )}
+
+            <Card className="glass-effect">
+                <CardHeader>
+                    <CardTitle className="text-lg flex items-center gap-2"><Coins className="w-5 h-5 text-amber-400" /> Custos Operacionais</CardTitle>
+                    <CardDescription>Custos mensais de operação da estatal. Total: <span className="font-bold text-foreground">{formatCurrency(totalMonthlyCost)}</span>/mês</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    {Object.entries(ENTERPRISE_COST_LABELS).map(([key, label]) => (
+                        <div key={key} className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <Wrench className="w-4 h-4 text-muted-foreground" />
+                                <Label htmlFor={`cost-${key}`}>{label}</Label>
+                            </div>
+                            <Input
+                                id={`cost-${key}`}
+                                value={formatCurrency(costs[key] || 0, true)}
+                                onChange={(e) => handleCostChange(key, e.target.value)}
+                                className="w-32"
+                            />
+                        </div>
+                    ))}
+                </CardContent>
+                <CardFooter>
+                    <Button onClick={handleSaveCosts} disabled={savingCosts} className="w-full">
+                        {savingCosts ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                        Salvar Custos
+                    </Button>
+                </CardFooter>
+            </Card>
+        </div>
+    );
+};
+
+const StateEnterpriseManager = ({ onUpdate }) => {
+    const { user } = useAuth();
+    const { toast } = useToast();
+    const [enterprises, setEnterprises] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [isDialogOpen, setIsDialogOpen] = useState(false);
+    const [editingEnterprise, setEditingEnterprise] = useState(null);
+    const [selectedEnterprise, setSelectedEnterprise] = useState(null);
+    const [form, setForm] = useState({ name: '', sector: '', description: '' });
+    const [saving, setSaving] = useState(false);
+    const [servicePrices, setServicePrices] = useState({});
+    const [savingPricesFor, setSavingPricesFor] = useState(null);
+
+    const fetchEnterprises = useCallback(async () => {
+        setLoading(true);
+        const [entRes, pricesRes] = await Promise.all([
+            supabase.from('state_enterprises').select('*').order('created_at', { ascending: true }),
+            supabase.from('system_settings').select('value').eq('key', 'basic_service_prices').single(),
+        ]);
+        if (entRes.error) {
+            toast({ title: 'Erro ao carregar estatais', description: entRes.error.message, variant: 'destructive' });
+        } else {
+            setEnterprises(entRes.data || []);
+            if (selectedEnterprise) {
+                const updated = (entRes.data || []).find(e => e.id === selectedEnterprise.id);
+                if (updated) setSelectedEnterprise(updated);
+            }
+        }
+        if (pricesRes.data?.value) setServicePrices(pricesRes.data.value);
+        setLoading(false);
+    }, [toast, selectedEnterprise]);
+
+    useEffect(() => { fetchEnterprises(); }, []);
+
+    const openCreate = () => {
+        setEditingEnterprise(null);
+        setForm({ name: '', sector: '', description: '' });
+        setIsDialogOpen(true);
+    };
+
+    const openEdit = (enterprise) => {
+        setEditingEnterprise(enterprise);
+        setForm({ name: enterprise.name, sector: enterprise.sector, description: enterprise.description || '' });
+        setIsDialogOpen(true);
+    };
+
+    const handleSave = async () => {
+        if (!form.name.trim() || !form.sector) {
+            toast({ title: 'Preencha nome e setor', variant: 'destructive' });
+            return;
+        }
+        setSaving(true);
+        if (editingEnterprise) {
+            const { error } = await supabase
+                .from('state_enterprises')
+                .update({ name: form.name.trim(), sector: form.sector, description: form.description.trim(), updated_at: new Date().toISOString() })
+                .eq('id', editingEnterprise.id);
+            if (error) {
+                toast({ title: 'Erro ao atualizar', description: error.message, variant: 'destructive' });
+            } else {
+                toast({ title: 'Estatal atualizada com sucesso' });
+                await publishOfficialGazetteEntry(supabase, {
+                    title: `Atualização de Estatal: ${form.name.trim()}`,
+                    content: `A estatal "${form.name.trim()}" (setor: ${form.sector}) foi atualizada pelo Presidente da República.`,
+                    category: 'decree',
+                    author_id: user?.id,
+                });
+            }
+        } else {
+            const { error } = await supabase
+                .from('state_enterprises')
+                .insert({ name: form.name.trim(), sector: form.sector, description: form.description.trim(), created_by: user?.id });
+            if (error) {
+                toast({ title: 'Erro ao criar estatal', description: error.message, variant: 'destructive' });
+            } else {
+                toast({ title: 'Estatal criada com sucesso' });
+                await publishOfficialGazetteEntry(supabase, {
+                    title: `Criação de Estatal: ${form.name.trim()}`,
+                    content: `O Presidente da República criou a estatal "${form.name.trim()}" no setor de ${form.sector}.`,
+                    category: 'decree',
+                    author_id: user?.id,
+                });
+            }
+        }
+        setSaving(false);
+        setIsDialogOpen(false);
+        fetchEnterprises();
+        onUpdate?.();
+    };
+
+    const handlePrivatize = async (enterprise) => {
+        const { error } = await supabase
+            .from('state_enterprises')
+            .update({ is_privatized: true, is_active: false, updated_at: new Date().toISOString() })
+            .eq('id', enterprise.id);
+        if (error) {
+            toast({ title: 'Erro ao privatizar', description: error.message, variant: 'destructive' });
+        } else {
+            toast({ title: `"${enterprise.name}" foi privatizada` });
+            await publishOfficialGazetteEntry(supabase, {
+                title: `Privatização: ${enterprise.name}`,
+                content: `O Presidente da República decretou a privatização da estatal "${enterprise.name}" (setor: ${enterprise.sector}).`,
+                category: 'decree',
+                author_id: user?.id,
+            });
+            fetchEnterprises();
+            onUpdate?.();
+        }
+    };
+
+    const handleReactivate = async (enterprise) => {
+        const { error } = await supabase
+            .from('state_enterprises')
+            .update({ is_privatized: false, is_active: true, updated_at: new Date().toISOString() })
+            .eq('id', enterprise.id);
+        if (error) {
+            toast({ title: 'Erro ao reestatizar', description: error.message, variant: 'destructive' });
+        } else {
+            toast({ title: `"${enterprise.name}" foi reestatizada` });
+            fetchEnterprises();
+            onUpdate?.();
+        }
+    };
+
+    const handleToggleActive = async (enterprise) => {
+        const { error } = await supabase
+            .from('state_enterprises')
+            .update({ is_active: !enterprise.is_active, updated_at: new Date().toISOString() })
+            .eq('id', enterprise.id);
+        if (error) {
+            toast({ title: 'Erro', description: error.message, variant: 'destructive' });
+        } else {
+            fetchEnterprises();
+        }
+    };
+
+    const handleInlinePriceChange = (key, value) => {
+        setServicePrices(prev => ({ ...prev, [key]: parseCurrency(value) }));
+    };
+
+    const handleSaveInlinePrices = async (enterpriseId) => {
+        setSavingPricesFor(enterpriseId);
+        const { error } = await supabase.from('system_settings').update({ value: servicePrices }).eq('key', 'basic_service_prices');
+        if (error) {
+            toast({ title: 'Erro ao salvar preços', description: error.message, variant: 'destructive' });
+        } else {
+            toast({ title: 'Preços atualizados!' });
+            onUpdate?.();
+        }
+        setSavingPricesFor(null);
+    };
+
+    if (loading) return <div className="flex justify-center py-8"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
+
+    if (selectedEnterprise) {
+        return <EnterpriseDetailView enterprise={selectedEnterprise} onBack={() => setSelectedEnterprise(null)} onUpdate={() => { fetchEnterprises(); onUpdate?.(); }} />;
+    }
+
+    const activeEnterprises = enterprises.filter(e => !e.is_privatized);
+    const privatizedEnterprises = enterprises.filter(e => e.is_privatized);
+
+    return (
+        <div className="space-y-6">
+            <div className="flex items-center justify-between">
+                <div>
+                    <h3 className="text-xl font-semibold flex items-center gap-2"><Building className="w-5 h-5 text-primary" /> Estatais do Governo</h3>
+                    <p className="text-sm text-muted-foreground mt-1">Crie, gerencie e privatize empresas estatais.</p>
+                </div>
+                <Button onClick={openCreate}><Plus className="w-4 h-4 mr-2" /> Nova Estatal</Button>
+            </div>
+
+            {activeEnterprises.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {activeEnterprises.map(enterprise => {
+                        const sectorInfo = ENTERPRISE_SECTORS.find(s => s.value === enterprise.sector) || ENTERPRISE_SECTORS[5];
+                        const SectorIcon = sectorInfo.icon;
+                        const sectorServices = SECTOR_SERVICE_KEYS[enterprise.sector] || [];
+                        return (
+                            <Card key={enterprise.id} className="glass-effect cursor-pointer hover:border-primary/50 transition-colors" onClick={() => setSelectedEnterprise(enterprise)}>
+                                <CardHeader className="pb-3">
+                                    <div className="flex items-start justify-between">
+                                        <div className="flex items-center gap-3">
+                                            <div className={`p-2 rounded-lg ${sectorInfo.bgColor}`}><SectorIcon className={`w-5 h-5 ${sectorInfo.color}`} /></div>
+                                            <div>
+                                                <CardTitle className="text-base">{enterprise.name}</CardTitle>
+                                                <CardDescription>{sectorInfo.label}</CardDescription>
+                                            </div>
+                                        </div>
+                                        <span className={`text-xs px-2 py-1 rounded-full ${enterprise.is_active ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'}`}>
+                                            {enterprise.is_active ? 'Ativa' : 'Inativa'}
+                                        </span>
+                                    </div>
+                                </CardHeader>
+                                {enterprise.description && (
+                                    <CardContent className="pt-0 pb-3">
+                                        <p className="text-sm text-muted-foreground">{enterprise.description}</p>
+                                    </CardContent>
+                                )}
+                                {sectorServices.length > 0 && (
+                                    <CardContent className="pt-0 pb-3" onClick={e => e.stopPropagation()}>
+                                        <div className="space-y-2 border-t border-border/40 pt-3">
+                                            <p className="text-xs font-medium text-muted-foreground flex items-center gap-1"><DollarSign className="w-3 h-3" /> Preços dos Serviços</p>
+                                            {sectorServices.map(({ key, label, icon: ServiceIcon }) => (
+                                                <div key={key} className="flex items-center justify-between gap-2">
+                                                    <div className="flex items-center gap-1.5">
+                                                        <ServiceIcon className={`w-3 h-3 ${sectorInfo.color}`} />
+                                                        <span className="text-xs">{label}</span>
+                                                    </div>
+                                                    <Input
+                                                        value={formatCurrency(servicePrices[key] || 0, true)}
+                                                        onChange={(e) => handleInlinePriceChange(key, e.target.value)}
+                                                        className="w-24 h-7 text-xs"
+                                                    />
+                                                </div>
+                                            ))}
+                                            <Button size="sm" variant="outline" className="w-full mt-1 h-7 text-xs" onClick={() => handleSaveInlinePrices(enterprise.id)} disabled={savingPricesFor === enterprise.id}>
+                                                {savingPricesFor === enterprise.id ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Save className="w-3 h-3 mr-1" />}
+                                                Salvar Preços
+                                            </Button>
+                                        </div>
+                                    </CardContent>
+                                )}
+                                <CardFooter className="gap-2 flex-wrap" onClick={e => e.stopPropagation()}>
+                                    <Button size="sm" variant="outline" onClick={() => openEdit(enterprise)}><Edit className="w-3 h-3 mr-1" /> Editar</Button>
+                                    <Button size="sm" variant="outline" onClick={() => handleToggleActive(enterprise)}>
+                                        {enterprise.is_active ? <><PowerOff className="w-3 h-3 mr-1" /> Desativar</> : <><Power className="w-3 h-3 mr-1" /> Ativar</>}
+                                    </Button>
+                                    <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white" onClick={() => handlePrivatize(enterprise)}><Banknote className="w-3 h-3 mr-1" /> Privatizar</Button>
+                                </CardFooter>
+                            </Card>
+                        );
+                    })}
+                </div>
+            ) : (
+                <Card className="glass-effect p-8 text-center text-muted-foreground">
+                    <Building className="w-12 h-12 mx-auto mb-3 opacity-40" />
+                    <p>Nenhuma estatal ativa encontrada.</p>
+                </Card>
+            )}
+
+            {privatizedEnterprises.length > 0 && (
+                <div>
+                    <h4 className="text-lg font-semibold mb-3 text-muted-foreground">Empresas Privatizadas</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {privatizedEnterprises.map(enterprise => {
+                            const sectorInfo = ENTERPRISE_SECTORS.find(s => s.value === enterprise.sector) || ENTERPRISE_SECTORS[5];
+                            const SectorIcon = sectorInfo.icon;
+                            return (
+                                <Card key={enterprise.id} className="glass-effect opacity-60">
+                                    <CardHeader className="pb-3">
+                                        <div className="flex items-center gap-3">
+                                            <div className="p-2 rounded-lg bg-gray-500/20"><SectorIcon className="w-5 h-5 text-gray-400" /></div>
+                                            <div>
+                                                <CardTitle className="text-base line-through">{enterprise.name}</CardTitle>
+                                                <CardDescription>{sectorInfo.label} — Privatizada</CardDescription>
+                                            </div>
+                                        </div>
+                                    </CardHeader>
+                                    <CardFooter>
+                                        <Button size="sm" variant="outline" onClick={() => handleReactivate(enterprise)}>Reestatizar</Button>
+                                    </CardFooter>
+                                </Card>
+                            );
+                        })}
+                    </div>
+                </div>
+            )}
+
+            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>{editingEnterprise ? 'Editar Estatal' : 'Criar Nova Estatal'}</DialogTitle>
+                        <DialogDescription>
+                            {editingEnterprise ? 'Atualize as informações da empresa estatal.' : 'Defina os dados da nova empresa estatal do governo.'}
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                        <div>
+                            <Label>Nome da Estatal</Label>
+                            <Input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Ex: GOV Telecom" />
+                        </div>
+                        <div>
+                            <Label>Setor</Label>
+                            <Select value={form.sector} onValueChange={v => setForm(f => ({ ...f, sector: v }))}>
+                                <SelectTrigger><SelectValue placeholder="Selecione o setor" /></SelectTrigger>
+                                <SelectContent>
+                                    {ENTERPRISE_SECTORS.map(s => (
+                                        <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div>
+                            <Label>Descrição</Label>
+                            <Textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder="Breve descrição da estatal..." rows={3} />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <DialogClose asChild><Button variant="outline">Cancelar</Button></DialogClose>
+                        <Button onClick={handleSave} disabled={saving}>
+                            {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
+                            {editingEnterprise ? 'Salvar' : 'Criar'}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+        </div>
+    );
+};
+
 
 const PresidentDashboard = () => {
     const { toast } = useToast();
@@ -1285,6 +1831,7 @@ const PresidentDashboard = () => {
     const [budget, setBudget] = useState(null);
     const [taxes, setTaxes] = useState(null);
     const [servicePrices, setServicePrices] = useState(null);
+    const [baseTariffs, setBaseTariffs] = useState(null);
     const [govFinances, setGovFinances] = useState(null);
     const [deficit, setDeficit] = useState(0);
     const [executiveState, setExecutiveState] = useState(null);
@@ -1337,6 +1884,7 @@ const PresidentDashboard = () => {
             setBudget(normalizedBudgetData);
             setTaxes(settingsMap.tax_rates || { product_tax: 0, service_tax: 0, transaction_tax: { type: 'percentage', value: 0 } });
             setServicePrices(settingsMap.basic_service_prices || {});
+            setBaseTariffs(settingsMap.base_tariffs || {});
 
             const totalAllocated = getGovernmentBudgetTotal(adjustedBudgetAreas);
             setDeficit(financesRes.data.treasury_balance - totalAllocated);
@@ -1353,21 +1901,21 @@ const PresidentDashboard = () => {
     }, [fetchData]);
 
     const handleResignation = async () => {
-        const { data, error } = await supabase.rpc('resign_presidency');
-        if (error || !data.success) {
-            toast({ title: 'Erro ao renunciar', description: data?.message || error.message, variant: 'destructive' });
-        } else {
-            try {
-                await markExecutiveOfficeVacancy(supabase, {
-                    reason: 'Renúncia presidencial.',
-                    triggeredBy: user?.id || null,
-                });
-            } catch (vacancyError) {
-                console.error('Erro ao registrar vacância presidencial:', vacancyError);
+        try {
+            const response = await fetchWithSessionAuth('/api/elections/resign-presidency', {
+                method: 'POST',
+            });
+            const payload = await response.json().catch(() => ({}));
+
+            if (!response.ok) {
+                throw new Error(payload?.error || 'Não foi possível registrar a renúncia presidencial.');
             }
-            toast({ title: 'Renúncia Aceita', description: data.message });
+
+            toast({ title: 'Renúncia Aceita', description: payload.message });
             navigate('/');
-            window.location.reload(); // Forçar recarregamento para atualizar o estado do usuário
+            window.location.reload();
+        } catch (error) {
+            toast({ title: 'Erro ao renunciar', description: error.message, variant: 'destructive' });
         }
     };
 
@@ -1404,11 +1952,11 @@ const PresidentDashboard = () => {
                 />
 
                 <Tabs defaultValue="overview" value={activeTab} onValueChange={setActiveTab} className="w-full">
-                    <div className="overflow-x-auto custom-scrollbar -mx-4 px-4 pb-2">
+                    <div className="overflow-x-auto custom-scrollbar -mx-4 px-4 pb-2 flex justify-center">
                         <TabsList className="inline-flex min-w-max w-max gap-2">
-                            <TabsTrigger value="overview" className="min-w-[9.5rem] shrink-0">Visão Geral</TabsTrigger>
-                            <TabsTrigger value="finances" className="min-w-[8.5rem] shrink-0">Finanças</TabsTrigger>
-                            <TabsTrigger value="management" className="min-w-[13rem] shrink-0">Gestão Governamental</TabsTrigger>
+                            <TabsTrigger value="overview" className="min-w-[9.5rem] shrink-0"><LayoutDashboard className="w-4 h-4 mr-2" />Visão Geral</TabsTrigger>
+                            <TabsTrigger value="finances" className="min-w-[8.5rem] shrink-0"><Coins className="w-4 h-4 mr-2" />Finanças</TabsTrigger>
+                            <TabsTrigger value="management" className="min-w-[13rem] shrink-0"><Settings className="w-4 h-4 mr-2" />Gestão Governamental</TabsTrigger>
                         </TabsList>
                     </div>
 
@@ -1459,7 +2007,7 @@ const PresidentDashboard = () => {
                                     </Card>
                                 </motion.div>
                             )}
-                            
+
                             {govFinances && (
                                 <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.6 }}>
                                     <Card className="glass-effect overflow-hidden border-t-4 border-t-amber-500/50">
@@ -1490,7 +2038,7 @@ const PresidentDashboard = () => {
 
                     <TabsContent value="finances" className="mt-6">
                         <Tabs defaultValue="budget" className="w-full">
-                            <div className="overflow-x-auto custom-scrollbar -mx-4 px-4 pb-2 mb-6">
+                            <div className="overflow-x-auto custom-scrollbar -mx-4 px-4 pb-2 mb-6 flex justify-center">
                                 <TabsList className="inline-flex min-w-max w-max gap-2 border-b border-border/40 bg-transparent p-0">
                                     <TabsTrigger value="budget" className="min-w-[14rem] shrink-0 data-[state=active]:bg-card data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-t-lg px-6">Orçamento Governamental</TabsTrigger>
                                     <TabsTrigger value="taxes" className="min-w-[12rem] shrink-0 data-[state=active]:bg-card data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-t-lg px-6">Gestão de Impostos</TabsTrigger>
@@ -1505,19 +2053,19 @@ const PresidentDashboard = () => {
                                         {budget && govFinances && <BudgetManager budget={budget} treasuryBalance={govFinances.treasury_balance} onUpdate={fetchData} setActiveTab={setActiveTab} />}
                                     </div>
                                 </TabsContent>
-                                
+
                                 <TabsContent value="taxes" className="mt-0">
                                     <div className="max-w-3xl mx-auto">
                                         {taxes && <TaxManager taxes={taxes} onUpdate={fetchData} setActiveTab={setActiveTab} />}
                                     </div>
                                 </TabsContent>
-                                
+
                                 <TabsContent value="prices" className="mt-0">
                                     <div className="max-w-3xl mx-auto">
-                                        {servicePrices && <ServicePriceManager servicePrices={servicePrices} onUpdate={fetchData} setActiveTab={setActiveTab} />}
+                                        <TariffManager baseTariffs={baseTariffs} onUpdate={fetchData} />
                                     </div>
                                 </TabsContent>
-                                
+
                                 <TabsContent value="actions" className="mt-0">
                                     <div className="max-w-xl mx-auto pt-8">
                                         <Card className="glass-effect">
@@ -1541,11 +2089,12 @@ const PresidentDashboard = () => {
 
                     <TabsContent value="management" className="mt-6">
                         <Tabs defaultValue="constitutional" className="w-full">
-                            <div className="overflow-x-auto custom-scrollbar -mx-4 px-4 pb-2 mb-6">
+                            <div className="overflow-x-auto custom-scrollbar -mx-4 px-4 pb-2 mb-6 flex justify-center">
                                 <TabsList className="inline-flex min-w-max w-max gap-2 border-b border-border/40 bg-transparent p-0">
                                     <TabsTrigger value="constitutional" className="min-w-[14rem] shrink-0 data-[state=active]:bg-card data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-t-lg px-6">Constituição Executiva</TabsTrigger>
                                     <TabsTrigger value="ministers" className="min-w-[8rem] shrink-0 data-[state=active]:bg-card data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-t-lg px-6">Ministros</TabsTrigger>
                                     <TabsTrigger value="decrees" className="min-w-[14rem] shrink-0 data-[state=active]:bg-card data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-t-lg px-6">Decretos Presidenciais</TabsTrigger>
+                                    <TabsTrigger value="enterprises" className="min-w-[8rem] shrink-0 data-[state=active]:bg-card data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-t-lg px-6">Estatais</TabsTrigger>
                                     <TabsTrigger value="resignation" className="min-w-[8rem] shrink-0 data-[state=active]:bg-card data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-t-lg px-6">Renúncia</TabsTrigger>
                                 </TabsList>
                             </div>
@@ -1569,6 +2118,12 @@ const PresidentDashboard = () => {
                                 <TabsContent value="decrees" className="mt-0">
                                     <div className="max-w-4xl mx-auto">
                                         <DecreeManager decrees={decrees} onUpdate={fetchData} />
+                                    </div>
+                                </TabsContent>
+
+                                <TabsContent value="enterprises" className="mt-0">
+                                    <div className="max-w-5xl mx-auto">
+                                        <StateEnterpriseManager onUpdate={fetchData} />
                                     </div>
                                 </TabsContent>
 
