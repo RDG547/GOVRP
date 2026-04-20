@@ -11,7 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger, DialogClose } from '@/components/ui/dialog';
 import { Slider } from '@/components/ui/slider';
-import { Loader2, Landmark, Users, Briefcase, FileSignature, Edit, Plus, Save, Trash2, Megaphone, TrendingUp, TrendingDown, CreditCard, School as University, PiggyBank, HeartHandshake as Handshake, BrainCircuit, HeartPulse, Shield, Anchor, BookOpen, Microscope, Recycle, TramFront as Tram, Globe, Palette, Cpu, Building, Coins, Percent, Wifi, Smartphone, Droplet, Flame, Zap, Package, Package2, PackageCheck, UserPlus, FilePlus, UserX, LogOut, AlertTriangle, Clock3, LayoutDashboard, Settings, Ban, CircleSlash, Power, PowerOff, Lock, ChevronLeft, FileText, Store, Gavel, DollarSign, Wrench, Banknote, Scale, HardHat, Leaf, Car, IdCard, FileCheck, Receipt, Building2 } from 'lucide-react';
+import { Loader2, Landmark, Users, Briefcase, FileSignature, Edit, Plus, Save, Trash2, Megaphone, TrendingUp, TrendingDown, CreditCard, School as University, PiggyBank, HeartHandshake as Handshake, BrainCircuit, HeartPulse, Shield, Anchor, BookOpen, Microscope, Recycle, TramFront as Tram, Globe, Palette, Cpu, Building, Coins, Percent, Wifi, Smartphone, Droplet, Flame, Zap, Package, Package2, PackageCheck, UserPlus, FilePlus, UserX, LogOut, AlertTriangle, Clock3, LayoutDashboard, Settings, Ban, CircleSlash, Power, PowerOff, Lock, ChevronLeft, FileText, Store, Gavel, DollarSign, Wrench, Banknote, Scale, HardHat, Leaf, Car, Contact, FileCheck, Receipt, Building2 } from 'lucide-react';
 import { formatCurrency, parseCurrency } from '@/lib/utils';
 import PageHeader from '@/components/layout/PageHeader';
 import { Progress } from '@/components/ui/progress';
@@ -37,17 +37,17 @@ import {
 import { fetchWithSessionAuth } from '@/lib/apiAuth';
 
 const MINISTRY_INFO = {
-    'Ministério da Justiça': { icon: Scale, color: 'text-amber-400', bgColor: 'bg-amber-500/20' },
-    'Ministério da Defesa': { icon: Shield, color: 'text-red-400', bgColor: 'bg-red-500/20' },
-    'Ministério da Economia': { icon: Coins, color: 'text-emerald-400', bgColor: 'bg-emerald-500/20' },
-    'Ministério da Saúde': { icon: HeartPulse, color: 'text-rose-400', bgColor: 'bg-rose-500/20' },
-    'Ministério da Educação': { icon: BookOpen, color: 'text-blue-400', bgColor: 'bg-blue-500/20' },
-    'Ministério da Infraestrutura': { icon: HardHat, color: 'text-orange-400', bgColor: 'bg-orange-500/20' },
-    'Ministério do Meio Ambiente': { icon: Leaf, color: 'text-green-400', bgColor: 'bg-green-500/20' },
-    'Ministério de Relações Exteriores': { icon: Globe, color: 'text-sky-400', bgColor: 'bg-sky-500/20' },
+    'Ministério da Justiça': { icon: Shield, color: 'text-blue-400', bgColor: 'bg-blue-500/20' },
+    'Ministério da Defesa': { icon: Anchor, color: 'text-gray-400', bgColor: 'bg-gray-500/20' },
+    'Ministério da Economia': { icon: Landmark, color: 'text-emerald-400', bgColor: 'bg-emerald-500/20' },
+    'Ministério da Saúde': { icon: HeartPulse, color: 'text-red-400', bgColor: 'bg-red-500/20' },
+    'Ministério da Educação': { icon: BookOpen, color: 'text-yellow-400', bgColor: 'bg-yellow-500/20' },
+    'Ministério da Infraestrutura': { icon: Tram, color: 'text-orange-400', bgColor: 'bg-orange-500/20' },
+    'Ministério do Meio Ambiente': { icon: Recycle, color: 'text-green-400', bgColor: 'bg-green-500/20' },
+    'Ministério de Relações Exteriores': { icon: Globe, color: 'text-indigo-400', bgColor: 'bg-indigo-500/20' },
     'Ministério da Cultura': { icon: Palette, color: 'text-purple-400', bgColor: 'bg-purple-500/20' },
-    'Ministério de Pesquisa': { icon: Microscope, color: 'text-cyan-400', bgColor: 'bg-cyan-500/20' },
-    'Ministério da Tecnologia': { icon: Cpu, color: 'text-violet-400', bgColor: 'bg-violet-500/20' },
+    'Ministério de Pesquisa': { icon: Microscope, color: 'text-pink-400', bgColor: 'bg-pink-500/20' },
+    'Ministério da Tecnologia': { icon: Cpu, color: 'text-cyan-400', bgColor: 'bg-cyan-500/20' },
 };
 
 const MinisterManager = ({ ministers, onUpdate }) => {
@@ -57,6 +57,7 @@ const MinisterManager = ({ ministers, onUpdate }) => {
     const [selectedUser, setSelectedUser] = useState('');
     const [selectedMinistry, setSelectedMinistry] = useState('');
     const [isSaving, setIsSaving] = useState(false);
+    const [changingMinistry, setChangingMinistry] = useState(null);
 
     const allMinistries = Object.keys(MINISTRY_INFO);
 
@@ -77,8 +78,32 @@ const MinisterManager = ({ ministers, onUpdate }) => {
         fetchUsers();
     }, [toast]);
 
+    const openAppointDialog = (ministry) => {
+        setSelectedMinistry(ministry || '');
+        setSelectedUser('');
+        setChangingMinistry(null);
+        setIsDialogOpen(true);
+    };
+
+    const openChangeDialog = (minister) => {
+        setChangingMinistry(minister);
+        setSelectedMinistry(minister.ministry);
+        setSelectedUser('');
+        setIsDialogOpen(true);
+    };
+
     const handleAppoint = async () => {
         setIsSaving(true);
+
+        if (changingMinistry) {
+            const { data: dismissData, error: dismissError } = await supabase.rpc('dismiss_minister', { p_user_id: changingMinistry.user_id });
+            if (dismissError || !dismissData.success) {
+                toast({ title: 'Erro ao exonerar ministro anterior', description: dismissData?.message || dismissError.message, variant: 'destructive' });
+                setIsSaving(false);
+                return;
+            }
+        }
+
         const { data, error } = await supabase.rpc('appoint_minister', { p_user_id: selectedUser, p_ministry: selectedMinistry });
         if (error || !data.success) {
             toast({ title: 'Erro ao nomear ministro', description: data?.message || error.message, variant: 'destructive' });
@@ -87,7 +112,7 @@ const MinisterManager = ({ ministers, onUpdate }) => {
 
             try {
                 await publishOfficialGazetteEntry(supabase, {
-                    title: `Nomeação ministerial: ${selectedProfile?.full_name || 'Ministro'}`,
+                    title: `${changingMinistry ? 'Alteração' : 'Nomeação'} ministerial: ${selectedProfile?.full_name || 'Ministro'}`,
                     summary: `${selectedProfile?.full_name || 'O cidadão selecionado'} foi nomeado para ${selectedMinistry}.`,
                     content: `${selectedProfile?.full_name || 'O cidadão selecionado'} assumiu oficialmente o cargo de ${selectedMinistry}.`,
                     type: 'Nomeação e Exoneração',
@@ -99,6 +124,7 @@ const MinisterManager = ({ ministers, onUpdate }) => {
             toast({ title: 'Sucesso!', description: data.message });
             onUpdate();
             setIsDialogOpen(false);
+            setChangingMinistry(null);
         }
         setIsSaving(false);
     };
@@ -131,13 +157,14 @@ const MinisterManager = ({ ministers, onUpdate }) => {
                     <h3 className="text-xl font-semibold flex items-center gap-2"><Briefcase className="w-5 h-5 text-primary" /> Gabinete de Ministros</h3>
                     <p className="text-sm text-muted-foreground mt-1">Nomeie e exonere os ministros do seu governo.</p>
                 </div>
-                <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+                <Dialog open={isDialogOpen} onOpenChange={(open) => { setIsDialogOpen(open); if (!open) setChangingMinistry(null); }}>
                     <DialogTrigger asChild>
-                        <Button><UserPlus className="w-4 h-4 mr-2" /> Nomear Ministro</Button>
+                        <Button onClick={() => openAppointDialog('')}><UserPlus className="w-4 h-4 mr-2" /> Nomear Ministro</Button>
                     </DialogTrigger>
                     <DialogContent>
                         <DialogHeader>
-                            <DialogTitle>Nomear Novo Ministro</DialogTitle>
+                            <DialogTitle>{changingMinistry ? 'Alterar Ministro' : 'Nomear Novo Ministro'}</DialogTitle>
+                            {changingMinistry && <DialogDescription>Substituindo: {changingMinistry.profile.full_name} — {changingMinistry.ministry}</DialogDescription>}
                         </DialogHeader>
                         <div className="grid gap-4 py-4">
                             <div className="grid gap-2">
@@ -151,21 +178,23 @@ const MinisterManager = ({ ministers, onUpdate }) => {
                                     </SelectContent>
                                 </Select>
                             </div>
-                            <div className="grid gap-2">
-                                <Label htmlFor="ministry">Ministério</Label>
-                                <Select onValueChange={setSelectedMinistry}>
-                                    <SelectTrigger><SelectValue placeholder="Selecione um ministério" /></SelectTrigger>
-                                    <SelectContent>
-                                        <ScrollArea className="h-72">
-                                          {availableMinistries.map(min => <SelectItem key={min} value={min}>{min}</SelectItem>)}
-                                        </ScrollArea>
-                                    </SelectContent>
-                                </Select>
-                            </div>
+                            {!changingMinistry && (
+                                <div className="grid gap-2">
+                                    <Label htmlFor="ministry">Ministério</Label>
+                                    <Select onValueChange={setSelectedMinistry}>
+                                        <SelectTrigger><SelectValue placeholder="Selecione um ministério" /></SelectTrigger>
+                                        <SelectContent>
+                                            <ScrollArea className="h-72">
+                                              {availableMinistries.map(min => <SelectItem key={min} value={min}>{min}</SelectItem>)}
+                                            </ScrollArea>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            )}
                         </div>
                         <DialogFooter>
                             <Button onClick={handleAppoint} disabled={isSaving || !selectedUser || !selectedMinistry}>
-                                {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Nomear
+                                {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} {changingMinistry ? 'Alterar' : 'Nomear'}
                             </Button>
                         </DialogFooter>
                     </DialogContent>
@@ -178,7 +207,7 @@ const MinisterManager = ({ ministers, onUpdate }) => {
                     const MinIcon = info.icon;
                     const minister = ministers.find(m => m.ministry === ministry);
                     return (
-                        <Card key={ministry} className={`glass-effect transition-colors ${minister ? 'border-primary/30' : 'opacity-60'}`}>
+                        <Card key={ministry} className={`glass-effect transition-colors ${minister ? 'border-primary/30' : 'border-dashed border-muted-foreground/30'}`}>
                             <CardHeader className="pb-3">
                                 <div className="flex items-center gap-3">
                                     <div className={`p-2 rounded-lg ${info.bgColor}`}>
@@ -194,13 +223,22 @@ const MinisterManager = ({ ministers, onUpdate }) => {
                                     </div>
                                 </div>
                             </CardHeader>
-                            {minister && (
-                                <CardFooter className="pt-0">
-                                    <Button variant="destructive" size="sm" className="w-full" onClick={() => handleDismiss(minister)}>
-                                        <UserX className="mr-1 h-3 w-3" /> Exonerar
+                            <CardFooter className="pt-0 gap-2">
+                                {minister ? (
+                                    <>
+                                        <Button variant="outline" size="sm" className="flex-1" onClick={() => openChangeDialog(minister)}>
+                                            <Edit className="mr-1 h-3 w-3" /> Alterar
+                                        </Button>
+                                        <Button variant="destructive" size="sm" className="flex-1" onClick={() => handleDismiss(minister)}>
+                                            <UserX className="mr-1 h-3 w-3" /> Exonerar
+                                        </Button>
+                                    </>
+                                ) : (
+                                    <Button size="sm" className="w-full" onClick={() => openAppointDialog(ministry)}>
+                                        <UserPlus className="mr-1 h-3 w-3" /> Nomear
                                     </Button>
-                                </CardFooter>
-                            )}
+                                )}
+                            </CardFooter>
                         </Card>
                     );
                 })}
@@ -704,7 +742,7 @@ const TARIFF_GROUPS = {
             { key: 'doc_CNH', label: 'CNH', icon: Car },
             { key: 'doc_Passport', label: 'Passaporte', icon: Globe },
             { key: 'doc_CNPJ', label: 'CNPJ', icon: Building2 },
-            { key: 'doc_CTD', label: 'Carteira de Trabalho Digital', icon: IdCard },
+            { key: 'doc_CTD', label: 'Carteira de Trabalho Digital', icon: Contact },
             { key: 'doc_Titulo_Eleitor', label: 'Título de Eleitor', icon: FileCheck },
             { key: 'doc_Certificado_Reservista', label: 'Certificado de Reservista', icon: Shield },
             { key: 'doc_Certidao_Casamento', label: 'Certidão de Casamento', icon: FileSignature },
@@ -1734,7 +1772,7 @@ const StateEnterpriseManager = ({ onUpdate }) => {
                                 )}
                                 <CardFooter className="gap-2 flex-wrap" onClick={e => e.stopPropagation()}>
                                     <Button size="sm" variant="outline" onClick={() => openEdit(enterprise)}><Edit className="w-3 h-3 mr-1" /> Editar</Button>
-                                    <Button size="sm" variant="outline" onClick={() => handleToggleActive(enterprise)}>
+                                    <Button size="sm" variant={enterprise.is_active ? "destructive" : "outline"} onClick={() => handleToggleActive(enterprise)}>
                                         {enterprise.is_active ? <><PowerOff className="w-3 h-3 mr-1" /> Desativar</> : <><Power className="w-3 h-3 mr-1" /> Ativar</>}
                                     </Button>
                                     <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white" onClick={() => handlePrivatize(enterprise)}><Banknote className="w-3 h-3 mr-1" /> Privatizar</Button>
