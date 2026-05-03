@@ -23,6 +23,7 @@ const EFFECTIVE_ROLE_TITLES = new Set([
   'Vice-Presidente do Senado Federal',
   'Presidente do STF',
 ]);
+const TERM_BOUND_OFFICE_ROLES = new Set(['Presidente', 'Vice-Presidente', 'Deputado', 'Senador']);
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
@@ -52,10 +53,17 @@ export const AuthProvider = ({ children }) => {
         }),
       ]);
       const effectiveRoles = new Set([profile.role].filter(Boolean));
-      const titleRoles = Array.isArray(profile?.titles)
-        ? profile.titles.filter((title) => EFFECTIVE_ROLE_TITLES.has(title))
-        : [];
       const grantedOfficeRoles = resolveActiveElectionOfficeRolesForUser(electionOfficeState, profile.id);
+      const grantedOfficeRoleSet = new Set(grantedOfficeRoles);
+      const titleRoles = Array.isArray(profile?.titles)
+        ? profile.titles.filter((title) => {
+            if (!EFFECTIVE_ROLE_TITLES.has(title)) {
+              return false;
+            }
+
+            return !TERM_BOUND_OFFICE_ROLES.has(title) || grantedOfficeRoleSet.has(title);
+          })
+        : [];
       const filteredGrantedOfficeRoles = grantedOfficeRoles.filter((officeRole) => {
         if (officeRole === 'Presidente') {
           return executiveState?.currentPresidentProfile?.id === profile.id;

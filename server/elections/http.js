@@ -28,11 +28,14 @@ const PARLIAMENT_HOUSE_IDS = {
 };
 const EXECUTIVE_GOVERNANCE_SETTINGS_KEY = 'executive_governance';
 const ELECTION_OFFICE_SYNC_SETTINGS_KEY = 'election_office_sync';
+const AUTOMATIC_ELECTIONS_SETTINGS_KEY = 'automatic_elections';
 const ACTIVE_CANDIDACY_STATUSES = ['Pendente', 'Approved'];
 const VICE_CANDIDACY_INVITATION_TYPE = 'vice_candidacy_invitation';
 const VICE_CANDIDACY_TRACKER_TYPE = 'vice_candidacy_request_sent';
 const VICE_CANDIDACY_ACCEPTED_TYPE = 'vice_candidacy_request_accepted';
 const VICE_CANDIDACY_REJECTED_TYPE = 'vice_candidacy_request_rejected';
+const TERM_BOUND_PROFILE_ROLES = ['Presidente', 'Vice-Presidente', 'Deputado', 'Senador'];
+const EXECUTIVE_PROFILE_ROLES = ['Presidente', 'Vice-Presidente', 'Ministro'];
 
 let serverSupabase;
 
@@ -447,6 +450,58 @@ const addOneMonth = (dateValue) => {
   return date.toISOString();
 };
 
+const getElectionStatusByDates = ({
+  candidacy_start_date,
+  candidacy_end_date,
+  voting_start_date,
+  voting_end_date,
+}) => {
+  const now = Date.now();
+
+  if (voting_end_date && now >= new Date(voting_end_date).getTime()) {
+    return 'Finished';
+  }
+
+  if (voting_start_date && now >= new Date(voting_start_date).getTime()) {
+    return 'Voting';
+  }
+
+  if (candidacy_start_date && candidacy_end_date) {
+    const candidacyStart = new Date(candidacy_start_date).getTime();
+    const candidacyEnd = new Date(candidacy_end_date).getTime();
+
+    if (now >= candidacyStart && now <= candidacyEnd) {
+      return 'Candidacy';
+    }
+  }
+
+  return 'Scheduled';
+};
+
+const parseElectionSequence = (name = '') => {
+  const match = trimString(name).match(/^(\d+)[ªº]?\s+(.+)$/i);
+
+  if (!match) {
+    return {
+      sequence: 1,
+      suffix: trimString(name) || 'Eleição',
+    };
+  }
+
+  return {
+    sequence: Number(match[1]) || 1,
+    suffix: trimString(match[2]) || 'Eleição',
+  };
+};
+
+const formatElectionSequenceName = (name = '', nextSequence = 1) => {
+  const parsed = parseElectionSequence(name);
+  return `${nextSequence}ª ${parsed.suffix}`;
+};
+
+const incrementElectionDescription = (description = '', nextSequence = 1) =>
+  trimString(description).replace(/^(\d+)[ªº]/, `${nextSequence}ª`);
+
 const isTermActive = (termEndAt) => {
   if (!termEndAt) {
     return false;
@@ -850,6 +905,150 @@ const persistElectionOfficeState = async (supabase, payload) => {
   }
 };
 
+const fetchAutomaticElectionSettings = async (supabase) => {
+  const { data, error } = await supabase
+    .from('system_settings')
+    .select('value')
+    .eq('key', AUTOMATIC_ELECTIONS_SETTINGS_KEY)
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  return data?.value && typeof data.value === 'object' ? data.value : { plans: {} };
+};
+
+const persistAutomaticElectionSettings = async (supabase, value) => {
+  const { error } = await supabase
+    .from('system_settings')
+    .upsert(
+      {
+        key: AUTOMATIC_ELECTIONS_SETTINGS_KEY,
+        value,
+        description: 'Agenda eleições automáticas recorrentes.',
+      },
+      {
+        onConflict: 'key',
+      }
+    );
+
+  if (error) {
+    throw error;
+  }
+};
+
+const ensureAutomaticRecurringElections = async (supabase) => {
+  const settings = await fetchAutomaticElectionSettings(supabase);
+  const plans = settings?.plans && typeof settings.plans === 'object' ? settings.plans : {};
+  const now = Date.now();
+  const createdElectionIds = [];
+  let hasChanges = false;
+
+  for (const [planId, rawPlan] of Object.entries(plans)) {
+    const plan = rawPlan && typeof rawPlan === 'object' ? rawPlan : {};
+
+    if (plan.enabled === false) {
+      continue;
+    }
+
+    const lastElectionId = plan.last_election_id || plan.root_election_id || planId;
+    if (!lastElectionId) {
+      continue;
+    }
+
+    const { data: lastElection, error: lastElectionError } = await supabase
+      .from('elections')
+      .select('id, name, description, election_type_id, candidacy_start_date, candidacy_end_date, voting_start_date, voting_end_date')
+      .eq('id', lastElectionId)
+      .maybeSingle();
+
+    if (lastElectionError) {
+      throw lastElectionError;
+    }
+
+    if (!lastElection?.id || !lastElection.voting_end_date) {
+      continue;
+    }
+
+    if (now < new Date(lastElection.voting_end_date).getTime()) {
+      continue;
+    }
+
+    const nextDates = {
+      candidacy_start_date: addOneMonth(lastElection.candidacy_start_date),
+      candidacy_end_date: addOneMonth(lastElection.candidacy_end_date),
+      voting_start_date: addOneMonth(lastElection.voting_start_date),
+      voting_end_date: addOneMonth(lastElection.voting_end_date),
+    };
+
+    const { data: existingNextElection, error: existingNextElectionError } = await supabase
+      .from('elections')
+      .select('id, name')
+      .eq('election_type_id', lastElection.election_type_id)
+      .eq('candidacy_start_date', nextDates.candidacy_start_date)
+      .eq('voting_start_date', nextDates.voting_start_date)
+      .maybeSingle();
+
+    if (existingNextElectionError) {
+      throw existingNextElectionError;
+    }
+
+    const currentSequence = Number(plan.sequence || parseElectionSequence(lastElection.name).sequence || 1);
+    const nextSequence = currentSequence + 1;
+
+    if (existingNextElection?.id) {
+      plans[planId] = {
+        ...plan,
+        last_election_id: existingNextElection.id,
+        sequence: nextSequence,
+        updated_at: new Date().toISOString(),
+      };
+      hasChanges = true;
+      continue;
+    }
+
+    const nextElectionPayload = {
+      name: formatElectionSequenceName(lastElection.name, nextSequence),
+      description: incrementElectionDescription(lastElection.description || '', nextSequence),
+      election_type_id: lastElection.election_type_id,
+      ...nextDates,
+      status: getElectionStatusByDates(nextDates),
+    };
+
+    const { data: newElection, error: createElectionError } = await supabase
+      .from('elections')
+      .insert(nextElectionPayload)
+      .select('id')
+      .single();
+
+    if (createElectionError) {
+      throw createElectionError;
+    }
+
+    createdElectionIds.push(newElection.id);
+    plans[planId] = {
+      ...plan,
+      root_election_id: plan.root_election_id || planId,
+      last_election_id: newElection.id,
+      sequence: nextSequence,
+      generated_election_ids: dedupe([...(plan.generated_election_ids || []), newElection.id]),
+      updated_at: new Date().toISOString(),
+    };
+    hasChanges = true;
+  }
+
+  if (hasChanges) {
+    await persistAutomaticElectionSettings(supabase, {
+      ...settings,
+      plans,
+      updated_at: new Date().toISOString(),
+    });
+  }
+
+  return createdElectionIds;
+};
+
 const syncParliamentMemberships = async (supabase, { previousState, activeAssignments }) => {
   const legislativeAssignments = activeAssignments.filter((assignment) =>
     ['Deputado', 'Senador'].includes(assignment.officeRole)
@@ -938,8 +1137,179 @@ const syncParliamentMemberships = async (supabase, { previousState, activeAssign
   }
 };
 
+const clearStaleProfileOfficeRoles = async (supabase, { previousState, activeAssignments }) => {
+  const activeOfficeRolesByUser = new Map();
+
+  for (const assignment of activeAssignments || []) {
+    if (!assignment?.userId || !assignment?.officeRole) {
+      continue;
+    }
+
+    if (!activeOfficeRolesByUser.has(assignment.userId)) {
+      activeOfficeRolesByUser.set(assignment.userId, new Set());
+    }
+
+    activeOfficeRolesByUser.get(assignment.userId).add(assignment.officeRole);
+  }
+
+  const previousProfileIds = Array.isArray(previousState?.active_assignments)
+    ? previousState.active_assignments.map((assignment) => assignment.user_id)
+    : [];
+  const activeProfileIds = activeAssignments.map((assignment) => assignment.userId);
+  const candidateProfileIds = dedupe([...previousProfileIds, ...activeProfileIds]);
+
+  let profileQuery = supabase
+    .from('profiles')
+    .select('id, role, titles');
+
+  if (candidateProfileIds.length) {
+    profileQuery = profileQuery.or(
+      [
+        `id.in.(${candidateProfileIds.join(',')})`,
+        `role.in.(${[...TERM_BOUND_PROFILE_ROLES, 'Ministro'].join(',')})`,
+      ].join(',')
+    );
+  } else {
+    profileQuery = profileQuery.in('role', [...TERM_BOUND_PROFILE_ROLES, 'Ministro']);
+  }
+
+  const { data: profiles, error } = await profileQuery;
+
+  if (error) {
+    throw error;
+  }
+
+  for (const profile of profiles || []) {
+    const activeRoles = activeOfficeRolesByUser.get(profile.id) || new Set();
+    const currentRole = profile.role;
+    const nextRole = TERM_BOUND_PROFILE_ROLES.includes(currentRole) && !activeRoles.has(currentRole)
+      ? 'Cidadão'
+      : currentRole;
+    const currentTitles = Array.isArray(profile.titles) ? profile.titles : [];
+    const nextTitles = currentTitles.filter(
+      (title) => !TERM_BOUND_PROFILE_ROLES.includes(title) || activeRoles.has(title)
+    );
+    const patch = {};
+
+    if (nextRole !== currentRole) {
+      patch.role = nextRole;
+    }
+
+    if (nextTitles.length !== currentTitles.length) {
+      patch.titles = nextTitles;
+    }
+
+    if (!Object.keys(patch).length) {
+      continue;
+    }
+
+    const { error: updateError } = await supabase
+      .from('profiles')
+      .update(patch)
+      .eq('id', profile.id);
+
+    if (updateError) {
+      throw updateError;
+    }
+  }
+};
+
+const clearMinistersWhenExecutiveTermChanges = async (supabase, { previousState, activeAssignments }) => {
+  const currentPresident = activeAssignments.find((assignment) => assignment.officeRole === 'Presidente') || null;
+  const previousPresident = Array.isArray(previousState?.active_assignments)
+    ? previousState.active_assignments.find((assignment) => assignment.office_role === 'Presidente') || null
+    : null;
+  const executiveTermChanged =
+    !currentPresident ||
+    previousPresident?.election_id !== currentPresident.electionId ||
+    previousPresident?.user_id !== currentPresident.userId;
+
+  if (!executiveTermChanged) {
+    return [];
+  }
+
+  const { data: currentMinisters, error: ministersError } = await supabase
+    .from('ministers')
+    .select('user_id');
+
+  if (ministersError) {
+    throw ministersError;
+  }
+
+  const ministerUserIds = dedupe((currentMinisters || []).map((minister) => minister.user_id));
+
+  if ((currentMinisters || []).length) {
+    const { error: deleteError } = await supabase
+      .from('ministers')
+      .delete()
+      .neq('user_id', '00000000-0000-0000-0000-000000000000');
+
+    if (deleteError) {
+      throw deleteError;
+    }
+  }
+
+  const { data: staleProfiles, error: profilesError } = await supabase
+    .from('profiles')
+    .select('id, role, titles')
+    .or(`role.in.(${EXECUTIVE_PROFILE_ROLES.join(',')}),id.in.(${ministerUserIds.join(',') || '00000000-0000-0000-0000-000000000000'})`);
+
+  if (profilesError) {
+    throw profilesError;
+  }
+
+  const activeExecutiveRolesByUser = new Map();
+  for (const assignment of activeAssignments || []) {
+    if (!['Presidente', 'Vice-Presidente'].includes(assignment.officeRole)) {
+      continue;
+    }
+
+    if (!activeExecutiveRolesByUser.has(assignment.userId)) {
+      activeExecutiveRolesByUser.set(assignment.userId, new Set());
+    }
+
+    activeExecutiveRolesByUser.get(assignment.userId).add(assignment.officeRole);
+  }
+
+  for (const profile of staleProfiles || []) {
+    const activeRoles = activeExecutiveRolesByUser.get(profile.id) || new Set();
+    const nextRole = EXECUTIVE_PROFILE_ROLES.includes(profile.role) && !activeRoles.has(profile.role)
+      ? 'Cidadão'
+      : profile.role;
+    const currentTitles = Array.isArray(profile.titles) ? profile.titles : [];
+    const nextTitles = currentTitles.filter(
+      (title) => !EXECUTIVE_PROFILE_ROLES.includes(title) || activeRoles.has(title)
+    );
+    const patch = {};
+
+    if (nextRole !== profile.role) {
+      patch.role = nextRole;
+    }
+
+    if (nextTitles.length !== currentTitles.length) {
+      patch.titles = nextTitles;
+    }
+
+    if (!Object.keys(patch).length) {
+      continue;
+    }
+
+    const { error: updateError } = await supabase
+      .from('profiles')
+      .update(patch)
+      .eq('id', profile.id);
+
+    if (updateError) {
+      throw updateError;
+    }
+  }
+
+  return ministerUserIds;
+};
+
 export const syncElectionOfficesState = async () => {
   const supabase = getServerSupabase();
+  const automaticElectionIds = await ensureAutomaticRecurringElections(supabase);
   const latestElections = await fetchLatestFinishedElections(supabase);
   const previousState = await fetchStoredElectionOfficeState(supabase);
   const settlements = [];
@@ -988,6 +1358,16 @@ export const syncElectionOfficesState = async () => {
     activeAssignments,
   });
 
+  const clearedMinisterUserIds = await clearMinistersWhenExecutiveTermChanges(supabase, {
+    previousState,
+    activeAssignments,
+  });
+
+  await clearStaleProfileOfficeRoles(supabase, {
+    previousState,
+    activeAssignments,
+  });
+
   await clearExecutiveVacancyIfNeeded(supabase, activeAssignments);
 
   const existingNotificationKeys = await fetchExistingOfficeNotifications(
@@ -1023,10 +1403,12 @@ export const syncElectionOfficesState = async () => {
     ...previousUserIds,
     ...serializedAssignments.map((assignment) => assignment.user_id),
     ...impactedProfileIds,
+    ...clearedMinisterUserIds,
   ]);
 
   return {
     processedElectionIds: settlements.map((settlement) => settlement.electionId),
+    automaticElectionIds,
     grantedUserIds: dedupe(activeAssignments.map((assignment) => assignment.userId)),
     changedUserIds,
     notificationsCreated: notificationsToInsert.length,

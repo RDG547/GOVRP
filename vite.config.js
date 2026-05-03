@@ -7,6 +7,7 @@ import iframeRouteRestorationPlugin from './plugins/vite-plugin-iframe-route-res
 import selectionModePlugin from './plugins/selection-mode/vite-plugin-selection-mode.js';
 import donationApiPlugin from './plugins/vite-plugin-donation-api.js';
 import electionSyncApiPlugin from './plugins/vite-plugin-election-sync-api.js';
+import businessApiPlugin from './plugins/vite-plugin-business-api.js';
 
 const isDev = process.env.NODE_ENV !== 'production';
 
@@ -309,6 +310,7 @@ export default defineConfig(({ mode }) => {
 					selectionModePlugin(),
 					electionSyncApiPlugin(),
 					donationApiPlugin(),
+					businessApiPlugin(),
 				  ]
 				: []),
 			react(),

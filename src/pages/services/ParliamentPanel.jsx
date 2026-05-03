@@ -1077,13 +1077,25 @@ const ParliamentPanel = () => {
         )}
 
         <Tabs value={activeMainTab} onValueChange={setActiveMainTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-2 gap-2 md:grid-cols-6">
-            <TabsTrigger value="projects">Projetos</TabsTrigger>
-            <TabsTrigger value="votes">Votações</TabsTrigger>
-            <TabsTrigger value="commissions">Comissões</TabsTrigger>
-            <TabsTrigger value="leadership">Mesa Diretora</TabsTrigger>
-            <TabsTrigger value="plebiscites">Plebiscitos</TabsTrigger>
-            <TabsTrigger value="members">Membros</TabsTrigger>
+          <TabsList className="grid h-auto w-full grid-cols-2 items-stretch gap-2 md:grid-cols-6">
+            <TabsTrigger className="h-full min-h-10 whitespace-normal px-2 py-2 text-center leading-tight" value="projects">
+              Projetos
+            </TabsTrigger>
+            <TabsTrigger className="h-full min-h-10 whitespace-normal px-2 py-2 text-center leading-tight" value="votes">
+              Votações
+            </TabsTrigger>
+            <TabsTrigger className="h-full min-h-10 whitespace-normal px-2 py-2 text-center leading-tight" value="commissions">
+              Comissões
+            </TabsTrigger>
+            <TabsTrigger className="h-full min-h-10 whitespace-normal px-2 py-2 text-center leading-tight" value="leadership">
+              Mesa Diretora
+            </TabsTrigger>
+            <TabsTrigger className="h-full min-h-10 whitespace-normal px-2 py-2 text-center leading-tight" value="plebiscites">
+              Plebiscitos
+            </TabsTrigger>
+            <TabsTrigger className="h-full min-h-10 whitespace-normal px-2 py-2 text-center leading-tight" value="members">
+              Membros
+            </TabsTrigger>
           </TabsList>
 
           <motion.div
@@ -1095,9 +1107,19 @@ const ParliamentPanel = () => {
           >
             <TabsContent value="projects" className="space-y-6">
               <Tabs value={activeSubTab} onValueChange={setActiveSubTab}>
-                <TabsList className="grid w-full grid-cols-2">
-                  <TabsTrigger value="member_projects">Projetos dos Membros</TabsTrigger>
-                  <TabsTrigger value="citizen_suggestions">Sugestões Populares</TabsTrigger>
+                <TabsList className="grid h-auto w-full grid-cols-2 items-stretch gap-2">
+                  <TabsTrigger
+                    className="h-full min-h-10 whitespace-normal px-2 py-2 text-center leading-tight"
+                    value="member_projects"
+                  >
+                    Projetos dos Membros
+                  </TabsTrigger>
+                  <TabsTrigger
+                    className="h-full min-h-10 whitespace-normal px-2 py-2 text-center leading-tight"
+                    value="citizen_suggestions"
+                  >
+                    Sugestões Populares
+                  </TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="member_projects" className="mt-4">

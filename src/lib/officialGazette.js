@@ -160,6 +160,39 @@ export const mapBillTypeToGazetteType = (billType = '') => {
   return 'Lei';
 };
 
+const PRESIDENTIAL_DECIDED_BILL_STATUSES = [
+  'Aprovado',
+  'Sancionado',
+  'Promulgado',
+  'Vetado integralmente',
+  'Vetado parcialmente',
+];
+
+const buildBillGazetteEntry = (bill) => {
+  const isVeto = `${bill.status || ''}`.toLowerCase().includes('vetado');
+  const gazetteType = isVeto ? 'Veto Presidencial' : mapBillTypeToGazetteType(bill.type);
+  const statusSummary = {
+    Aprovado: `${gazetteType} aprovada${bill.house?.name ? ` em ${bill.house.name}` : ''}.`,
+    Sancionado: 'Lei sancionada e publicada pela Presidência da República.',
+    Promulgado: 'Texto promulgado e publicado pela Presidência da República.',
+    'Vetado integralmente': 'Projeto vetado integralmente pela Presidência da República.',
+    'Vetado parcialmente': 'Projeto vetado parcialmente pela Presidência da República.',
+  };
+
+  return buildEntry({
+    id: `${bill.id}-${bill.status || 'publicado'}`,
+    title: isVeto ? `${bill.status}: ${bill.title}` : bill.title,
+    summary: bill.summary || statusSummary[bill.status] || 'Publicação legislativa oficial.',
+    content: bill.full_text || bill.summary || statusSummary[bill.status] || 'Publicação legislativa oficial.',
+    publishedAt: bill.updated_at,
+    createdAt: bill.created_at,
+    type: gazetteType,
+    source: 'approved_bill',
+    author: bill.author,
+    house: bill.house,
+  });
+};
+
 const sortByPublishedAt = (entries) =>
   [...entries].sort((left, right) => {
     const leftTime = new Date(left.published_at || left.created_at || 0).getTime();
@@ -253,7 +286,7 @@ export const fetchOfficialGazetteEntries = async (supabase) => {
       supabase
         .from('bills')
         .select('id, title, summary, full_text, type, status, created_at, updated_at, author:profiles(full_name, avatar_url), house:parliament_houses(name)')
-        .eq('status', 'Aprovado')
+        .in('status', PRESIDENTIAL_DECIDED_BILL_STATUSES)
         .order('updated_at', { ascending: false })
     ),
   ]);
@@ -284,22 +317,7 @@ export const fetchOfficialGazetteEntries = async (supabase) => {
     })
   );
 
-  const billEntries = approvedBills.map((bill) =>
-    buildEntry({
-      id: bill.id,
-      title: bill.title,
-      summary:
-        bill.summary ||
-        `${mapBillTypeToGazetteType(bill.type)} aprovada${bill.house?.name ? ` em ${bill.house.name}` : ''}.`,
-      content: bill.full_text || bill.summary || 'Publicacao legislativa oficial.',
-      publishedAt: bill.updated_at,
-      createdAt: bill.created_at,
-      type: mapBillTypeToGazetteType(bill.type),
-      source: 'approved_bill',
-      author: bill.author,
-      house: bill.house,
-    })
-  );
+  const billEntries = approvedBills.map(buildBillGazetteEntry);
 
   return sortByPublishedAt([
     ...normalizedDouEntries,

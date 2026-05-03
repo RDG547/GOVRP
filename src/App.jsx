@@ -50,6 +50,7 @@ import ParticlesBackground from '@/components/ParticlesBackground';
 import BetaAccessWall from '@/pages/BetaAccessWall';
 import ScrollToTop from '@/components/ScrollToTop';
 import DailyCheckInPopup from '@/components/DailyCheckInPopup';
+import BusinessBalancePopup from '@/components/BusinessBalancePopup';
 import ElectionOfficeAwardPopup from '@/components/ElectionOfficeAwardPopup';
 import SalaryPaymentPopup from '@/components/SalaryPaymentPopup';
 import ViceCandidacyDecisionPopup from '@/components/ViceCandidacyDecisionPopup';
@@ -269,6 +270,7 @@ const AppShell = ({ location, theme, isAuthCallback }) => {
           {!isAuthCallback && <CookieConsent />}
           {!isAuthCallback && <DailyCheckInPopup />}
           {!isAuthCallback && <SalaryPaymentPopup />}
+          {!isAuthCallback && <BusinessBalancePopup />}
           {!isAuthCallback && <ViceCandidacyDecisionPopup />}
           {!isAuthCallback && <ElectionOfficeAwardPopup />}
         </div>

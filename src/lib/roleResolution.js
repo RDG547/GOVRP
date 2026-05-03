@@ -26,19 +26,27 @@ const dedupe = (values = []) => [...new Set(values.filter(Boolean))];
 const todayDate = () => new Date().toISOString().slice(0, 10);
 const SENATE_PARLIAMENTARY_ROLES = ['Senador', 'Presidente do Senado', 'Vice-Presidente do Senado', 'Vice-Presidente do Senado Federal'];
 const CHAMBER_PARLIAMENTARY_ROLES = ['Deputado', 'Presidente da Câmara', 'Presidente da Câmara dos Deputados', 'Vice-Presidente da Câmara dos Deputados'];
+const TERM_BOUND_OFFICE_ROLES = ['Presidente', 'Vice-Presidente', 'Deputado', 'Senador'];
 
 export const getStoredTitles = (profile = {}) =>
   Array.isArray(profile?.titles) ? profile.titles.filter(Boolean) : [];
 
 export const getProfileRolePool = (profile = {}, syncState = null) => {
+  const activeElectionRoles = resolveActiveElectionOfficeRolesForUser(syncState, profile?.id);
+  const activeElectionRoleSet = new Set(activeElectionRoles);
+  const includeStoredRole = (role) => role && (!TERM_BOUND_OFFICE_ROLES.includes(role) || activeElectionRoleSet.has(role));
+  const storedRoles = [
+    includeStoredRole(profile?.role) ? profile.role : null,
+    ...getStoredTitles(profile).filter(includeStoredRole),
+  ];
+
   if (!profile?.id) {
-    return dedupe([profile?.role, ...getStoredTitles(profile)]);
+    return dedupe(storedRoles);
   }
 
   return dedupe([
-    profile.role,
-    ...getStoredTitles(profile),
-    ...resolveActiveElectionOfficeRolesForUser(syncState, profile.id),
+    ...storedRoles,
+    ...activeElectionRoles,
   ]);
 };
 

@@ -39,11 +39,14 @@ const TransactionViewer = () => {
         if (!isDialogOpen) return;
         const fetchUsers = async () => {
             setLoadingUsers(true);
-            const { data, error } = await supabase.from('profiles').select('id, full_name, avatar_url');
+            const { data, error } = await supabase
+                .from('profiles')
+                .select('id, full_name, username, avatar_url')
+                .order('full_name', { ascending: true });
             if (error) {
                 toast({ title: "Erro ao buscar usuários", variant: "destructive" });
             } else {
-                setUsers(data);
+                setUsers(data || []);
             }
             setLoadingUsers(false);
         };
@@ -81,15 +84,20 @@ const TransactionViewer = () => {
                     <div className="md:col-span-1 h-full flex flex-col">
                         <Command className="rounded-lg border shadow-md h-full">
                             <CommandInput placeholder="Buscar usuário..." />
-                            <CommandList className="h-full">
+                            <CommandList className="h-full max-h-[58vh] overflow-y-auto custom-scrollbar">
                                 {loadingUsers ? <div className="flex justify-center p-4"><Loader2 className="animate-spin" /></div> : (
                                     <>
                                         <CommandEmpty>Nenhum usuário encontrado.</CommandEmpty>
                                         <CommandGroup heading="Usuários">
                                             {users.map((user) => (
-                                                <CommandItem key={user.id} value={user.id} onSelect={handleUserSelect} className="cursor-pointer">
+                                                <CommandItem
+                                                    key={user.id}
+                                                    value={`${user.full_name || user.username || 'Usuário'} ${user.id}`}
+                                                    onSelect={() => handleUserSelect(user.id)}
+                                                    className="cursor-pointer"
+                                                >
                                                     <User className="mr-2 h-4 w-4" />
-                                                    <span>{user.full_name}</span>
+                                                    <span>{user.full_name || user.username || 'Usuário sem nome'}</span>
                                                 </CommandItem>
                                             ))}
                                         </CommandGroup>

@@ -169,7 +169,7 @@ const MinisterManager = ({ ministers, onUpdate }) => {
                         <div className="grid gap-4 py-4">
                             <div className="grid gap-2">
                                 <Label htmlFor="user">Cidadão</Label>
-                                <Select onValueChange={setSelectedUser}>
+                                <Select value={selectedUser} onValueChange={setSelectedUser}>
                                     <SelectTrigger><SelectValue placeholder="Selecione um cidadão" /></SelectTrigger>
                                     <SelectContent>
                                         <ScrollArea className="h-72">
@@ -181,7 +181,7 @@ const MinisterManager = ({ ministers, onUpdate }) => {
                             {!changingMinistry && (
                                 <div className="grid gap-2">
                                     <Label htmlFor="ministry">Ministério</Label>
-                                    <Select onValueChange={setSelectedMinistry}>
+                                    <Select value={selectedMinistry} onValueChange={setSelectedMinistry}>
                                         <SelectTrigger><SelectValue placeholder="Selecione um ministério" /></SelectTrigger>
                                         <SelectContent>
                                             <ScrollArea className="h-72">
@@ -1560,6 +1560,8 @@ const StateEnterpriseManager = ({ onUpdate }) => {
     const [saving, setSaving] = useState(false);
     const [servicePrices, setServicePrices] = useState({});
     const [savingPricesFor, setSavingPricesFor] = useState(null);
+    const [enterpriseToPrivatize, setEnterpriseToPrivatize] = useState(null);
+    const [privatizationPrice, setPrivatizationPrice] = useState('R$ 0,00');
 
     const fetchEnterprises = useCallback(async () => {
         setLoading(true);
@@ -1638,21 +1640,60 @@ const StateEnterpriseManager = ({ onUpdate }) => {
         onUpdate?.();
     };
 
-    const handlePrivatize = async (enterprise) => {
+    const openPrivatizationDialog = (enterprise) => {
+        setEnterpriseToPrivatize(enterprise);
+        setPrivatizationPrice(formatCurrency(enterprise.privatization_price || 0, true));
+    };
+
+    const handlePrivatize = async () => {
+        if (!enterpriseToPrivatize?.id) return;
+        const targetEnterprise = enterpriseToPrivatize;
+        const price = parseCurrency(privatizationPrice);
+        if (!price || price <= 0) {
+            toast({ title: 'Informe um preço de privatização válido', variant: 'destructive' });
+            return;
+        }
         const { error } = await supabase
             .from('state_enterprises')
-            .update({ is_privatized: true, is_active: false, updated_at: new Date().toISOString() })
-            .eq('id', enterprise.id);
+            .update({
+                privatization_status: 'for_sale',
+                privatization_price: price,
+                is_privatized: false,
+                updated_at: new Date().toISOString(),
+            })
+            .eq('id', targetEnterprise.id);
         if (error) {
             toast({ title: 'Erro ao privatizar', description: error.message, variant: 'destructive' });
         } else {
-            toast({ title: `"${enterprise.name}" foi privatizada` });
-            await publishOfficialGazetteEntry(supabase, {
-                title: `Privatização: ${enterprise.name}`,
-                content: `O Presidente da República decretou a privatização da estatal "${enterprise.name}" (setor: ${enterprise.sector}).`,
-                category: 'decree',
-                author_id: user?.id,
+            setEnterpriseToPrivatize(null);
+            setPrivatizationPrice('R$ 0,00');
+            toast({ title: `"${targetEnterprise.name}" está à venda para privatização` });
+            await fetchEnterprises();
+            onUpdate?.();
+            publishOfficialGazetteEntry(supabase, {
+                title: `Privatização aberta: ${targetEnterprise.name}`,
+                content: `O Presidente da República abriu a privatização da estatal "${targetEnterprise.name}" pelo valor de ${formatCurrency(price)}. A empresa permanecerá estatal até que haja comprador.`,
+                type: 'Decreto',
+            }).catch((gazetteError) => {
+                console.error('Erro ao publicar privatização no Diário Oficial:', gazetteError);
             });
+        }
+    };
+
+    const handleCancelPrivatization = async (enterprise) => {
+        const { error } = await supabase
+            .from('state_enterprises')
+            .update({
+                privatization_status: 'none',
+                privatization_price: null,
+                updated_at: new Date().toISOString(),
+            })
+            .eq('id', enterprise.id);
+
+        if (error) {
+            toast({ title: 'Erro ao cancelar privatização', description: error.message, variant: 'destructive' });
+        } else {
+            toast({ title: `Privatização de "${enterprise.name}" cancelada` });
             fetchEnterprises();
             onUpdate?.();
         }
@@ -1661,7 +1702,15 @@ const StateEnterpriseManager = ({ onUpdate }) => {
     const handleReactivate = async (enterprise) => {
         const { error } = await supabase
             .from('state_enterprises')
-            .update({ is_privatized: false, is_active: true, updated_at: new Date().toISOString() })
+            .update({
+                is_privatized: false,
+                is_active: true,
+                privatization_status: 'none',
+                privatization_price: null,
+                privatization_buyer_id: null,
+                privatized_at: null,
+                updated_at: new Date().toISOString(),
+            })
             .eq('id', enterprise.id);
         if (error) {
             toast({ title: 'Erro ao reestatizar', description: error.message, variant: 'destructive' });
@@ -1736,8 +1785,14 @@ const StateEnterpriseManager = ({ onUpdate }) => {
                                                 <CardDescription>{sectorInfo.label}</CardDescription>
                                             </div>
                                         </div>
-                                        <span className={`text-xs px-2 py-1 rounded-full ${enterprise.is_active ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'}`}>
-                                            {enterprise.is_active ? 'Ativa' : 'Inativa'}
+                                        <span className={`text-xs px-2 py-1 rounded-full ${
+                                            enterprise.privatization_status === 'for_sale'
+                                                ? 'bg-amber-500/20 text-amber-300'
+                                                : enterprise.is_active
+                                                    ? 'bg-emerald-500/20 text-emerald-400'
+                                                    : 'bg-red-500/20 text-red-400'
+                                        }`}>
+                                            {enterprise.privatization_status === 'for_sale' ? 'À venda' : enterprise.is_active ? 'Ativa' : 'Inativa'}
                                         </span>
                                     </div>
                                 </CardHeader>
@@ -1775,7 +1830,13 @@ const StateEnterpriseManager = ({ onUpdate }) => {
                                     <Button size="sm" variant={enterprise.is_active ? "destructive" : "outline"} onClick={() => handleToggleActive(enterprise)}>
                                         {enterprise.is_active ? <><PowerOff className="w-3 h-3 mr-1" /> Desativar</> : <><Power className="w-3 h-3 mr-1" /> Ativar</>}
                                     </Button>
-                                    <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white" onClick={() => handlePrivatize(enterprise)}><Banknote className="w-3 h-3 mr-1" /> Privatizar</Button>
+                                    {enterprise.privatization_status === 'for_sale' ? (
+                                        <Button size="sm" variant="outline" onClick={() => handleCancelPrivatization(enterprise)}>
+                                            <CircleSlash className="w-3 h-3 mr-1" /> Cancelar Privatização
+                                        </Button>
+                                    ) : (
+                                        <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white" onClick={() => openPrivatizationDialog(enterprise)}><Banknote className="w-3 h-3 mr-1" /> Privatizar</Button>
+                                    )}
                                 </CardFooter>
                             </Card>
                         );
@@ -1850,6 +1911,31 @@ const StateEnterpriseManager = ({ onUpdate }) => {
                         <Button onClick={handleSave} disabled={saving}>
                             {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
                             {editingEnterprise ? 'Salvar' : 'Criar'}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+            <Dialog open={Boolean(enterpriseToPrivatize)} onOpenChange={(open) => !open && setEnterpriseToPrivatize(null)}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Privatizar Estatal</DialogTitle>
+                        <DialogDescription>
+                            Defina o preço de venda. A estatal continuará pública até que alguém compre.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-2 py-4">
+                        <Label>Preço de privatização</Label>
+                        <Input
+                            value={privatizationPrice}
+                            onChange={(event) => setPrivatizationPrice(formatCurrency(event.target.value, true))}
+                            placeholder="R$ 0,00"
+                        />
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setEnterpriseToPrivatize(null)}>Cancelar</Button>
+                        <Button onClick={handlePrivatize}>
+                            <Banknote className="w-4 h-4 mr-2" />
+                            Colocar à Venda
                         </Button>
                     </DialogFooter>
                 </DialogContent>
