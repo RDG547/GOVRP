@@ -3,7 +3,7 @@ import { Helmet } from 'react-helmet-async';
 import { useAuth } from '@/contexts/AuthContext';
 import ErrorPage from '@/pages/ErrorPage';
 import PageHeader from '@/components/layout/PageHeader';
-import { Shield, Gavel, Award, Scale, Users as MinisterIcon, Loader2, Eye, ShieldCheck as ArmedForcesIcon, Siren } from 'lucide-react';
+import { Gavel, Award, Scale, Users as MinisterIcon, Loader2, Eye, ShieldCheck as ArmedForcesIcon, Siren, Landmark } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { PARLIAMENT_LEADERSHIP_ROLES } from '@/lib/parliament';
 
@@ -14,12 +14,13 @@ const JudgeDashboard = lazy(() => import('./panels/JudgeDashboard'));
 const PolicePanel = lazy(() => import('@/pages/services/Police'));
 const AGIESPanel = lazy(() => import('@/pages/services/AGIES'));
 const ArmedForcesPanel = lazy(() => import('@/pages/services/ArmedForces'));
+const BankManagementPanel = lazy(() => import('@/components/bank/BankManagementPanel'));
 
 const dashboards = {
     'Presidente': {
         icon: Award,
         title: 'Painel Presidencial',
-        description: 'Gerencie o executivo, emita decretos e lidere a nação.',
+        description: 'Gerencie o executivo, edite atos presidenciais e lidere a nação.',
         color: 'text-yellow-400',
         component: PresidentDashboard
     },
@@ -29,6 +30,13 @@ const dashboards = {
         description: 'Gerencie sua pasta, proponha políticas e execute projetos.',
         color: 'text-green-400',
         component: MinisterDashboard
+    },
+    'Presidente do Banco Nacional': {
+        icon: Landmark,
+        title: 'Painel do Banco Nacional',
+        description: 'Revise crédito, empréstimos e taxas de juros da instituição estatal.',
+        color: 'text-emerald-400',
+        component: BankManagementPanel
     },
     'Parlamentar': {
         icon: Scale,
@@ -76,6 +84,8 @@ const RoleDashboard = () => {
   const roleKey =
     rolePool.includes('Presidente')
       ? 'Presidente'
+      : rolePool.includes('Presidente do Banco Nacional')
+      ? 'Presidente do Banco Nacional'
       : ['Deputado', 'Senador', ...PARLIAMENT_LEADERSHIP_ROLES].some((role) => rolePool.includes(role))
       ? 'Parlamentar'
       : rolePool.includes('Presidente do STF')
@@ -100,7 +110,7 @@ const RoleDashboard = () => {
             <PageHeader
                 icon={Icon}
                 title={title}
-                gradientText={user.role}
+                gradientText={roleKey}
                 description={description}
                 iconColor={color}
                 centered={true}

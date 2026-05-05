@@ -1,6 +1,12 @@
 import process from 'node:process';
 import { createClient } from '@supabase/supabase-js';
 import { getWeeklyPayrollWindowStart } from '../../src/lib/salaryRules.js';
+import {
+  annualPercentToMonthlyPercent,
+  DEFAULT_ECONOMIC_POLICY,
+  ECONOMIC_POLICY_SETTINGS_KEY,
+  normalizeEconomicPolicy,
+} from '../../src/lib/economicPolicy.js';
 
 let serverSupabase;
 
@@ -23,6 +29,7 @@ const DEFAULT_BUSINESS_ECONOMICS = {
 };
 
 const STATE_ENTERPRISE_ECONOMICS = {
+  'Banco Nacional': { revenueBase: 95000, costBase: 78000, volatility: 0.2 },
   Internet: { revenueBase: 88000, costBase: 69000, volatility: 0.22 },
   Telefonia: { revenueBase: 76000, costBase: 61000, volatility: 0.22 },
   'Energia Elétrica': { revenueBase: 118000, costBase: 96000, volatility: 0.2 },
@@ -32,6 +39,30 @@ const STATE_ENTERPRISE_ECONOMICS = {
 };
 
 const BUSINESS_BALANCE_NOTIFICATION_TYPE = 'business_balance';
+const STATE_ENTERPRISE_SETTINGS_KEY = 'enterprise_costs';
+const BASIC_SERVICE_PRICES_SETTINGS_KEY = 'basic_service_prices';
+const WEEKS_PER_MONTH = 4.345;
+const SERVICE_PRICE_KEYS_BY_TYPE = {
+  Internet: {
+    'Básico': 'Internet_Básico',
+    Ultra: 'Internet_Ultra',
+    Mega: 'Internet_Mega',
+  },
+  Telefonia: {
+    'Básico': 'Telefonia_Básico',
+    'Intermediário': 'Telefonia_Intermediário',
+    Premium: 'Telefonia_Premium',
+  },
+  'Energia Elétrica': {
+    default: 'Energia Elétrica',
+  },
+  Água: {
+    default: 'Água',
+  },
+  Gás: {
+    default: 'Gás',
+  },
+};
 
 const roundMoney = (value) => Math.round(Number(value || 0) * 100) / 100;
 
@@ -40,6 +71,34 @@ const randomBetween = (min, max) => min + Math.random() * (max - min);
 const dedupe = (values = []) => [...new Set(values.filter(Boolean))];
 
 const normalizeStatus = (status = '') => `${status || ''}`.trim().toLowerCase();
+
+const getWeeklyEquivalent = (monthlyValue = 0) => roundMoney(Number(monthlyValue || 0) / WEEKS_PER_MONTH);
+
+const getEconomicModifiers = (economicPolicy = DEFAULT_ECONOMIC_POLICY) => {
+  const normalizedEconomicPolicy = normalizeEconomicPolicy(economicPolicy);
+  const selicMonthlyRate = annualPercentToMonthlyPercent(normalizedEconomicPolicy.selic_rate);
+
+  return {
+    selicMonthlyRate,
+    demandMultiplier: Math.max(0.88, 1 - selicMonthlyRate * 0.02),
+    costMultiplier: 1 + selicMonthlyRate * 0.015,
+  };
+};
+
+const sumConfiguredCosts = (costs = {}) =>
+  roundMoney(
+    Object.values(costs || {}).reduce((sum, value) => sum + Number(value || 0), 0)
+  );
+
+const resolveServicePriceKey = ({ serviceType, planName = '' }) => {
+  const mapping = SERVICE_PRICE_KEYS_BY_TYPE[serviceType];
+
+  if (!mapping) {
+    return null;
+  }
+
+  return mapping[planName] || mapping.default || null;
+};
 
 const isPrivateBusinessEligible = (business) => {
   const status = normalizeStatus(business?.status || 'active');
@@ -52,13 +111,20 @@ const resolveBusinessEconomics = (businessTypeId) =>
 const resolveStateEnterpriseEconomics = (sector) =>
   STATE_ENTERPRISE_ECONOMICS[sector] || STATE_ENTERPRISE_ECONOMICS.Outros;
 
-const calculateBalanceResult = ({ revenueBase, costBase, minEmployees = 1, volatility = 0.24 }, employees = 1, recordedRevenue = 0) => {
+const calculateBalanceResult = (
+  { revenueBase, costBase, minEmployees = 1, volatility = 0.24 },
+  employees = 1,
+  recordedRevenue = 0,
+  modifiers = {}
+) => {
   const workforceMultiplier = Math.max(0.75, Number(employees || 0) / Math.max(1, minEmployees));
+  const demandMultiplier = Number.isFinite(modifiers.demandMultiplier) ? modifiers.demandMultiplier : 1;
+  const costMultiplier = Number.isFinite(modifiers.costMultiplier) ? modifiers.costMultiplier : 1;
   const revenueSeed = Number(recordedRevenue || 0) > 0
     ? Number(recordedRevenue || 0)
     : revenueBase * workforceMultiplier;
-  const grossRevenue = roundMoney(revenueSeed * randomBetween(1 - volatility, 1 + volatility));
-  const operatingCost = roundMoney(costBase * workforceMultiplier * randomBetween(0.9, 1.14));
+  const grossRevenue = roundMoney(revenueSeed * demandMultiplier * randomBetween(1 - volatility, 1 + volatility));
+  const operatingCost = roundMoney(costBase * workforceMultiplier * costMultiplier * randomBetween(0.9, 1.14));
   const netResult = roundMoney(grossRevenue - operatingCost);
 
   return {
@@ -66,6 +132,73 @@ const calculateBalanceResult = ({ revenueBase, costBase, minEmployees = 1, volat
     operatingCost,
     netResult,
     resultType: netResult >= 0 ? 'profit' : 'loss',
+  };
+};
+
+const calculateStateEnterpriseBalanceResult = ({
+  enterprise,
+  enterpriseCosts = {},
+  basicServicePrices = {},
+  userServices = [],
+  economicModifiers = {},
+}) => {
+  const relevantServices = (userServices || []).filter((service) => service.service_type === enterprise.sector);
+  const configuredEnterpriseCosts = enterpriseCosts?.[enterprise.id] || {};
+  const configuredWeeklyCost = getWeeklyEquivalent(sumConfiguredCosts(configuredEnterpriseCosts));
+
+  if (relevantServices.length) {
+    const grossRevenue = roundMoney(
+      relevantServices.reduce((sum, service) => {
+        const priceKey = resolveServicePriceKey({
+          serviceType: service.service_type,
+          planName: service.plan_name,
+        });
+        const configuredPrice = priceKey ? Number(basicServicePrices?.[priceKey]) : Number.NaN;
+        const appliedPrice = Number.isFinite(configuredPrice) ? configuredPrice : Number(service.price || 0);
+
+        return sum + Math.max(0, appliedPrice);
+      }, 0) * (economicModifiers.demandMultiplier || 1)
+    );
+    const fallbackEconomics = resolveStateEnterpriseEconomics(enterprise.sector);
+    const operatingCostSeed = configuredWeeklyCost > 0
+      ? configuredWeeklyCost
+      : getWeeklyEquivalent(fallbackEconomics.costBase);
+    const operatingCost = roundMoney(
+      operatingCostSeed * (economicModifiers.costMultiplier || 1) * randomBetween(0.98, 1.08)
+    );
+    const netResult = roundMoney(grossRevenue - operatingCost);
+    const zeroPriceContracts = relevantServices.filter((service) => {
+      const priceKey = resolveServicePriceKey({ serviceType: service.service_type, planName: service.plan_name });
+      const configuredPrice = priceKey ? Number(basicServicePrices?.[priceKey]) : Number.NaN;
+      const appliedPrice = Number.isFinite(configuredPrice) ? configuredPrice : Number(service.price || 0);
+      return appliedPrice <= 0;
+    }).length;
+
+    return {
+      grossRevenue,
+      operatingCost,
+      netResult,
+      resultType: netResult >= 0 ? 'profit' : 'loss',
+      activeContracts: relevantServices.length,
+      subsidyCost: Math.max(0, operatingCost - grossRevenue),
+      zeroPriceContracts,
+      source: 'service_subscriptions',
+    };
+  }
+
+  const fallbackResult = calculateBalanceResult(
+    resolveStateEnterpriseEconomics(enterprise.sector),
+    1,
+    0,
+    economicModifiers
+  );
+
+  return {
+    ...fallbackResult,
+    activeContracts: 0,
+    subsidyCost: 0,
+    zeroPriceContracts: 0,
+    source: 'state_economics_model',
   };
 };
 
@@ -261,7 +394,7 @@ const insertBusinessBalanceNotification = async (supabase, { business, cycle, cy
   const { error } = await supabase.from('notifications').insert({
     user_id: business.owner_id,
     type: BUSINESS_BALANCE_NOTIFICATION_TYPE,
-    content: `${business.name} ${isProfit ? 'fechou o ano com lucro' : 'fechou o ano com prejuizo'} de ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Math.abs(netResult))}.`,
+    content: `${business.name} ${isProfit ? 'fechou o ciclo com lucro' : 'fechou o ciclo com prejuizo'} de ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Math.abs(netResult))}.`,
     link: '/services/entrepreneur-portal',
     is_read: false,
     metadata: {
@@ -283,15 +416,17 @@ const insertBusinessBalanceNotification = async (supabase, { business, cycle, cy
   }
 };
 
-const processPrivateBusinessBalance = async (supabase, { business, account, cycleStartIso }) => {
+const processPrivateBusinessBalance = async (supabase, { business, account, cycleStartIso, economicPolicy }) => {
   if (!account?.id) {
     return { processed: false, skippedReason: 'missing_account' };
   }
 
+  const economicModifiers = getEconomicModifiers(economicPolicy);
   const result = calculateBalanceResult(
     resolveBusinessEconomics(business.business_type_id),
     business.employees,
-    business.monthly_revenue
+    business.monthly_revenue,
+    economicModifiers
   );
 
   await updateAccountBalance(supabase, account.id, result.netResult);
@@ -312,6 +447,7 @@ const processPrivateBusinessBalance = async (supabase, { business, account, cycl
         status: business.status,
         employees: business.employees,
         source: 'private_business',
+        selic_monthly_rate: economicModifiers.selicMonthlyRate,
       },
     })
     .select('id, gross_revenue, operating_cost, net_result, result_type')
@@ -328,7 +464,7 @@ const processPrivateBusinessBalance = async (supabase, { business, account, cycl
       to_account_id: result.netResult >= 0 ? account.id : null,
       amount: transactionAmount,
       type: result.netResult >= 0 ? 'business_profit' : 'business_loss',
-      description: `${result.netResult >= 0 ? 'Lucro' : 'Prejuizo'} anual da empresa: ${business.name}`,
+      description: `${result.netResult >= 0 ? 'Lucro' : 'Prejuizo'} do ciclo da empresa: ${business.name}`,
       created_at: new Date().toISOString(),
       metadata: {
         business_id: business.id,
@@ -346,7 +482,7 @@ const processPrivateBusinessBalance = async (supabase, { business, account, cycl
     business_id: business.id,
     type: result.netResult >= 0 ? 'annual_profit' : 'annual_loss',
     amount: result.netResult,
-    description: `${result.netResult >= 0 ? 'Lucro' : 'Prejuizo'} anual processado automaticamente.`,
+    description: `${result.netResult >= 0 ? 'Lucro' : 'Prejuizo'} do ciclo processado automaticamente.`,
   });
 
   if (businessTransactionError) {
@@ -361,12 +497,22 @@ const processPrivateBusinessBalance = async (supabase, { business, account, cycl
   };
 };
 
-const processStateEnterpriseBalance = async (supabase, { enterprise, finance, cycleStartIso }) => {
+const processStateEnterpriseBalance = async (
+  supabase,
+  { enterprise, finance, cycleStartIso, enterpriseCosts, basicServicePrices, userServices, economicPolicy }
+) => {
   if (!finance?.id) {
     return { processed: false, skippedReason: 'missing_government_finance' };
   }
 
-  const result = calculateBalanceResult(resolveStateEnterpriseEconomics(enterprise.sector), 1, 0);
+  const economicModifiers = getEconomicModifiers(economicPolicy);
+  const result = calculateStateEnterpriseBalanceResult({
+    enterprise,
+    enterpriseCosts,
+    basicServicePrices,
+    userServices,
+    economicModifiers,
+  });
 
   const { data: latestFinance, error: financeError } = await supabase
     .from('government_finances')
@@ -402,6 +548,11 @@ const processStateEnterpriseBalance = async (supabase, { enterprise, finance, cy
       metadata: {
         sector: enterprise.sector,
         source: 'state_enterprise',
+        balance_source: result.source,
+        active_contracts: result.activeContracts,
+        subsidy_cost: result.subsidyCost,
+        zero_price_contracts: result.zeroPriceContracts,
+        selic_monthly_rate: economicModifiers.selicMonthlyRate,
       },
     })
     .select('id')
@@ -418,13 +569,16 @@ const processStateEnterpriseBalance = async (supabase, { enterprise, finance, cy
       to_account_id: null,
       amount: transactionAmount,
       type: result.netResult >= 0 ? 'state_enterprise_profit' : 'state_enterprise_loss',
-      description: `${result.netResult >= 0 ? 'Lucro' : 'Prejuizo'} anual da estatal: ${enterprise.name}`,
+      description: `${result.netResult >= 0 ? 'Lucro' : 'Prejuizo'} do ciclo da estatal: ${enterprise.name}${result.subsidyCost > 0 ? ' (com subsídio operacional)' : ''}`,
       created_at: new Date().toISOString(),
       metadata: {
         state_enterprise_id: enterprise.id,
         business_balance_cycle_id: cycle.id,
         cycle_start_at: cycleStartIso,
         treasury_delta: result.netResult,
+        subsidy_cost: result.subsidyCost,
+        active_contracts: result.activeContracts,
+        zero_price_contracts: result.zeroPriceContracts,
       },
     });
 
@@ -617,6 +771,8 @@ export const processWeeklyBusinessBalances = async () => {
     { data: businesses, error: businessesError },
     { data: stateEnterprises, error: stateEnterprisesError },
     { data: governmentFinance, error: financeError },
+    { data: settingsRows, error: settingsError },
+    { data: userServices, error: userServicesError },
   ] = await Promise.all([
     supabase
       .from('businesses')
@@ -633,6 +789,14 @@ export const processWeeklyBusinessBalances = async () => {
       .order('updated_at', { ascending: true })
       .limit(1)
       .maybeSingle(),
+    supabase
+      .from('system_settings')
+      .select('key, value')
+      .in('key', [STATE_ENTERPRISE_SETTINGS_KEY, BASIC_SERVICE_PRICES_SETTINGS_KEY, ECONOMIC_POLICY_SETTINGS_KEY]),
+    supabase
+      .from('user_services')
+      .select('service_type, plan_name, price')
+      .in('service_type', Object.keys(SERVICE_PRICE_KEYS_BY_TYPE)),
   ]);
 
   if (businessesError) {
@@ -646,6 +810,22 @@ export const processWeeklyBusinessBalances = async () => {
   if (financeError) {
     throw financeError;
   }
+
+  if (settingsError) {
+    throw settingsError;
+  }
+
+  if (userServicesError) {
+    throw userServicesError;
+  }
+
+  const settingsMap = (settingsRows || []).reduce((accumulator, row) => {
+    accumulator[row.key] = row.value;
+    return accumulator;
+  }, {});
+  const enterpriseCosts = settingsMap[STATE_ENTERPRISE_SETTINGS_KEY] || {};
+  const basicServicePrices = settingsMap[BASIC_SERVICE_PRICES_SETTINGS_KEY] || {};
+  const economicPolicy = normalizeEconomicPolicy(settingsMap[ECONOMIC_POLICY_SETTINGS_KEY]);
 
   const privateBusinesses = (businesses || [])
     .filter(isPrivateBusinessEligible)
@@ -666,6 +846,7 @@ export const processWeeklyBusinessBalances = async () => {
       business,
       account: accountsByUserId[business.owner_id],
       cycleStartIso,
+      economicPolicy,
     });
 
     if (result.processed) {
@@ -681,6 +862,10 @@ export const processWeeklyBusinessBalances = async () => {
       enterprise,
       finance: governmentFinance,
       cycleStartIso,
+      enterpriseCosts,
+      basicServicePrices,
+      userServices,
+      economicPolicy,
     });
 
     if (result.processed) {

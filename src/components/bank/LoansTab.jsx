@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
 import { TabsContent } from "@/components/ui/tabs";
@@ -9,6 +9,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from '@/lib/supabaseClient';
 import { formatCurrency, parseCurrency } from '@/lib/utils';
+import { BANK_POLICY_SETTINGS_KEY, DEFAULT_BANK_POLICY } from './BankManagementPanel';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -29,8 +30,25 @@ const LoansTab = ({ loanApplications, onUpdate }) => {
     const [loanAmount, setLoanAmount] = useState('');
     const [isApplyingLoan, setIsApplyingLoan] = useState(false);
     const [isCanceling, setIsCanceling] = useState(null);
+    const [bankPolicy, setBankPolicy] = useState(DEFAULT_BANK_POLICY);
     const { user } = useAuth();
     const { toast } = useToast();
+
+    useEffect(() => {
+        const fetchBankPolicy = async () => {
+            const { data } = await supabase
+                .from('system_settings')
+                .select('value')
+                .eq('key', BANK_POLICY_SETTINGS_KEY)
+                .maybeSingle();
+
+            if (data?.value) {
+                setBankPolicy({ ...DEFAULT_BANK_POLICY, ...data.value });
+            }
+        };
+
+        fetchBankPolicy();
+    }, []);
 
     const handleAmountChange = (e) => {
         setLoanAmount(formatCurrency(e.target.value, true));
@@ -100,7 +118,9 @@ const LoansTab = ({ loanApplications, onUpdate }) => {
                             </DialogContent>
                         </Dialog>
                     </CardTitle>
-                    <CardDescription>Soluções de crédito para seus projetos.</CardDescription>
+                    <CardDescription>
+                        Soluções de crédito para seus projetos. Taxa vigente: {Number(bankPolicy.loan_interest_rate || 0).toFixed(2)}% a.m.
+                    </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                     {loanApplications && loanApplications.length > 0 ? (
@@ -111,6 +131,13 @@ const LoansTab = ({ loanApplications, onUpdate }) => {
                                     <p className="text-xs text-gray-400">
                                         Solicitado {formatDistanceToNow(new Date(app.created_at), { addSuffix: true, locale: ptBR })}
                                     </p>
+                                    <p className="text-xs text-muted-foreground">
+                                        Juros: {Number(app.interest_rate ?? bankPolicy.loan_interest_rate ?? 0).toFixed(2)}% a.m.
+                                        {app.total_due ? ` • Total contratado: ${formatCurrency(app.total_due)}` : ''}
+                                    </p>
+                                    {(app.admin_feedback || app.feedback) && (
+                                        <p className="text-xs text-muted-foreground">Feedback: {app.admin_feedback || app.feedback}</p>
+                                    )}
                                 </div>
                                 <div className="flex items-center gap-4">
                                     <div className="flex items-center gap-2 text-sm font-medium text-white px-3 py-1 rounded-full"

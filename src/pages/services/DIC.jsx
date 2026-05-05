@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Helmet } from 'react-helmet-async';
-import { motion } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from '@/contexts/AuthContext';
@@ -102,6 +102,7 @@ const DIC = () => {
     const { toast } = useToast();
     const { user, refreshUser } = useAuth();
     const [documents, setDocuments] = useState([]);
+    const [citizenProfile, setCitizenProfile] = useState(null);
     const [loading, setLoading] = useState(true);
     const [requesting, setRequesting] = useState('');
     const [confirmingDoc, setConfirmingDoc] = useState(null);
@@ -113,6 +114,7 @@ const DIC = () => {
     const [isGeneratingAllPdfs, setIsGeneratingAllPdfs] = useState(false);
     const [docFees, setDocFees] = useState({});
     const docRefs = useRef({});
+    const displayProfile = citizenProfile || user;
 
     const getDoc = useCallback((type, isValid = true) => documents.find(d => d.type === type && d.is_valid === isValid), [documents]);
 
@@ -121,11 +123,24 @@ const DIC = () => {
         setLoading(true);
         try {
             await refreshUser();
-            const { data, error } = await supabase.from('documents').select('*, user:user_id(*)').eq('user_id', user.id).order('created_at');
-            if (error) throw error;
-            setDocuments(data || []);
+            const [profileResponse, documentsResponse, affiliationResponse, tariffResponse] = await Promise.all([
+                supabase.from('profiles').select('*').eq('id', user.id).single(),
+                supabase.from('documents').select('*, user:user_id(*)').eq('user_id', user.id).order('created_at'),
+                supabase.rpc('get_user_party_affiliation', { p_user_id: user.id }),
+                supabase.from('system_settings').select('value').eq('key', 'base_tariffs').single(),
+            ]);
 
-            const { data: affiliationData, error: affiliationError } = await supabase.rpc('get_user_party_affiliation', { p_user_id: user.id });
+            if (profileResponse.error) throw profileResponse.error;
+            if (documentsResponse.error) throw documentsResponse.error;
+
+            setCitizenProfile({
+                ...user,
+                ...(profileResponse.data || {}),
+                email: profileResponse.data?.email || user?.email || '',
+            });
+            setDocuments(documentsResponse.data || []);
+
+            const { data: affiliationData, error: affiliationError } = affiliationResponse;
             if (affiliationError) {
                 if (affiliationError.code === 'PGRST116') {
                     setAffiliation({ is_affiliated: false });
@@ -136,7 +151,7 @@ const DIC = () => {
                 setAffiliation(affiliationData);
             }
 
-            const { data: tariffData } = await supabase.from('system_settings').select('value').eq('key', 'base_tariffs').single();
+            const { data: tariffData } = tariffResponse;
             if (tariffData?.value) {
                 const fees = {};
                 Object.entries(TARIFF_TO_DOC_MAP).forEach(([tariffKey, docType]) => {
@@ -339,184 +354,209 @@ const DIC = () => {
         <>
             <Helmet><title>DIC - GOV.RP</title><meta name="description" content="Departamento de Identificação Civil do GOV.RP." /></Helmet>
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-                {loading || !user ? <div className="flex justify-center items-center min-h-[60vh]"><Loader2 className="w-12 h-12 animate-spin text-primary" /></div> :
+                {loading || !displayProfile ? <div className="flex justify-center items-center min-h-[60vh]"><Loader2 className="w-12 h-12 animate-spin text-primary" /></div> :
                     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
                         <PageHeader icon={FileText} title="Departamento de Identificação" gradientText="Civil" description="Sua carteira de documentos digitais e histórico de cidadania." iconColor="text-purple-400" centered={true} />
-                         <Tabs defaultValue="documents" value={activeTab} className="w-full mt-8" onValueChange={handleTabChange}>
+                        <Tabs defaultValue="documents" value={activeTab} className="w-full mt-8" onValueChange={handleTabChange}>
                             <TabsList className="flex flex-wrap h-auto sm:h-10">
                                 <TabsTrigger value="documents" className="flex-1 text-center"><FileText className="w-4 h-4 mr-2"/>Meus Documentos</TabsTrigger>
                                 <TabsTrigger value="history" className="flex-1 text-center"><History className="w-4 h-4 mr-2"/>Informações do Cidadão</TabsTrigger>
                                 <TabsTrigger value="requests" className="flex-1 text-center"><FilePlus className="w-4 h-4 mr-2"/>Solicitações</TabsTrigger>
                             </TabsList>
-                            <TabsContent value="documents">
-                                <Card className="glass-effect mt-6">
-                                    <CardHeader><CardTitle>Documentos Válidos</CardTitle></CardHeader>
-                                    <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                        {documents.filter(d => d.is_valid).map(doc => (
-                                            <DocumentCard key={doc.id} doc={doc} onVisualize={setVisualizingDoc} onGenerate={handleGenerateDoc} onDelete={setDeletingDoc} />
-                                        ))}
-                                        {documents.filter(d => d.is_valid).length === 0 && <p className="text-muted-foreground col-span-full text-center py-8">Nenhum documento válido encontrado.</p>}
-                                    </CardContent>
-                                </Card>
-                            </TabsContent>
-                            <TabsContent value="history">
-                                <div className="mt-6 space-y-6">
-                                    {/* Profile Hero Card */}
-                                    <Card className="glass-effect overflow-hidden">
-                                        <div className="relative h-28 bg-gradient-to-r from-purple-900/60 via-indigo-900/60 to-blue-900/60">
-                                            <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCIgdmlld0JveD0iMCAwIDYwIDYwIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmYiIGZpbGwtb3BhY2l0eT0iLjAzIj48cGF0aCBkPSJNMzYgMzRWMGgySHY2aDJWNGgyVjJoMlYwaDJ2MmgtMnYyaC0ydjJoLTJ2MmgtMnYyaC0yLjAxbC4wMSAySDM2eiIvPjwvZz48L2c+PC9zdmc+')] opacity-70"></div>
-                                        </div>
-                                        <CardContent className="relative px-6 pb-6">
-                                            <div className="flex flex-col sm:flex-row items-center sm:items-end gap-4 -mt-14">
-                                                <img
-                                                    src={user.avatar_url}
-                                                    alt={user.full_name}
-                                                    className="w-24 h-24 rounded-2xl object-cover border-4 border-background shadow-xl"
-                                                />
-                                                <div className="text-center sm:text-left flex-1">
-                                                    <h2 className="text-2xl font-bold text-foreground">{user.full_name}</h2>
-                                                    <p className="text-primary text-sm font-medium">@{user.username}</p>
-                                                </div>
-                                                <div className="flex gap-2 flex-wrap justify-center">
-                                                    {(Array.isArray(user.role) ? user.role : [user.role]).map((r, i) => (
-                                                        <span key={i} className="px-3 py-1 rounded-full text-xs font-semibold bg-primary/10 text-primary border border-primary/20">{r}</span>
+                            <div className="mt-6">
+                                <AnimatePresence mode="wait" initial={false}>
+                                    {activeTab === 'documents' ? (
+                                        <motion.div
+                                            key="documents"
+                                            initial={{ opacity: 0, y: 16 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            exit={{ opacity: 0, y: -16 }}
+                                            transition={{ duration: 0.22 }}
+                                        >
+                                            <Card className="glass-effect">
+                                                <CardHeader><CardTitle>Documentos Válidos</CardTitle></CardHeader>
+                                                <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                                    {documents.filter(d => d.is_valid).map(doc => (
+                                                        <DocumentCard key={doc.id} doc={doc} onVisualize={setVisualizingDoc} onGenerate={handleGenerateDoc} onDelete={setDeletingDoc} />
                                                     ))}
-                                                </div>
-                                            </div>
-                                        </CardContent>
-                                    </Card>
+                                                    {documents.filter(d => d.is_valid).length === 0 && <p className="text-muted-foreground col-span-full text-center py-8">Nenhum documento válido encontrado.</p>}
+                                                </CardContent>
+                                            </Card>
+                                        </motion.div>
+                                    ) : null}
 
-                                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                                        {/* Informações Pessoais */}
-                                        <Card className="glass-effect">
-                                            <CardHeader className="pb-4">
-                                                <CardTitle className="flex items-center gap-2 text-lg">
-                                                    <div className="p-2 rounded-lg bg-purple-500/20"><Mail className="w-4 h-4 text-purple-400" /></div>
-                                                    Informações Pessoais
-                                                </CardTitle>
-                                            </CardHeader>
-                                            <CardContent className="space-y-4">
-                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                                    <div className="p-3 rounded-xl bg-white/5 border border-white/10">
-                                                        <div className="flex items-center gap-2 mb-1"><Mail className="w-3.5 h-3.5 text-purple-400" /><p className="text-xs text-muted-foreground">E-mail</p></div>
-                                                        <p className="text-sm font-medium text-foreground truncate">{user.email || 'Não informado'}</p>
-                                                    </div>
-                                                    <div className="p-3 rounded-xl bg-white/5 border border-white/10">
-                                                        <div className="flex items-center gap-2 mb-1"><Phone className="w-3.5 h-3.5 text-green-400" /><p className="text-xs text-muted-foreground">Telefone</p></div>
-                                                        <p className="text-sm font-medium text-foreground">{formatPhone(user.phone) || 'Não informado'}</p>
-                                                    </div>
-                                                    <div className="p-3 rounded-xl bg-white/5 border border-white/10">
-                                                        <div className="flex items-center gap-2 mb-1"><AtSign className="w-3.5 h-3.5 text-sky-400" /><p className="text-xs text-muted-foreground">@ do X</p></div>
-                                                        <p className="text-sm font-medium text-foreground">{user.x_handle ? `@${user.x_handle}` : 'Nenhum'}</p>
-                                                    </div>
-                                                    <div className="p-3 rounded-xl bg-white/5 border border-white/10">
-                                                        <div className="flex items-center gap-2 mb-1"><School className="w-3.5 h-3.5 text-emerald-400" /><p className="text-xs text-muted-foreground">Escolaridade</p></div>
-                                                        <p className="text-sm font-medium text-foreground">{user.education_level || 'Não informado'}</p>
-                                                    </div>
+                                    {activeTab === 'history' ? (
+                                        <motion.div
+                                            key="history"
+                                            initial={{ opacity: 0, y: 16 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            exit={{ opacity: 0, y: -16 }}
+                                            transition={{ duration: 0.22 }}
+                                            className="space-y-6"
+                                        >
+                                            <Card className="glass-effect overflow-hidden">
+                                                <div className="relative h-28 bg-gradient-to-r from-purple-900/60 via-indigo-900/60 to-blue-900/60">
+                                                    <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCIgdmlld0JveD0iMCAwIDYwIDYwIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmYiIGZpbGwtb3BhY2l0eT0iLjAzIj48cGF0aCBkPSJNMzYgMzRWMGgySHY2aDJWNGgyVjJoMlYwaDJ2MmgtMnYyaC0ydjJoLTJ2MmgtMnYyaC0yLjAxbC4wMSAySDM2eiIvPjwvZz48L2c+PC9zdmc+')] opacity-70"></div>
                                                 </div>
-                                            </CardContent>
-                                        </Card>
-
-                                        {/* Status Civil & Político */}
-                                        <Card className="glass-effect">
-                                            <CardHeader className="pb-4">
-                                                <CardTitle className="flex items-center gap-2 text-lg">
-                                                    <div className="p-2 rounded-lg bg-pink-500/20"><Heart className="w-4 h-4 text-pink-400" /></div>
-                                                    Status Civil & Político
-                                                </CardTitle>
-                                            </CardHeader>
-                                            <CardContent className="space-y-4">
-                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                                    <div className="p-3 rounded-xl bg-white/5 border border-white/10">
-                                                        <div className="flex items-center gap-2 mb-1"><Heart className="w-3.5 h-3.5 text-pink-400" /><p className="text-xs text-muted-foreground">Estado Civil</p></div>
-                                                        <p className="text-sm font-medium text-foreground">{user.marital_status || 'Não informado'}</p>
-                                                    </div>
-                                                    <div className="p-3 rounded-xl bg-white/5 border border-white/10">
-                                                        <div className="flex items-center gap-2 mb-1"><Flag className="w-3.5 h-3.5 text-orange-400" /><p className="text-xs text-muted-foreground">Filiação Partidária</p></div>
-                                                        <p className="text-sm font-medium text-foreground">{affiliation?.is_affiliated ? `${affiliation.name} (${affiliation.acronym})` : 'Nenhuma'}</p>
-                                                    </div>
-                                                    <div className="p-3 rounded-xl bg-white/5 border border-white/10">
-                                                        <div className="flex items-center gap-2 mb-1"><Star className="w-3.5 h-3.5 text-yellow-400" /><p className="text-xs text-muted-foreground">Reputação Civil</p></div>
-                                                        <p className="text-sm font-medium text-foreground">{user.reputation_points} pontos</p>
-                                                    </div>
-                                                    <div className="p-3 rounded-xl bg-white/5 border border-white/10">
-                                                        <div className="flex items-center gap-2 mb-1"><Landmark className="w-3.5 h-3.5 text-amber-400" /><p className="text-xs text-muted-foreground">Pontos Políticos</p></div>
-                                                        <p className="text-sm font-medium text-foreground">{user.political_points || 0} PP</p>
-                                                    </div>
-                                                </div>
-                                                {user.titles && user.titles.length > 0 && (
-                                                    <div className="p-3 rounded-xl bg-white/5 border border-white/10">
-                                                        <div className="flex items-center gap-2 mb-2"><Award className="w-3.5 h-3.5 text-purple-400" /><p className="text-xs text-muted-foreground">Títulos e Condecorações</p></div>
-                                                        <div className="flex flex-wrap gap-2">
-                                                            {user.titles.map((title, i) => (
-                                                                <span key={i} className="px-2 py-1 rounded-full text-xs bg-purple-500/10 text-purple-300 border border-purple-500/20">{title}</span>
+                                                <CardContent className="relative px-6 pb-6">
+                                                    <div className="flex flex-col sm:flex-row items-center sm:items-end gap-4 -mt-14">
+                                                        <img
+                                                            src={displayProfile.avatar_url}
+                                                            alt={displayProfile.full_name}
+                                                            className="w-24 h-24 rounded-2xl object-cover border-4 border-background shadow-xl"
+                                                        />
+                                                        <div className="text-center sm:text-left flex-1">
+                                                            <h2 className="text-2xl font-bold text-foreground">{displayProfile.full_name}</h2>
+                                                            <p className="text-primary text-sm font-medium">@{displayProfile.username}</p>
+                                                        </div>
+                                                        <div className="flex gap-2 flex-wrap justify-center">
+                                                            {(Array.isArray(displayProfile.role) ? displayProfile.role : [displayProfile.role]).map((r, i) => (
+                                                                <span key={i} className="px-3 py-1 rounded-full text-xs font-semibold bg-primary/10 text-primary border border-primary/20">{r}</span>
                                                             ))}
                                                         </div>
                                                     </div>
-                                                )}
-                                            </CardContent>
-                                        </Card>
-                                    </div>
+                                                </CardContent>
+                                            </Card>
 
-                                    {/* Documentos Emitidos */}
-                                    <Card className="glass-effect">
-                                        <CardHeader className="pb-4">
-                                            <CardTitle className="flex items-center gap-2 text-lg">
-                                                <div className="p-2 rounded-lg bg-sky-500/20"><FileText className="w-4 h-4 text-sky-400" /></div>
-                                                Documentos Emitidos
-                                            </CardTitle>
-                                        </CardHeader>
-                                        <CardContent>
-                                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                                                {[
-                                                    { icon: Fingerprint, type: 'CPF', label: 'CPF', format: (v) => formatCPF(v), color: 'purple' },
-                                                    { icon: FileText, type: 'RG', label: 'RG', format: (v) => formatRG(v), color: 'sky' },
-                                                    { icon: Car, type: 'CNH', label: 'CNH', format: (v) => v, color: 'blue' },
-                                                    { icon: Globe, type: 'Passport', label: 'Passaporte', format: (v) => v, color: 'green' },
-                                                    { icon: Building, type: 'CNPJ', label: 'CNPJ', format: (v) => formatCNPJ(v), color: 'yellow' },
-                                                    { icon: BriefcaseIcon, type: 'CTD', label: 'CTD', format: (v) => v, color: 'indigo' },
-                                                    { icon: Vote, type: 'Título de Eleitor', label: 'Título de Eleitor', format: (v) => v, color: 'teal' },
-                                                    { icon: ShieldCheck, type: 'Certificado de Reservista', label: 'Cert. Reservista', format: (v) => v, color: 'orange' },
-                                                ].map(docDef => {
-                                                    const doc = getDoc(docDef.type, true);
-                                                    const hasDoc = !!doc;
-                                                    return (
-                                                        <div key={docDef.type} className={`p-3 rounded-xl border transition-all ${hasDoc ? `bg-${docDef.color}-500/5 border-${docDef.color}-500/20` : 'bg-white/5 border-white/10 opacity-50'}`}>
-                                                            <div className="flex items-center gap-2 mb-2">
-                                                                <docDef.icon className={`w-4 h-4 ${hasDoc ? `text-${docDef.color}-400` : 'text-muted-foreground'}`} />
-                                                                <p className="text-xs text-muted-foreground">{docDef.label}</p>
-                                                                {hasDoc && <span className="ml-auto w-2 h-2 rounded-full bg-green-500"></span>}
+                                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                                <Card className="glass-effect">
+                                                    <CardHeader className="pb-4">
+                                                        <CardTitle className="flex items-center gap-2 text-lg">
+                                                            <div className="p-2 rounded-lg bg-purple-500/20"><Mail className="w-4 h-4 text-purple-400" /></div>
+                                                            Informações Pessoais
+                                                        </CardTitle>
+                                                    </CardHeader>
+                                                    <CardContent className="space-y-4">
+                                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                                            <div className="p-3 rounded-xl bg-white/5 border border-white/10">
+                                                                <div className="flex items-center gap-2 mb-1"><Mail className="w-3.5 h-3.5 text-purple-400" /><p className="text-xs text-muted-foreground">E-mail</p></div>
+                                                                <p className="text-sm font-medium text-foreground truncate">{displayProfile.email || 'Não informado'}</p>
                                                             </div>
-                                                            <p className={`text-sm font-mono font-medium ${hasDoc ? 'text-foreground' : 'text-muted-foreground'}`}>
-                                                                {hasDoc ? docDef.format(doc.document_number) : 'Não emitido'}
-                                                            </p>
+                                                            <div className="p-3 rounded-xl bg-white/5 border border-white/10">
+                                                                <div className="flex items-center gap-2 mb-1"><Phone className="w-3.5 h-3.5 text-green-400" /><p className="text-xs text-muted-foreground">Telefone</p></div>
+                                                                <p className="text-sm font-medium text-foreground">{formatPhone(displayProfile.phone) || 'Não informado'}</p>
+                                                            </div>
+                                                            <div className="p-3 rounded-xl bg-white/5 border border-white/10">
+                                                                <div className="flex items-center gap-2 mb-1"><AtSign className="w-3.5 h-3.5 text-sky-400" /><p className="text-xs text-muted-foreground">@ do X</p></div>
+                                                                <p className="text-sm font-medium text-foreground">{displayProfile.x_handle ? `@${displayProfile.x_handle}` : 'Nenhum'}</p>
+                                                            </div>
+                                                            <div className="p-3 rounded-xl bg-white/5 border border-white/10">
+                                                                <div className="flex items-center gap-2 mb-1"><School className="w-3.5 h-3.5 text-emerald-400" /><p className="text-xs text-muted-foreground">Escolaridade</p></div>
+                                                                <p className="text-sm font-medium text-foreground">{displayProfile.education_level || 'Não informado'}</p>
+                                                            </div>
                                                         </div>
-                                                    );
-                                                })}
+                                                    </CardContent>
+                                                </Card>
+
+                                                <Card className="glass-effect">
+                                                    <CardHeader className="pb-4">
+                                                        <CardTitle className="flex items-center gap-2 text-lg">
+                                                            <div className="p-2 rounded-lg bg-pink-500/20"><Heart className="w-4 h-4 text-pink-400" /></div>
+                                                            Status Civil & Político
+                                                        </CardTitle>
+                                                    </CardHeader>
+                                                    <CardContent className="space-y-4">
+                                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                                            <div className="p-3 rounded-xl bg-white/5 border border-white/10">
+                                                                <div className="flex items-center gap-2 mb-1"><Heart className="w-3.5 h-3.5 text-pink-400" /><p className="text-xs text-muted-foreground">Estado Civil</p></div>
+                                                                <p className="text-sm font-medium text-foreground">{displayProfile.marital_status || 'Não informado'}</p>
+                                                            </div>
+                                                            <div className="p-3 rounded-xl bg-white/5 border border-white/10">
+                                                                <div className="flex items-center gap-2 mb-1"><Flag className="w-3.5 h-3.5 text-orange-400" /><p className="text-xs text-muted-foreground">Filiação Partidária</p></div>
+                                                                <p className="text-sm font-medium text-foreground">{affiliation?.is_affiliated ? `${affiliation.name} (${affiliation.acronym})` : 'Nenhuma'}</p>
+                                                            </div>
+                                                            <div className="p-3 rounded-xl bg-white/5 border border-white/10">
+                                                                <div className="flex items-center gap-2 mb-1"><Star className="w-3.5 h-3.5 text-yellow-400" /><p className="text-xs text-muted-foreground">Reputação Civil</p></div>
+                                                                <p className="text-sm font-medium text-foreground">{displayProfile.reputation_points} pontos</p>
+                                                            </div>
+                                                            <div className="p-3 rounded-xl bg-white/5 border border-white/10">
+                                                                <div className="flex items-center gap-2 mb-1"><Landmark className="w-3.5 h-3.5 text-amber-400" /><p className="text-xs text-muted-foreground">Pontos Políticos</p></div>
+                                                                <p className="text-sm font-medium text-foreground">{displayProfile.political_points || 0} PP</p>
+                                                            </div>
+                                                        </div>
+                                                        {displayProfile.titles && displayProfile.titles.length > 0 && (
+                                                            <div className="p-3 rounded-xl bg-white/5 border border-white/10">
+                                                                <div className="flex items-center gap-2 mb-2"><Award className="w-3.5 h-3.5 text-purple-400" /><p className="text-xs text-muted-foreground">Títulos e Condecorações</p></div>
+                                                                <div className="flex flex-wrap gap-2">
+                                                                    {displayProfile.titles.map((title, i) => (
+                                                                        <span key={i} className="px-2 py-1 rounded-full text-xs bg-purple-500/10 text-purple-300 border border-purple-500/20">{title}</span>
+                                                                    ))}
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                    </CardContent>
+                                                </Card>
                                             </div>
-                                        </CardContent>
-                                    </Card>
-                                </div>
-                            </TabsContent>
-                            <TabsContent value="requests">
-                                <Card className="glass-effect mt-6">
-                                    <CardHeader><CardTitle>Solicitar Novos Documentos</CardTitle></CardHeader>
-                                    <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                        {availableDocsToRequest.map(docType => (
-                                            <Button key={docType} variant="outline" onClick={() => setConfirmingDoc(docType)} disabled={!!requesting} className="h-auto py-3">
-                                                <div className="flex items-center w-full">
-                                                    {React.createElement(docInfo[docType].icon, { className: `w-5 h-5 mr-3 ${docInfo[docType].color}` })}
-                                                    <div className="text-left">
-                                                        <p>{docInfo[docType].name}</p>
-                                                        <p className="text-xs text-muted-foreground">Taxa: {formatFee(docFees[docType] || 0)}</p>
+
+                                            <Card className="glass-effect">
+                                                <CardHeader className="pb-4">
+                                                    <CardTitle className="flex items-center gap-2 text-lg">
+                                                        <div className="p-2 rounded-lg bg-sky-500/20"><FileText className="w-4 h-4 text-sky-400" /></div>
+                                                        Documentos Emitidos
+                                                    </CardTitle>
+                                                </CardHeader>
+                                                <CardContent>
+                                                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                                                        {[
+                                                            { icon: Fingerprint, type: 'CPF', label: 'CPF', format: (v) => formatCPF(v), color: 'purple' },
+                                                            { icon: FileText, type: 'RG', label: 'RG', format: (v) => formatRG(v), color: 'sky' },
+                                                            { icon: Car, type: 'CNH', label: 'CNH', format: (v) => v, color: 'blue' },
+                                                            { icon: Globe, type: 'Passport', label: 'Passaporte', format: (v) => v, color: 'green' },
+                                                            { icon: Building, type: 'CNPJ', label: 'CNPJ', format: (v) => formatCNPJ(v), color: 'yellow' },
+                                                            { icon: BriefcaseIcon, type: 'CTD', label: 'CTD', format: (v) => v, color: 'indigo' },
+                                                            { icon: Vote, type: 'Título de Eleitor', label: 'Título de Eleitor', format: (v) => v, color: 'teal' },
+                                                            { icon: ShieldCheck, type: 'Certificado de Reservista', label: 'Cert. Reservista', format: (v) => v, color: 'orange' },
+                                                        ].map(docDef => {
+                                                            const doc = getDoc(docDef.type, true);
+                                                            const hasDoc = !!doc;
+                                                            return (
+                                                                <div key={docDef.type} className={`p-3 rounded-xl border transition-all ${hasDoc ? `bg-${docDef.color}-500/5 border-${docDef.color}-500/20` : 'bg-white/5 border-white/10 opacity-50'}`}>
+                                                                    <div className="flex items-center gap-2 mb-2">
+                                                                        <docDef.icon className={`w-4 h-4 ${hasDoc ? `text-${docDef.color}-400` : 'text-muted-foreground'}`} />
+                                                                        <p className="text-xs text-muted-foreground">{docDef.label}</p>
+                                                                        {hasDoc && <span className="ml-auto w-2 h-2 rounded-full bg-green-500"></span>}
+                                                                    </div>
+                                                                    <p className={`text-sm font-mono font-medium ${hasDoc ? 'text-foreground' : 'text-muted-foreground'}`}>
+                                                                        {hasDoc ? docDef.format(doc.document_number) : 'Não emitido'}
+                                                                    </p>
+                                                                </div>
+                                                            );
+                                                        })}
                                                     </div>
-                                                </div>
-                                            </Button>
-                                        ))}
-                                        {availableDocsToRequest.length === 0 && <p className="text-muted-foreground col-span-full text-center">Você já emitiu todos os documentos disponíveis.</p>}
-                                    </CardContent>
-                                </Card>
-                            </TabsContent>
+                                                </CardContent>
+                                            </Card>
+                                        </motion.div>
+                                    ) : null}
+
+                                    {activeTab === 'requests' ? (
+                                        <motion.div
+                                            key="requests"
+                                            initial={{ opacity: 0, y: 16 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            exit={{ opacity: 0, y: -16 }}
+                                            transition={{ duration: 0.22 }}
+                                        >
+                                            <Card className="glass-effect">
+                                                <CardHeader><CardTitle>Solicitar Novos Documentos</CardTitle></CardHeader>
+                                                <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                                    {availableDocsToRequest.map(docType => (
+                                                        <Button key={docType} variant="outline" onClick={() => setConfirmingDoc(docType)} disabled={!!requesting} className="h-auto py-3">
+                                                            <div className="flex items-center w-full">
+                                                                {React.createElement(docInfo[docType].icon, { className: `w-5 h-5 mr-3 ${docInfo[docType].color}` })}
+                                                                <div className="text-left">
+                                                                    <p>{docInfo[docType].name}</p>
+                                                                    <p className="text-xs text-muted-foreground">Taxa: {formatFee(docFees[docType] || 0)}</p>
+                                                                </div>
+                                                            </div>
+                                                        </Button>
+                                                    ))}
+                                                    {availableDocsToRequest.length === 0 && <p className="text-muted-foreground col-span-full text-center">Você já emitiu todos os documentos disponíveis.</p>}
+                                                </CardContent>
+                                            </Card>
+                                        </motion.div>
+                                    ) : null}
+                                </AnimatePresence>
+                            </div>
                         </Tabs>
                         {activeTab === 'documents' && documents.filter(d => d.is_valid).length > 0 && (
                             <div className="mt-8 flex justify-center">
@@ -530,7 +570,7 @@ const DIC = () => {
             </div>
             <div style={{ position: 'fixed', left: '-9999px', top: '0px', pointerEvents: 'none', opacity: 0 }}>
                 {documents.map(doc => {
-                    const docUser = doc.user || user;
+                    const docUser = doc.user || displayProfile;
                     if (!docUser) return null;
                     const hasTwoSides = !['Certidão de Casamento'].includes(doc.type);
                     return (
@@ -550,7 +590,7 @@ const DIC = () => {
 
             <Dialog open={!!visualizingDoc} onOpenChange={() => setVisualizingDoc(null)}>
                 <DialogContent className="max-w-fit overflow-visible p-0 border-0 bg-transparent shadow-none [&>button]:hidden data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95">
-                    {visualizingDoc && <OfficialDocument user={visualizingDoc.user || user} doc={visualizingDoc} onBack={() => setVisualizingDoc(null)} />}
+                    {visualizingDoc && <OfficialDocument user={visualizingDoc.user || displayProfile} doc={visualizingDoc} onBack={() => setVisualizingDoc(null)} />}
                 </DialogContent>
             </Dialog>
             <Dialog open={!!confirmingDoc} onOpenChange={() => { setConfirmingDoc(null); setFormValues({}); }}>

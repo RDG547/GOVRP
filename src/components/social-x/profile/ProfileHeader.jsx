@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
-import { Loader2, Calendar, UserPlus, UserCheck, Edit, MessageSquare, Crown, Shield, Scale } from 'lucide-react';
+import { Loader2, Calendar, UserPlus, UserCheck, Edit, MessageSquare, Crown, Shield, Scale, Landmark } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 import EditProfileModal from './EditProfileModal';
 import FollowListModal from './FollowListModal';
@@ -23,6 +23,7 @@ const roleBadges = {
     'Vice-Presidente do Senado': { icon: Scale, color: 'text-violet-300', label: 'Vice-Presidente do Senado' },
     'Vice-Presidente do Senado Federal': { icon: Scale, color: 'text-violet-300', label: 'Vice-Presidente do Senado' },
     'Presidente do STF': { icon: Scale, color: 'text-zinc-200', label: 'Presidente do STF' },
+    'Presidente do Banco Nacional': { icon: Landmark, color: 'text-emerald-300', label: 'Presidente do Banco Nacional' },
 };
 
 const UserBadge = ({ title }) => {

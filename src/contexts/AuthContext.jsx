@@ -22,6 +22,7 @@ const EFFECTIVE_ROLE_TITLES = new Set([
   'Vice-Presidente do Senado',
   'Vice-Presidente do Senado Federal',
   'Presidente do STF',
+  'Presidente do Banco Nacional',
 ]);
 const TERM_BOUND_OFFICE_ROLES = new Set(['Presidente', 'Vice-Presidente', 'Deputado', 'Senador']);
 
@@ -90,6 +91,17 @@ export const AuthProvider = ({ children }) => {
 
       if (executiveState?.isVacant && executiveState?.actingAuthority?.profile?.id === profile.id) {
         effectiveRoles.add('Presidente');
+      }
+
+      const bankPresidentAppointment = executiveState?.settings?.specialAppointmentsDetailed?.national_bank_president;
+      const bankPresidentUserId =
+        bankPresidentAppointment?.user_id ||
+        bankPresidentAppointment?.userId ||
+        bankPresidentAppointment?.profile?.id ||
+        null;
+
+      if (bankPresidentUserId === profile.id) {
+        effectiveRoles.add('Presidente do Banco Nacional');
       }
 
       return {

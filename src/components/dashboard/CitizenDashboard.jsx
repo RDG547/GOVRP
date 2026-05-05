@@ -332,7 +332,7 @@ const CitizenDashboard = () => {
     : Array.isArray(user?.role)
       ? user.role
       : [user?.role].filter(Boolean);
-  const hasRolePanel = ['Presidente', 'Ministro', 'Parlamentar', 'Juiz', 'Presidente do STF', 'Deputado', 'Senador', 'Presidente da Câmara', 'Presidente da Câmara dos Deputados', 'Presidente do Senado', 'Vice-Presidente da Câmara dos Deputados', 'Vice-Presidente do Senado', 'Vice-Presidente do Senado Federal', 'Police', 'AGIES', 'Forças Armadas'].some(role => rolePool.includes(role));
+  const hasRolePanel = ['Presidente', 'Presidente do Banco Nacional', 'Ministro', 'Parlamentar', 'Juiz', 'Presidente do STF', 'Deputado', 'Senador', 'Presidente da Câmara', 'Presidente da Câmara dos Deputados', 'Presidente do Senado', 'Vice-Presidente da Câmara dos Deputados', 'Vice-Presidente do Senado', 'Vice-Presidente do Senado Federal', 'Police', 'AGIES', 'Forças Armadas'].some(role => rolePool.includes(role));
   
   const getDoc = (type) => data.documents.find(d => d.type === type);
 

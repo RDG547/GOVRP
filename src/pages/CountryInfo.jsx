@@ -42,6 +42,14 @@ import { supabase } from '@/lib/supabaseClient';
 import { useToast } from '@/components/ui/use-toast';
 import { formatCurrency } from '@/lib/utils';
 import { SALARY_TABLE } from '@/lib/salary';
+import {
+  buildInvestmentAnnualRate,
+  DEFAULT_ECONOMIC_POLICY,
+  ECONOMIC_POLICY_SETTINGS_KEY,
+  normalizeBankPolicyForEconomicPolicy,
+  normalizeEconomicPolicy,
+} from '@/lib/economicPolicy';
+import { BANK_POLICY_SETTINGS_KEY, DEFAULT_BANK_POLICY } from '@/components/bank/BankManagementPanel';
 
 const CONSTITUTION_PDF_PATH = '/constituicao-govrp.pdf';
 
@@ -76,22 +84,50 @@ const DetailItem = ({ label, value, icon: Icon }) => (
 const CountryInfo = () => {
   const { toast } = useToast();
   const [govFinances, setGovFinances] = useState(null);
+  const [economicPolicy, setEconomicPolicy] = useState(DEFAULT_ECONOMIC_POLICY);
+  const [bankPolicy, setBankPolicy] = useState(DEFAULT_BANK_POLICY);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('constituticao');
 
   const fetchGovFinances = useCallback(async () => {
     setLoading(true);
 
-    const { data, error } = await supabase.rpc('get_public_dashboard_stats');
+    const [statsResponse, settingsResponse] = await Promise.all([
+      supabase.rpc('get_public_dashboard_stats'),
+      supabase.from('system_settings').select('key, value').in('key', [ECONOMIC_POLICY_SETTINGS_KEY, BANK_POLICY_SETTINGS_KEY]),
+    ]);
 
-    if (error) {
+    if (statsResponse.error) {
       toast({
         title: 'Erro ao buscar finanças do governo',
-        description: error.message,
+        description: statsResponse.error.message,
         variant: 'destructive',
       });
     } else {
-      setGovFinances(data);
+      setGovFinances(statsResponse.data);
+    }
+
+    if (settingsResponse.error) {
+      toast({
+        title: 'Erro ao buscar indicadores monetários',
+        description: settingsResponse.error.message,
+        variant: 'destructive',
+      });
+    } else {
+      const settingsMap = (settingsResponse.data || []).reduce((accumulator, item) => {
+        accumulator[item.key] = item.value;
+        return accumulator;
+      }, {});
+      const normalizedEconomicPolicy = normalizeEconomicPolicy(settingsMap[ECONOMIC_POLICY_SETTINGS_KEY]);
+
+      setEconomicPolicy(normalizedEconomicPolicy);
+      setBankPolicy(
+        normalizeBankPolicyForEconomicPolicy(
+          settingsMap[BANK_POLICY_SETTINGS_KEY],
+          normalizedEconomicPolicy,
+          DEFAULT_BANK_POLICY
+        )
+      );
     }
 
     setLoading(false);
@@ -104,6 +140,7 @@ const CountryInfo = () => {
   const surplusDeficit = govFinances
     ? govFinances.government_revenue - govFinances.government_expenses
     : 0;
+  const conservativeInvestmentRate = buildInvestmentAnnualRate(economicPolicy.selic_rate, 'low');
 
   const constitutionHighlights = [
     {
@@ -300,8 +337,11 @@ const CountryInfo = () => {
                   label="PIB (Produto Interno Bruto)"
                   value={loading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'R$ 3.000.150,34'}
                 />
+                <DetailItem icon={Landmark} label="Taxa Selic" value={loading ? <Loader2 className="h-4 w-4 animate-spin" /> : `${Number(economicPolicy.selic_rate || 0).toFixed(2)}% a.a.`} />
                 <DetailItem icon={Factory} label="Setores Econômicos" value="Serviços (65%), Indústria (25%), Agricultura (10%)." />
                 <DetailItem icon={Droplet} label="Moeda" value="Real (R$)." />
+                <DetailItem icon={Handshake} label="Crédito bancário de referência" value={loading ? <Loader2 className="h-4 w-4 animate-spin" /> : `${Number(bankPolicy.loan_interest_rate || 0).toFixed(2)}% a.m. para empréstimos e ${Number(bankPolicy.credit_card_revolving_rate || 0).toFixed(2)}% a.m. no rotativo.`} />
+                <DetailItem icon={DollarSign} label="Rendimento conservador" value={loading ? <Loader2 className="h-4 w-4 animate-spin" /> : `${(conservativeInvestmentRate * 100).toFixed(2)}% a.a. nas aplicações de baixo risco.`} />
                 <DetailItem icon={Handshake} label="Comércio Exterior" value="Principais parceiros: China, EUA, Argentina. Exporta soja, minério de ferro e tecnologia." />
                 <DetailItem
                   icon={surplusDeficit >= 0 ? ArrowUp : ArrowDown}

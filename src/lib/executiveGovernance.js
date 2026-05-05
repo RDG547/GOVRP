@@ -31,6 +31,12 @@ export const EXECUTIVE_SPECIAL_OFFICES = [
     description: 'Coordena as Forças Armadas e executa a cadeia de comando militar.',
     eligibleRoles: ['Militar', 'Cidadão'],
   },
+  {
+    key: 'national_bank_president',
+    label: 'Presidente do Banco Nacional',
+    description: 'Dirige o banco estatal, decide crédito e administra a política de juros.',
+    eligibleRoles: ['Cidadão', 'Ministro', 'Deputado', 'Senador', 'Juiz', 'Policial', 'Agente Secreto', 'Militar'],
+  },
 ];
 
 const SUCCESSION_ROLE_FALLBACKS = {

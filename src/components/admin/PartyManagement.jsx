@@ -19,7 +19,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Edit, Loader2, Search, Trash2, Users } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Edit, Loader2, Search, Trash2, Users } from 'lucide-react';
 
 const politicalOrientations = [
   'Extrema Esquerda',
@@ -30,6 +30,8 @@ const politicalOrientations = [
   'Direita',
   'Extrema-Direita',
 ];
+
+const ACTIVE_PARTY_MEMBER_THRESHOLD = 5;
 
 const EMPTY_PARTY_FORM = {
   name: '',
@@ -229,45 +231,59 @@ const PartyManagement = () => {
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
-        {filteredParties.map((party) => (
-          <Card key={party.id} className="glass-effect border-white/10">
-            <CardHeader>
-              <div className="flex items-start gap-4">
-                <img
-                  src={party.logo_url || `https://api.dicebear.com/7.x/initials/svg?seed=${party.acronym}`}
-                  alt={party.name}
-                  className="h-14 w-14 rounded-lg bg-secondary object-cover p-1"
-                />
-                <div className="min-w-0 flex-1">
-                  <CardTitle className="truncate">{party.name} ({party.acronym})</CardTitle>
-                  <CardDescription className="line-clamp-2">{party.description || 'Sem descrição.'}</CardDescription>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    <Badge variant="secondary">{party.orientation || 'Sem orientação'}</Badge>
-                    <Badge variant="outline" className="gap-1">
-                      <Users className="h-3 w-3" />
-                      {party.members?.length || 0} membros
-                    </Badge>
+        {filteredParties.map((party) => {
+          const memberCount = party.members?.length || 0;
+          const isActive = memberCount >= ACTIVE_PARTY_MEMBER_THRESHOLD;
+
+          return (
+            <Card key={party.id} className={`glass-effect border-white/10 ${!isActive ? 'border-dashed border-amber-500/60' : ''}`}>
+              <CardHeader>
+                <div className="flex items-start gap-4">
+                  <img
+                    src={party.logo_url || `https://api.dicebear.com/7.x/initials/svg?seed=${party.acronym}`}
+                    alt={party.name}
+                    className="h-14 w-14 rounded-lg bg-secondary object-cover p-1"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <CardTitle className="truncate">{party.name} ({party.acronym})</CardTitle>
+                    <CardDescription className="line-clamp-2">{party.description || 'Sem descrição.'}</CardDescription>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      <Badge variant="secondary">{party.orientation || 'Sem orientação'}</Badge>
+                      <Badge variant="outline" className="gap-1">
+                        <Users className="h-3 w-3" />
+                        {memberCount} membros
+                      </Badge>
+                      <Badge className={`gap-1 border ${isActive ? 'border-emerald-500/30 bg-emerald-500/15 text-emerald-300' : 'border-amber-500/30 bg-amber-500/15 text-amber-300'}`}>
+                        {isActive ? <CheckCircle2 className="h-3 w-3" /> : <AlertTriangle className="h-3 w-3" />}
+                        {isActive ? 'Ativo' : 'Em formação'}
+                      </Badge>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-1 text-sm text-muted-foreground">
-              <p>Dono: {party.owner?.full_name || 'Não definido'}</p>
-              <p>Presidente: {party.president?.full_name || 'Não definido'}</p>
-              <p>Vice: {party.vice_president?.full_name || 'Não definido'}</p>
-            </CardContent>
-            <CardFooter className="gap-2">
-              <Button size="sm" variant="outline" onClick={() => openEdit(party)}>
-                <Edit className="mr-2 h-4 w-4" />
-                Editar
-              </Button>
-              <Button size="sm" variant="destructive" onClick={() => setPartyToDelete(party)}>
-                <Trash2 className="mr-2 h-4 w-4" />
-                Excluir
-              </Button>
-            </CardFooter>
-          </Card>
-        ))}
+              </CardHeader>
+              <CardContent className="space-y-1 text-sm text-muted-foreground">
+                <p>Dono: {party.owner?.full_name || 'Não definido'}</p>
+                <p>Presidente: {party.president?.full_name || 'Não definido'}</p>
+                <p>Vice: {party.vice_president?.full_name || 'Não definido'}</p>
+                {!isActive ? (
+                  <p className="text-amber-300">
+                    Faltam {Math.max(0, ACTIVE_PARTY_MEMBER_THRESHOLD - memberCount)} membro(s) para ativação eleitoral.
+                  </p>
+                ) : null}
+              </CardContent>
+              <CardFooter className="gap-2">
+                <Button size="sm" variant="outline" onClick={() => openEdit(party)}>
+                  <Edit className="mr-2 h-4 w-4" />
+                  Editar
+                </Button>
+                <Button size="sm" variant="destructive" onClick={() => setPartyToDelete(party)}>
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Excluir
+                </Button>
+              </CardFooter>
+            </Card>
+          );
+        })}
       </div>
 
       {!filteredParties.length ? (

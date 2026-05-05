@@ -217,6 +217,28 @@ const fetchProfileById = async (supabase, profileId) => {
   return data || null;
 };
 
+const fetchProfilesByIds = async (supabase, profileIds = []) => {
+  const ids = dedupe(profileIds);
+
+  if (!ids.length) {
+    return {};
+  }
+
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id, full_name, username, avatar_url, role, x_handle')
+    .in('id', ids);
+
+  if (error) {
+    throw error;
+  }
+
+  return (data || []).reduce((accumulator, profile) => {
+    accumulator[profile.id] = profile;
+    return accumulator;
+  }, {});
+};
+
 const fetchPartyMembership = async (supabase, userId) => {
   if (!userId) {
     return null;
@@ -822,6 +844,110 @@ const buildOfficeNotification = (assignment) => {
   };
 };
 
+const buildAssignmentIdentity = (assignment) => {
+  const userId = assignment?.user_id || assignment?.userId || '';
+  const officeRole = assignment?.office_role || assignment?.officeRole || '';
+  const electionId = assignment?.election_id || assignment?.electionId || '';
+  const termStartAt = toDateOnly(assignment?.term_start_at || assignment?.termStartAt || '');
+
+  return `${userId}:${officeRole}:${electionId}:${termStartAt}`;
+};
+
+const formatGazetteDate = (value) => {
+  if (!value) {
+    return 'data indefinida';
+  }
+
+  const parsedDate = new Date(value);
+
+  if (Number.isNaN(parsedDate.getTime())) {
+    return 'data indefinida';
+  }
+
+  return new Intl.DateTimeFormat('pt-BR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    timeZone: 'America/Sao_Paulo',
+  }).format(parsedDate);
+};
+
+const publishElectionOfficeGazetteEntries = async (supabase, { previousState, activeAssignments }) => {
+  const previousAssignments = Array.isArray(previousState?.active_assignments)
+    ? previousState.active_assignments
+    : [];
+  const currentAssignments = (activeAssignments || []).map((assignment) => ({
+    user_id: assignment.userId,
+    office_role: assignment.officeRole,
+    election_id: assignment.electionId,
+    election_name: assignment.electionName,
+    term_start_at: assignment.termStartAt,
+    term_end_at: assignment.termEndAt,
+  }));
+  const previousKeys = new Set(previousAssignments.map(buildAssignmentIdentity));
+  const currentKeys = new Set(currentAssignments.map(buildAssignmentIdentity));
+  const grantedAssignments = currentAssignments.filter((assignment) => !previousKeys.has(buildAssignmentIdentity(assignment)));
+  const revokedAssignments = previousAssignments.filter((assignment) => !currentKeys.has(buildAssignmentIdentity(assignment)));
+
+  if (!grantedAssignments.length && !revokedAssignments.length) {
+    return;
+  }
+
+  const profilesMap = await fetchProfilesByIds(supabase, [
+    ...grantedAssignments.map((assignment) => assignment.user_id),
+    ...revokedAssignments.map((assignment) => assignment.user_id),
+  ]);
+  const publishedAt = new Date().toISOString();
+  const rows = [];
+
+  for (const assignment of grantedAssignments) {
+    const officeLabel = OFFICE_LABELS[assignment.office_role] || assignment.office_role;
+    const profile = profilesMap[assignment.user_id] || null;
+    const profileName = resolveProfileDisplayName(profile, 'Servidor eleito');
+    const roleNoun = ['Presidente', 'Vice-Presidente'].includes(assignment.office_role) ? 'cargo' : 'mandato';
+
+    rows.push({
+      title: `Posse em ${officeLabel}: ${profileName}`,
+      summary: `${profileName} teve seu ${roleNoun} de ${officeLabel} oficializado no Diário Oficial.`,
+      content:
+        `${profileName} passa a exercer ${officeLabel} em decorrência da eleição "${assignment.election_name || 'não identificada'}".` +
+        ` Início do exercício: ${formatGazetteDate(assignment.term_start_at)}.` +
+        (assignment.term_end_at ? ` Término previsto: ${formatGazetteDate(assignment.term_end_at)}.` : ''),
+      type: 'Nomeacao e Exoneracao',
+      source_id: `office-grant-${buildAssignmentIdentity(assignment)}`,
+      published_at: publishedAt,
+    });
+  }
+
+  for (const assignment of revokedAssignments) {
+    const officeLabel = OFFICE_LABELS[assignment.office_role] || assignment.office_role;
+    const profile = profilesMap[assignment.user_id] || null;
+    const profileName = resolveProfileDisplayName(profile, 'Servidor anteriormente investido');
+    const roleNoun = ['Presidente', 'Vice-Presidente'].includes(assignment.office_role) ? 'cargo' : 'mandato';
+
+    rows.push({
+      title: `Encerramento de ${officeLabel}: ${profileName}`,
+      summary: `${profileName} deixou o ${roleNoun} de ${officeLabel}.`,
+      content:
+        `${profileName} encerrou o exercício de ${officeLabel}.` +
+        (assignment.election_name ? ` O ato decorre do encerramento do ciclo da eleição "${assignment.election_name}".` : ''),
+      type: 'Nomeacao e Exoneracao',
+      source_id: `office-revoke-${buildAssignmentIdentity(assignment)}`,
+      published_at: publishedAt,
+    });
+  }
+
+  if (!rows.length) {
+    return;
+  }
+
+  const { error } = await supabase.from('dou_entries').insert(rows);
+
+  if (error) {
+    throw error;
+  }
+};
+
 const clearExecutiveVacancyIfNeeded = async (supabase, assignments = []) => {
   if (!assignments.some((assignment) => assignment.officeRole === 'Presidente')) {
     return false;
@@ -1249,6 +1375,33 @@ const clearMinistersWhenExecutiveTermChanges = async (supabase, { previousState,
     }
   }
 
+  if (ministerUserIds.length) {
+    const profilesMap = await fetchProfilesByIds(supabase, ministerUserIds);
+    const publishedAt = new Date().toISOString();
+    const reasonLabel = currentPresident
+      ? `mudança de governo decorrente da eleição "${currentPresident.electionName || 'não identificada'}"`
+      : 'vacância do Poder Executivo';
+    const gazetteRows = ministerUserIds.map((userId) => {
+      const profile = profilesMap[userId] || null;
+      const profileName = resolveProfileDisplayName(profile, 'Ministro exonerado');
+
+      return {
+        title: `Exoneração de ministro: ${profileName}`,
+        summary: `${profileName} deixou o cargo de Ministro em razão de ${reasonLabel}.`,
+        content: `${profileName} foi exonerado do cargo de Ministro em razão de ${reasonLabel}.`,
+        type: 'Nomeacao e Exoneracao',
+        source_id: `minister-dismiss-${userId}-${currentPresident?.electionId || 'vacancy'}-${publishedAt}`,
+        published_at: publishedAt,
+      };
+    });
+
+    const { error: gazetteError } = await supabase.from('dou_entries').insert(gazetteRows);
+
+    if (gazetteError) {
+      throw gazetteError;
+    }
+  }
+
   const { data: staleProfiles, error: profilesError } = await supabase
     .from('profiles')
     .select('id, role, titles')
@@ -1351,6 +1504,11 @@ export const syncElectionOfficesState = async () => {
     updated_at: new Date().toISOString(),
     active_assignments: serializedAssignments,
     settlements: serializedSettlements,
+  });
+
+  await publishElectionOfficeGazetteEntries(supabase, {
+    previousState,
+    activeAssignments,
   });
 
   await syncParliamentMemberships(supabase, {

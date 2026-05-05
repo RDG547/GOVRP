@@ -8,6 +8,7 @@ export const SALARY_TABLE = [
   { role: 'Senador', title: 'Senador', salary: 17500 },
   { role: 'Presidente do Senado', title: 'Presidente do Senado', salary: 24500 },
   { role: 'Presidente da Câmara', title: 'Presidente da Câmara', salary: 21000 },
+  { role: 'Presidente do Banco Nacional', title: 'Presidente do Banco Nacional', salary: 21000 },
   { role: 'Ministro', title: 'Ministro de Estado', salary: 17500 },
 ];
 
@@ -16,6 +17,7 @@ export const SALARY_ROLE_PRIORITY = [
   'Vice-Presidente',
   'Presidente do Senado',
   'Presidente da Câmara',
+  'Presidente do Banco Nacional',
   'Ministro',
   'Senador',
   'Deputado',

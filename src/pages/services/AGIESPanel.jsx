@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { supabase } from '@/lib/supabaseClient';
 import { useToast } from '@/components/ui/use-toast';
@@ -16,15 +16,14 @@ import {
   DialogDescription,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command";
 import { formatCurrency } from '@/lib/utils';
+
+const normalizeSearchValue = (value = '') =>
+    value
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .trim();
 
 const TransactionViewer = () => {
     const [users, setUsers] = useState([]);
@@ -33,6 +32,7 @@ const TransactionViewer = () => {
     const [loadingUsers, setLoadingUsers] = useState(true);
     const [loadingTransactions, setLoadingTransactions] = useState(false);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
+    const [userSearchTerm, setUserSearchTerm] = useState('');
     const { toast } = useToast();
 
     useEffect(() => {
@@ -60,7 +60,7 @@ const TransactionViewer = () => {
         setSelectedUser(user);
         setLoadingTransactions(true);
         const { data, error } = await supabase.rpc('get_user_transactions_for_admin', { p_user_id: user.id });
-        
+
         if (error) {
             toast({ title: "Erro ao buscar transações", description: error.message, variant: "destructive" });
             setTransactions([]);
@@ -70,8 +70,32 @@ const TransactionViewer = () => {
         setLoadingTransactions(false);
     }, [users, toast]);
 
+    const filteredUsers = useMemo(() => {
+        const normalizedSearch = normalizeSearchValue(userSearchTerm);
+
+        if (!normalizedSearch) {
+            return users;
+        }
+
+        return users.filter((user) => {
+            const userLabel = `${user.full_name || ''} ${user.username || ''} ${user.id || ''}`;
+            return normalizeSearchValue(userLabel).includes(normalizedSearch);
+        });
+    }, [userSearchTerm, users]);
+
+    const handleDialogChange = useCallback((open) => {
+        setIsDialogOpen(open);
+
+        if (!open) {
+            setUserSearchTerm('');
+            setSelectedUser(null);
+            setTransactions([]);
+            setLoadingTransactions(false);
+        }
+    }, []);
+
     return (
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <Dialog open={isDialogOpen} onOpenChange={handleDialogChange}>
             <DialogTrigger asChild>
                 <Button variant="outline"><Eye className="mr-2 h-4 w-4" /> Ver Transações de Usuário</Button>
             </DialogTrigger>
@@ -82,29 +106,42 @@ const TransactionViewer = () => {
                 </DialogHeader>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 h-full overflow-hidden">
                     <div className="md:col-span-1 h-full flex flex-col">
-                        <Command className="rounded-lg border shadow-md h-full">
-                            <CommandInput placeholder="Buscar usuário..." />
-                            <CommandList className="h-full max-h-[58vh] overflow-y-auto custom-scrollbar">
-                                {loadingUsers ? <div className="flex justify-center p-4"><Loader2 className="animate-spin" /></div> : (
-                                    <>
-                                        <CommandEmpty>Nenhum usuário encontrado.</CommandEmpty>
-                                        <CommandGroup heading="Usuários">
-                                            {users.map((user) => (
-                                                <CommandItem
-                                                    key={user.id}
-                                                    value={`${user.full_name || user.username || 'Usuário'} ${user.id}`}
-                                                    onSelect={() => handleUserSelect(user.id)}
-                                                    className="cursor-pointer"
-                                                >
-                                                    <User className="mr-2 h-4 w-4" />
-                                                    <span>{user.full_name || user.username || 'Usuário sem nome'}</span>
-                                                </CommandItem>
-                                            ))}
-                                        </CommandGroup>
-                                    </>
-                                )}
-                            </CommandList>
-                        </Command>
+                        <div className="rounded-lg border shadow-md h-full bg-background/80 overflow-hidden">
+                            <div className="border-b px-3 py-3">
+                                <div className="relative">
+                                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                                    <Input
+                                        value={userSearchTerm}
+                                        onChange={(event) => setUserSearchTerm(event.target.value)}
+                                        placeholder="Buscar usuário..."
+                                        className="pl-9"
+                                    />
+                                </div>
+                            </div>
+                            <div className="px-3 py-2 text-xs font-medium text-muted-foreground border-b">Usuários</div>
+                            <div className="h-full max-h-[58vh] overflow-y-auto custom-scrollbar p-2 space-y-1">
+                                {loadingUsers ? <div className="flex justify-center p-4"><Loader2 className="animate-spin" /></div> : null}
+                                {!loadingUsers && filteredUsers.length === 0 ? (
+                                    <p className="py-6 text-center text-sm text-muted-foreground">Nenhum usuário encontrado.</p>
+                                ) : null}
+                                {!loadingUsers ? filteredUsers.map((user) => {
+                                    const userLabel = user.full_name || user.username || 'Usuário sem nome';
+                                    const isSelected = selectedUser?.id === user.id;
+
+                                    return (
+                                        <button
+                                            key={user.id}
+                                            type="button"
+                                            onClick={() => handleUserSelect(user.id)}
+                                            className={`flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm transition-colors ${isSelected ? 'bg-white/10 text-foreground' : 'text-muted-foreground hover:bg-white/5 hover:text-foreground'}`}
+                                        >
+                                            <User className="h-4 w-4 shrink-0" />
+                                            <span className="truncate">{userLabel}</span>
+                                        </button>
+                                    );
+                                }) : null}
+                            </div>
+                        </div>
                     </div>
                     <div className="md:col-span-2 h-full overflow-y-auto custom-scrollbar">
                         {selectedUser ? (
@@ -164,7 +201,7 @@ const AGIESPanel = () => {
         if (searchTerm) {
             query = query.ilike('name', `%${searchTerm}%`);
         }
-        
+
         const { data, error } = await query;
         if (error) {
             toast({ title: "Erro ao carregar missões", variant: "destructive" });
@@ -172,7 +209,7 @@ const AGIESPanel = () => {
         } else {
             setMissions(data || []);
         }
-        
+
         setLoading(false);
     }, [searchTerm, toast]);
 
@@ -195,7 +232,7 @@ const AGIESPanel = () => {
                     iconColor="text-red-500"
                     centered={true}
                 />
-                
+
                 <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
                      <div className="relative w-full md:w-1/2">
                         <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" />

@@ -6,7 +6,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader2, Edit, Trash2, Search, Wallet, Crown, KeyRound, Filter, CreditCard, User, Shield, Scale, Gavel, Briefcase, GraduationCap, Building, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Loader2, Edit, Trash2, Search, Wallet, Crown, KeyRound, Filter, CreditCard, User, Shield, Scale, Gavel, Briefcase, GraduationCap, Building, ChevronLeft, ChevronRight, Landmark } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -206,7 +206,7 @@ const EditUserDialog = ({ user, onFinish, onUpdate }) => {
         }
     };
 
-    const availableRoles = ['Usuário', 'Cidadão', 'Admin', 'Presidente', 'Vice-Presidente', 'Presidente da Câmara', 'Presidente da Câmara dos Deputados', 'Vice-Presidente da Câmara dos Deputados', 'Presidente do Senado', 'Vice-Presidente do Senado', 'Vice-Presidente do Senado Federal', 'Presidente do STF', 'Deputado', 'Senador', 'Juiz', 'Policial', 'Ministro', 'Agente Secreto', 'Militar'];
+    const availableRoles = ['Usuário', 'Cidadão', 'Admin', 'Presidente', 'Vice-Presidente', 'Presidente da Câmara', 'Presidente da Câmara dos Deputados', 'Vice-Presidente da Câmara dos Deputados', 'Presidente do Senado', 'Vice-Presidente do Senado', 'Vice-Presidente do Senado Federal', 'Presidente do STF', 'Presidente do Banco Nacional', 'Deputado', 'Senador', 'Juiz', 'Policial', 'Ministro', 'Agente Secreto', 'Militar'];
 
     return (
         <DialogContent className="glass-effect text-white">
@@ -377,6 +377,7 @@ const roleConfig = {
     'Vice-Presidente do Senado': { color: 'text-indigo-300', bg: 'bg-indigo-600/80', icon: Gavel },
     'Vice-Presidente do Senado Federal': { color: 'text-indigo-300', bg: 'bg-indigo-600/80', icon: Gavel },
     'Presidente do STF': { color: 'text-zinc-200', bg: 'bg-zinc-600/80', icon: Gavel },
+    'Presidente do Banco Nacional': { color: 'text-emerald-300', bg: 'bg-emerald-600/80', icon: Landmark },
     'Ministro': { color: 'text-purple-400', bg: 'bg-purple-500/80', icon: Briefcase },
     'Senador': { color: 'text-blue-400', bg: 'bg-blue-500/80', icon: Scale },
     'Deputado': { color: 'text-sky-400', bg: 'bg-sky-500/80', icon: Scale },
@@ -391,7 +392,7 @@ const roleConfig = {
 
 const USERS_PER_PAGE = 12;
 const roleOrder = [
-    'Admin', 'Presidente', 'Vice-Presidente', 'Presidente da Câmara', 'Presidente da Câmara dos Deputados', 'Vice-Presidente da Câmara dos Deputados', 'Presidente do Senado', 'Vice-Presidente do Senado', 'Vice-Presidente do Senado Federal', 'Presidente do STF', 'Ministro', 'Senador', 'Deputado',
+    'Admin', 'Presidente', 'Vice-Presidente', 'Presidente da Câmara', 'Presidente da Câmara dos Deputados', 'Vice-Presidente da Câmara dos Deputados', 'Presidente do Senado', 'Vice-Presidente do Senado', 'Vice-Presidente do Senado Federal', 'Presidente do STF', 'Presidente do Banco Nacional', 'Ministro', 'Senador', 'Deputado',
     'Juiz', 'Policial', 'Agente Secreto', 'Militar', 'Cidadão', 'Usuário'
 ];
 

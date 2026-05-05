@@ -111,7 +111,7 @@ const fetchActiveElectionAssignments = async (supabase) => {
     }));
 };
 
-const fetchCurrentExecutiveTicketRoles = async (supabase) => {
+const fetchCurrentExecutiveRoles = async (supabase) => {
   const executiveState = await fetchExecutiveConstitutionalState(supabase);
   const roles = [];
 
@@ -126,6 +126,20 @@ const fetchCurrentExecutiveTicketRoles = async (supabase) => {
     roles.push({
       userId: executiveState.currentViceProfile.id,
       role: 'Vice-Presidente',
+    });
+  }
+
+  const bankPresidentAppointment = executiveState?.settings?.specialAppointmentsDetailed?.national_bank_president;
+  const bankPresidentUserId =
+    bankPresidentAppointment?.user_id ||
+    bankPresidentAppointment?.userId ||
+    bankPresidentAppointment?.profile?.id ||
+    null;
+
+  if (bankPresidentUserId) {
+    roles.push({
+      userId: bankPresidentUserId,
+      role: 'Presidente do Banco Nacional',
     });
   }
 
@@ -222,6 +236,7 @@ const fetchProfileFallbackRoles = async (supabase) => {
       'Senador',
       'Presidente do Senado',
       'Presidente da Câmara',
+      'Presidente do Banco Nacional',
       'Ministro',
     ]);
 
@@ -240,13 +255,13 @@ const fetchProfileFallbackRoles = async (supabase) => {
 const resolveEligibleRecipients = async (supabase, payrollWindowStart) => {
   const [
     assignmentRoles,
-    executiveTicketRoles,
+    executiveRoles,
     ministerRoles,
     housePresidentRoles,
     profileFallbackRoles,
   ] = await Promise.all([
     fetchActiveElectionAssignments(supabase),
-    fetchCurrentExecutiveTicketRoles(supabase),
+    fetchCurrentExecutiveRoles(supabase),
     fetchActiveMinisters(supabase),
     fetchActiveHousePresidents(supabase),
     fetchProfileFallbackRoles(supabase),
@@ -269,7 +284,7 @@ const resolveEligibleRecipients = async (supabase, payrollWindowStart) => {
 
   [
     ...assignmentRoles,
-    ...executiveTicketRoles,
+    ...executiveRoles,
     ...ministerRoles,
     ...housePresidentRoles,
     ...profileFallbackRoles,

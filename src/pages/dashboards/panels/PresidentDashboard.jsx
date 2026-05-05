@@ -14,6 +14,7 @@ import { Slider } from '@/components/ui/slider';
 import { Loader2, Landmark, Users, Briefcase, FileSignature, Edit, Plus, Save, Trash2, Megaphone, TrendingUp, TrendingDown, CreditCard, School as University, PiggyBank, HeartHandshake as Handshake, BrainCircuit, HeartPulse, Shield, Anchor, BookOpen, Microscope, Recycle, TramFront as Tram, Globe, Palette, Cpu, Building, Coins, Percent, Wifi, Smartphone, Droplet, Flame, Zap, Package, Package2, PackageCheck, UserPlus, FilePlus, UserX, LogOut, AlertTriangle, Clock3, LayoutDashboard, Settings, Ban, CircleSlash, Power, PowerOff, Lock, ChevronLeft, FileText, Store, Gavel, DollarSign, Wrench, Banknote, Scale, HardHat, Leaf, Car, Contact, FileCheck, Receipt, Building2 } from 'lucide-react';
 import { formatCurrency, parseCurrency } from '@/lib/utils';
 import PageHeader from '@/components/layout/PageHeader';
+import { BANK_POLICY_SETTINGS_KEY, DEFAULT_BANK_POLICY } from '@/components/bank/BankManagementPanel';
 import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -25,6 +26,15 @@ import {
     haveGovernmentBudgetAreasChanged,
     rebalanceGovernmentBudgetAreas,
 } from '@/lib/governmentBudget';
+import {
+    annualPercentToMonthlyPercent,
+    buildInvestmentAnnualRate,
+    DEFAULT_ECONOMIC_POLICY,
+    ECONOMIC_POLICY_SETTINGS_KEY,
+    getEconomicPressureLabel,
+    normalizeBankPolicyForEconomicPolicy,
+    normalizeEconomicPolicy,
+} from '@/lib/economicPolicy';
 import { publishOfficialGazetteEntry } from '@/lib/officialGazette';
 import {
     EXECUTIVE_SPECIAL_OFFICES,
@@ -313,8 +323,8 @@ const DecreeManager = ({ decrees, onUpdate }) => {
     return (
         <Card className="glass-effect h-full flex flex-col">
             <CardHeader>
-                <CardTitle className="flex items-center gap-2"><FileSignature className="w-6 h-6 text-primary" />Decretos Presidenciais</CardTitle>
-                <CardDescription>Crie, edite e publique seus decretos.</CardDescription>
+                <CardTitle className="flex items-center gap-2"><FileSignature className="w-6 h-6 text-primary" />Decretos</CardTitle>
+                <CardDescription>Crie, edite e publique decretos presidenciais.</CardDescription>
             </CardHeader>
             <CardContent className="flex-grow space-y-4">
                  {decrees.length > 0 ? decrees.map(decree => (
@@ -681,8 +691,27 @@ const LoanManager = ({ onUpdate, setActiveTab, govFinances }) => {
     const [amount, setAmount] = useState(1000000);
     const [installments, setInstallments] = useState(12);
     const [isSaving, setIsSaving] = useState(false);
+    const [bankPolicy, setBankPolicy] = useState(DEFAULT_BANK_POLICY);
 
     const availableLoanAmount = govFinances ? govFinances.loan_limit - govFinances.loans_balance : 0;
+    const governmentDebtRate = Number(bankPolicy.government_debt_interest_rate || 0);
+    const estimatedTotalDebt = amount * (1 + governmentDebtRate / 100);
+
+    useEffect(() => {
+        const fetchBankPolicy = async () => {
+            const { data } = await supabase
+                .from('system_settings')
+                .select('value')
+                .eq('key', BANK_POLICY_SETTINGS_KEY)
+                .maybeSingle();
+
+            if (data?.value) {
+                setBankPolicy({ ...DEFAULT_BANK_POLICY, ...data.value });
+            }
+        };
+
+        fetchBankPolicy();
+    }, []);
 
     const handleTakeLoan = async () => {
         setIsSaving(true);
@@ -713,6 +742,8 @@ const LoanManager = ({ onUpdate, setActiveTab, govFinances }) => {
                         Solicite um empréstimo para o cofre público.
                         <br />
                         <span className="font-bold text-primary">Disponível para empréstimo: {formatCurrency(availableLoanAmount)}</span>
+                        <br />
+                        <span>Taxa vigente do Banco Nacional: {governmentDebtRate.toFixed(2)}% a.m.</span>
                     </DialogDescription>
                 </DialogHeader>
                 <div className="grid gap-4 py-4">
@@ -724,6 +755,9 @@ const LoanManager = ({ onUpdate, setActiveTab, govFinances }) => {
                         <Label htmlFor="installments">Parcelas</Label>
                         <Input id="installments" type="number" value={installments} onChange={(e) => setInstallments(parseInt(e.target.value, 10))} />
                     </div>
+                    <div className="rounded-lg border border-white/10 bg-white/5 p-3 text-sm text-muted-foreground">
+                        Custo estimado com juros: <span className="font-semibold text-foreground">{formatCurrency(estimatedTotalDebt)}</span>
+                    </div>
                 </div>
                 <DialogFooter>
                     <Button onClick={handleTakeLoan} disabled={isSaving}>
@@ -732,6 +766,173 @@ const LoanManager = ({ onUpdate, setActiveTab, govFinances }) => {
                 </DialogFooter>
             </DialogContent>
         </Dialog>
+    );
+};
+
+const SelicManager = ({ economicPolicy, bankPolicy, onUpdate, actorId }) => {
+    const { toast } = useToast();
+    const [selicRate, setSelicRate] = useState(Number(economicPolicy?.selic_rate ?? DEFAULT_ECONOMIC_POLICY.selic_rate));
+    const [isSaving, setIsSaving] = useState(false);
+
+    useEffect(() => {
+        setSelicRate(Number(economicPolicy?.selic_rate ?? DEFAULT_ECONOMIC_POLICY.selic_rate));
+    }, [economicPolicy?.selic_rate]);
+
+    const projectedEconomicPolicy = normalizeEconomicPolicy({
+        ...economicPolicy,
+        selic_rate: selicRate,
+    });
+    const projectedBankPolicy = normalizeBankPolicyForEconomicPolicy(
+        bankPolicy,
+        projectedEconomicPolicy,
+        DEFAULT_BANK_POLICY
+    );
+    const projectedSelicMonthlyRate = annualPercentToMonthlyPercent(projectedEconomicPolicy.selic_rate);
+    const lowRiskInvestmentRate = buildInvestmentAnnualRate(projectedEconomicPolicy.selic_rate, 'low');
+    const highRiskInvestmentRate = buildInvestmentAnnualRate(projectedEconomicPolicy.selic_rate, 'high');
+
+    const handleSave = async () => {
+        setIsSaving(true);
+
+        try {
+            const nextEconomicPolicy = normalizeEconomicPolicy({
+                ...economicPolicy,
+                selic_rate: selicRate,
+                updated_at: new Date().toISOString(),
+                updated_by: actorId || null,
+            });
+            const nextBankPolicy = normalizeBankPolicyForEconomicPolicy(
+                bankPolicy,
+                nextEconomicPolicy,
+                DEFAULT_BANK_POLICY
+            );
+            const { data: investmentOptions, error: investmentOptionsError } = await supabase
+                .from('investment_options')
+                .select('id, risk_level');
+
+            if (investmentOptionsError) {
+                throw investmentOptionsError;
+            }
+
+            await Promise.all([
+                supabase
+                    .from('system_settings')
+                    .upsert(
+                        {
+                            key: ECONOMIC_POLICY_SETTINGS_KEY,
+                            value: nextEconomicPolicy,
+                            description: 'Política monetária nacional e taxa Selic.',
+                        },
+                        { onConflict: 'key' }
+                    )
+                    .then(({ error }) => {
+                        if (error) throw error;
+                    }),
+                supabase
+                    .from('system_settings')
+                    .upsert(
+                        {
+                            key: BANK_POLICY_SETTINGS_KEY,
+                            value: nextBankPolicy,
+                            description: 'Política de juros e crédito do Banco Nacional.',
+                        },
+                        { onConflict: 'key' }
+                    )
+                    .then(({ error }) => {
+                        if (error) throw error;
+                    }),
+                ...(investmentOptions || []).map(async (option) => {
+                    const { error } = await supabase
+                        .from('investment_options')
+                        .update({ annual_return_rate: buildInvestmentAnnualRate(nextEconomicPolicy.selic_rate, option.risk_level || 'medium') })
+                        .eq('id', option.id);
+
+                    if (error) {
+                        throw error;
+                    }
+                }),
+            ]);
+
+            await publishOfficialGazetteEntry(supabase, {
+                title: `Fixação da taxa Selic em ${nextEconomicPolicy.selic_rate.toFixed(2)}% a.a.`,
+                summary: 'A Presidência atualizou a taxa básica de juros da economia nacional.',
+                content:
+                    `A taxa Selic foi definida em ${nextEconomicPolicy.selic_rate.toFixed(2)}% ao ano, equivalente a ${annualPercentToMonthlyPercent(nextEconomicPolicy.selic_rate).toFixed(2)}% ao mês.` +
+                    ` A decisão repercute sobre o custo do crédito, a dívida pública e a remuneração das aplicações financeiras disponíveis no GOV.RP.`,
+                type: 'Decreto',
+                sourceId: `selic-${Date.now()}`,
+            });
+
+            toast({ title: 'Taxa Selic atualizada com sucesso' });
+            await onUpdate?.();
+        } catch (error) {
+            toast({ title: 'Erro ao atualizar a Selic', description: error.message, variant: 'destructive' });
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    return (
+        <Card className="glass-effect">
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2"><Percent className="w-5 h-5 text-primary" /> Política Monetária</CardTitle>
+                <CardDescription>
+                    Defina a Selic e propague automaticamente o impacto sobre crédito, dívida pública e investimentos.
+                </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+                <div className="space-y-3 rounded-xl border border-white/10 bg-white/5 p-4">
+                    <div className="flex items-center justify-between gap-4">
+                        <div>
+                            <p className="text-sm text-muted-foreground">Taxa Selic (% a.a.)</p>
+                            <p className="text-2xl font-bold text-foreground">{Number(selicRate || 0).toFixed(2)}%</p>
+                            <p className="text-xs text-muted-foreground">Equivalente mensal: {projectedSelicMonthlyRate.toFixed(2)}% a.m.</p>
+                        </div>
+                        <div className="w-32">
+                            <Input
+                                type="number"
+                                min="0"
+                                max="100"
+                                step="0.01"
+                                value={selicRate}
+                                onChange={(event) => setSelicRate(Number(event.target.value || 0))}
+                            />
+                        </div>
+                    </div>
+                    <Slider value={[Number(selicRate || 0)]} onValueChange={(value) => setSelicRate(Number(value[0] || 0))} max={40} step={0.05} />
+                    <p className="text-sm text-muted-foreground">{getEconomicPressureLabel(selicRate)}</p>
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                    <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+                        <p className="text-xs uppercase tracking-wide text-muted-foreground">Empréstimos</p>
+                        <p className="mt-2 text-xl font-bold text-emerald-400">{Number(projectedBankPolicy.loan_interest_rate || 0).toFixed(2)}% a.m.</p>
+                        <p className="text-xs text-muted-foreground">Spread preservado: {Number(projectedBankPolicy.loan_interest_spread || 0).toFixed(2)} p.p.</p>
+                    </div>
+                    <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+                        <p className="text-xs uppercase tracking-wide text-muted-foreground">Cartão rotativo</p>
+                        <p className="mt-2 text-xl font-bold text-orange-400">{Number(projectedBankPolicy.credit_card_revolving_rate || 0).toFixed(2)}% a.m.</p>
+                        <p className="text-xs text-muted-foreground">Spread preservado: {Number(projectedBankPolicy.credit_card_revolving_spread || 0).toFixed(2)} p.p.</p>
+                    </div>
+                    <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+                        <p className="text-xs uppercase tracking-wide text-muted-foreground">Dívida pública</p>
+                        <p className="mt-2 text-xl font-bold text-amber-300">{Number(projectedBankPolicy.government_debt_interest_rate || 0).toFixed(2)}% a.m.</p>
+                        <p className="text-xs text-muted-foreground">Custo financeiro do Tesouro ajustado automaticamente.</p>
+                    </div>
+                    <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+                        <p className="text-xs uppercase tracking-wide text-muted-foreground">Investimentos</p>
+                        <p className="mt-2 text-xl font-bold text-cyan-300">{(lowRiskInvestmentRate * 100).toFixed(2)}% a.a.</p>
+                        <p className="text-xs text-muted-foreground">Baixo risco: {(highRiskInvestmentRate * 100).toFixed(2)}% a.a. em alto risco.</p>
+                    </div>
+                </div>
+            </CardContent>
+            <CardFooter>
+                <Button onClick={handleSave} disabled={isSaving} className="w-full">
+                    {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                    Salvar Taxa Selic
+                </Button>
+            </CardFooter>
+        </Card>
     );
 };
 
@@ -1013,14 +1214,14 @@ const SpecialAppointmentsManager = ({ executiveState, onUpdate, actorId }) => {
             <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                     <Shield className="w-6 h-6 text-primary" />
-                    Nomeações Privativas
+                    Nomeações Estratégicas do Executivo
                 </CardTitle>
-                <CardDescription>Defina os ocupantes do comando da Polícia Federal e das Forças Armadas.</CardDescription>
+                <CardDescription>Defina os ocupantes de cargos executivos estratégicos, incluindo segurança, defesa e Banco Nacional.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
                 {EXECUTIVE_SPECIAL_OFFICES.map((office) => {
                     const appointment = executiveState?.settings?.specialAppointmentsDetailed?.[office.key];
-                    const officeIcon = office.key === 'armed_forces_commander' ? Anchor : Shield;
+                    const officeIcon = office.key === 'armed_forces_commander' ? Anchor : office.key === 'national_bank_president' ? Landmark : Shield;
                     const OfficeIcon = officeIcon;
 
                     return (
@@ -1359,6 +1560,7 @@ const ResignationManager = ({ onResign }) => {
 };
 
 const ENTERPRISE_SECTORS = [
+    { value: 'Banco Nacional', label: 'Banco Nacional', icon: Landmark, color: 'text-emerald-400', bgColor: 'bg-emerald-500/20' },
     { value: 'Internet', label: 'Internet', icon: Wifi, color: 'text-cyan-400', bgColor: 'bg-cyan-500/20' },
     { value: 'Energia Elétrica', label: 'Energia Elétrica', icon: Zap, color: 'text-yellow-400', bgColor: 'bg-yellow-500/20' },
     { value: 'Água', label: 'Água', icon: Droplet, color: 'text-blue-400', bgColor: 'bg-blue-500/20' },
@@ -1366,6 +1568,9 @@ const ENTERPRISE_SECTORS = [
     { value: 'Gás', label: 'Gás', icon: Flame, color: 'text-orange-500', bgColor: 'bg-orange-500/20' },
     { value: 'Outros', label: 'Outros', icon: Building, color: 'text-gray-400', bgColor: 'bg-gray-500/20' },
 ];
+
+const isNationalBankEnterprise = (enterprise) =>
+    enterprise?.sector === 'Banco Nacional' || `${enterprise?.name || ''}`.toLowerCase() === 'banco nacional';
 
 const SECTOR_SERVICE_KEYS = {
     'Internet': [
@@ -1397,14 +1602,26 @@ const ENTERPRISE_COST_LABELS = {
     licenses: 'Licenças',
 };
 
+const WEEKS_PER_MONTH = 4.345;
+
+const normalizeEnterpriseCosts = (value = {}) =>
+    Object.keys(ENTERPRISE_COST_LABELS).reduce((accumulator, key) => {
+        accumulator[key] = Number(value?.[key] || 0);
+        return accumulator;
+    }, {});
+
+const sumEnterpriseCosts = (costs = {}) =>
+    Object.values(costs || {}).reduce((sum, current) => sum + Number(current || 0), 0);
+
 const EnterpriseDetailView = ({ enterprise, onBack, onUpdate }) => {
     const { toast } = useToast();
-    const sectorInfo = ENTERPRISE_SECTORS.find(s => s.value === enterprise.sector) || ENTERPRISE_SECTORS[5];
+    const sectorInfo = ENTERPRISE_SECTORS.find(s => s.value === enterprise.sector) || ENTERPRISE_SECTORS.find(s => s.value === 'Outros');
     const SectorIcon = sectorInfo.icon;
     const sectorServices = SECTOR_SERVICE_KEYS[enterprise.sector] || [];
+    const isNationalBank = isNationalBankEnterprise(enterprise);
 
     const [prices, setPrices] = useState({});
-    const [costs, setCosts] = useState({});
+    const [costs, setCosts] = useState(() => normalizeEnterpriseCosts());
     const [savingPrices, setSavingPrices] = useState(false);
     const [savingCosts, setSavingCosts] = useState(false);
     const [loadingData, setLoadingData] = useState(true);
@@ -1417,7 +1634,7 @@ const EnterpriseDetailView = ({ enterprise, onBack, onUpdate }) => {
                 supabase.from('system_settings').select('value').eq('key', 'enterprise_costs').single(),
             ]);
             if (pricesRes.data?.value) setPrices(pricesRes.data.value);
-            if (costsRes.data?.value?.[enterprise.id]) setCosts(costsRes.data.value[enterprise.id]);
+            setCosts(normalizeEnterpriseCosts(costsRes.data?.value?.[enterprise.id]));
             setLoadingData(false);
         };
         loadData();
@@ -1458,7 +1675,8 @@ const EnterpriseDetailView = ({ enterprise, onBack, onUpdate }) => {
         setSavingCosts(false);
     };
 
-    const totalMonthlyCost = Object.values(costs).reduce((sum, v) => sum + (Number(v) || 0), 0);
+    const totalMonthlyCost = sumEnterpriseCosts(costs);
+    const totalWeeklyCost = totalMonthlyCost / WEEKS_PER_MONTH;
 
     if (loadingData) return <div className="flex justify-center py-8"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
 
@@ -1484,6 +1702,34 @@ const EnterpriseDetailView = ({ enterprise, onBack, onUpdate }) => {
                     </CardContent>
                 </Card>
             )}
+
+            {isNationalBank ? (
+                <Card className="glass-effect border-emerald-500/20">
+                    <CardHeader>
+                        <CardTitle className="text-lg flex items-center gap-2"><Lock className="w-5 h-5 text-emerald-400" /> Operações do Banco Nacional</CardTitle>
+                        <CardDescription>
+                            A Presidência pode gerir a estatal e conduzir sua privatização, mas a política operacional de juros, empréstimos e cartões é exclusiva do Presidente do Banco Nacional e não aparece neste painel.
+                        </CardDescription>
+                    </CardHeader>
+                </Card>
+            ) : null}
+
+            <Card className="glass-effect border-amber-500/20">
+                <CardHeader>
+                    <CardTitle className="text-lg flex items-center gap-2"><Coins className="w-5 h-5 text-amber-400" /> Resumo de Custos</CardTitle>
+                    <CardDescription>
+                        Custos configurados para esta estatal: <span className="font-semibold text-foreground">{formatCurrency(totalMonthlyCost)}</span>/mês e <span className="font-semibold text-foreground">{formatCurrency(totalWeeklyCost)}</span>/semana.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+                    {Object.entries(ENTERPRISE_COST_LABELS).map(([key, label]) => (
+                        <div key={key} className="rounded-xl border border-white/10 bg-white/5 p-3">
+                            <p className="text-xs uppercase tracking-wide text-muted-foreground">{label}</p>
+                            <p className="mt-2 text-lg font-semibold text-foreground">{formatCurrency(costs[key] || 0)}</p>
+                        </div>
+                    ))}
+                </CardContent>
+            </Card>
 
             {sectorServices.length > 0 && (
                 <Card className="glass-effect">
@@ -1552,6 +1798,7 @@ const StateEnterpriseManager = ({ onUpdate }) => {
     const { user } = useAuth();
     const { toast } = useToast();
     const [enterprises, setEnterprises] = useState([]);
+    const [enterpriseCostsMap, setEnterpriseCostsMap] = useState({});
     const [loading, setLoading] = useState(true);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [editingEnterprise, setEditingEnterprise] = useState(null);
@@ -1565,9 +1812,10 @@ const StateEnterpriseManager = ({ onUpdate }) => {
 
     const fetchEnterprises = useCallback(async () => {
         setLoading(true);
-        const [entRes, pricesRes] = await Promise.all([
+        const [entRes, pricesRes, costsRes] = await Promise.all([
             supabase.from('state_enterprises').select('*').order('created_at', { ascending: true }),
             supabase.from('system_settings').select('value').eq('key', 'basic_service_prices').single(),
+            supabase.from('system_settings').select('value').eq('key', 'enterprise_costs').single(),
         ]);
         if (entRes.error) {
             toast({ title: 'Erro ao carregar estatais', description: entRes.error.message, variant: 'destructive' });
@@ -1579,6 +1827,7 @@ const StateEnterpriseManager = ({ onUpdate }) => {
             }
         }
         if (pricesRes.data?.value) setServicePrices(pricesRes.data.value);
+        setEnterpriseCostsMap(costsRes.data?.value || {});
         setLoading(false);
     }, [toast, selectedEnterprise]);
 
@@ -1771,9 +2020,12 @@ const StateEnterpriseManager = ({ onUpdate }) => {
             {activeEnterprises.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {activeEnterprises.map(enterprise => {
-                        const sectorInfo = ENTERPRISE_SECTORS.find(s => s.value === enterprise.sector) || ENTERPRISE_SECTORS[5];
+                        const sectorInfo = ENTERPRISE_SECTORS.find(s => s.value === enterprise.sector) || ENTERPRISE_SECTORS.find(s => s.value === 'Outros');
                         const SectorIcon = sectorInfo.icon;
                         const sectorServices = SECTOR_SERVICE_KEYS[enterprise.sector] || [];
+                        const isNationalBank = isNationalBankEnterprise(enterprise);
+                        const enterpriseCosts = normalizeEnterpriseCosts(enterpriseCostsMap[enterprise.id]);
+                        const monthlyCost = sumEnterpriseCosts(enterpriseCosts);
                         return (
                             <Card key={enterprise.id} className="glass-effect cursor-pointer hover:border-primary/50 transition-colors" onClick={() => setSelectedEnterprise(enterprise)}>
                                 <CardHeader className="pb-3">
@@ -1786,13 +2038,15 @@ const StateEnterpriseManager = ({ onUpdate }) => {
                                             </div>
                                         </div>
                                         <span className={`text-xs px-2 py-1 rounded-full ${
-                                            enterprise.privatization_status === 'for_sale'
+                                            isNationalBank
+                                                ? 'bg-emerald-500/20 text-emerald-300'
+                                                : enterprise.privatization_status === 'for_sale'
                                                 ? 'bg-amber-500/20 text-amber-300'
                                                 : enterprise.is_active
                                                     ? 'bg-emerald-500/20 text-emerald-400'
                                                     : 'bg-red-500/20 text-red-400'
                                         }`}>
-                                            {enterprise.privatization_status === 'for_sale' ? 'À venda' : enterprise.is_active ? 'Ativa' : 'Inativa'}
+                                            {isNationalBank ? 'Estatal estratégica' : enterprise.privatization_status === 'for_sale' ? 'À venda' : enterprise.is_active ? 'Ativa' : 'Inativa'}
                                         </span>
                                     </div>
                                 </CardHeader>
@@ -1801,6 +2055,20 @@ const StateEnterpriseManager = ({ onUpdate }) => {
                                         <p className="text-sm text-muted-foreground">{enterprise.description}</p>
                                     </CardContent>
                                 )}
+                                <CardContent className="pt-0 pb-3">
+                                    <div className="rounded-xl border border-white/10 bg-black/20 p-3">
+                                        <div className="flex items-center justify-between gap-3">
+                                            <div>
+                                                <p className="text-xs uppercase tracking-wide text-muted-foreground">Custos operacionais</p>
+                                                <p className="mt-1 text-lg font-semibold text-foreground">{formatCurrency(monthlyCost)}/mês</p>
+                                            </div>
+                                            <Coins className="h-5 w-5 text-amber-400" />
+                                        </div>
+                                        <p className="mt-2 text-xs text-muted-foreground">
+                                            Funcionários: {formatCurrency(enterpriseCosts.employees)} • Infraestrutura: {formatCurrency(enterpriseCosts.infrastructure)}
+                                        </p>
+                                    </div>
+                                </CardContent>
                                 {sectorServices.length > 0 && (
                                     <CardContent className="pt-0 pb-3" onClick={e => e.stopPropagation()}>
                                         <div className="space-y-2 border-t border-border/40 pt-3">
@@ -1827,15 +2095,30 @@ const StateEnterpriseManager = ({ onUpdate }) => {
                                 )}
                                 <CardFooter className="gap-2 flex-wrap" onClick={e => e.stopPropagation()}>
                                     <Button size="sm" variant="outline" onClick={() => openEdit(enterprise)}><Edit className="w-3 h-3 mr-1" /> Editar</Button>
-                                    <Button size="sm" variant={enterprise.is_active ? "destructive" : "outline"} onClick={() => handleToggleActive(enterprise)}>
-                                        {enterprise.is_active ? <><PowerOff className="w-3 h-3 mr-1" /> Desativar</> : <><Power className="w-3 h-3 mr-1" /> Ativar</>}
-                                    </Button>
-                                    {enterprise.privatization_status === 'for_sale' ? (
-                                        <Button size="sm" variant="outline" onClick={() => handleCancelPrivatization(enterprise)}>
-                                            <CircleSlash className="w-3 h-3 mr-1" /> Cancelar Privatização
-                                        </Button>
+                                    {isNationalBank ? (
+                                        <>
+                                            <Button size="sm" onClick={() => setSelectedEnterprise(enterprise)}><Landmark className="w-3 h-3 mr-1" /> Ver Detalhes</Button>
+                                            {enterprise.privatization_status === 'for_sale' ? (
+                                                <Button size="sm" variant="outline" onClick={() => handleCancelPrivatization(enterprise)}>
+                                                    <CircleSlash className="w-3 h-3 mr-1" /> Cancelar Privatização
+                                                </Button>
+                                            ) : (
+                                                <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white" onClick={() => openPrivatizationDialog(enterprise)}><Banknote className="w-3 h-3 mr-1" /> Privatizar</Button>
+                                            )}
+                                        </>
                                     ) : (
-                                        <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white" onClick={() => openPrivatizationDialog(enterprise)}><Banknote className="w-3 h-3 mr-1" /> Privatizar</Button>
+                                        <>
+                                            <Button size="sm" variant={enterprise.is_active ? "destructive" : "outline"} onClick={() => handleToggleActive(enterprise)}>
+                                                {enterprise.is_active ? <><PowerOff className="w-3 h-3 mr-1" /> Desativar</> : <><Power className="w-3 h-3 mr-1" /> Ativar</>}
+                                            </Button>
+                                            {enterprise.privatization_status === 'for_sale' ? (
+                                                <Button size="sm" variant="outline" onClick={() => handleCancelPrivatization(enterprise)}>
+                                                    <CircleSlash className="w-3 h-3 mr-1" /> Cancelar Privatização
+                                                </Button>
+                                            ) : (
+                                                <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white" onClick={() => openPrivatizationDialog(enterprise)}><Banknote className="w-3 h-3 mr-1" /> Privatizar</Button>
+                                            )}
+                                        </>
                                     )}
                                 </CardFooter>
                             </Card>
@@ -1854,7 +2137,7 @@ const StateEnterpriseManager = ({ onUpdate }) => {
                     <h4 className="text-lg font-semibold mb-3 text-muted-foreground">Empresas Privatizadas</h4>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {privatizedEnterprises.map(enterprise => {
-                            const sectorInfo = ENTERPRISE_SECTORS.find(s => s.value === enterprise.sector) || ENTERPRISE_SECTORS[5];
+                            const sectorInfo = ENTERPRISE_SECTORS.find(s => s.value === enterprise.sector) || ENTERPRISE_SECTORS.find(s => s.value === 'Outros');
                             const SectorIcon = sectorInfo.icon;
                             return (
                                 <Card key={enterprise.id} className="glass-effect opacity-60">
@@ -1957,6 +2240,8 @@ const PresidentDashboard = () => {
     const [servicePrices, setServicePrices] = useState(null);
     const [baseTariffs, setBaseTariffs] = useState(null);
     const [govFinances, setGovFinances] = useState(null);
+    const [bankPolicy, setBankPolicy] = useState(DEFAULT_BANK_POLICY);
+    const [economicPolicy, setEconomicPolicy] = useState(DEFAULT_ECONOMIC_POLICY);
     const [deficit, setDeficit] = useState(0);
     const [executiveState, setExecutiveState] = useState(null);
     const [activeTab, setActiveTab] = useState('overview');
@@ -2009,6 +2294,15 @@ const PresidentDashboard = () => {
             setTaxes(settingsMap.tax_rates || { product_tax: 0, service_tax: 0, transaction_tax: { type: 'percentage', value: 0 } });
             setServicePrices(settingsMap.basic_service_prices || {});
             setBaseTariffs(settingsMap.base_tariffs || {});
+            const normalizedEconomicPolicy = normalizeEconomicPolicy(settingsMap[ECONOMIC_POLICY_SETTINGS_KEY]);
+            setEconomicPolicy(normalizedEconomicPolicy);
+            setBankPolicy(
+                normalizeBankPolicyForEconomicPolicy(
+                    settingsMap[BANK_POLICY_SETTINGS_KEY],
+                    normalizedEconomicPolicy,
+                    DEFAULT_BANK_POLICY
+                )
+            );
 
             const totalAllocated = getGovernmentBudgetTotal(adjustedBudgetAreas);
             setDeficit(financesRes.data.treasury_balance - totalAllocated);
@@ -2048,8 +2342,8 @@ const PresidentDashboard = () => {
         return <div className="flex justify-center items-center h-screen"><Loader2 className="animate-spin w-16 h-16" /></div>;
     }
 
-    const cardUsage = govFinances ? (govFinances.corporate_card_used / govFinances.corporate_card_limit) * 100 : 0;
-    const loanUsage = govFinances ? (govFinances.loans_balance / govFinances.loan_limit) * 100 : 0;
+    const cardUsage = govFinances?.corporate_card_limit ? (govFinances.corporate_card_used / govFinances.corporate_card_limit) * 100 : 0;
+    const loanUsage = govFinances?.loan_limit ? (govFinances.loans_balance / govFinances.loan_limit) * 100 : 0;
 
     const corporateCardValue = govFinances
         ? `${formatCurrency(govFinances.corporate_card_used)} / ${formatCurrency(govFinances.corporate_card_limit)}`
@@ -2058,12 +2352,21 @@ const PresidentDashboard = () => {
     const availableTreasury = govFinances
         ? Math.max(0, govFinances.treasury_balance - getGovernmentBudgetTotal(budget?.areas || []))
         : 0;
+    const budgetAreas = budget?.areas || [];
+    const allocatedBudget = getGovernmentBudgetTotal(budgetAreas);
+    const treasuryBalance = Number(govFinances?.treasury_balance || 0);
+    const loanAvailable = govFinances ? Math.max(0, Number(govFinances.loan_limit || 0) - Number(govFinances.loans_balance || 0)) : 0;
+    const topBudgetAreas = [...budgetAreas]
+        .sort((left, right) => Number(right.allocated_value || 0) - Number(left.allocated_value || 0))
+        .slice(0, 5);
+    const currentPresidentName = executiveState?.currentPresidentProfile?.full_name || 'Cargo vago';
+    const currentViceName = executiveState?.currentViceProfile?.full_name || 'Sem vice em exercício';
 
     return (
         <>
             <Helmet>
                 <title>Painel Presidencial - GOV.RP</title>
-                <meta name="description" content="Gerencie o governo, ministros, decretos e o orçamento." />
+                <meta name="description" content="Gerencie o governo, ministros, atos presidenciais, estatais e a gestão financeira." />
             </Helmet>
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
                 <PageHeader
@@ -2079,13 +2382,67 @@ const PresidentDashboard = () => {
                     <div className="overflow-x-auto custom-scrollbar -mx-4 px-4 pb-2 flex justify-center">
                         <TabsList className="inline-flex min-w-max w-max gap-2">
                             <TabsTrigger value="overview" className="min-w-[9.5rem] shrink-0"><LayoutDashboard className="w-4 h-4 mr-2" />Visão Geral</TabsTrigger>
-                            <TabsTrigger value="finances" className="min-w-[8.5rem] shrink-0"><Coins className="w-4 h-4 mr-2" />Finanças</TabsTrigger>
+                            <TabsTrigger value="finances" className="min-w-[11rem] shrink-0"><Coins className="w-4 h-4 mr-2" />Gestão Financeira</TabsTrigger>
                             <TabsTrigger value="management" className="min-w-[13rem] shrink-0"><Settings className="w-4 h-4 mr-2" />Gestão Governamental</TabsTrigger>
                         </TabsList>
                     </div>
 
-                    <TabsContent value="overview" className="mt-6 space-y-8">
-                        {/* Estatísticas Principais (Cards Superiores) */}
+                    <TabsContent value="overview" className="mt-6 space-y-6">
+                        <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.65fr)] gap-6">
+                            <Card className="glass-effect overflow-hidden">
+                                <CardHeader className="border-b border-white/10 bg-white/[0.03]">
+                                    <CardTitle className="flex items-center gap-2"><Shield className="w-5 h-5 text-emerald-400" /> Situação do Executivo</CardTitle>
+                                    <CardDescription>Comando institucional, sucessão e mandato presidencial vigente.</CardDescription>
+                                </CardHeader>
+                                <CardContent className="grid gap-4 p-6 sm:grid-cols-2">
+                                    <div className="rounded-lg border border-white/10 bg-black/20 p-4">
+                                        <p className="text-xs uppercase text-muted-foreground">Presidente em exercício</p>
+                                        <p className="mt-2 text-lg font-semibold text-foreground">{currentPresidentName}</p>
+                                        <p className="text-sm text-muted-foreground">{executiveState?.isVacant ? 'Vacância presidencial ativa' : 'Chefia do Executivo regular'}</p>
+                                    </div>
+                                    <div className="rounded-lg border border-white/10 bg-black/20 p-4">
+                                        <p className="text-xs uppercase text-muted-foreground">Vice-Presidência</p>
+                                        <p className="mt-2 text-lg font-semibold text-foreground">{currentViceName}</p>
+                                        <p className="text-sm text-muted-foreground">{executiveState?.currentTerm?.name || 'Nenhum mandato ativo identificado'}</p>
+                                    </div>
+                                    <div className="rounded-lg border border-white/10 bg-black/20 p-4 sm:col-span-2">
+                                        <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                                            <div>
+                                                <p className="text-xs uppercase text-muted-foreground">Cofre público disponível</p>
+                                                <p className="mt-2 text-3xl font-bold text-emerald-400">{formatCurrency(availableTreasury)}</p>
+                                            </div>
+                                            <Button variant="outline" onClick={() => setActiveTab('finances')}>Abrir Gestão Financeira</Button>
+                                        </div>
+                                    </div>
+                                </CardContent>
+                            </Card>
+
+                            <Card className="glass-effect">
+                                <CardHeader>
+                                    <CardTitle className="flex items-center gap-2"><PiggyBank className="w-5 h-5 text-primary" /> Resumo Fiscal</CardTitle>
+                                    <CardDescription>Visão rápida de orçamento e capacidade de crédito.</CardDescription>
+                                </CardHeader>
+                                <CardContent className="space-y-4">
+                                    <div className="flex items-center justify-between rounded-lg bg-white/5 p-3">
+                                        <span className="text-sm text-muted-foreground">Saldo bruto do cofre</span>
+                                        <span className="font-semibold">{formatCurrency(treasuryBalance)}</span>
+                                    </div>
+                                    <div className="flex items-center justify-between rounded-lg bg-white/5 p-3">
+                                        <span className="text-sm text-muted-foreground">Orçamento alocado</span>
+                                        <span className="font-semibold">{formatCurrency(allocatedBudget)}</span>
+                                    </div>
+                                    <div className="flex items-center justify-between rounded-lg bg-white/5 p-3">
+                                        <span className="text-sm text-muted-foreground">{deficit >= 0 ? 'Superávit' : 'Déficit'}</span>
+                                        <span className={`font-semibold ${deficit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>{formatCurrency(Math.abs(deficit))}</span>
+                                    </div>
+                                    <div className="flex items-center justify-between rounded-lg bg-white/5 p-3">
+                                        <span className="text-sm text-muted-foreground">Crédito governamental livre</span>
+                                        <span className="font-semibold text-amber-300">{formatCurrency(loanAvailable)}</span>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        </div>
+
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                             {govFinances && (
                                 <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
@@ -2105,54 +2462,69 @@ const PresidentDashboard = () => {
                                     <FinanceCard title="Uso do Cartão Governamental" value={corporateCardValue} icon={CreditCard} isCurrency={false} colorClass="text-orange-400" />
                                 </motion.div>
                             )}
+                            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.45 }}>
+                                <FinanceCard title="Taxa Selic" value={`${Number(economicPolicy?.selic_rate || 0).toFixed(2)}% a.a.`} icon={Percent} isCurrency={false} colorClass="text-cyan-300" />
+                            </motion.div>
                         </div>
 
-                        {/* Elementos Secundários: Gráficos ou Progresso */}
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-8">
-                            {govFinances && (
-                                <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.5 }}>
-                                    <Card className="glass-effect overflow-hidden border-t-4 border-t-orange-500/50">
-                                        <CardHeader className="bg-black/20 pb-4">
-                                            <CardTitle className="flex items-center gap-2"><CreditCard className="w-5 h-5 text-orange-400"/> Status do Cartão do Governo</CardTitle>
-                                            <CardDescription>Limite total e utilização vigente</CardDescription>
-                                        </CardHeader>
-                                        <CardContent className="p-6">
-                                            <div className="flex justify-between items-end mb-2">
-                                                <div>
-                                                    <p className="text-3xl font-bold text-orange-400">{formatCurrency(govFinances.corporate_card_used)}</p>
-                                                    <p className="text-sm text-muted-foreground mt-1">Utilizado do limite de {formatCurrency(govFinances.corporate_card_limit)}</p>
-                                                </div>
-                                                <div className="text-right">
-                                                    <p className="text-xl font-bold">{cardUsage.toFixed(1)}%</p>
-                                                </div>
-                                            </div>
-                                            <Progress value={cardUsage} className="h-3 bg-muted" indicatorClassName={`${cardUsage > 80 ? 'bg-red-500' : cardUsage > 50 ? 'bg-orange-500' : 'bg-green-500'}`} />
-                                        </CardContent>
-                                    </Card>
-                                </motion.div>
-                            )}
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                            <Card className="glass-effect overflow-hidden">
+                                <CardHeader className="border-b border-white/10 bg-white/[0.03]">
+                                    <CardTitle className="flex items-center gap-2"><University className="w-5 h-5 text-emerald-400" /> Execução Orçamentária</CardTitle>
+                                    <CardDescription>Distribuição dos recursos públicos por área prioritária.</CardDescription>
+                                </CardHeader>
+                                <CardContent className="space-y-4 p-6">
+                                    <div>
+                                        <div className="mb-2 flex items-center justify-between text-sm">
+                                            <span className="text-muted-foreground">Alocado sobre saldo bruto</span>
+                                            <span className="font-semibold">{treasuryBalance > 0 ? ((allocatedBudget / treasuryBalance) * 100).toFixed(1) : '0.0'}%</span>
+                                        </div>
+                                        <Progress value={treasuryBalance > 0 ? Math.min(100, (allocatedBudget / treasuryBalance) * 100) : 0} className="h-3" />
+                                    </div>
+                                    {topBudgetAreas.length ? topBudgetAreas.map((area) => (
+                                        <div key={area.name} className="flex items-center justify-between rounded-lg bg-black/20 p-3">
+                                            <span className="text-sm text-muted-foreground">{area.name}</span>
+                                            <span className="font-semibold">{formatCurrency(area.allocated_value || 0)}</span>
+                                        </div>
+                                    )) : (
+                                        <p className="py-4 text-center text-sm text-muted-foreground">Nenhuma área orçamentária configurada.</p>
+                                    )}
+                                </CardContent>
+                            </Card>
 
                             {govFinances && (
-                                <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.6 }}>
-                                    <Card className="glass-effect overflow-hidden border-t-4 border-t-amber-500/50">
-                                        <CardHeader className="bg-black/20 pb-4">
-                                            <CardTitle className="flex items-center gap-2"><Handshake className="w-5 h-5 text-amber-400"/> Capacidade de Empréstimo</CardTitle>
-                                            <CardDescription>Histórico e limites de tomada de crédito</CardDescription>
+                                <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.5 }}>
+                                    <Card className="glass-effect overflow-hidden">
+                                        <CardHeader className="border-b border-white/10 bg-white/[0.03]">
+                                            <CardTitle className="flex items-center gap-2"><CreditCard className="w-5 h-5 text-orange-400"/> Crédito e Endividamento</CardTitle>
+                                            <CardDescription>Cartão governamental e empréstimos ativos.</CardDescription>
                                         </CardHeader>
-                                        <CardContent className="p-6">
-                                            <div className="flex justify-between items-end mb-2">
-                                                <div>
-                                                    <p className="text-3xl font-bold text-amber-400">{formatCurrency(govFinances.loans_balance)}</p>
-                                                    <p className="text-sm text-muted-foreground mt-1">Dívida sobre limite de {formatCurrency(govFinances.loan_limit)}</p>
+                                        <CardContent className="space-y-6 p-6">
+                                            <div>
+                                                <div className="mb-2 flex justify-between">
+                                                    <div>
+                                                        <p className="text-sm text-muted-foreground">Cartão governamental</p>
+                                                        <p className="text-xl font-bold text-orange-400">{formatCurrency(govFinances.corporate_card_used)}</p>
+                                                    </div>
+                                                    <p className="text-sm font-semibold">{cardUsage.toFixed(1)}%</p>
                                                 </div>
-                                                <div className="text-right">
-                                                    <p className="text-xl font-bold">{loanUsage.toFixed(1)}%</p>
-                                                </div>
+                                                <Progress value={Math.min(100, cardUsage)} className="h-3 bg-muted" indicatorClassName={`${cardUsage > 80 ? 'bg-red-500' : cardUsage > 50 ? 'bg-orange-500' : 'bg-green-500'}`} />
+                                                <p className="mt-2 text-xs text-muted-foreground">Limite total: {formatCurrency(govFinances.corporate_card_limit)}</p>
                                             </div>
-                                            <Progress value={loanUsage} className="h-3 bg-muted" indicatorClassName={`${loanUsage > 80 ? 'bg-red-500' : loanUsage > 50 ? 'bg-amber-500' : 'bg-green-500'}`} />
-                                            {loanUsage >= 100 && (
-                                                <p className="text-xs text-red-500 mt-4 text-center">Nação atingiu o topo do limite de dívidas permitido no momento.</p>
-                                            )}
+                                            <div>
+                                                <div className="mb-2 flex justify-between">
+                                                    <div>
+                                                        <p className="text-sm text-muted-foreground">Empréstimos ativos</p>
+                                                        <p className="text-xl font-bold text-amber-400">{formatCurrency(govFinances.loans_balance)}</p>
+                                                    </div>
+                                                    <p className="text-sm font-semibold">{loanUsage.toFixed(1)}%</p>
+                                                </div>
+                                                <Progress value={Math.min(100, loanUsage)} className="h-3 bg-muted" indicatorClassName={`${loanUsage > 80 ? 'bg-red-500' : loanUsage > 50 ? 'bg-amber-500' : 'bg-green-500'}`} />
+                                                <p className="mt-2 text-xs text-muted-foreground">Limite total: {formatCurrency(govFinances.loan_limit)}</p>
+                                                {loanUsage >= 100 && (
+                                                    <p className="text-xs text-red-500 mt-3">A nação atingiu o topo do limite de dívidas permitido no momento.</p>
+                                                )}
+                                            </div>
                                         </CardContent>
                                     </Card>
                                 </motion.div>
@@ -2164,10 +2536,11 @@ const PresidentDashboard = () => {
                         <Tabs defaultValue="budget" className="w-full">
                             <div className="overflow-x-auto custom-scrollbar -mx-4 px-4 pb-2 mb-6 flex justify-center">
                                 <TabsList className="inline-flex min-w-max w-max gap-2 border-b border-border/40 bg-transparent p-0">
-                                    <TabsTrigger value="budget" className="min-w-[14rem] shrink-0 data-[state=active]:bg-card data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-t-lg px-6">Orçamento Governamental</TabsTrigger>
-                                    <TabsTrigger value="taxes" className="min-w-[12rem] shrink-0 data-[state=active]:bg-card data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-t-lg px-6">Gestão de Impostos</TabsTrigger>
-                                    <TabsTrigger value="prices" className="min-w-[14rem] shrink-0 data-[state=active]:bg-card data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-t-lg px-6">Valores de Tarifas Base</TabsTrigger>
-                                    <TabsTrigger value="actions" className="min-w-[11rem] shrink-0 data-[state=active]:bg-card data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-t-lg px-6">Empréstimos/Cofre</TabsTrigger>
+                                    <TabsTrigger value="budget" className="min-w-[14rem] shrink-0 data-[state=active]:bg-card data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-t-lg px-6"><Building2 className="mr-2 h-4 w-4" />Orçamento Governamental</TabsTrigger>
+                                    <TabsTrigger value="taxes" className="min-w-[12rem] shrink-0 data-[state=active]:bg-card data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-t-lg px-6"><Receipt className="mr-2 h-4 w-4" />Gestão de Impostos</TabsTrigger>
+                                    <TabsTrigger value="prices" className="min-w-[14rem] shrink-0 data-[state=active]:bg-card data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-t-lg px-6"><DollarSign className="mr-2 h-4 w-4" />Valores de Tarifas Base</TabsTrigger>
+                                    <TabsTrigger value="monetary" className="min-w-[12rem] shrink-0 data-[state=active]:bg-card data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-t-lg px-6"><Percent className="mr-2 h-4 w-4" />Política Monetária</TabsTrigger>
+                                    <TabsTrigger value="actions" className="min-w-[11rem] shrink-0 data-[state=active]:bg-card data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-t-lg px-6"><Banknote className="mr-2 h-4 w-4" />Empréstimos/Cofre</TabsTrigger>
                                 </TabsList>
                             </div>
 
@@ -2187,6 +2560,12 @@ const PresidentDashboard = () => {
                                 <TabsContent value="prices" className="mt-0">
                                     <div className="max-w-3xl mx-auto">
                                         <TariffManager baseTariffs={baseTariffs} onUpdate={fetchData} />
+                                    </div>
+                                </TabsContent>
+
+                                <TabsContent value="monetary" className="mt-0">
+                                    <div className="max-w-4xl mx-auto">
+                                        <SelicManager economicPolicy={economicPolicy} bankPolicy={bankPolicy} onUpdate={fetchData} actorId={user?.id} />
                                     </div>
                                 </TabsContent>
 
@@ -2215,11 +2594,11 @@ const PresidentDashboard = () => {
                         <Tabs defaultValue="constitutional" className="w-full">
                             <div className="overflow-x-auto custom-scrollbar -mx-4 px-4 pb-2 mb-6 flex justify-center">
                                 <TabsList className="inline-flex min-w-max w-max gap-2 border-b border-border/40 bg-transparent p-0">
-                                    <TabsTrigger value="constitutional" className="min-w-[14rem] shrink-0 data-[state=active]:bg-card data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-t-lg px-6">Constituição Executiva</TabsTrigger>
-                                    <TabsTrigger value="ministers" className="min-w-[8rem] shrink-0 data-[state=active]:bg-card data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-t-lg px-6">Ministros</TabsTrigger>
-                                    <TabsTrigger value="decrees" className="min-w-[14rem] shrink-0 data-[state=active]:bg-card data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-t-lg px-6">Decretos Presidenciais</TabsTrigger>
-                                    <TabsTrigger value="enterprises" className="min-w-[8rem] shrink-0 data-[state=active]:bg-card data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-t-lg px-6">Estatais</TabsTrigger>
-                                    <TabsTrigger value="resignation" className="min-w-[8rem] shrink-0 data-[state=active]:bg-card data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-t-lg px-6">Renúncia</TabsTrigger>
+                                    <TabsTrigger value="constitutional" className="min-w-[12rem] shrink-0 data-[state=active]:bg-card data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-t-lg px-6"><Shield className="mr-2 h-4 w-4" />Estado Executivo</TabsTrigger>
+                                    <TabsTrigger value="ministers" className="min-w-[13rem] shrink-0 data-[state=active]:bg-card data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-t-lg px-6"><UserPlus className="mr-2 h-4 w-4" />Ministros e Nomeações</TabsTrigger>
+                                    <TabsTrigger value="decrees" className="min-w-[13rem] shrink-0 data-[state=active]:bg-card data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-t-lg px-6"><FileCheck className="mr-2 h-4 w-4" />Atos Presidenciais</TabsTrigger>
+                                    <TabsTrigger value="enterprises" className="min-w-[8rem] shrink-0 data-[state=active]:bg-card data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-t-lg px-6"><Building2 className="mr-2 h-4 w-4" />Estatais</TabsTrigger>
+                                    <TabsTrigger value="resignation" className="min-w-[8rem] shrink-0 data-[state=active]:bg-card data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-t-lg px-6"><LogOut className="mr-2 h-4 w-4" />Renúncia</TabsTrigger>
                                 </TabsList>
                             </div>
 
@@ -2227,21 +2606,21 @@ const PresidentDashboard = () => {
                                 <TabsContent value="constitutional" className="mt-0">
                                     <div className="space-y-6 max-w-5xl mx-auto">
                                         <ConstitutionalStatusCard executiveState={executiveState} />
-                                        <SpecialAppointmentsManager executiveState={executiveState} onUpdate={fetchData} actorId={user?.id} />
-                                        <BillReviewManager executiveState={executiveState} onUpdate={fetchData} actorId={user?.id} />
-                                        <ProvisionalMeasureManager executiveState={executiveState} onUpdate={fetchData} actorId={user?.id} />
                                     </div>
                                 </TabsContent>
 
                                 <TabsContent value="ministers" className="mt-0">
-                                    <div className="max-w-4xl mx-auto">
+                                    <div className="space-y-6 max-w-5xl mx-auto">
                                         <MinisterManager ministers={ministers} onUpdate={fetchData} />
+                                        <SpecialAppointmentsManager executiveState={executiveState} onUpdate={fetchData} actorId={user?.id} />
                                     </div>
                                 </TabsContent>
 
                                 <TabsContent value="decrees" className="mt-0">
-                                    <div className="max-w-4xl mx-auto">
+                                    <div className="space-y-6 max-w-5xl mx-auto">
                                         <DecreeManager decrees={decrees} onUpdate={fetchData} />
+                                        <BillReviewManager executiveState={executiveState} onUpdate={fetchData} actorId={user?.id} />
+                                        <ProvisionalMeasureManager executiveState={executiveState} onUpdate={fetchData} actorId={user?.id} />
                                     </div>
                                 </TabsContent>
 
