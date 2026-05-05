@@ -54,6 +54,62 @@ const stripAccents = (value = '') =>
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '');
 
+const isUuid = (value = '') =>
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    `${value || ''}`.trim()
+  );
+
+const cyrb128 = (value = '') => {
+  let hashA = 1779033703;
+  let hashB = 3144134277;
+  let hashC = 1013904242;
+  let hashD = 2773480762;
+
+  for (let index = 0; index < value.length; index += 1) {
+    const char = value.charCodeAt(index);
+    hashA = hashB ^ Math.imul(hashA ^ char, 597399067);
+    hashB = hashC ^ Math.imul(hashB ^ char, 2869860233);
+    hashC = hashD ^ Math.imul(hashC ^ char, 951274213);
+    hashD = hashA ^ Math.imul(hashD ^ char, 2716044179);
+  }
+
+  hashA = Math.imul(hashC ^ (hashA >>> 18), 597399067);
+  hashB = Math.imul(hashD ^ (hashB >>> 22), 2869860233);
+  hashC = Math.imul(hashA ^ (hashC >>> 17), 951274213);
+  hashD = Math.imul(hashB ^ (hashD >>> 19), 2716044179);
+
+  return [hashA ^ hashB ^ hashC ^ hashD, hashB ^ hashA, hashC ^ hashA, hashD ^ hashA].map(
+    (part) => (part >>> 0).toString(16).padStart(8, '0')
+  );
+};
+
+export const normalizeOfficialGazetteSourceId = (value) => {
+  if (!value) {
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+      return crypto.randomUUID();
+    }
+
+    throw new Error('Nao foi possivel gerar um identificador para o Diario Oficial.');
+  }
+
+  if (isUuid(value)) {
+    return `${value}`.trim().toLowerCase();
+  }
+
+  const [partA, partB, partC, partD] = cyrb128(`${value}`);
+  const hex = `${partA}${partB}${partC}${partD}`.slice(0, 32);
+  const versionNibble = '4';
+  const variantNibble = 'a';
+
+  return [
+    hex.slice(0, 8),
+    hex.slice(8, 12),
+    `${versionNibble}${hex.slice(13, 16)}`,
+    `${variantNibble}${hex.slice(17, 20)}`,
+    hex.slice(20, 32),
+  ].join('-');
+};
+
 const normalizeGazetteType = (rawType = '') => {
   const normalized = stripAccents(rawType).toLowerCase().trim();
 
@@ -230,15 +286,7 @@ export const publishOfficialGazetteEntry = async (
   supabase,
   { title, summary, content, type, sourceId }
 ) => {
-  const resolvedSourceId =
-    sourceId ||
-    (typeof crypto !== 'undefined' && crypto.randomUUID
-      ? crypto.randomUUID()
-      : undefined);
-
-  if (!resolvedSourceId) {
-    throw new Error('Nao foi possivel gerar um identificador para o Diario Oficial.');
-  }
+  const resolvedSourceId = normalizeOfficialGazetteSourceId(sourceId);
 
   const { error } = await supabase.from('dou_entries').insert({
     title,

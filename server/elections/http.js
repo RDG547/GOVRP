@@ -8,6 +8,7 @@ import {
   fetchPresidentialElectionHistory,
   saveExecutiveGovernanceSettings,
 } from '../../src/lib/executiveGovernance.js';
+import { normalizeOfficialGazetteSourceId } from '../../src/lib/officialGazette.js';
 
 const TRACKED_OFFICE_ROLES = ['Presidente', 'Vice-Presidente', 'Deputado', 'Senador'];
 const OFFICE_LABELS = {
@@ -914,7 +915,7 @@ const publishElectionOfficeGazetteEntries = async (supabase, { previousState, ac
         ` Início do exercício: ${formatGazetteDate(assignment.term_start_at)}.` +
         (assignment.term_end_at ? ` Término previsto: ${formatGazetteDate(assignment.term_end_at)}.` : ''),
       type: 'Nomeacao e Exoneracao',
-      source_id: `office-grant-${buildAssignmentIdentity(assignment)}`,
+      source_id: normalizeOfficialGazetteSourceId(`office-grant-${buildAssignmentIdentity(assignment)}`),
       published_at: publishedAt,
     });
   }
@@ -932,7 +933,7 @@ const publishElectionOfficeGazetteEntries = async (supabase, { previousState, ac
         `${profileName} encerrou o exercício de ${officeLabel}.` +
         (assignment.election_name ? ` O ato decorre do encerramento do ciclo da eleição "${assignment.election_name}".` : ''),
       type: 'Nomeacao e Exoneracao',
-      source_id: `office-revoke-${buildAssignmentIdentity(assignment)}`,
+      source_id: normalizeOfficialGazetteSourceId(`office-revoke-${buildAssignmentIdentity(assignment)}`),
       published_at: publishedAt,
     });
   }
@@ -1390,7 +1391,7 @@ const clearMinistersWhenExecutiveTermChanges = async (supabase, { previousState,
         summary: `${profileName} deixou o cargo de Ministro em razão de ${reasonLabel}.`,
         content: `${profileName} foi exonerado do cargo de Ministro em razão de ${reasonLabel}.`,
         type: 'Nomeacao e Exoneracao',
-        source_id: `minister-dismiss-${userId}-${currentPresident?.electionId || 'vacancy'}-${publishedAt}`,
+        source_id: normalizeOfficialGazetteSourceId(`minister-dismiss-${userId}-${currentPresident?.electionId || 'vacancy'}-${publishedAt}`),
         published_at: publishedAt,
       };
     });

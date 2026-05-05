@@ -21,6 +21,22 @@ as $$
   end;
 $$;
 
+create or replace function public.normalize_official_gazette_source_id(
+  p_seed text
+)
+returns uuid
+language sql
+immutable
+as $$
+  select (
+    substr(md5(coalesce(p_seed, '')), 1, 8) || '-' ||
+    substr(md5(coalesce(p_seed, '')), 9, 4) || '-' ||
+    '4' || substr(md5(coalesce(p_seed, '')), 14, 3) || '-' ||
+    'a' || substr(md5(coalesce(p_seed, '')), 18, 3) || '-' ||
+    substr(md5(coalesce(p_seed, '')), 21, 12)
+  )::uuid;
+$$;
+
 create or replace function public.publish_parliament_leadership_term_gazette()
 returns trigger
 language plpgsql
@@ -32,8 +48,8 @@ declare
   v_profile_name text;
   v_position_label text;
   v_election_title text;
-  v_start_source_id text := format('parliament-leadership-term-start-%s', new.id);
-  v_end_source_id text := format('parliament-leadership-term-end-%s', new.id);
+  v_start_source_id uuid := public.normalize_official_gazette_source_id(format('parliament-leadership-term-start-%s', new.id));
+  v_end_source_id uuid := public.normalize_official_gazette_source_id(format('parliament-leadership-term-end-%s', new.id));
 begin
   select
     h.name,
@@ -164,14 +180,14 @@ select
     end
   ),
   'Nomeacao e Exoneracao',
-  format('parliament-leadership-term-start-%s', lt.id),
+  public.normalize_official_gazette_source_id(format('parliament-leadership-term-start-%s', lt.id)),
   coalesce(lt.created_at, lt.updated_at, now())
 from leadership_terms lt
 where lt.status = 'active'
   and not exists (
     select 1
     from public.dou_entries existing_entry
-    where existing_entry.source_id = format('parliament-leadership-term-start-%s', lt.id)
+    where existing_entry.source_id = public.normalize_official_gazette_source_id(format('parliament-leadership-term-start-%s', lt.id))
   );
 
 with leadership_terms as (
@@ -206,12 +222,12 @@ select
     end
   ),
   'Nomeacao e Exoneracao',
-  format('parliament-leadership-term-end-%s', lt.id),
+  public.normalize_official_gazette_source_id(format('parliament-leadership-term-end-%s', lt.id)),
   coalesce(lt.concluded_at, lt.updated_at, now())
 from leadership_terms lt
 where (lt.status = 'concluded' or lt.concluded_at is not null)
   and not exists (
     select 1
     from public.dou_entries existing_entry
-    where existing_entry.source_id = format('parliament-leadership-term-end-%s', lt.id)
+    where existing_entry.source_id = public.normalize_official_gazette_source_id(format('parliament-leadership-term-end-%s', lt.id))
   );
