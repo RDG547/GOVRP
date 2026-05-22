@@ -243,6 +243,8 @@ const getRequiredServerEnv = (name) => {
   return value;
 };
 
+const getOptionalServerEnv = (name) => process.env[name]?.trim() || '';
+
 const getServerSupabase = () => {
   if (!serverSupabase) {
     serverSupabase = createClient(
@@ -325,6 +327,47 @@ const ensureAuthenticatedRequester = async (supabase, request) => {
   }
 
   return authData.user;
+};
+
+const ensureAdminRequester = async (supabase, request) => {
+  const requester = await ensureAuthenticatedRequester(supabase, request);
+
+  const { data: profile, error: profileError } = await supabase
+    .from('profiles')
+    .select('id, role')
+    .eq('id', requester.id)
+    .maybeSingle();
+
+  if (profileError) {
+    throw profileError;
+  }
+
+  if (profile?.role !== 'Admin') {
+    throw createHttpError('Acesso negado. Somente administradores podem executar esta rotina manualmente.', 403);
+  }
+
+  return requester;
+};
+
+const ensureAuthorizedAutomationRequest = async (supabase, request) => {
+  const cronSecret = getOptionalServerEnv('CRON_SECRET');
+  const token = getBearerToken(request);
+
+  if (cronSecret && token === cronSecret) {
+    return { type: 'cron' };
+  }
+
+  if (!token) {
+    throw createHttpError(
+      cronSecret
+        ? 'Rotina automatica exige autenticacao do cron ou sessao administrativa.'
+        : 'Sessao administrativa invalida.',
+      401
+    );
+  }
+
+  const admin = await ensureAdminRequester(supabase, request);
+  return { type: 'admin', userId: admin.id };
 };
 
 const fetchProcessedBalanceIds = async (supabase, cycleStartIso) => {
@@ -892,11 +935,13 @@ export const processWeeklyBusinessBalancesHandler = async (request, response) =>
   }
 
   try {
+    const supabase = getServerSupabase();
+    await ensureAuthorizedAutomationRequest(supabase, request);
     const payload = await processWeeklyBusinessBalances();
     json(response, 200, payload);
   } catch (error) {
     console.error('[businesses:balances]', error);
-    json(response, 500, {
+    json(response, error.statusCode || 500, {
       error: error instanceof Error ? error.message : 'Nao foi possivel processar os balancos empresariais.',
     });
   }

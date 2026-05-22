@@ -1,22 +1,16 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { AlertTriangle, Banknote, Briefcase, Clock3, Loader2, X } from 'lucide-react';
+import { AlertTriangle, Banknote, Briefcase, Clock3, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabaseClient';
 import {
-  getLastPaymentDate,
   getLatestSalaryPayment,
   getSalaryInfoByRole,
-  processWeeklySalaries,
   resolveSalaryInfoFromRolePool,
-  shouldTriggerWeeklySalaryProcessing,
 } from '@/lib/salary';
 import { formatCurrency } from '@/lib/utils';
 
-const PROCESS_CHECK_INTERVAL_MS = 5 * 60 * 1000;
-const PROCESS_ERROR_COOLDOWN_MS = 30 * 60 * 1000;
-const PROCESS_STORAGE_KEY_PREFIX = 'govrp:last-salary-process-check-at';
 const POPUP_STORAGE_KEY_PREFIX = 'govrp:salary-popup-seen';
 
 const resolvePaymentAmount = (payment = {}) => {
@@ -63,8 +57,6 @@ const SalaryPaymentPopup = () => {
   const [payment, setPayment] = useState(null);
   const [failureNotification, setFailureNotification] = useState(null);
   const [isVisible, setIsVisible] = useState(false);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const errorCooldownUntilRef = useRef(0);
 
   const rolePool = useMemo(() => {
     if (Array.isArray(user?.effective_roles)) {
@@ -79,7 +71,6 @@ const SalaryPaymentPopup = () => {
   }, [user?.effective_roles, user?.role]);
 
   const popupStorageKey = user?.id ? `${POPUP_STORAGE_KEY_PREFIX}:${user.id}` : null;
-  const processStorageKey = user?.id ? `${PROCESS_STORAGE_KEY_PREFIX}:${user.id}` : null;
   const currentSalaryInfo = useMemo(
     () => resolveSalaryInfoFromRolePool(rolePool),
     [rolePool]
@@ -165,47 +156,6 @@ const SalaryPaymentPopup = () => {
     syncPopupState(latestPayment, latestFailureNotification);
   }, [fetchPendingFailureNotification, syncPopupState, user?.id]);
 
-  const attemptAutomaticSalaryProcessing = useCallback(
-    async ({ force = false } = {}) => {
-      if (!user?.id || isProcessing || !currentSalaryInfo) {
-        return;
-      }
-
-      const now = Date.now();
-      const lastCheckAt = Number(localStorage.getItem(processStorageKey || '') || 0);
-
-      if (!force && lastCheckAt && now - lastCheckAt < PROCESS_CHECK_INTERVAL_MS) {
-        return;
-      }
-
-      if (!force && errorCooldownUntilRef.current > now) {
-        return;
-      }
-
-      if (processStorageKey) {
-        localStorage.setItem(processStorageKey, String(now));
-      }
-      setIsProcessing(true);
-
-      try {
-        const lastPaymentDate = await getLastPaymentDate();
-
-        if (!shouldTriggerWeeklySalaryProcessing(lastPaymentDate)) {
-          return;
-        }
-
-        await processWeeklySalaries();
-        await Promise.all([refreshUser(), refreshLatestStatus()]);
-      } catch (error) {
-        console.error('Erro ao processar salários automaticamente:', error);
-        errorCooldownUntilRef.current = Date.now() + PROCESS_ERROR_COOLDOWN_MS;
-      } finally {
-        setIsProcessing(false);
-      }
-    },
-    [currentSalaryInfo, isProcessing, processStorageKey, refreshLatestStatus, refreshUser, user?.id]
-  );
-
   useEffect(() => {
     if (!user?.id) {
       setPayment(null);
@@ -215,28 +165,12 @@ const SalaryPaymentPopup = () => {
 
     const initialTimer = window.setTimeout(() => {
       refreshLatestStatus();
-      attemptAutomaticSalaryProcessing({ force: true });
     }, 2500);
 
     return () => {
       window.clearTimeout(initialTimer);
     };
-  }, [attemptAutomaticSalaryProcessing, refreshLatestStatus, user?.id]);
-
-  useEffect(() => {
-    if (!user?.id) {
-      return undefined;
-    }
-
-    const intervalId = window.setInterval(() => {
-      refreshLatestStatus();
-      attemptAutomaticSalaryProcessing();
-    }, PROCESS_CHECK_INTERVAL_MS);
-
-    return () => {
-      window.clearInterval(intervalId);
-    };
-  }, [attemptAutomaticSalaryProcessing, refreshLatestStatus, user?.id]);
+  }, [refreshLatestStatus, user?.id]);
 
   useEffect(() => {
     if (!user?.id) {
@@ -422,14 +356,7 @@ const SalaryPaymentPopup = () => {
                   : 'bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-700 hover:to-teal-600'
               }`}
             >
-              {isProcessing ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Atualizando...
-                </>
-              ) : (
-                'Continuar'
-              )}
+              Continuar
             </Button>
           </div>
         </div>

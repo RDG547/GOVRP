@@ -56,6 +56,8 @@ const getRequiredServerEnv = (name) => {
   return value;
 };
 
+const getOptionalServerEnv = (name) => process.env[name]?.trim() || '';
+
 const getServerSupabase = () => {
   if (!serverSupabase) {
     serverSupabase = createClient(
@@ -71,6 +73,73 @@ const getServerSupabase = () => {
   }
 
   return serverSupabase;
+};
+
+const getBearerToken = (request) => {
+  const authorization = request.headers?.authorization || request.headers?.Authorization;
+
+  if (!authorization || !authorization.toLowerCase().startsWith('bearer ')) {
+    return null;
+  }
+
+  return authorization.slice(7).trim();
+};
+
+const createHttpError = (message, statusCode) => {
+  const error = new Error(message);
+  error.statusCode = statusCode;
+  return error;
+};
+
+const ensureAdminRequester = async (supabase, request) => {
+  const token = getBearerToken(request);
+
+  if (!token) {
+    throw createHttpError('Sessao administrativa invalida.', 401);
+  }
+
+  const { data: authData, error: authError } = await supabase.auth.getUser(token);
+
+  if (authError || !authData?.user?.id) {
+    throw createHttpError('Nao foi possivel validar a sessao administrativa.', 401);
+  }
+
+  const { data: profile, error: profileError } = await supabase
+    .from('profiles')
+    .select('id, role')
+    .eq('id', authData.user.id)
+    .maybeSingle();
+
+  if (profileError) {
+    throw profileError;
+  }
+
+  if (profile?.role !== 'Admin') {
+    throw createHttpError('Acesso negado. Somente administradores podem executar esta rotina manualmente.', 403);
+  }
+
+  return authData.user;
+};
+
+const ensureAuthorizedAutomationRequest = async (supabase, request) => {
+  const cronSecret = getOptionalServerEnv('CRON_SECRET');
+  const token = getBearerToken(request);
+
+  if (cronSecret && token === cronSecret) {
+    return { type: 'cron' };
+  }
+
+  if (!token) {
+    throw createHttpError(
+      cronSecret
+        ? 'Rotina automatica exige autenticacao do cron ou sessao administrativa.'
+        : 'Sessao administrativa invalida.',
+      401
+    );
+  }
+
+  const admin = await ensureAdminRequester(supabase, request);
+  return { type: 'admin', userId: admin.id };
 };
 
 const dedupe = (values = []) => [...new Set(values.filter(Boolean))];
@@ -398,6 +467,7 @@ const insertFailureNotifications = async (supabase, recipients, payrollWindowSta
 export const processWeeklySalaries = async () => {
   const supabase = getServerSupabase();
   const payrollWindowStart = getWeeklyPayrollWindowStart(new Date());
+  const payrollWindowStartIso = payrollWindowStart.toISOString();
   const recipients = await resolveEligibleRecipients(supabase, payrollWindowStart);
 
   if (!recipients.length) {
@@ -406,7 +476,7 @@ export const processWeeklySalaries = async () => {
       message: 'Nenhum salario pendente para a janela atual.',
       processedCount: 0,
       totalAmount: 0,
-      payrollWindowStart: payrollWindowStart.toISOString(),
+      payrollWindowStart: payrollWindowStartIso,
       failedDueToFunds: false,
     };
   }
@@ -436,98 +506,185 @@ export const processWeeklySalaries = async () => {
       message: 'Saldo insuficiente no cofre publico para processar os salarios.',
       processedCount: 0,
       totalAmount,
-      payrollWindowStart: payrollWindowStart.toISOString(),
+      payrollWindowStart: payrollWindowStartIso,
       failedDueToFunds: true,
       availableBalance: Number(governmentFinance.treasury_balance || 0),
       notificationsCreated: failureNotifications,
     };
   }
 
-  let treasuryBalance = Number(governmentFinance.treasury_balance || 0);
   let processedCount = 0;
 
   for (const recipient of recipients) {
-    treasuryBalance -= recipient.amount;
+    const { data: existingPayment, error: existingPaymentError } = await supabase
+      .from('salary_payments')
+      .select('id')
+      .eq('user_id', recipient.userId)
+      .gte('paid_at', payrollWindowStartIso)
+      .limit(1)
+      .maybeSingle();
 
-    const { error: treasuryError } = await supabase
-      .from('government_finances')
-      .update({
-        treasury_balance: treasuryBalance,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', governmentFinance.id);
-
-    if (treasuryError) {
-      throw treasuryError;
+    if (existingPaymentError) {
+      throw existingPaymentError;
     }
 
-    const { data: accountRow, error: accountError } = await supabase
-      .from('accounts')
-      .select('balance')
-      .eq('id', recipient.accountId)
-      .maybeSingle();
+    if (existingPayment?.id) {
+      continue;
+    }
+
+    const [
+      { data: latestFinance, error: latestFinanceError },
+      { data: accountRow, error: accountError },
+    ] = await Promise.all([
+      supabase
+        .from('government_finances')
+        .select('treasury_balance')
+        .eq('id', governmentFinance.id)
+        .maybeSingle(),
+      supabase
+        .from('accounts')
+        .select('balance')
+        .eq('id', recipient.accountId)
+        .maybeSingle(),
+    ]);
+
+    if (latestFinanceError) {
+      throw latestFinanceError;
+    }
 
     if (accountError) {
       throw accountError;
     }
 
-    const { error: updateAccountError } = await supabase
-      .from('accounts')
-      .update({
-        balance: Number(accountRow?.balance || 0) + recipient.amount,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', recipient.accountId);
+    const treasuryBalanceBefore = Number(latestFinance?.treasury_balance || 0);
+    const accountBalanceBefore = Number(accountRow?.balance || 0);
 
-    if (updateAccountError) {
-      throw updateAccountError;
+    if (treasuryBalanceBefore < recipient.amount) {
+      throw createHttpError('Saldo do cofre tornou-se insuficiente durante o processamento dos salarios.', 409);
     }
 
-    const { data: paymentRow, error: paymentError } = await supabase
-      .from('salary_payments')
-      .insert({
-        user_id: recipient.userId,
-        role: recipient.role,
-        amount: recipient.amount,
-        paid_at: new Date().toISOString(),
-        created_at: new Date().toISOString(),
-      })
-      .select('id')
-      .single();
+    const operationTimestamp = new Date().toISOString();
+    const treasuryBalanceAfter = treasuryBalanceBefore - recipient.amount;
+    let paymentId = null;
+    let transactionId = null;
 
-    if (paymentError) {
-      throw paymentError;
-    }
+    try {
+      const { error: treasuryError } = await supabase
+        .from('government_finances')
+        .update({
+          treasury_balance: treasuryBalanceAfter,
+          updated_at: operationTimestamp,
+        })
+        .eq('id', governmentFinance.id);
 
-    const { error: transactionError } = await supabase
-      .from('transactions')
-      .insert({
-        from_account_id: null,
-        to_account_id: recipient.accountId,
-        amount: recipient.amount,
-        type: 'salary_payment',
-        description: `Pagamento semanal de salario: ${recipient.title}`,
-        created_at: new Date().toISOString(),
-        metadata: {
+      if (treasuryError) {
+        throw treasuryError;
+      }
+
+      const { error: updateAccountError } = await supabase
+        .from('accounts')
+        .update({
+          balance: accountBalanceBefore + recipient.amount,
+          updated_at: operationTimestamp,
+        })
+        .eq('id', recipient.accountId);
+
+      if (updateAccountError) {
+        throw updateAccountError;
+      }
+
+      const { data: paymentRow, error: paymentError } = await supabase
+        .from('salary_payments')
+        .insert({
+          user_id: recipient.userId,
           role: recipient.role,
-          salary_payment_id: paymentRow?.id || null,
-          payroll_window_start: payrollWindowStart.toISOString(),
-        },
-      });
+          amount: recipient.amount,
+          paid_at: operationTimestamp,
+          created_at: operationTimestamp,
+        })
+        .select('id')
+        .single();
 
-    if (transactionError) {
-      throw transactionError;
+      if (paymentError) {
+        throw paymentError;
+      }
+
+      paymentId = paymentRow?.id || null;
+
+      const { data: transactionRow, error: transactionError } = await supabase
+        .from('transactions')
+        .insert({
+          from_account_id: null,
+          to_account_id: recipient.accountId,
+          amount: recipient.amount,
+          type: 'salary_payment',
+          description: `Pagamento semanal de salario: ${recipient.title}`,
+          created_at: operationTimestamp,
+          metadata: {
+            role: recipient.role,
+            salary_payment_id: paymentId,
+            payroll_window_start: payrollWindowStartIso,
+          },
+        })
+        .select('id')
+        .single();
+
+      if (transactionError) {
+        throw transactionError;
+      }
+
+      transactionId = transactionRow?.id || null;
+      processedCount += 1;
+    } catch (error) {
+      const rollbackTimestamp = new Date().toISOString();
+      const rollbackOperations = [
+        supabase
+          .from('government_finances')
+          .update({
+            treasury_balance: treasuryBalanceBefore,
+            updated_at: rollbackTimestamp,
+          })
+          .eq('id', governmentFinance.id),
+        supabase
+          .from('accounts')
+          .update({
+            balance: accountBalanceBefore,
+            updated_at: rollbackTimestamp,
+          })
+          .eq('id', recipient.accountId),
+      ];
+
+      if (paymentId) {
+        rollbackOperations.push(
+          supabase
+            .from('salary_payments')
+            .delete()
+            .eq('id', paymentId)
+        );
+      }
+
+      if (transactionId) {
+        rollbackOperations.push(
+          supabase
+            .from('transactions')
+            .delete()
+            .eq('id', transactionId)
+        );
+      }
+
+      await Promise.allSettled(rollbackOperations);
+      throw error;
     }
-
-    processedCount += 1;
   }
 
   return {
     success: true,
-    message: `${processedCount} salario(s) processados com sucesso.`,
+    message: processedCount
+      ? `${processedCount} salario(s) processados com sucesso.`
+      : 'Nenhum salario pendente para a janela atual.',
     processedCount,
     totalAmount,
-    payrollWindowStart: payrollWindowStart.toISOString(),
+    payrollWindowStart: payrollWindowStartIso,
     failedDueToFunds: false,
   };
 };
@@ -538,11 +695,13 @@ export const processWeeklySalariesHandler = async (request, response) => {
   }
 
   try {
+    const supabase = getServerSupabase();
+    await ensureAuthorizedAutomationRequest(supabase, request);
     const payload = await processWeeklySalaries();
     json(response, 200, payload);
   } catch (error) {
     console.error('[salaries:process]', error);
-    json(response, 500, {
+    json(response, error.statusCode || 500, {
       error: error instanceof Error ? error.message : 'Nao foi possivel processar os salarios.',
     });
   }

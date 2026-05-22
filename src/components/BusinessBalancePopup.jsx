@@ -1,21 +1,13 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Building2, Clock3, Loader2, TrendingDown, TrendingUp, Wallet, X } from 'lucide-react';
+import { Building2, Clock3, TrendingDown, TrendingUp, Wallet, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabaseClient';
 import {
   BUSINESS_BALANCE_NOTIFICATION_TYPE,
-  getLastBusinessBalanceDate,
-  processWeeklyBusinessBalances,
-  shouldTriggerWeeklyBusinessBalanceProcessing,
-  userHasBusinesses,
 } from '@/lib/businessBalances';
 import { formatCurrency } from '@/lib/utils';
-
-const PROCESS_CHECK_INTERVAL_MS = 5 * 60 * 1000;
-const PROCESS_ERROR_COOLDOWN_MS = 30 * 60 * 1000;
-const PROCESS_STORAGE_KEY_PREFIX = 'govrp:last-business-balance-check-at';
 
 const formatProcessedAt = (dateValue) => {
   if (!dateValue) {
@@ -42,10 +34,6 @@ const BusinessBalancePopup = () => {
   const { user, refreshUser } = useAuth();
   const [notification, setNotification] = useState(null);
   const [isVisible, setIsVisible] = useState(false);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const errorCooldownUntilRef = useRef(0);
-
-  const processStorageKey = user?.id ? `${PROCESS_STORAGE_KEY_PREFIX}:${user.id}` : null;
 
   const fetchPendingBalanceNotification = useCallback(async () => {
     if (!user?.id) {
@@ -74,54 +62,6 @@ const BusinessBalancePopup = () => {
     setIsVisible(Boolean(latestNotification?.id));
   }, [fetchPendingBalanceNotification]);
 
-  const attemptAutomaticBalanceProcessing = useCallback(
-    async ({ force = false } = {}) => {
-      if (!user?.id || isProcessing) {
-        return;
-      }
-
-      const now = Date.now();
-      const lastCheckAt = Number(localStorage.getItem(processStorageKey || '') || 0);
-
-      if (!force && lastCheckAt && now - lastCheckAt < PROCESS_CHECK_INTERVAL_MS) {
-        return;
-      }
-
-      if (!force && errorCooldownUntilRef.current > now) {
-        return;
-      }
-
-      if (processStorageKey) {
-        localStorage.setItem(processStorageKey, String(now));
-      }
-
-      setIsProcessing(true);
-
-      try {
-        const ownsBusiness = await userHasBusinesses(user.id);
-
-        if (!ownsBusiness) {
-          return;
-        }
-
-        const lastBalanceDate = await getLastBusinessBalanceDate();
-
-        if (!shouldTriggerWeeklyBusinessBalanceProcessing(lastBalanceDate)) {
-          return;
-        }
-
-        await processWeeklyBusinessBalances();
-        await Promise.all([refreshUser(), refreshLatestStatus()]);
-      } catch (error) {
-        console.error('Erro ao processar balanços empresariais automaticamente:', error);
-        errorCooldownUntilRef.current = Date.now() + PROCESS_ERROR_COOLDOWN_MS;
-      } finally {
-        setIsProcessing(false);
-      }
-    },
-    [isProcessing, processStorageKey, refreshLatestStatus, refreshUser, user?.id]
-  );
-
   useEffect(() => {
     if (!user?.id) {
       setNotification(null);
@@ -131,28 +71,12 @@ const BusinessBalancePopup = () => {
 
     const initialTimer = window.setTimeout(() => {
       refreshLatestStatus();
-      attemptAutomaticBalanceProcessing({ force: true });
     }, 3200);
 
     return () => {
       window.clearTimeout(initialTimer);
     };
-  }, [attemptAutomaticBalanceProcessing, refreshLatestStatus, user?.id]);
-
-  useEffect(() => {
-    if (!user?.id) {
-      return undefined;
-    }
-
-    const intervalId = window.setInterval(() => {
-      refreshLatestStatus();
-      attemptAutomaticBalanceProcessing();
-    }, PROCESS_CHECK_INTERVAL_MS);
-
-    return () => {
-      window.clearInterval(intervalId);
-    };
-  }, [attemptAutomaticBalanceProcessing, refreshLatestStatus, user?.id]);
+  }, [refreshLatestStatus, user?.id]);
 
   useEffect(() => {
     if (!user?.id) {
@@ -299,14 +223,7 @@ const BusinessBalancePopup = () => {
                   : 'bg-gradient-to-r from-red-600 to-amber-500 hover:from-red-700 hover:to-amber-600'
               }`}
             >
-              {isProcessing ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Atualizando...
-                </>
-              ) : (
-                'Continuar'
-              )}
+              Continuar
             </Button>
           </div>
         </div>
