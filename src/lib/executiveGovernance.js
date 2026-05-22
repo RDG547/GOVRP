@@ -1,5 +1,7 @@
 import { mapBillTypeToGazetteType, publishOfficialGazetteEntry } from './officialGazette.js';
 import { PARLIAMENT_HOUSE_IDS } from './parliamentGovernance.js';
+import { fetchElectionOfficeSyncState } from './electionOfficeSync.js';
+import { isManualElectionRoleSuperseded } from './roleResolution.js';
 
 export const EXECUTIVE_GOVERNANCE_SETTINGS_KEY = 'executive_governance';
 export const PRESIDENTIAL_TERM_MONTHS = 1;
@@ -44,6 +46,7 @@ const SUCCESSION_ROLE_FALLBACKS = {
   senate_president: ['Presidente do Senado'],
   supreme_court_president: ['Presidente do STF'],
 };
+const EXECUTIVE_OFFICE_ROLES = ['Presidente', 'Vice-Presidente'];
 
 const dedupe = (values = []) => [...new Set(values.filter(Boolean))];
 
@@ -435,6 +438,28 @@ const fetchFallbackSuccessionProfiles = async (supabase) => {
   return data || [];
 };
 
+const isMissingManualRoleMetadataError = (error) =>
+  /manual_role_override|role_assigned_at|role_assigned_by/i.test(error?.message || '');
+
+const fetchManualExecutiveOfficeProfiles = async (supabase) => {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id, full_name, avatar_url, role, username, x_handle, manual_role_override, role_assigned_at, role_assigned_by')
+    .in('role', EXECUTIVE_OFFICE_ROLES)
+    .eq('manual_role_override', true)
+    .order('role_assigned_at', { ascending: false });
+
+  if (error) {
+    if (isMissingManualRoleMetadataError(error)) {
+      return [];
+    }
+
+    throw error;
+  }
+
+  return data || [];
+};
+
 const fetchHouseLeadershipProfiles = async (supabase) => {
   const { data: terms, error: termsError } = await supabase
     .from('parliament_leadership_terms')
@@ -599,7 +624,14 @@ export const fetchPotentialRunningMates = async (supabase, { electionId = null, 
 };
 
 export const fetchExecutiveConstitutionalState = async (supabase) => {
-  const [{ elections, currentTerm, presidentialType }, settingsRow, successionLine, pendingBillsResponse] =
+  const [
+    { elections, currentTerm, presidentialType },
+    settingsRow,
+    successionLine,
+    pendingBillsResponse,
+    electionOfficeState,
+    manualExecutiveProfiles,
+  ] =
     await Promise.all([
       fetchPresidentialElectionHistory(supabase),
       fetchExecutiveGovernanceSettings(supabase),
@@ -609,6 +641,11 @@ export const fetchExecutiveConstitutionalState = async (supabase) => {
         .select('id, title, summary, full_text, author_id, house_id, type, status, created_at, updated_at, house:parliament_houses(name), author:profiles(full_name, avatar_url)')
         .in('status', PRESIDENTIAL_PENDING_BILL_STATUSES)
         .order('updated_at', { ascending: false }),
+      fetchElectionOfficeSyncState(supabase).catch((error) => {
+        console.error('Erro ao carregar sincronização eleitoral do Executivo:', error);
+        return null;
+      }),
+      fetchManualExecutiveOfficeProfiles(supabase),
     ]);
 
   if (pendingBillsResponse.error) {
@@ -628,13 +665,19 @@ export const fetchExecutiveConstitutionalState = async (supabase) => {
     officeVacancy.vacant &&
     (!currentTerm || !officeVacancy.since || new Date(officeVacancy.since) >= new Date(currentTerm.term_start_at));
 
+  const activeManualExecutiveProfiles = (manualExecutiveProfiles || []).filter(
+    (profile) => !isManualElectionRoleSuperseded(profile, electionOfficeState)
+  );
+  const manualPresidentProfile = activeManualExecutiveProfiles.find((profile) => profile.role === 'Presidente') || null;
+  const manualViceProfile = activeManualExecutiveProfiles.find((profile) => profile.role === 'Vice-Presidente') || null;
   const electedPresidentProfile = currentTerm?.winner?.profile || null;
   const electedViceProfile = currentTerm?.winner?.vice_profile || null;
   const currentPresidentProfile = successionApplies
     ? electedViceProfile || null
-    : electedPresidentProfile;
-  const currentViceProfile = successionApplies ? null : electedViceProfile;
-  const isVacant = vacancyStillApplies || !currentPresidentProfile || !currentTerm;
+    : electedPresidentProfile || manualPresidentProfile;
+  const currentViceProfile = successionApplies ? null : electedViceProfile || manualViceProfile;
+  const manualExecutiveOfficeActive = !currentTerm && Boolean(manualPresidentProfile || manualViceProfile);
+  const isVacant = vacancyStillApplies || !currentPresidentProfile;
   const actingAuthority = !isVacant
     ? {
         key: 'president',
@@ -651,6 +694,10 @@ export const fetchExecutiveConstitutionalState = async (supabase) => {
     currentViceProfile,
     electedPresidentProfile,
     electedViceProfile,
+    manualPresidentProfile,
+    manualViceProfile,
+    manualExecutiveOfficeActive,
+    executiveOfficeSource: currentTerm ? 'election' : manualExecutiveOfficeActive ? 'manual_admin_role' : 'vacant',
     officeVacancy,
     presidentialSuccession,
     isVacant,

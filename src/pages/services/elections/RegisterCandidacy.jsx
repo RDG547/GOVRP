@@ -36,6 +36,15 @@ const candidacySchema = z.object({
   proposals: z.string().min(1, 'As propostas são obrigatórias.'),
 });
 
+const isPresidentialTicketElection = (election) => {
+  const electionTypeName = `${election?.election_types?.name || ''}`.trim().toLowerCase();
+  const electionName = `${election?.name || ''}`.trim().toLowerCase();
+
+  return Boolean(election?.election_types?.requires_vice_candidate) ||
+    electionTypeName === 'presidente' ||
+    electionName.includes('presidencial');
+};
+
 const RegisterCandidacy = ({ onFinished }) => {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -66,10 +75,12 @@ const RegisterCandidacy = ({ onFinished }) => {
   });
 
   const selectedElectionId = form.watch('election_id');
+  const selectedViceCandidateId = form.watch('vice_candidate_id');
   const selectedElection = elections.find((election) => election.id === selectedElectionId) || null;
-  const requiresViceCandidate = Boolean(selectedElection?.election_types?.requires_vice_candidate);
+  const requiresViceCandidate = isPresidentialTicketElection(selectedElection);
   const consecutivePresidentialWins = getConsecutivePresidentialWins(presidentialElections, user?.id);
   const presidentialRunBlocked = requiresViceCandidate && consecutivePresidentialWins >= 2;
+  const presidentialViceMissing = requiresViceCandidate && !selectedViceCandidateId;
 
   useEffect(() => {
     const fetchData = async () => {
@@ -191,14 +202,21 @@ const RegisterCandidacy = ({ onFinished }) => {
     setIsSubmitting(true);
 
     try {
-      const { error } = await supabase.from('candidates').delete().eq('id', existingCandidacy.id);
-      if (error) {
-        throw error;
+      const response = await fetchWithSessionAuth('/api/elections/cancel-candidacy', {
+        method: 'POST',
+        body: JSON.stringify({
+          candidateId: existingCandidacy.id,
+        }),
+      });
+      const payload = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(payload?.error || 'Nao foi possivel cancelar a candidatura.');
       }
 
       toast({
         title: 'Candidatura cancelada!',
-        description: 'Agora você pode registrar uma nova candidatura.',
+        description: payload.message || 'Agora você pode registrar uma nova candidatura.',
       });
 
       setExistingCandidacy(null);
@@ -219,6 +237,38 @@ const RegisterCandidacy = ({ onFinished }) => {
     } finally {
       setIsSubmitting(false);
       setLoading(false);
+    }
+  };
+
+  const handleCancelPendingViceInvitation = async () => {
+    if (!pendingViceInvitation?.id) {
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      const response = await fetchWithSessionAuth('/api/elections/cancel-candidacy', {
+        method: 'POST',
+        body: JSON.stringify({
+          trackerNotificationId: pendingViceInvitation.id,
+        }),
+      });
+      const payload = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(payload?.error || 'Nao foi possivel retirar o convite de vice.');
+      }
+
+      toast({
+        title: 'Candidatura retirada!',
+        description: payload.message || 'Voce pode montar uma nova chapa quando quiser.',
+      });
+      setPendingViceInvitation(null);
+    } catch (error) {
+      toast({ title: 'Erro ao retirar', description: error.message, variant: 'destructive' });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -424,9 +474,13 @@ const RegisterCandidacy = ({ onFinished }) => {
             </p>
           </div>
         </CardContent>
-        <CardFooter className="flex justify-center">
+        <CardFooter className="flex flex-wrap justify-center gap-3">
           <Button variant="outline" onClick={() => onFinished?.()}>
             Fechar
+          </Button>
+          <Button variant="destructive" onClick={handleCancelPendingViceInvitation} disabled={isSubmitting}>
+            {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Retirar Candidatura
           </Button>
         </CardFooter>
       </Card>
@@ -619,7 +673,7 @@ const RegisterCandidacy = ({ onFinished }) => {
             />
           </CardContent>
           <CardFooter>
-            <Button type="submit" disabled={isSubmitting || presidentialRunBlocked}>
+            <Button type="submit" disabled={isSubmitting || presidentialRunBlocked || presidentialViceMissing}>
               {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Vote className="mr-2 h-4 w-4" />}
               Enviar Candidatura
             </Button>

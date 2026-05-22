@@ -118,9 +118,11 @@ const DIC = () => {
 
     const getDoc = useCallback((type, isValid = true) => documents.find(d => d.type === type && d.is_valid === isValid), [documents]);
 
-    const fetchAllData = useCallback(async () => {
+    const fetchAllData = useCallback(async ({ showPageLoader = true } = {}) => {
         if (!user?.id) { setLoading(false); return; }
-        setLoading(true);
+        if (showPageLoader) {
+            setLoading(true);
+        }
         try {
             await refreshUser();
             const [profileResponse, documentsResponse, affiliationResponse, tariffResponse] = await Promise.all([
@@ -163,7 +165,9 @@ const DIC = () => {
             console.error(error);
             toast({ title: "Erro", description: "Não foi possível carregar seus dados.", variant: "destructive" });
         } finally {
-            setLoading(false);
+            if (showPageLoader) {
+                setLoading(false);
+            }
         }
     }, [user?.id, toast, refreshUser]);
 
@@ -178,7 +182,7 @@ const DIC = () => {
     const handleTabChange = async (value) => {
         setActiveTab(value);
         if (value === 'history' && user) {
-            await fetchAllData();
+            await fetchAllData({ showPageLoader: false });
         }
     };
 

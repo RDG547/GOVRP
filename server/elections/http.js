@@ -37,6 +37,11 @@ const VICE_CANDIDACY_ACCEPTED_TYPE = 'vice_candidacy_request_accepted';
 const VICE_CANDIDACY_REJECTED_TYPE = 'vice_candidacy_request_rejected';
 const TERM_BOUND_PROFILE_ROLES = ['Presidente', 'Vice-Presidente', 'Deputado', 'Senador'];
 const EXECUTIVE_PROFILE_ROLES = ['Presidente', 'Vice-Presidente', 'Ministro'];
+const ROLE_CLEANUP_SELECT_WITH_OVERRIDE = 'id, role, titles, manual_role_override, role_assigned_at, role_assigned_by';
+const ROLE_CLEANUP_SELECT_BASE = 'id, role, titles';
+const MISSING_COLUMN_ERROR_CODES = new Set(['42703', 'PGRST204', 'PGRST205']);
+const BASE_CITIZEN_ROLES = ['Usuário', 'Cidadão'];
+const ELECTION_ROLE_PRIORITY = ['Presidente', 'Vice-Presidente', 'Senador', 'Deputado'];
 
 let serverSupabase;
 
@@ -131,6 +136,137 @@ const resolveProfileDisplayName = (profile, fallback = 'Cidadão') =>
   trimString(profile?.x_handle) ||
   fallback;
 const isPendingNotificationStatus = (status) => trimString(status).toLowerCase() === 'pending';
+
+const shouldRetryWithoutManualRoleOverride = (error) =>
+  error &&
+  (MISSING_COLUMN_ERROR_CODES.has(error.code) ||
+    /manual_role_override/i.test(error.message || ''));
+
+const fetchProfilesForRoleCleanup = async (supabase, profileIds = []) => {
+  const ids = dedupe(profileIds);
+
+  if (!ids.length) {
+    return [];
+  }
+
+  let { data, error } = await supabase
+    .from('profiles')
+    .select(ROLE_CLEANUP_SELECT_WITH_OVERRIDE)
+    .in('id', ids);
+
+  if (shouldRetryWithoutManualRoleOverride(error)) {
+    const retryResponse = await supabase
+      .from('profiles')
+      .select(ROLE_CLEANUP_SELECT_BASE)
+      .in('id', ids);
+
+    data = retryResponse.data;
+    error = retryResponse.error;
+  }
+
+  if (error) {
+    throw error;
+  }
+
+  return (data || []).map((profile) => ({
+    ...profile,
+    manual_role_override: Boolean(profile.manual_role_override),
+  }));
+};
+
+const getProfileRolesAffectedByElectionOffice = (officeRole) => {
+  if (officeRole === 'Presidente') {
+    return ['Presidente', 'Vice-Presidente'];
+  }
+
+  if (officeRole === 'Deputado' || officeRole === 'Senador') {
+    return [officeRole];
+  }
+
+  return [];
+};
+
+const doesElectionSettlementSupersedeManualRole = (profile = {}, settlements = []) => {
+  if (!profile.manual_role_override || !profile.role_assigned_at || !profile.role) {
+    return false;
+  }
+
+  const assignedAtMs = new Date(profile.role_assigned_at).getTime();
+
+  if (!Number.isFinite(assignedAtMs)) {
+    return false;
+  }
+
+  return (settlements || []).some((settlement) => {
+    if (!settlement?.officeRole || !settlement?.termStartAt) {
+      return false;
+    }
+
+    if (!getProfileRolesAffectedByElectionOffice(settlement.officeRole).includes(profile.role)) {
+      return false;
+    }
+
+    const termStartMs = new Date(settlement.termStartAt).getTime();
+    return Number.isFinite(termStartMs) && termStartMs > assignedAtMs;
+  });
+};
+
+const fetchManualElectionRoleProfilesSupersededBySettlements = async (supabase, settlements = []) => {
+  const affectedRoles = dedupe(
+    (settlements || []).flatMap((settlement) =>
+      getProfileRolesAffectedByElectionOffice(settlement?.officeRole)
+    )
+  );
+
+  if (!affectedRoles.length) {
+    return [];
+  }
+
+  let { data, error } = await supabase
+    .from('profiles')
+    .select(ROLE_CLEANUP_SELECT_WITH_OVERRIDE)
+    .eq('manual_role_override', true)
+    .in('role', affectedRoles);
+
+  if (shouldRetryWithoutManualRoleOverride(error)) {
+    return [];
+  }
+
+  if (error) {
+    throw error;
+  }
+
+  return (data || [])
+    .map((profile) => ({
+      ...profile,
+      manual_role_override: Boolean(profile.manual_role_override),
+    }))
+    .filter((profile) => doesElectionSettlementSupersedeManualRole(profile, settlements));
+};
+
+const updateProfileWithRoleOverrideFallback = async (supabase, userId, patch) => {
+  let { error } = await supabase
+    .from('profiles')
+    .update(patch)
+    .eq('id', userId);
+
+  if (shouldRetryWithoutManualRoleOverride(error)) {
+    const basePatch = { ...patch };
+    delete basePatch.manual_role_override;
+    delete basePatch.role_assigned_at;
+    delete basePatch.role_assigned_by;
+    const retryResponse = await supabase
+      .from('profiles')
+      .update(basePatch)
+      .eq('id', userId);
+
+    error = retryResponse.error;
+  }
+
+  if (error) {
+    throw error;
+  }
+};
 
 const readJsonBody = async (request) => {
   if (request.body && typeof request.body === 'object') {
@@ -384,6 +520,82 @@ const updateTrackerNotificationsStatus = async (
   }
 };
 
+const cancelPendingViceInvitation = async (
+  supabase,
+  {
+    trackerNotification,
+    requesterId,
+  }
+) => {
+  const trackerMetadata = getNotificationMetadata(trackerNotification);
+
+  if (!matchesViceRequestMetadata(trackerMetadata, { status: 'pending' })) {
+    throw createHttpError('Esta chapa nao esta mais aguardando aceite do vice.', 409);
+  }
+
+  if (trackerMetadata.candidate_user_id && trackerMetadata.candidate_user_id !== requesterId) {
+    throw createHttpError('Voce nao tem permissao para retirar esta candidatura.', 403);
+  }
+
+  const electionId = trimString(trackerMetadata.election_id);
+  const viceCandidateId = trimString(trackerMetadata.vice_candidate_id);
+  const candidateName = trimString(trackerMetadata.candidate_name) || 'O candidato';
+  const electionName = trimString(trackerMetadata.election_name) || 'a eleicao presidencial';
+
+  await updateNotificationMetadata(supabase, trackerNotification.id, {
+    ...trackerMetadata,
+    status: 'cancelled',
+    cancelled_at: new Date().toISOString(),
+  }, { is_read: true });
+
+  if (!electionId || !viceCandidateId) {
+    return;
+  }
+
+  const viceInvitations = await fetchUserNotificationsByType(
+    supabase,
+    viceCandidateId,
+    VICE_CANDIDACY_INVITATION_TYPE
+  );
+
+  const matchingInvitations = viceInvitations.filter((notification) =>
+    matchesViceRequestMetadata(getNotificationMetadata(notification), {
+      electionId,
+      candidateUserId: requesterId,
+      viceCandidateId,
+      status: 'pending',
+    })
+  );
+
+  for (const invitation of matchingInvitations) {
+    const currentMetadata = getNotificationMetadata(invitation);
+    await updateNotificationMetadata(supabase, invitation.id, {
+      ...currentMetadata,
+      status: 'cancelled',
+      cancelled_at: new Date().toISOString(),
+    }, { is_read: true });
+  }
+
+  const { error: notificationError } = await supabase.from('notifications').insert({
+    user_id: viceCandidateId,
+    sender_id: requesterId,
+    type: 'vice_candidacy_request_cancelled',
+    content: `${candidateName} retirou o convite para compor chapa em "${electionName}".`,
+    link: '/services/elections',
+    is_read: false,
+    metadata: {
+      election_id: electionId,
+      election_name: electionName,
+      candidate_user_id: requesterId,
+      status: 'cancelled',
+    },
+  });
+
+  if (notificationError) {
+    throw notificationError;
+  }
+};
+
 const fetchActiveCandidacyForUser = async (supabase, userId) => {
   if (!userId) {
     return null;
@@ -448,8 +660,17 @@ const fetchElectionById = async (supabase, electionId) => {
   return data || null;
 };
 
+const isPresidentialTicketElection = (election) => {
+  const electionTypeName = trimString(election?.election_types?.name).toLowerCase();
+  const electionName = trimString(election?.name).toLowerCase();
+
+  return Boolean(election?.election_types?.requires_vice_candidate) ||
+    electionTypeName === 'presidente' ||
+    electionName.includes('presidencial');
+};
+
 const ensurePresidentialElectionSubmissionAllowed = async (supabase, election, requesterId) => {
-  if (!election?.id || !election?.election_types?.requires_vice_candidate) {
+  if (!election?.id || !isPresidentialTicketElection(election)) {
     throw createHttpError('Esta rota atende apenas candidaturas presidenciais em chapa.', 400);
   }
 
@@ -1264,7 +1485,7 @@ const syncParliamentMemberships = async (supabase, { previousState, activeAssign
   }
 };
 
-const clearStaleProfileOfficeRoles = async (supabase, { previousState, activeAssignments }) => {
+const clearStaleProfileOfficeRoles = async (supabase, { previousState, activeAssignments, settlements }) => {
   const activeOfficeRolesByUser = new Map();
 
   for (const assignment of activeAssignments || []) {
@@ -1283,30 +1504,29 @@ const clearStaleProfileOfficeRoles = async (supabase, { previousState, activeAss
     ? previousState.active_assignments.map((assignment) => assignment.user_id)
     : [];
   const activeProfileIds = activeAssignments.map((assignment) => assignment.userId);
-  const candidateProfileIds = dedupe([...previousProfileIds, ...activeProfileIds]);
+  const supersededManualProfiles = await fetchManualElectionRoleProfilesSupersededBySettlements(
+    supabase,
+    settlements
+  );
+  const candidateProfileIds = dedupe([
+    ...previousProfileIds,
+    ...activeProfileIds,
+    ...supersededManualProfiles.map((profile) => profile.id),
+  ]);
 
-  let profileQuery = supabase
-    .from('profiles')
-    .select('id, role, titles');
-
-  if (candidateProfileIds.length) {
-    profileQuery = profileQuery.or(
-      [
-        `id.in.(${candidateProfileIds.join(',')})`,
-        `role.in.(${[...TERM_BOUND_PROFILE_ROLES, 'Ministro'].join(',')})`,
-      ].join(',')
-    );
-  } else {
-    profileQuery = profileQuery.in('role', [...TERM_BOUND_PROFILE_ROLES, 'Ministro']);
+  if (!candidateProfileIds.length) {
+    return;
   }
 
-  const { data: profiles, error } = await profileQuery;
-
-  if (error) {
-    throw error;
-  }
+  const profiles = await fetchProfilesForRoleCleanup(supabase, candidateProfileIds);
 
   for (const profile of profiles || []) {
+    const manualOverrideSuperseded = doesElectionSettlementSupersedeManualRole(profile, settlements);
+
+    if (profile.manual_role_override && !manualOverrideSuperseded) {
+      continue;
+    }
+
     const activeRoles = activeOfficeRolesByUser.get(profile.id) || new Set();
     const currentRole = profile.role;
     const nextRole = TERM_BOUND_PROFILE_ROLES.includes(currentRole) && !activeRoles.has(currentRole)
@@ -1326,18 +1546,81 @@ const clearStaleProfileOfficeRoles = async (supabase, { previousState, activeAss
       patch.titles = nextTitles;
     }
 
+    if (manualOverrideSuperseded) {
+      patch.manual_role_override = false;
+      patch.role_assigned_at = null;
+      patch.role_assigned_by = null;
+    }
+
     if (!Object.keys(patch).length) {
       continue;
     }
 
-    const { error: updateError } = await supabase
-      .from('profiles')
-      .update(patch)
-      .eq('id', profile.id);
+    await updateProfileWithRoleOverrideFallback(supabase, profile.id, patch);
+  }
+};
 
-    if (updateError) {
-      throw updateError;
+const syncActiveElectionProfileRoles = async (supabase, activeAssignments = []) => {
+  const assignmentsByUser = new Map();
+
+  for (const assignment of activeAssignments || []) {
+    if (!assignment?.userId || !assignment?.officeRole) {
+      continue;
     }
+
+    if (!assignmentsByUser.has(assignment.userId)) {
+      assignmentsByUser.set(assignment.userId, []);
+    }
+
+    assignmentsByUser.get(assignment.userId).push(assignment);
+  }
+
+  if (!assignmentsByUser.size) {
+    return;
+  }
+
+  const profiles = await fetchProfilesForRoleCleanup(supabase, [...assignmentsByUser.keys()]);
+
+  for (const profile of profiles) {
+    if (profile.role === 'Admin') {
+      continue;
+    }
+
+    const currentRoleIsElectionOrBase = TERM_BOUND_PROFILE_ROLES.includes(profile.role) ||
+      BASE_CITIZEN_ROLES.includes(profile.role || '');
+
+    if (!currentRoleIsElectionOrBase) {
+      continue;
+    }
+
+    const assignments = assignmentsByUser.get(profile.id) || [];
+    const selectedAssignment = [...assignments].sort(
+      (left, right) =>
+        ELECTION_ROLE_PRIORITY.indexOf(left.officeRole) -
+        ELECTION_ROLE_PRIORITY.indexOf(right.officeRole)
+    )[0];
+
+    if (!selectedAssignment?.officeRole) {
+      continue;
+    }
+
+    const patch = {
+      role: selectedAssignment.officeRole,
+      manual_role_override: false,
+      role_assigned_at: null,
+      role_assigned_by: null,
+    };
+
+    if (
+      profile.role === patch.role &&
+      profile.manual_role_override === false &&
+      !profile.role_assigned_at &&
+      !profile.role_assigned_by
+    ) {
+      continue;
+    }
+
+    await updateProfileWithRoleOverrideFallback(supabase, profile.id, patch);
   }
 };
 
@@ -1403,14 +1686,25 @@ const clearMinistersWhenExecutiveTermChanges = async (supabase, { previousState,
     }
   }
 
-  const { data: staleProfiles, error: profilesError } = await supabase
-    .from('profiles')
-    .select('id, role, titles')
-    .or(`role.in.(${EXECUTIVE_PROFILE_ROLES.join(',')}),id.in.(${ministerUserIds.join(',') || '00000000-0000-0000-0000-000000000000'})`);
+  const previousExecutiveUserIds = Array.isArray(previousState?.active_assignments)
+    ? previousState.active_assignments
+        .filter((assignment) => ['Presidente', 'Vice-Presidente'].includes(assignment?.office_role))
+        .map((assignment) => assignment.user_id)
+    : [];
+  const activeExecutiveUserIds = (activeAssignments || [])
+    .filter((assignment) => ['Presidente', 'Vice-Presidente'].includes(assignment?.officeRole))
+    .map((assignment) => assignment.userId);
+  const executiveProfileIds = dedupe([
+    ...ministerUserIds,
+    ...previousExecutiveUserIds,
+    ...activeExecutiveUserIds,
+  ]);
 
-  if (profilesError) {
-    throw profilesError;
+  if (!executiveProfileIds.length) {
+    return ministerUserIds;
   }
+
+  const staleProfiles = await fetchProfilesForRoleCleanup(supabase, executiveProfileIds);
 
   const activeExecutiveRolesByUser = new Map();
   for (const assignment of activeAssignments || []) {
@@ -1426,6 +1720,10 @@ const clearMinistersWhenExecutiveTermChanges = async (supabase, { previousState,
   }
 
   for (const profile of staleProfiles || []) {
+    if (profile.manual_role_override) {
+      continue;
+    }
+
     const activeRoles = activeExecutiveRolesByUser.get(profile.id) || new Set();
     const nextRole = EXECUTIVE_PROFILE_ROLES.includes(profile.role) && !activeRoles.has(profile.role)
       ? 'Cidadão'
@@ -1517,6 +1815,8 @@ export const syncElectionOfficesState = async () => {
     activeAssignments,
   });
 
+  await syncActiveElectionProfileRoles(supabase, activeAssignments);
+
   const clearedMinisterUserIds = await clearMinistersWhenExecutiveTermChanges(supabase, {
     previousState,
     activeAssignments,
@@ -1525,6 +1825,7 @@ export const syncElectionOfficesState = async () => {
   await clearStaleProfileOfficeRoles(supabase, {
     previousState,
     activeAssignments,
+    settlements,
   });
 
   await clearExecutiveVacancyIfNeeded(supabase, activeAssignments);
@@ -1968,6 +2269,120 @@ export const respondViceCandidacyInvitationHandler = async (request, response) =
     json(response, statusCode, {
       error:
         error instanceof Error ? error.message : 'Nao foi possivel responder ao convite de vice.',
+    });
+  }
+};
+
+export const cancelCandidacyHandler = async (request, response) => {
+  if (!ensureMethod(request, response, 'POST')) {
+    return;
+  }
+
+  const supabase = getServerSupabase();
+
+  try {
+    const { user: requester } = await ensureAuthenticatedRequester(supabase, request);
+    const payload = await readJsonBody(request);
+    const candidateId = trimString(payload.candidateId);
+    const trackerNotificationId = trimString(payload.trackerNotificationId);
+
+    if (!candidateId && !trackerNotificationId) {
+      throw createHttpError('Informe a candidatura ou o convite pendente que deseja retirar.', 400);
+    }
+
+    if (trackerNotificationId) {
+      const { data: trackerNotification, error: trackerError } = await supabase
+        .from('notifications')
+        .select('id, user_id, sender_id, type, content, link, is_read, metadata, created_at')
+        .eq('id', trackerNotificationId)
+        .maybeSingle();
+
+      if (trackerError) {
+        throw trackerError;
+      }
+
+      if (!trackerNotification?.id || trackerNotification.type !== VICE_CANDIDACY_TRACKER_TYPE) {
+        throw createHttpError('Convite pendente nao encontrado.', 404);
+      }
+
+      if (trackerNotification.user_id !== requester.id) {
+        throw createHttpError('Voce nao tem permissao para retirar esta candidatura.', 403);
+      }
+
+      await cancelPendingViceInvitation(supabase, {
+        trackerNotification,
+        requesterId: requester.id,
+      });
+
+      json(response, 200, {
+        success: true,
+        message: 'Convite de vice retirado. A candidatura nao sera enviada.',
+      });
+      return;
+    }
+
+    const { data: candidacy, error: candidacyError } = await supabase
+      .from('candidates')
+      .select('id, election_id, user_id, vice_candidate_id, status, political_name, election:elections(name)')
+      .eq('id', candidateId)
+      .maybeSingle();
+
+    if (candidacyError) {
+      throw candidacyError;
+    }
+
+    if (!candidacy?.id) {
+      throw createHttpError('Candidatura nao encontrada.', 404);
+    }
+
+    if (candidacy.user_id !== requester.id) {
+      throw createHttpError('Voce nao tem permissao para retirar esta candidatura.', 403);
+    }
+
+    if (!ACTIVE_CANDIDACY_STATUSES.includes(candidacy.status)) {
+      throw createHttpError('Apenas candidaturas pendentes ou aprovadas podem ser retiradas.', 400);
+    }
+
+    const { error: deleteError } = await supabase
+      .from('candidates')
+      .delete()
+      .eq('id', candidacy.id);
+
+    if (deleteError) {
+      throw deleteError;
+    }
+
+    if (candidacy.vice_candidate_id) {
+      const { error: viceNotificationError } = await supabase.from('notifications').insert({
+        user_id: candidacy.vice_candidate_id,
+        sender_id: requester.id,
+        type: 'vice_candidacy_cancelled',
+        content: `A candidatura "${candidacy.political_name || 'presidencial'}" foi retirada pelo candidato principal.`,
+        link: '/services/elections',
+        is_read: false,
+        metadata: {
+          candidate_id: candidacy.id,
+          election_id: candidacy.election_id,
+          election_name: candidacy.election?.name || null,
+          status: 'cancelled',
+        },
+      });
+
+      if (viceNotificationError) {
+        throw viceNotificationError;
+      }
+    }
+
+    json(response, 200, {
+      success: true,
+      message: 'Candidatura retirada com sucesso.',
+    });
+  } catch (error) {
+    const statusCode = error?.statusCode || 500;
+
+    console.error('[elections:cancel-candidacy]', error);
+    json(response, statusCode, {
+      error: error instanceof Error ? error.message : 'Nao foi possivel retirar a candidatura.',
     });
   }
 };

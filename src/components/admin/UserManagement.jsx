@@ -398,6 +398,35 @@ const roleOrder = [
 
 const getDisplayRole = (user) => user?.display_role || user?.role || 'Usuário';
 
+const isMissingManualRoleMetadataError = (error) =>
+    /manual_role_override|role_assigned_at|role_assigned_by/i.test(error?.message || '');
+
+const fetchManualRoleMetadataByUserId = async (userIds = []) => {
+    const ids = [...new Set(userIds.filter(Boolean))];
+
+    if (!ids.length) {
+        return {};
+    }
+
+    const { data, error } = await supabase
+        .from('profiles')
+        .select('id, manual_role_override, role_assigned_at, role_assigned_by')
+        .in('id', ids);
+
+    if (error) {
+        if (isMissingManualRoleMetadataError(error)) {
+            return {};
+        }
+
+        throw error;
+    }
+
+    return (data || []).reduce((accumulator, profile) => {
+        accumulator[profile.id] = profile;
+        return accumulator;
+    }, {});
+};
+
 const UserManagement = () => {
     const { user: adminUser } = useAuth();
     const { toast } = useToast();
@@ -424,18 +453,28 @@ const UserManagement = () => {
         if (error) {
             toast({ title: "Erro ao buscar usuários", description: error.message, variant: "destructive" });
         } else {
-            const enhancedUsers = (data || []).map((currentUser) => ({
-                ...currentUser,
-                display_role: resolvePrimaryRole(
-                    {
-                        id: currentUser.id,
-                        role: currentUser.role,
-                        titles: currentUser.titles,
-                    },
-                    syncState,
-                    currentUser.role || 'Usuário'
-                ),
-            }));
+            const manualRoleMetadataByUserId = await fetchManualRoleMetadataByUserId((data || []).map((currentUser) => currentUser.id));
+            const enhancedUsers = (data || []).map((currentUser) => {
+                const currentProfile = {
+                    ...currentUser,
+                    ...(manualRoleMetadataByUserId[currentUser.id] || {}),
+                };
+
+                return {
+                    ...currentProfile,
+                    display_role: resolvePrimaryRole(
+                        {
+                            id: currentProfile.id,
+                            role: currentProfile.role,
+                            titles: currentProfile.titles,
+                            manual_role_override: currentProfile.manual_role_override,
+                            role_assigned_at: currentProfile.role_assigned_at,
+                        },
+                        syncState,
+                        currentProfile.role || 'Usuário'
+                    ),
+                };
+            });
 
             setUsers(enhancedUsers);
             const max = Math.max(...enhancedUsers.map(u => u.balance || 0), 1000000);

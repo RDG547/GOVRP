@@ -39,7 +39,7 @@ const CandidacyManagement = () => {
     const [filterElection, setFilterElection] = useState('all');
     const [searchTerm, setSearchTerm] = useState('');
     const [editForm, setEditForm] = useState({ political_name: '', bio: '', proposals: '' });
-    const [collapsedElectionIds, setCollapsedElectionIds] = useState([]);
+    const [expandedElectionIds, setExpandedElectionIds] = useState([]);
 
     const { toast } = useToast();
 
@@ -195,7 +195,7 @@ const CandidacyManagement = () => {
     }
 
     const toggleElectionGroup = (electionId) => {
-        setCollapsedElectionIds((current) =>
+        setExpandedElectionIds((current) =>
             current.includes(electionId)
                 ? current.filter((id) => id !== electionId)
                 : [...current, electionId]
@@ -247,7 +247,7 @@ const CandidacyManagement = () => {
                 <div className="space-y-8">
                     {orderedGroups.map((group) => {
                         const pendingCount = group.candidates.filter((candidate) => candidate.status === 'Pendente').length;
-                        const isCollapsed = collapsedElectionIds.includes(group.election.id);
+                        const isCollapsed = !expandedElectionIds.includes(group.election.id);
                         const ToggleIcon = isCollapsed ? ChevronDown : ChevronUp;
 
                         return (

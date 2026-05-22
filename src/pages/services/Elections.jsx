@@ -311,6 +311,8 @@ const ExecutiveConstitutionCard = ({ executiveState }) => {
     const viceParty = presidentParty;
     const currentTermLabel = executiveState.currentTerm
       ? `${format(new Date(executiveState.currentTerm.term_start_at), 'dd/MM/yyyy HH:mm', { locale: ptBR })} até ${format(new Date(executiveState.currentTerm.term_end_at), 'dd/MM/yyyy HH:mm', { locale: ptBR })}`
+      : executiveState.manualExecutiveOfficeActive
+        ? 'Cargo executivo atribuído manualmente pelo admin, válido até nova eleição presidencial consolidada.'
       : 'Nenhum mandato presidencial mensal ativo foi identificado.';
 
     return (
@@ -388,7 +390,11 @@ const ExecutiveConstitutionCard = ({ executiveState }) => {
                 )}
                 <div>
                   <p className="font-semibold text-foreground">
-                    {executiveState.isVacant ? 'Vacância presidencial identificada' : 'Mandato presidencial ativo'}
+                    {executiveState.isVacant
+                      ? 'Vacância presidencial identificada'
+                      : executiveState.manualExecutiveOfficeActive
+                        ? 'Cargos executivos ativos'
+                        : 'Mandato presidencial ativo'}
                   </p>
                   <p className="text-sm text-muted-foreground mt-1">
                     {executiveState.isVacant

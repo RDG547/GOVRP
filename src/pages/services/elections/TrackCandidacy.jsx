@@ -6,6 +6,7 @@ import { Loader2, FileCheck2, FileX2, Clock, HelpCircle, Trash2 } from 'lucide-r
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { fetchWithSessionAuth } from '@/lib/apiAuth';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -50,7 +51,7 @@ const TrackCandidacy = () => {
   const [candidacies, setCandidacies] = useState([]);
   const [pendingViceRequests, setPendingViceRequests] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [cancelingId, setCancelingId] = useState(null);
+  const [cancelingTarget, setCancelingTarget] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
   const fetchCandidacies = useCallback(async () => {
@@ -94,21 +95,30 @@ const TrackCandidacy = () => {
   }, [fetchCandidacies]);
 
   const handleCancelCandidacy = async () => {
-    if (!cancelingId) return;
+    if (!cancelingTarget?.id) return;
     setIsDeleting(true);
     try {
-      const { error } = await supabase
-        .from('candidates')
-        .delete()
-        .eq('id', cancelingId);
-      if (error) throw error;
-      toast({ title: "Candidatura cancelada", description: "Sua candidatura foi removida com sucesso." });
+      const response = await fetchWithSessionAuth('/api/elections/cancel-candidacy', {
+        method: 'POST',
+        body: JSON.stringify(
+          cancelingTarget.type === 'tracker'
+            ? { trackerNotificationId: cancelingTarget.id }
+            : { candidateId: cancelingTarget.id }
+        ),
+      });
+      const payload = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(payload?.error || 'Nao foi possivel retirar a candidatura.');
+      }
+
+      toast({ title: "Candidatura cancelada", description: payload.message || "Sua candidatura foi removida com sucesso." });
       fetchCandidacies();
     } catch (error) {
       toast({ title: "Erro ao cancelar", description: error.message, variant: "destructive" });
     } finally {
       setIsDeleting(false);
-      setCancelingId(null);
+      setCancelingTarget(null);
     }
   };
 
@@ -154,6 +164,15 @@ const TrackCandidacy = () => {
                       Registrado em: {new Date(request.created_at).toLocaleString('pt-BR')}
                     </p>
                   </div>
+                  {!isRejected && (
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => setCancelingTarget({ id: request.id, type: 'tracker', name: request.metadata?.political_name })}
+                    >
+                      <Trash2 className="w-4 h-4 mr-2" /> Retirar
+                    </Button>
+                  )}
                 </CardContent>
               </Card>
             );
@@ -189,7 +208,7 @@ const TrackCandidacy = () => {
                     <Button 
                       variant="destructive" 
                       size="sm"
-                      onClick={() => setCancelingId(candidacy.id)}
+                      onClick={() => setCancelingTarget({ id: candidacy.id, type: 'candidate', name: candidacy.political_name })}
                     >
                       <Trash2 className="w-4 h-4 mr-2" /> Cancelar
                     </Button>
@@ -205,12 +224,12 @@ const TrackCandidacy = () => {
         </div>
       )}
 
-      <AlertDialog open={!!cancelingId} onOpenChange={() => setCancelingId(null)}>
+      <AlertDialog open={!!cancelingTarget} onOpenChange={() => setCancelingTarget(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Cancelar Candidatura</AlertDialogTitle>
             <AlertDialogDescription>
-              Tem certeza que deseja cancelar esta candidatura? Esta ação é irreversível e você precisará registrar uma nova candidatura se desejar concorrer.
+              Tem certeza que deseja cancelar esta candidatura? Esta acao e irreversivel e voce precisara registrar uma nova candidatura se desejar concorrer.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

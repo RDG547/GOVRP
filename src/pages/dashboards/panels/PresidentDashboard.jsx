@@ -1065,6 +1065,11 @@ const ConstitutionalStatusCard = ({ executiveState }) => {
     const currentPresident = executiveState?.currentPresidentProfile?.full_name || 'Sem presidente em exercício';
     const currentVice = executiveState?.currentViceProfile?.full_name || 'Vice-Presidente não definido';
     const actingAuthority = executiveState?.actingAuthority?.profile?.full_name || executiveState?.actingAuthority?.label || 'Conselho dos Administradores (CDA)';
+    const currentTermLabel = currentTerm
+        ? `${new Date(currentTerm.term_start_at).toLocaleString('pt-BR')} até ${new Date(currentTerm.term_end_at).toLocaleString('pt-BR')}`
+        : executiveState?.manualExecutiveOfficeActive
+            ? 'Cargo executivo atribuído manualmente pelo admin, válido até nova eleição presidencial consolidada.'
+            : 'Nenhum mandato ativo identificado no histórico eleitoral.';
 
     return (
         <Card className="glass-effect">
@@ -1089,11 +1094,7 @@ const ConstitutionalStatusCard = ({ executiveState }) => {
                     </div>
                     <div className="rounded-xl border border-white/10 bg-white/5 p-4">
                         <p className="text-sm text-muted-foreground">Mandato mensal</p>
-                        <p className="text-sm font-medium text-foreground mt-1">
-                            {currentTerm
-                                ? `${new Date(currentTerm.term_start_at).toLocaleString('pt-BR')} até ${new Date(currentTerm.term_end_at).toLocaleString('pt-BR')}`
-                                : 'Nenhum mandato ativo identificado no histórico eleitoral.'}
-                        </p>
+                        <p className="text-sm font-medium text-foreground mt-1">{currentTermLabel}</p>
                     </div>
                 </div>
 
@@ -2361,6 +2362,10 @@ const PresidentDashboard = () => {
         .slice(0, 5);
     const currentPresidentName = executiveState?.currentPresidentProfile?.full_name || 'Cargo vago';
     const currentViceName = executiveState?.currentViceProfile?.full_name || 'Sem vice em exercício';
+    const executiveMandateLabel = executiveState?.currentTerm?.name
+        || (executiveState?.manualExecutiveOfficeActive
+            ? 'Cargo atribuído manualmente pelo admin'
+            : 'Nenhum mandato ativo identificado');
 
     return (
         <>
@@ -2403,7 +2408,7 @@ const PresidentDashboard = () => {
                                     <div className="rounded-lg border border-white/10 bg-black/20 p-4">
                                         <p className="text-xs uppercase text-muted-foreground">Vice-Presidência</p>
                                         <p className="mt-2 text-lg font-semibold text-foreground">{currentViceName}</p>
-                                        <p className="text-sm text-muted-foreground">{executiveState?.currentTerm?.name || 'Nenhum mandato ativo identificado'}</p>
+                                        <p className="text-sm text-muted-foreground">{executiveMandateLabel}</p>
                                     </div>
                                     <div className="rounded-lg border border-white/10 bg-black/20 p-4 sm:col-span-2">
                                         <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">

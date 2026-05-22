@@ -54,6 +54,7 @@ import BusinessBalancePopup from '@/components/BusinessBalancePopup';
 import ElectionOfficeAwardPopup from '@/components/ElectionOfficeAwardPopup';
 import SalaryPaymentPopup from '@/components/SalaryPaymentPopup';
 import ViceCandidacyDecisionPopup from '@/components/ViceCandidacyDecisionPopup';
+import UserActivityTracker from '@/components/UserActivityTracker';
 import { InternetSpeedProvider } from '@/contexts/InternetSpeedContext';
 
 import SocialX from '@/pages/services/SocialX';
@@ -267,6 +268,7 @@ const AppShell = ({ location, theme, isAuthCallback }) => {
             </InternetSpeedProvider>
           </PrisonRouteGuard>
           <Toaster />
+          {!isAuthCallback && <UserActivityTracker />}
           {!isAuthCallback && <CookieConsent />}
           {!isAuthCallback && <DailyCheckInPopup />}
           {!isAuthCallback && <SalaryPaymentPopup />}

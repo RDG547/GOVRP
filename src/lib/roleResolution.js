@@ -28,6 +28,42 @@ const todayDate = () => new Date().toISOString().slice(0, 10);
 const SENATE_PARLIAMENTARY_ROLES = ['Senador', 'Presidente do Senado', 'Vice-Presidente do Senado', 'Vice-Presidente do Senado Federal'];
 const CHAMBER_PARLIAMENTARY_ROLES = ['Deputado', 'Presidente da Câmara', 'Presidente da Câmara dos Deputados', 'Vice-Presidente da Câmara dos Deputados'];
 const TERM_BOUND_OFFICE_ROLES = ['Presidente', 'Vice-Presidente', 'Deputado', 'Senador'];
+const isManualRoleOverride = (profile = {}) => profile?.manual_role_override === true;
+
+const getProfileRolesAffectedByElectionOffice = (officeRole) => {
+  if (officeRole === 'Presidente') {
+    return ['Presidente', 'Vice-Presidente'];
+  }
+
+  if (officeRole === 'Deputado' || officeRole === 'Senador') {
+    return [officeRole];
+  }
+
+  return [];
+};
+
+export const isManualElectionRoleSuperseded = (profile = {}, syncState = null) => {
+  if (!isManualRoleOverride(profile) || !profile?.role || !profile?.role_assigned_at) {
+    return false;
+  }
+
+  const assignedAtMs = new Date(profile.role_assigned_at).getTime();
+
+  if (!Number.isFinite(assignedAtMs)) {
+    return false;
+  }
+
+  const settlements = Array.isArray(syncState?.settlements) ? syncState.settlements : [];
+
+  return settlements.some((settlement) => {
+    if (!getProfileRolesAffectedByElectionOffice(settlement?.office_role).includes(profile.role)) {
+      return false;
+    }
+
+    const termStartMs = new Date(settlement?.term_start_at).getTime();
+    return Number.isFinite(termStartMs) && termStartMs > assignedAtMs;
+  });
+};
 
 export const getStoredTitles = (profile = {}) =>
   Array.isArray(profile?.titles) ? profile.titles.filter(Boolean) : [];
@@ -35,7 +71,12 @@ export const getStoredTitles = (profile = {}) =>
 export const getProfileRolePool = (profile = {}, syncState = null) => {
   const activeElectionRoles = resolveActiveElectionOfficeRolesForUser(syncState, profile?.id);
   const activeElectionRoleSet = new Set(activeElectionRoles);
-  const includeStoredRole = (role) => role && (!TERM_BOUND_OFFICE_ROLES.includes(role) || activeElectionRoleSet.has(role));
+  const manualOverrideActive = isManualRoleOverride(profile) && !isManualElectionRoleSuperseded(profile, syncState);
+  const includeStoredRole = (role) =>
+    role &&
+    (!TERM_BOUND_OFFICE_ROLES.includes(role) ||
+      activeElectionRoleSet.has(role) ||
+      manualOverrideActive);
   const storedRoles = [
     includeStoredRole(profile?.role) ? profile.role : null,
     ...getStoredTitles(profile).filter(includeStoredRole),
@@ -56,11 +97,15 @@ export const resolvePrimaryRoleFromPool = (rolePool = [], fallbackRole = 'Usuár
   rolePool.find(Boolean) ||
   fallbackRole;
 
-export const resolvePrimaryRole = (profile = {}, syncState = null, fallbackRole = null) =>
-  resolvePrimaryRoleFromPool(
-    getProfileRolePool(profile, syncState),
-    fallbackRole || profile?.role || 'Usuário'
-  );
+export const resolvePrimaryRole = (profile = {}, syncState = null, fallbackRole = null) => {
+  const rolePool = getProfileRolePool(profile, syncState);
+  const fallback = fallbackRole || profile?.role || 'Usuário';
+  const safeFallback = TERM_BOUND_OFFICE_ROLES.includes(fallback) && !rolePool.includes(fallback)
+    ? 'Cidadão'
+    : fallback;
+
+  return resolvePrimaryRoleFromPool(rolePool, safeFallback);
+};
 
 export const isActiveDateOnly = (dateValue) => !dateValue || dateValue >= todayDate();
 

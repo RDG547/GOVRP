@@ -121,6 +121,14 @@ const normalizeTitles = (titles) => {
   return [...new Set(titles.map((title) => trimString(title)).filter(Boolean))];
 };
 
+const BASE_CITIZEN_ROLES = new Set(['Usuário', 'Cidadão']);
+const MISSING_COLUMN_ERROR_CODES = new Set(['42703', 'PGRST204', 'PGRST205']);
+
+const shouldRetryWithoutRoleOverrideColumns = (error) =>
+  error &&
+  (MISSING_COLUMN_ERROR_CODES.has(error.code) ||
+    /manual_role_override|role_assigned_at|role_assigned_by/i.test(error.message || ''));
+
 const todayDate = () => new Date().toISOString().slice(0, 10);
 
 const addOneMonth = (dateValue) => {
@@ -221,7 +229,7 @@ const syncParliamentMembershipForRole = async (supabase, { userId, role }) => {
   }
 };
 
-const updateUserProfile = async (supabase, payload) => {
+const updateUserProfile = async (supabase, payload, adminUserId = null) => {
   const userId = trimString(payload?.userId);
   const fullName = trimString(payload?.fullName);
   const username = trimString(payload?.username);
@@ -240,17 +248,38 @@ const updateUserProfile = async (supabase, payload) => {
     throw createHttpError('Informe o nome de usuário.', 400);
   }
 
-  const { data: updatedProfile, error: updateError } = await supabase
+  const manualRoleOverride = !BASE_CITIZEN_ROLES.has(role);
+  const baseUpdatePayload = {
+    full_name: fullName,
+    username,
+    role,
+    titles,
+  };
+  const roleOverridePayload = {
+    ...baseUpdatePayload,
+    manual_role_override: manualRoleOverride,
+    role_assigned_at: manualRoleOverride ? new Date().toISOString() : null,
+    role_assigned_by: manualRoleOverride ? adminUserId : null,
+  };
+
+  let { data: updatedProfile, error: updateError } = await supabase
     .from('profiles')
-    .update({
-      full_name: fullName,
-      username,
-      role,
-      titles,
-    })
+    .update(roleOverridePayload)
     .eq('id', userId)
-    .select('id, full_name, username, role, titles')
+    .select('id, full_name, username, role, titles, manual_role_override')
     .single();
+
+  if (shouldRetryWithoutRoleOverrideColumns(updateError)) {
+    const retryResponse = await supabase
+      .from('profiles')
+      .update(baseUpdatePayload)
+      .eq('id', userId)
+      .select('id, full_name, username, role, titles')
+      .single();
+
+    updatedProfile = retryResponse.data;
+    updateError = retryResponse.error;
+  }
 
   if (updateError) {
     if (updateError.code === '23505') {
@@ -272,9 +301,9 @@ export const adminUpdateUserHandler = async (request, response) => {
 
   try {
     const supabase = getServerSupabase();
-    await ensureAdminRequester(supabase, request);
+    const adminUser = await ensureAdminRequester(supabase, request);
     const body = await readJsonBody(request);
-    const updatedProfile = await updateUserProfile(supabase, body);
+    const updatedProfile = await updateUserProfile(supabase, body, adminUser.id);
 
     json(response, 200, {
       success: true,

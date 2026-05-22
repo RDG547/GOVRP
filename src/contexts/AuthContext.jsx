@@ -7,6 +7,7 @@ import {
   resolveActiveElectionOfficeRolesForUser,
   syncElectionOffices,
 } from '@/lib/electionOfficeSync';
+import { isManualElectionRoleSuperseded } from '@/lib/roleResolution';
 
 const AuthContext = createContext();
 const AUTH_FAILURE_MESSAGE = 'Credenciais inválidas. Verifique seus dados e tente novamente.';
@@ -53,9 +54,18 @@ export const AuthProvider = ({ children }) => {
           return null;
         }),
       ]);
-      const effectiveRoles = new Set([profile.role].filter(Boolean));
       const grantedOfficeRoles = resolveActiveElectionOfficeRolesForUser(electionOfficeState, profile.id);
       const grantedOfficeRoleSet = new Set(grantedOfficeRoles);
+      const hasManualRoleOverride =
+        profile.manual_role_override === true &&
+        !isManualElectionRoleSuperseded(profile, electionOfficeState);
+      const shouldExposeStoredRole =
+        profile.role &&
+        (!TERM_BOUND_OFFICE_ROLES.has(profile.role) ||
+          grantedOfficeRoleSet.has(profile.role) ||
+          hasManualRoleOverride);
+      const displayRole = shouldExposeStoredRole ? profile.role : 'Cidadão';
+      const effectiveRoles = new Set([displayRole].filter(Boolean));
       const titleRoles = Array.isArray(profile?.titles)
         ? profile.titles.filter((title) => {
             if (!EFFECTIVE_ROLE_TITLES.has(title)) {
@@ -106,6 +116,8 @@ export const AuthProvider = ({ children }) => {
 
       return {
         ...profile,
+        stored_role: profile.role,
+        role: displayRole,
         effective_roles: [...effectiveRoles],
         executive_ticket_role: executiveTicketRole,
         acting_executive_authority: Boolean(
@@ -114,9 +126,15 @@ export const AuthProvider = ({ children }) => {
       };
     } catch (error) {
       console.error('Error resolving effective executive roles:', error);
+      const fallbackRole =
+        TERM_BOUND_OFFICE_ROLES.has(profile.role) && profile.manual_role_override !== true
+          ? 'Cidadão'
+          : profile.role;
       return {
         ...profile,
-        effective_roles: [profile.role].filter(Boolean),
+        stored_role: profile.role,
+        role: fallbackRole,
+        effective_roles: [fallbackRole].filter(Boolean),
       };
     }
   }, []);
