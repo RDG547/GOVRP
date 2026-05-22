@@ -47,7 +47,8 @@ export const rebalanceGovernmentBudgetAreas = (budgetAreas = [], treasuryBalance
     }));
   }
 
-  if (currentTotal === 0 || currentTotal === safeTreasuryBalance) {
+  // Saldo livre do cofre deve continuar livre; só reduzimos alocações quando elas excedem o cofre.
+  if (currentTotal === 0 || currentTotal <= safeTreasuryBalance) {
     return hydratedAreas;
   }
 
