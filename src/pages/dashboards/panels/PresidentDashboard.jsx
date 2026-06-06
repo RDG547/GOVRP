@@ -1604,6 +1604,13 @@ const ENTERPRISE_COST_LABELS = {
 };
 
 const WEEKS_PER_MONTH = 4.345;
+const DEFAULT_ENTERPRISE_FORM = {
+    name: '',
+    sector: '',
+    description: '',
+    market_value: 'R$ 1.000.000,00',
+    health_score: 75,
+};
 
 const normalizeEnterpriseCosts = (value = {}) =>
     Object.keys(ENTERPRISE_COST_LABELS).reduce((accumulator, key) => {
@@ -1613,6 +1620,11 @@ const normalizeEnterpriseCosts = (value = {}) =>
 
 const sumEnterpriseCosts = (costs = {}) =>
     Object.values(costs || {}).reduce((sum, current) => sum + Number(current || 0), 0);
+
+const getEnterpriseHealthScore = (enterprise) =>
+    Math.min(100, Math.max(0, Number(enterprise?.health_score ?? 75)));
+
+const getEnterpriseMarketValue = (enterprise) => Number(enterprise?.market_value || 0);
 
 const EnterpriseDetailView = ({ enterprise, onBack, onUpdate }) => {
     const { toast } = useToast();
@@ -1678,6 +1690,8 @@ const EnterpriseDetailView = ({ enterprise, onBack, onUpdate }) => {
 
     const totalMonthlyCost = sumEnterpriseCosts(costs);
     const totalWeeklyCost = totalMonthlyCost / WEEKS_PER_MONTH;
+    const marketValue = getEnterpriseMarketValue(enterprise);
+    const healthScore = getEnterpriseHealthScore(enterprise);
 
     if (loadingData) return <div className="flex justify-center py-8"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
 
@@ -1714,6 +1728,28 @@ const EnterpriseDetailView = ({ enterprise, onBack, onUpdate }) => {
                     </CardHeader>
                 </Card>
             ) : null}
+
+            <Card className="glass-effect border-emerald-500/20">
+                <CardHeader>
+                    <CardTitle className="text-lg flex items-center gap-2"><Scale className="w-5 h-5 text-emerald-400" /> Valor e Saúde da Estatal</CardTitle>
+                    <CardDescription>
+                        O balanço semanal usa estes indicadores para calibrar lucro, prejuízo e impacto no cofre público.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent className="grid gap-4 sm:grid-cols-2">
+                    <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+                        <p className="text-xs uppercase tracking-wide text-muted-foreground">Valor de mercado</p>
+                        <p className="mt-2 text-2xl font-bold text-foreground">{formatCurrency(marketValue)}</p>
+                    </div>
+                    <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+                        <div className="flex items-center justify-between">
+                            <p className="text-xs uppercase tracking-wide text-muted-foreground">Saúde operacional</p>
+                            <span className={healthScore >= 70 ? 'text-emerald-300' : healthScore >= 40 ? 'text-amber-300' : 'text-red-300'}>{healthScore}%</span>
+                        </div>
+                        <Progress value={healthScore} className="mt-3 h-3" />
+                    </div>
+                </CardContent>
+            </Card>
 
             <Card className="glass-effect border-amber-500/20">
                 <CardHeader>
@@ -1804,7 +1840,7 @@ const StateEnterpriseManager = ({ onUpdate }) => {
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [editingEnterprise, setEditingEnterprise] = useState(null);
     const [selectedEnterprise, setSelectedEnterprise] = useState(null);
-    const [form, setForm] = useState({ name: '', sector: '', description: '' });
+    const [form, setForm] = useState(() => ({ ...DEFAULT_ENTERPRISE_FORM }));
     const [saving, setSaving] = useState(false);
     const [servicePrices, setServicePrices] = useState({});
     const [savingPricesFor, setSavingPricesFor] = useState(null);
@@ -1836,13 +1872,19 @@ const StateEnterpriseManager = ({ onUpdate }) => {
 
     const openCreate = () => {
         setEditingEnterprise(null);
-        setForm({ name: '', sector: '', description: '' });
+        setForm({ ...DEFAULT_ENTERPRISE_FORM });
         setIsDialogOpen(true);
     };
 
     const openEdit = (enterprise) => {
         setEditingEnterprise(enterprise);
-        setForm({ name: enterprise.name, sector: enterprise.sector, description: enterprise.description || '' });
+        setForm({
+            name: enterprise.name,
+            sector: enterprise.sector,
+            description: enterprise.description || '',
+            market_value: formatCurrency(getEnterpriseMarketValue(enterprise), true),
+            health_score: getEnterpriseHealthScore(enterprise),
+        });
         setIsDialogOpen(true);
     };
 
@@ -1852,10 +1894,18 @@ const StateEnterpriseManager = ({ onUpdate }) => {
             return;
         }
         setSaving(true);
+        const enterprisePayload = {
+            name: form.name.trim(),
+            sector: form.sector,
+            description: form.description.trim(),
+            market_value: parseCurrency(form.market_value),
+            health_score: Number(form.health_score || 0),
+            updated_at: new Date().toISOString(),
+        };
         if (editingEnterprise) {
             const { error } = await supabase
                 .from('state_enterprises')
-                .update({ name: form.name.trim(), sector: form.sector, description: form.description.trim(), updated_at: new Date().toISOString() })
+                .update(enterprisePayload)
                 .eq('id', editingEnterprise.id);
             if (error) {
                 toast({ title: 'Erro ao atualizar', description: error.message, variant: 'destructive' });
@@ -1871,7 +1921,7 @@ const StateEnterpriseManager = ({ onUpdate }) => {
         } else {
             const { error } = await supabase
                 .from('state_enterprises')
-                .insert({ name: form.name.trim(), sector: form.sector, description: form.description.trim(), created_by: user?.id });
+                .insert({ ...enterprisePayload, created_by: user?.id });
             if (error) {
                 toast({ title: 'Erro ao criar estatal', description: error.message, variant: 'destructive' });
             } else {
@@ -2027,6 +2077,8 @@ const StateEnterpriseManager = ({ onUpdate }) => {
                         const isNationalBank = isNationalBankEnterprise(enterprise);
                         const enterpriseCosts = normalizeEnterpriseCosts(enterpriseCostsMap[enterprise.id]);
                         const monthlyCost = sumEnterpriseCosts(enterpriseCosts);
+                        const marketValue = getEnterpriseMarketValue(enterprise);
+                        const healthScore = getEnterpriseHealthScore(enterprise);
                         return (
                             <Card key={enterprise.id} className="glass-effect cursor-pointer hover:border-primary/50 transition-colors" onClick={() => setSelectedEnterprise(enterprise)}>
                                 <CardHeader className="pb-3">
@@ -2057,7 +2109,8 @@ const StateEnterpriseManager = ({ onUpdate }) => {
                                     </CardContent>
                                 )}
                                 <CardContent className="pt-0 pb-3">
-                                    <div className="rounded-xl border border-white/10 bg-black/20 p-3">
+                                    <div className="grid gap-3 sm:grid-cols-2">
+                                      <div className="rounded-xl border border-white/10 bg-black/20 p-3">
                                         <div className="flex items-center justify-between gap-3">
                                             <div>
                                                 <p className="text-xs uppercase tracking-wide text-muted-foreground">Custos operacionais</p>
@@ -2068,6 +2121,23 @@ const StateEnterpriseManager = ({ onUpdate }) => {
                                         <p className="mt-2 text-xs text-muted-foreground">
                                             Funcionários: {formatCurrency(enterpriseCosts.employees)} • Infraestrutura: {formatCurrency(enterpriseCosts.infrastructure)}
                                         </p>
+                                      </div>
+                                      <div className="rounded-xl border border-white/10 bg-black/20 p-3">
+                                        <div className="flex items-center justify-between gap-3">
+                                            <div>
+                                                <p className="text-xs uppercase tracking-wide text-muted-foreground">Valor de mercado</p>
+                                                <p className="mt-1 text-lg font-semibold text-foreground">{formatCurrency(marketValue)}</p>
+                                            </div>
+                                            <Scale className="h-5 w-5 text-emerald-400" />
+                                        </div>
+                                        <div className="mt-2">
+                                            <div className="mb-1 flex justify-between text-xs text-muted-foreground">
+                                                <span>Saúde operacional</span>
+                                                <span>{healthScore}%</span>
+                                            </div>
+                                            <Progress value={healthScore} className="h-2" />
+                                        </div>
+                                      </div>
                                     </div>
                                 </CardContent>
                                 {sectorServices.length > 0 && (
@@ -2176,7 +2246,16 @@ const StateEnterpriseManager = ({ onUpdate }) => {
                         </div>
                         <div>
                             <Label>Setor</Label>
-                            <Select value={form.sector} onValueChange={v => setForm(f => ({ ...f, sector: v }))}>
+                            <Select
+                                value={form.sector}
+                                onValueChange={(value) =>
+                                    setForm((current) => ({
+                                        ...current,
+                                        sector: value,
+                                        name: value === 'Banco Nacional' && !current.name.trim() ? 'Banco Nacional' : current.name,
+                                    }))
+                                }
+                            >
                                 <SelectTrigger><SelectValue placeholder="Selecione o setor" /></SelectTrigger>
                                 <SelectContent>
                                     {ENTERPRISE_SECTORS.map(s => (
@@ -2184,6 +2263,29 @@ const StateEnterpriseManager = ({ onUpdate }) => {
                                     ))}
                                 </SelectContent>
                             </Select>
+                        </div>
+                        <div className="grid gap-4 sm:grid-cols-2">
+                            <div>
+                                <Label>Valor de mercado</Label>
+                                <Input
+                                    value={form.market_value}
+                                    onChange={(event) => setForm((current) => ({ ...current, market_value: formatCurrency(event.target.value, true) }))}
+                                    placeholder="R$ 0,00"
+                                />
+                            </div>
+                            <div>
+                                <div className="flex items-center justify-between">
+                                    <Label>Saúde operacional</Label>
+                                    <span className="text-sm text-muted-foreground">{Number(form.health_score || 0)}%</span>
+                                </div>
+                                <Slider
+                                    value={[Number(form.health_score || 0)]}
+                                    min={0}
+                                    max={100}
+                                    step={1}
+                                    onValueChange={([value]) => setForm((current) => ({ ...current, health_score: value }))}
+                                />
+                            </div>
                         </div>
                         <div>
                             <Label>Descrição</Label>

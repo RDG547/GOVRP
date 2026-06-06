@@ -70,6 +70,15 @@ const randomBetween = (min, max) => min + Math.random() * (max - min);
 
 const dedupe = (values = []) => [...new Set(values.filter(Boolean))];
 
+const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+
+const normalizeHealthScore = (value, fallback = 75) => {
+  const numericValue = Number(value);
+  return clamp(Number.isFinite(numericValue) ? numericValue : fallback, 0, 100);
+};
+
+const normalizeMarketValue = (value) => Math.max(0, Number(value || 0));
+
 const normalizeStatus = (status = '') => `${status || ''}`.trim().toLowerCase();
 
 const getWeeklyEquivalent = (monthlyValue = 0) => roundMoney(Number(monthlyValue || 0) / WEEKS_PER_MONTH);
@@ -174,7 +183,7 @@ const calculateStateEnterpriseBalanceResult = ({
       return appliedPrice <= 0;
     }).length;
 
-    return {
+    return applyStateEnterpriseHealth(enterprise, {
       grossRevenue,
       operatingCost,
       netResult,
@@ -183,7 +192,7 @@ const calculateStateEnterpriseBalanceResult = ({
       subsidyCost: Math.max(0, operatingCost - grossRevenue),
       zeroPriceContracts,
       source: 'service_subscriptions',
-    };
+    });
   }
 
   const fallbackResult = calculateBalanceResult(
@@ -193,12 +202,37 @@ const calculateStateEnterpriseBalanceResult = ({
     economicModifiers
   );
 
-  return {
+  return applyStateEnterpriseHealth(enterprise, {
     ...fallbackResult,
     activeContracts: 0,
     subsidyCost: 0,
     zeroPriceContracts: 0,
     source: 'state_economics_model',
+  });
+};
+
+const applyStateEnterpriseHealth = (enterprise, result) => {
+  const healthScore = normalizeHealthScore(enterprise?.health_score);
+  const marketValue = normalizeMarketValue(enterprise?.market_value);
+  const marketScale = marketValue > 0
+    ? clamp(Math.sqrt(marketValue / 1000000), 0.7, 1.8)
+    : 1;
+  const revenueMultiplier = 0.7 + (healthScore / 100) * 0.6;
+  const costMultiplier = 1.25 - (healthScore / 100) * 0.45;
+  const grossRevenue = roundMoney(Number(result.grossRevenue || 0) * marketScale * revenueMultiplier);
+  const operatingCost = roundMoney(Number(result.operatingCost || 0) * costMultiplier);
+  const netResult = roundMoney(grossRevenue - operatingCost);
+
+  return {
+    ...result,
+    grossRevenue,
+    operatingCost,
+    netResult,
+    resultType: netResult >= 0 ? 'profit' : 'loss',
+    subsidyCost: Math.max(0, operatingCost - grossRevenue),
+    healthScore,
+    marketValue,
+    marketScale,
   };
 };
 
@@ -596,6 +630,9 @@ const processStateEnterpriseBalance = async (
         subsidy_cost: result.subsidyCost,
         zero_price_contracts: result.zeroPriceContracts,
         selic_monthly_rate: economicModifiers.selicMonthlyRate,
+        health_score: result.healthScore,
+        market_value: result.marketValue,
+        market_scale: result.marketScale,
       },
     })
     .select('id')
@@ -628,6 +665,25 @@ const processStateEnterpriseBalance = async (
     if (transactionError) {
       throw transactionError;
     }
+  }
+
+  const currentHealthScore = normalizeHealthScore(enterprise.health_score);
+  const healthDelta = result.netResult >= 0 ? 2 : -3;
+  const nextHealthScore = clamp(Math.round(currentHealthScore + healthDelta), 0, 100);
+  const nextMarketValue = roundMoney(
+    Math.max(0, normalizeMarketValue(enterprise.market_value) + result.netResult * 4)
+  );
+  const { error: enterpriseUpdateError } = await supabase
+    .from('state_enterprises')
+    .update({
+      health_score: nextHealthScore,
+      market_value: nextMarketValue,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', enterprise.id);
+
+  if (enterpriseUpdateError) {
+    throw enterpriseUpdateError;
   }
 
   return {
@@ -823,7 +879,7 @@ export const processWeeklyBusinessBalances = async () => {
       .not('owner_id', 'is', null),
     supabase
       .from('state_enterprises')
-      .select('id, name, sector, is_active, is_privatized, privatization_status')
+      .select('id, name, sector, is_active, is_privatized, privatization_status, market_value, health_score')
       .eq('is_active', true)
       .or('is_privatized.eq.false,is_privatized.is.null'),
     supabase

@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Loader2, ArrowRightLeft, CandlestickChart } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { BANK_POLICY_SETTINGS_KEY, DEFAULT_BANK_POLICY, normalizeBankPolicy } from './BankManagementPanel';
 
 const allCurrencies = [
   { code: 'BRL', name: 'Real Brasileiro', symbol: 'R$', flag: '🇧🇷' },
@@ -25,6 +26,7 @@ const ExchangeTab = ({ onUpdate, account }) => {
   const [toCurrency, setToCurrency] = useState('USD');
   const [result, setResult] = useState(null);
   const [isExchanging, setIsExchanging] = useState(false);
+  const [bankPolicy, setBankPolicy] = useState(() => normalizeBankPolicy(DEFAULT_BANK_POLICY));
   const { toast } = useToast();
 
   const fetchRates = useCallback(async () => {
@@ -47,9 +49,22 @@ const ExchangeTab = ({ onUpdate, account }) => {
     }
   }, [toast]);
 
+  const fetchBankPolicy = useCallback(async () => {
+    const { data, error } = await supabase
+      .from('system_settings')
+      .select('value')
+      .eq('key', BANK_POLICY_SETTINGS_KEY)
+      .maybeSingle();
+
+    if (!error) {
+      setBankPolicy(normalizeBankPolicy(data?.value));
+    }
+  }, []);
+
   useEffect(() => {
     fetchRates();
-  }, [fetchRates]);
+    fetchBankPolicy();
+  }, [fetchRates, fetchBankPolicy]);
 
   useEffect(() => {
     if (!amount || !rates || !fromCurrency || !toCurrency || fromCurrency === toCurrency) {
@@ -69,11 +84,19 @@ const ExchangeTab = ({ onUpdate, account }) => {
       return;
     }
 
-    const brlEquivalent = value / rateFrom;
+    const feeRate = bankPolicy.exchange_fee_free ? 0 : Number(bankPolicy.exchange_fee_rate || 0) / 100;
+    const feeAmount = Math.max(0, value * feeRate);
+    const netAmount = Math.max(0, value - feeAmount);
+    const brlEquivalent = netAmount / rateFrom;
     const convertedAmount = brlEquivalent * rateTo;
 
-    setResult(convertedAmount.toFixed(4));
-  }, [amount, fromCurrency, toCurrency, rates]);
+    setResult({
+      convertedAmount,
+      feeAmount,
+      netAmount,
+      feeRate,
+    });
+  }, [amount, fromCurrency, toCurrency, rates, bankPolicy]);
 
   const handleSwapCurrencies = () => {
     const temp = fromCurrency;
@@ -126,6 +149,14 @@ const ExchangeTab = ({ onUpdate, account }) => {
   const availableCurrencies = ['BRL', ...Object.keys(account?.currency_balances || {})];
 
   const getCurrencySymbol = (code) => allCurrencies.find(c => c.code === code)?.symbol || '';
+  const formatCurrencyAmount = (value, code) =>
+    new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: code,
+      minimumFractionDigits: code === 'JPY' ? 0 : 2,
+      maximumFractionDigits: code === 'JPY' ? 0 : 4,
+    }).format(Number(value || 0));
+  const exchangeFeeRate = bankPolicy.exchange_fee_free ? 0 : Number(bankPolicy.exchange_fee_rate || 0);
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -164,7 +195,9 @@ const ExchangeTab = ({ onUpdate, account }) => {
       <Card className="glass-effect">
         <CardHeader>
           <CardTitle>Operação de Câmbio</CardTitle>
-          <CardDescription>Compre e venda moedas estrangeiras.</CardDescription>
+          <CardDescription>
+            Compre e venda moedas estrangeiras. Taxa do Banco Nacional: {exchangeFeeRate > 0 ? `${exchangeFeeRate.toFixed(2)}%` : 'gratuita'}.
+          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex items-end gap-2">
@@ -197,9 +230,16 @@ const ExchangeTab = ({ onUpdate, account }) => {
           </div>
           <div>
             <Label>Valor estimado ({getCurrencySymbol(toCurrency)})</Label>
-            <Input readOnly value={result || '0.0000'} className="text-lg bg-secondary" />
+            <Input readOnly value={result ? Number(result.convertedAmount || 0).toFixed(4) : '0.0000'} className="text-lg bg-secondary" />
+            {result && !bankPolicy.exchange_fee_free ? (
+              <p className="mt-2 text-xs text-muted-foreground">
+                Taxa estimada: {formatCurrencyAmount(result.feeAmount, fromCurrency)}. Valor convertido após taxa: {formatCurrencyAmount(result.netAmount, fromCurrency)}.
+              </p>
+            ) : (
+              <p className="mt-2 text-xs text-emerald-300">Operação sem taxa de conversão no momento.</p>
+            )}
           </div>
-          <Button onClick={handleExchange} disabled={isExchanging || !result || parseFloat(result) <= 0 || fromCurrency === toCurrency} className="w-full">
+          <Button onClick={handleExchange} disabled={isExchanging || !result || Number(result.convertedAmount || 0) <= 0 || fromCurrency === toCurrency} className="w-full">
             {isExchanging ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <ArrowRightLeft className="w-4 h-4 mr-2" />}
             Realizar Câmbio
           </Button>

@@ -6,11 +6,13 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Slider } from '@/components/ui/slider';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { CheckCircle2, CreditCard, Landmark, Loader2, Percent, Save, XCircle } from 'lucide-react';
-import { formatCurrency, parseCurrency } from '@/lib/utils';
+import { ArrowRightLeft, CheckCircle2, CreditCard, Landmark, Loader2, Percent, Save, User, WalletCards, XCircle } from 'lucide-react';
+import { formatAccount, formatCurrency, parseCurrency } from '@/lib/utils';
 import {
   annualPercentToMonthlyPercent,
   DEFAULT_ECONOMIC_POLICY,
@@ -21,12 +23,24 @@ import {
 
 export const NATIONAL_BANK_PRESIDENT_ROLE = 'Presidente do Banco Nacional';
 export const BANK_POLICY_SETTINGS_KEY = 'bank_policy';
+export const CREDIT_CARD_BRANDS = [
+  { value: 'visa', label: 'Visa' },
+  { value: 'mastercard', label: 'Mastercard' },
+];
+
+const DEFAULT_CREDIT_CARD_BRAND_LIMITS = {
+  visa: 5000,
+  mastercard: 5000,
+};
 
 export const DEFAULT_BANK_POLICY = {
   loan_interest_rate: 2.5,
   credit_card_revolving_rate: 8.9,
   government_debt_interest_rate: 1.75,
   credit_card_default_limit: 5000,
+  credit_card_brand_limits: DEFAULT_CREDIT_CARD_BRAND_LIMITS,
+  exchange_fee_free: true,
+  exchange_fee_rate: 0,
 };
 
 export const canManageNationalBank = (user) => {
@@ -42,6 +56,69 @@ const normalizePolicy = (value = {}) => ({
   ...(value && typeof value === 'object' ? value : {}),
 });
 
+const toSafeNumber = (value, fallback = 0) => {
+  const numericValue = Number(value);
+  return Number.isFinite(numericValue) ? numericValue : fallback;
+};
+
+const normalizeCardBrand = (brand = 'visa') => {
+  const normalized = `${brand || ''}`.trim().toLowerCase();
+
+  if (normalized.includes('master')) {
+    return 'mastercard';
+  }
+
+  return 'visa';
+};
+
+const getBrandLabel = (brand) =>
+  CREDIT_CARD_BRANDS.find((item) => item.value === normalizeCardBrand(brand))?.label || 'Visa';
+
+export const normalizeBankPolicy = (value = {}) => {
+  const basePolicy = normalizePolicy(value);
+  const defaultLimit = Math.max(0, toSafeNumber(basePolicy.credit_card_default_limit, DEFAULT_BANK_POLICY.credit_card_default_limit));
+  const rawBrandLimits =
+    basePolicy.credit_card_brand_limits && typeof basePolicy.credit_card_brand_limits === 'object'
+      ? basePolicy.credit_card_brand_limits
+      : {};
+  const exchangeFeeRate = Math.max(0, toSafeNumber(basePolicy.exchange_fee_rate, 0));
+  const exchangeFeeFree =
+    basePolicy.exchange_fee_free === true ||
+    (basePolicy.exchange_fee_free !== false && exchangeFeeRate <= 0);
+
+  return {
+    ...basePolicy,
+    credit_card_default_limit: defaultLimit,
+    credit_card_brand_limits: CREDIT_CARD_BRANDS.reduce((accumulator, brand) => {
+      accumulator[brand.value] = Math.max(
+        0,
+        toSafeNumber(rawBrandLimits[brand.value], defaultLimit || DEFAULT_CREDIT_CARD_BRAND_LIMITS[brand.value])
+      );
+      return accumulator;
+    }, {}),
+    exchange_fee_rate: exchangeFeeFree ? 0 : exchangeFeeRate,
+    exchange_fee_free: exchangeFeeFree,
+  };
+};
+
+export const getCardBrandDefaultLimit = (policy = DEFAULT_BANK_POLICY, brand = 'visa') => {
+  const normalizedPolicy = normalizeBankPolicy(policy);
+  const normalizedBrand = normalizeCardBrand(brand);
+
+  return (
+    normalizedPolicy.credit_card_brand_limits?.[normalizedBrand] ||
+    normalizedPolicy.credit_card_default_limit ||
+    DEFAULT_CREDIT_CARD_BRAND_LIMITS[normalizedBrand] ||
+    DEFAULT_BANK_POLICY.credit_card_default_limit
+  );
+};
+
+const RATE_TO_SPREAD_FIELD = {
+  loan_interest_rate: 'loan_interest_spread',
+  credit_card_revolving_rate: 'credit_card_revolving_spread',
+  government_debt_interest_rate: 'government_debt_interest_spread',
+};
+
 const isPendingStatus = (status = '') => ['Pendente', 'pending'].includes(status);
 
 const getStatusBadgeClass = (status = '') => {
@@ -56,6 +133,65 @@ const getStatusBadgeClass = (status = '') => {
   return 'border-amber-500/30 bg-amber-500/15 text-amber-300';
 };
 
+const CardLimitControl = ({ card, draft, onDraftChange, onSave, saving, policy }) => {
+  if (!card) {
+    return (
+      <div className="rounded-lg border border-dashed border-white/10 bg-white/5 px-3 py-4 text-center text-xs text-muted-foreground">
+        Sem cartão emitido
+      </div>
+    );
+  }
+
+  const usedLimit = Math.max(0, Number(card.used_limit || 0));
+  const currentLimit = Math.max(0, Number(card.card_limit || 0));
+  const draftLimit = Math.max(0, parseCurrency(draft));
+  const sliderMax = Math.max(
+    10000,
+    usedLimit,
+    currentLimit,
+    draftLimit,
+    getCardBrandDefaultLimit(policy, card.brand)
+  ) * 2;
+  const saveDisabled = saving || draftLimit < usedLimit || Math.abs(draftLimit - currentLimit) < 0.01;
+
+  return (
+    <div className="min-w-[220px] space-y-3 rounded-lg border border-white/10 bg-white/5 p-3">
+      <div className="flex items-center justify-between gap-2">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{getBrandLabel(card.brand)}</p>
+          <p className="text-xs text-muted-foreground">Final {card.card_number?.slice(-4) || '----'}</p>
+        </div>
+        <Badge variant="outline" className="border-white/10 text-xs">
+          Usado {formatCurrency(usedLimit)}
+        </Badge>
+      </div>
+      <Input
+        value={draft || ''}
+        onChange={(event) => onDraftChange(formatCurrency(event.target.value, true))}
+        className="h-8"
+      />
+      <Slider
+        value={[Math.max(usedLimit, Math.min(sliderMax, draftLimit))]}
+        min={usedLimit}
+        max={sliderMax}
+        step={100}
+        onValueChange={([value]) => onDraftChange(formatCurrency(value, true))}
+      />
+      <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+        <span>Atual: {formatCurrency(currentLimit)}</span>
+        <span>Máx. barra: {formatCurrency(sliderMax)}</span>
+      </div>
+      {draftLimit < usedLimit ? (
+        <p className="text-xs text-red-300">O limite não pode ficar abaixo do valor já utilizado.</p>
+      ) : null}
+      <Button size="sm" className="w-full" onClick={onSave} disabled={saveDisabled}>
+        {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+        Salvar limite
+      </Button>
+    </div>
+  );
+};
+
 const BankManagementPanel = () => {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -66,10 +202,15 @@ const BankManagementPanel = () => {
   const [economicPolicy, setEconomicPolicy] = useState(DEFAULT_ECONOMIC_POLICY);
   const [creditApplications, setCreditApplications] = useState([]);
   const [loanApplications, setLoanApplications] = useState([]);
+  const [accounts, setAccounts] = useState([]);
+  const [issuedCards, setIssuedCards] = useState([]);
   const [profilesById, setProfilesById] = useState({});
   const [cardLimits, setCardLimits] = useState({});
+  const [cardBrands, setCardBrands] = useState({});
+  const [issuedCardLimits, setIssuedCardLimits] = useState({});
   const [loanInstallments, setLoanInstallments] = useState({});
   const [feedbackById, setFeedbackById] = useState({});
+  const [savingIssuedCardId, setSavingIssuedCardId] = useState(null);
 
   const canManage = canManageNationalBank(user);
 
@@ -105,11 +246,13 @@ const BankManagementPanel = () => {
 
     setLoading(true);
     try {
-      const [policyResponse, economicPolicyResponse, cardsResponse, loansResponse] = await Promise.all([
+      const [policyResponse, economicPolicyResponse, cardsResponse, loansResponse, accountsResponse, issuedCardsResponse] = await Promise.all([
         supabase.from('system_settings').select('value').eq('key', BANK_POLICY_SETTINGS_KEY).maybeSingle(),
         supabase.from('system_settings').select('value').eq('key', ECONOMIC_POLICY_SETTINGS_KEY).maybeSingle(),
         supabase.from('credit_card_applications').select('*').order('created_at', { ascending: false }).limit(50),
         supabase.from('loan_applications').select('*').order('created_at', { ascending: false }).limit(50),
+        supabase.from('accounts').select('id, user_id, account_number, agency_number, balance').order('created_at', { ascending: false }).limit(200),
+        supabase.from('cards').select('*').order('created_at', { ascending: false }).limit(300),
       ]);
 
       if (policyResponse.error) {
@@ -128,29 +271,59 @@ const BankManagementPanel = () => {
         throw loansResponse.error;
       }
 
+      if (accountsResponse.error) {
+        throw accountsResponse.error;
+      }
+
+      if (issuedCardsResponse.error) {
+        throw issuedCardsResponse.error;
+      }
+
       const normalizedEconomicPolicy = normalizeEconomicPolicy(economicPolicyResponse.data?.value);
-      const normalizedPolicy = normalizeBankPolicyForEconomicPolicy(
-        policyResponse.data?.value,
-        normalizedEconomicPolicy,
-        DEFAULT_BANK_POLICY
+      const normalizedPolicy = normalizeBankPolicy(
+        normalizeBankPolicyForEconomicPolicy(
+          policyResponse.data?.value,
+          normalizedEconomicPolicy,
+          DEFAULT_BANK_POLICY
+        )
       );
       const cardRows = cardsResponse.data || [];
       const loanRows = loansResponse.data || [];
+      const accountRows = accountsResponse.data || [];
+      const issuedCardRows = issuedCardsResponse.data || [];
 
       setEconomicPolicy(normalizedEconomicPolicy);
       setPolicy(normalizedPolicy);
       setCreditApplications(cardRows);
       setLoanApplications(loanRows);
-      setCardLimits((current) => ({
+      setAccounts(accountRows);
+      setIssuedCards(issuedCardRows);
+      setCardBrands((current) => ({
         ...cardRows.reduce((accumulator, application) => {
-          accumulator[application.id] = formatCurrency(
-            Number(application.requested_limit || normalizedPolicy.credit_card_default_limit || 0),
-            true
-          );
+          accumulator[application.id] = normalizeCardBrand(application.approved_brand || application.brand);
           return accumulator;
         }, {}),
         ...current,
       }));
+      setCardLimits((current) =>
+        cardRows.reduce((accumulator, application) => {
+          const brand = normalizeCardBrand(application.approved_brand || application.brand);
+          accumulator[application.id] = formatCurrency(
+            Number(application.requested_limit || getCardBrandDefaultLimit(normalizedPolicy, brand) || 0),
+            true
+          );
+          if (current[application.id]) {
+            accumulator[application.id] = current[application.id];
+          }
+          return accumulator;
+        }, {})
+      );
+      setIssuedCardLimits(
+        issuedCardRows.reduce((accumulator, card) => {
+          accumulator[card.id] = formatCurrency(Number(card.card_limit || 0), true);
+          return accumulator;
+        }, {})
+      );
       setLoanInstallments((current) => ({
         ...loanRows.reduce((accumulator, application) => {
           accumulator[application.id] = String(application.installments || 12);
@@ -162,6 +335,8 @@ const BankManagementPanel = () => {
       await fetchProfiles([
         ...cardRows.map((application) => application.user_id),
         ...loanRows.map((application) => application.user_id),
+        ...accountRows.map((account) => account.user_id),
+        ...issuedCardRows.map((card) => card.user_id),
       ]);
     } catch (error) {
       toast({ title: 'Erro ao carregar gestão bancária', description: error.message, variant: 'destructive' });
@@ -182,15 +357,83 @@ const BankManagementPanel = () => {
     () => loanApplications.filter((application) => isPendingStatus(application.status)),
     [loanApplications]
   );
+  const getProfileName = useCallback(
+    (userId) => profilesById[userId]?.full_name || profilesById[userId]?.username || 'Cidadão',
+    [profilesById]
+  );
+
+  const cardsByUserId = useMemo(
+    () =>
+      issuedCards.reduce((accumulator, card) => {
+        if (!card?.user_id) return accumulator;
+        if (!accumulator[card.user_id]) accumulator[card.user_id] = [];
+        accumulator[card.user_id].push(card);
+        return accumulator;
+      }, {}),
+    [issuedCards]
+  );
+
+  const accountHolders = useMemo(() => {
+    const holdersByUserId = new Map();
+
+    accounts.forEach((account) => {
+      if (account?.user_id) {
+        holdersByUserId.set(account.user_id, { account, userId: account.user_id });
+      }
+    });
+
+    issuedCards.forEach((card) => {
+      if (card?.user_id && !holdersByUserId.has(card.user_id)) {
+        holdersByUserId.set(card.user_id, { account: null, userId: card.user_id });
+      }
+    });
+
+    return [...holdersByUserId.values()].sort((left, right) =>
+      getProfileName(left.userId).localeCompare(getProfileName(right.userId), 'pt-BR')
+    );
+  }, [accounts, issuedCards, profilesById]);
 
   const updatePolicyRate = (field, value) => {
     const nextValue = Number(value);
-    setPolicy((current) => ({ ...current, [field]: Number.isFinite(nextValue) ? nextValue : 0 }));
+    const nextRate = Number.isFinite(nextValue) ? nextValue : 0;
+    const spreadField = RATE_TO_SPREAD_FIELD[field];
+    const selicMonthlyRate = annualPercentToMonthlyPercent(economicPolicy.selic_rate);
+
+    setPolicy((current) => ({
+      ...current,
+      [field]: nextRate,
+      ...(spreadField ? { [spreadField]: Math.max(0, nextRate - selicMonthlyRate) } : {}),
+    }));
+  };
+
+  const updateBrandLimit = (brand, value) => {
+    setPolicy((current) => ({
+      ...current,
+      credit_card_brand_limits: {
+        ...(current.credit_card_brand_limits || {}),
+        [brand]: parseCurrency(value),
+      },
+      credit_card_default_limit: Math.max(
+        parseCurrency(value),
+        Number(current.credit_card_default_limit || 0)
+      ),
+    }));
+  };
+
+  const updateApplicationBrand = (application, brand) => {
+    const normalizedBrand = normalizeCardBrand(brand);
+    setCardBrands((current) => ({ ...current, [application.id]: normalizedBrand }));
+    setCardLimits((current) => ({
+      ...current,
+      [application.id]: formatCurrency(getCardBrandDefaultLimit(policy, normalizedBrand), true),
+    }));
   };
 
   const handleSavePolicy = async () => {
     setSavingPolicy(true);
-    const nextPolicy = normalizeBankPolicyForEconomicPolicy(policy, economicPolicy, DEFAULT_BANK_POLICY);
+    const nextPolicy = normalizeBankPolicy(
+      normalizeBankPolicyForEconomicPolicy(policy, economicPolicy, DEFAULT_BANK_POLICY)
+    );
     const { error } = await supabase
       .from('system_settings')
       .upsert(
@@ -205,7 +448,7 @@ const BankManagementPanel = () => {
     if (error) {
       toast({ title: 'Erro ao salvar taxas', description: error.message, variant: 'destructive' });
     } else {
-      toast({ title: 'Taxas do Banco Nacional atualizadas' });
+      toast({ title: 'Política do Banco Nacional atualizada' });
       fetchData();
     }
     setSavingPolicy(false);
@@ -217,7 +460,11 @@ const BankManagementPanel = () => {
       const isApproval = action === 'approve';
       const rpcName = isApproval ? 'approve_credit_card_application' : 'reject_credit_card_application';
       const params = isApproval
-        ? { p_application_id: application.id, p_card_limit: parseCurrency(cardLimits[application.id]) }
+        ? {
+            p_application_id: application.id,
+            p_card_limit: parseCurrency(cardLimits[application.id]),
+            p_brand: normalizeCardBrand(cardBrands[application.id] || application.brand),
+          }
         : { p_application_id: application.id, p_feedback: feedbackById[application.id] || null };
       const { data, error } = await supabase.rpc(rpcName, params);
 
@@ -261,7 +508,39 @@ const BankManagementPanel = () => {
     }
   };
 
-  const getProfileName = (userId) => profilesById[userId]?.full_name || profilesById[userId]?.username || 'Cidadão';
+  const handleSaveIssuedCardLimit = async (card) => {
+    const nextLimit = parseCurrency(issuedCardLimits[card.id]);
+    const usedLimit = Number(card.used_limit || 0);
+
+    if (nextLimit < usedLimit) {
+      toast({
+        title: 'Limite inválido',
+        description: 'O limite aprovado não pode ser menor do que o valor já utilizado no cartão.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setSavingIssuedCardId(card.id);
+    try {
+      const { data, error } = await supabase.rpc('set_credit_card_limit', {
+        p_card_id: card.id,
+        p_card_limit: nextLimit,
+      });
+
+      if (error || data?.success === false) {
+        throw new Error(data?.message || error?.message || 'Não foi possível atualizar o limite do cartão.');
+      }
+
+      toast({ title: 'Limite atualizado', description: data?.message || 'O limite do cartão foi salvo.' });
+      fetchData();
+    } catch (error) {
+      toast({ title: 'Erro ao atualizar limite', description: error.message, variant: 'destructive' });
+    } finally {
+      setSavingIssuedCardId(null);
+    }
+  };
+
   const selicMonthlyRate = annualPercentToMonthlyPercent(economicPolicy.selic_rate);
 
   if (!canManage) {
@@ -285,7 +564,7 @@ const BankManagementPanel = () => {
         <CardHeader>
           <CardTitle className="flex items-center gap-2"><Landmark className="h-5 w-5 text-emerald-400" /> Gestão do Banco Nacional</CardTitle>
           <CardDescription>
-            Aprove crédito, revise empréstimos e defina a política de juros aplicada pelo banco estatal.
+            Aprove crédito, revise empréstimos, defina limites por bandeira e configure taxas do banco estatal.
             Selic vigente: {Number(economicPolicy.selic_rate || 0).toFixed(2)}% a.a. ({selicMonthlyRate.toFixed(2)}% a.m.).
           </CardDescription>
         </CardHeader>
@@ -315,15 +594,123 @@ const BankManagementPanel = () => {
             <p className="text-xs text-muted-foreground">Spread atual: {Number(policy.government_debt_interest_spread || 0).toFixed(2)} p.p. sobre a Selic mensal.</p>
           </div>
           <div className="space-y-2">
-            <Label>Limite padrão de cartão</Label>
-            <Input value={formatCurrency(policy.credit_card_default_limit || 0, true)} onChange={(event) => setPolicy((current) => ({ ...current, credit_card_default_limit: parseCurrency(event.target.value) }))} />
+            <Label>Limite padrão Visa</Label>
+            <Input
+              value={formatCurrency(policy.credit_card_brand_limits?.visa || 0, true)}
+              onChange={(event) => updateBrandLimit('visa', event.target.value)}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>Limite padrão Mastercard</Label>
+            <Input
+              value={formatCurrency(policy.credit_card_brand_limits?.mastercard || 0, true)}
+              onChange={(event) => updateBrandLimit('mastercard', event.target.value)}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>Taxa de câmbio</Label>
+            <Select
+              value={policy.exchange_fee_free ? 'free' : 'paid'}
+              onValueChange={(value) =>
+                setPolicy((current) => ({
+                  ...current,
+                  exchange_fee_free: value === 'free',
+                  exchange_fee_rate: value === 'free' ? 0 : Number(current.exchange_fee_rate || 0),
+                }))
+              }
+            >
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="free">Gratuita</SelectItem>
+                <SelectItem value="paid">Cobrar taxa</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label>Percentual do câmbio (% por operação)</Label>
+            <div className="flex items-center gap-2">
+              <Input
+                type="number"
+                min="0"
+                step="0.01"
+                disabled={policy.exchange_fee_free}
+                value={policy.exchange_fee_free ? 0 : policy.exchange_fee_rate}
+                onChange={(event) => setPolicy((current) => ({ ...current, exchange_fee_rate: Number(event.target.value || 0), exchange_fee_free: false }))}
+              />
+              <ArrowRightLeft className="h-4 w-4 text-muted-foreground" />
+            </div>
           </div>
           <div className="md:col-span-2 xl:col-span-4">
             <Button onClick={handleSavePolicy} disabled={savingPolicy}>
               {savingPolicy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-              Salvar Política de Juros
+              Salvar Política do Banco
             </Button>
           </div>
+        </CardContent>
+      </Card>
+
+      <Card className="glass-effect">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2"><WalletCards className="h-5 w-5 text-emerald-400" /> Limites por Titular e Bandeira</CardTitle>
+          <CardDescription>
+            Ajuste os limites de cartões emitidos para cada titular. Visa e Mastercard são controlados separadamente.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {accountHolders.length ? (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Titular</TableHead>
+                  <TableHead>Conta</TableHead>
+                  <TableHead>Visa</TableHead>
+                  <TableHead>Mastercard</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {accountHolders.map(({ account, userId }) => {
+                  const userCards = cardsByUserId[userId] || [];
+                  const cardByBrand = CREDIT_CARD_BRANDS.reduce((accumulator, brand) => {
+                    accumulator[brand.value] = userCards.find((card) =>
+                      normalizeCardBrand(card.brand) === brand.value && card.is_active !== false
+                    );
+                    return accumulator;
+                  }, {});
+
+                  return (
+                    <TableRow key={userId}>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <User className="h-4 w-4 text-muted-foreground" />
+                          <span>{getProfileName(userId)}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {account ? `Ag. ${account.agency_number || '0000'} / Cc. ${formatAccount(account.account_number || '')}` : 'Sem conta localizada'}
+                      </TableCell>
+                      {CREDIT_CARD_BRANDS.map((brand) => {
+                        const card = cardByBrand[brand.value];
+                        return (
+                          <TableCell key={brand.value} className="align-top">
+                            <CardLimitControl
+                              card={card}
+                              draft={card ? issuedCardLimits[card.id] : ''}
+                              policy={policy}
+                              saving={savingIssuedCardId === card?.id}
+                              onDraftChange={(value) => setIssuedCardLimits((current) => ({ ...current, [card.id]: value }))}
+                              onSave={() => handleSaveIssuedCardLimit(card)}
+                            />
+                          </TableCell>
+                        );
+                      })}
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          ) : (
+            <p className="py-6 text-center text-muted-foreground">Nenhum titular com conta ou cartão encontrado.</p>
+          )}
         </CardContent>
       </Card>
 
@@ -351,7 +738,20 @@ const BankManagementPanel = () => {
                   return (
                     <TableRow key={application.id}>
                       <TableCell>{getProfileName(application.user_id)}</TableCell>
-                      <TableCell className="capitalize">{application.brand}</TableCell>
+                      <TableCell>
+                        {pending ? (
+                          <Select value={cardBrands[application.id] || normalizeCardBrand(application.brand)} onValueChange={(value) => updateApplicationBrand(application, value)}>
+                            <SelectTrigger className="h-8 w-36"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              {CREDIT_CARD_BRANDS.map((brand) => (
+                                <SelectItem key={brand.value} value={brand.value}>{brand.label}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        ) : (
+                          <span className="capitalize">{getBrandLabel(application.approved_brand || application.brand)}</span>
+                        )}
+                      </TableCell>
                       <TableCell><Badge className={`border ${getStatusBadgeClass(application.status)}`}>{application.status}</Badge></TableCell>
                       <TableCell>
                         {pending ? (
