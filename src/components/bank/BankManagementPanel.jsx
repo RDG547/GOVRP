@@ -11,7 +11,8 @@ import { Slider } from '@/components/ui/slider';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { ArrowRightLeft, CheckCircle2, CreditCard, Landmark, Loader2, Percent, Save, User, WalletCards, XCircle } from 'lucide-react';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { ArrowRightLeft, CheckCircle2, CreditCard, Landmark, Loader2, Percent, Save, WalletCards, XCircle } from 'lucide-react';
 import { formatAccount, formatCurrency, parseCurrency } from '@/lib/utils';
 import {
   annualPercentToMonthlyPercent,
@@ -40,7 +41,9 @@ export const DEFAULT_BANK_POLICY = {
   credit_card_default_limit: 5000,
   credit_card_brand_limits: DEFAULT_CREDIT_CARD_BRAND_LIMITS,
   exchange_fee_free: true,
+  exchange_fee_type: 'percentage',
   exchange_fee_rate: 0,
+  exchange_fee_fixed_amount: 0,
 };
 
 export const canManageNationalBank = (user) => {
@@ -74,6 +77,47 @@ const normalizeCardBrand = (brand = 'visa') => {
 const getBrandLabel = (brand) =>
   CREDIT_CARD_BRANDS.find((item) => item.value === normalizeCardBrand(brand))?.label || 'Visa';
 
+export const getExchangeFeeMode = (policy = DEFAULT_BANK_POLICY) => {
+  if (policy.exchange_fee_free) {
+    return 'free';
+  }
+
+  return policy.exchange_fee_type === 'fixed' ? 'fixed' : 'percentage';
+};
+
+const getProfileInitials = (profile = {}) => {
+  const source = profile.full_name || profile.username || 'Cidadão';
+  const initials = source
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join('')
+    .toUpperCase();
+
+  return initials || 'C';
+};
+
+const CardBrandIcon = ({ brand }) => {
+  const normalizedBrand = normalizeCardBrand(brand);
+
+  if (normalizedBrand === 'mastercard') {
+    return (
+      <span className="relative inline-flex h-7 w-10 shrink-0 items-center justify-center rounded-md border border-white/10 bg-slate-950/70" title="Mastercard">
+        <span className="absolute left-2 h-4 w-4 rounded-full bg-red-500/90" />
+        <span className="absolute right-2 h-4 w-4 rounded-full bg-amber-400/90" />
+        <span className="relative text-[0.48rem] font-black tracking-tight text-white">MC</span>
+      </span>
+    );
+  }
+
+  return (
+    <span className="inline-flex h-7 w-10 shrink-0 items-center justify-center rounded-md border border-blue-300/30 bg-blue-950/80 text-[0.55rem] font-black italic tracking-tight text-blue-100" title="Visa">
+      VISA
+    </span>
+  );
+};
+
 export const normalizeBankPolicy = (value = {}) => {
   const basePolicy = normalizePolicy(value);
   const defaultLimit = Math.max(0, toSafeNumber(basePolicy.credit_card_default_limit, DEFAULT_BANK_POLICY.credit_card_default_limit));
@@ -81,10 +125,18 @@ export const normalizeBankPolicy = (value = {}) => {
     basePolicy.credit_card_brand_limits && typeof basePolicy.credit_card_brand_limits === 'object'
       ? basePolicy.credit_card_brand_limits
       : {};
-  const exchangeFeeRate = Math.max(0, toSafeNumber(basePolicy.exchange_fee_rate, 0));
+  const rawExchangeFeeType =
+    basePolicy.exchange_fee_type === 'fixed' || basePolicy.exchange_fee_type === 'percentage'
+      ? basePolicy.exchange_fee_type
+      : toSafeNumber(basePolicy.exchange_fee_fixed_amount, 0) > 0
+        ? 'fixed'
+        : 'percentage';
+  const exchangeFeeRate = Math.min(100, Math.max(0, toSafeNumber(basePolicy.exchange_fee_rate, 0)));
+  const exchangeFeeFixedAmount = Math.max(0, toSafeNumber(basePolicy.exchange_fee_fixed_amount, 0));
   const exchangeFeeFree =
     basePolicy.exchange_fee_free === true ||
-    (basePolicy.exchange_fee_free !== false && exchangeFeeRate <= 0);
+    (basePolicy.exchange_fee_free !== false &&
+      (rawExchangeFeeType === 'fixed' ? exchangeFeeFixedAmount <= 0 : exchangeFeeRate <= 0));
 
   return {
     ...basePolicy,
@@ -96,7 +148,9 @@ export const normalizeBankPolicy = (value = {}) => {
       );
       return accumulator;
     }, {}),
+    exchange_fee_type: rawExchangeFeeType,
     exchange_fee_rate: exchangeFeeFree ? 0 : exchangeFeeRate,
+    exchange_fee_fixed_amount: exchangeFeeFree ? 0 : exchangeFeeFixedAmount,
     exchange_fee_free: exchangeFeeFree,
   };
 };
@@ -133,10 +187,15 @@ const getStatusBadgeClass = (status = '') => {
   return 'border-amber-500/30 bg-amber-500/15 text-amber-300';
 };
 
-const CardLimitControl = ({ card, draft, onDraftChange, onSave, saving, policy }) => {
+const CardLimitControl = ({ card, brand, draft, onDraftChange, onSave, saving, policy }) => {
+  const displayBrand = card?.brand || brand;
+
   if (!card) {
     return (
       <div className="rounded-lg border border-dashed border-white/10 bg-white/5 px-3 py-4 text-center text-xs text-muted-foreground">
+        <div className="mb-2 flex justify-center">
+          <CardBrandIcon brand={displayBrand} />
+        </div>
         Sem cartão emitido
       </div>
     );
@@ -157,9 +216,12 @@ const CardLimitControl = ({ card, draft, onDraftChange, onSave, saving, policy }
   return (
     <div className="min-w-[220px] space-y-3 rounded-lg border border-white/10 bg-white/5 p-3">
       <div className="flex items-center justify-between gap-2">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{getBrandLabel(card.brand)}</p>
-          <p className="text-xs text-muted-foreground">Final {card.card_number?.slice(-4) || '----'}</p>
+        <div className="flex items-center gap-2">
+          <CardBrandIcon brand={card.brand} />
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{getBrandLabel(card.brand)}</p>
+            <p className="text-xs text-muted-foreground">Final {card.card_number?.slice(-4) || '----'}</p>
+          </div>
         </div>
         <Badge variant="outline" className="border-white/10 text-xs">
           Usado {formatCurrency(usedLimit)}
@@ -223,7 +285,7 @@ const BankManagementPanel = () => {
 
     const { data, error } = await supabase
       .from('profiles')
-      .select('id, full_name, username')
+      .select('id, full_name, username, avatar_url')
       .in('id', ids);
 
     if (error) {
@@ -359,6 +421,10 @@ const BankManagementPanel = () => {
   );
   const getProfileName = useCallback(
     (userId) => profilesById[userId]?.full_name || profilesById[userId]?.username || 'Cidadão',
+    [profilesById]
+  );
+  const getProfile = useCallback(
+    (userId) => profilesById[userId] || {},
     [profilesById]
   );
 
@@ -610,35 +676,69 @@ const BankManagementPanel = () => {
           <div className="space-y-2">
             <Label>Taxa de câmbio</Label>
             <Select
-              value={policy.exchange_fee_free ? 'free' : 'paid'}
+              value={getExchangeFeeMode(policy)}
               onValueChange={(value) =>
                 setPolicy((current) => ({
                   ...current,
                   exchange_fee_free: value === 'free',
+                  exchange_fee_type: value === 'fixed' ? 'fixed' : 'percentage',
                   exchange_fee_rate: value === 'free' ? 0 : Number(current.exchange_fee_rate || 0),
+                  exchange_fee_fixed_amount: value === 'free' ? 0 : Number(current.exchange_fee_fixed_amount || 0),
                 }))
               }
             >
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="free">Gratuita</SelectItem>
-                <SelectItem value="paid">Cobrar taxa</SelectItem>
+                <SelectItem value="percentage">Cobrar em porcentagem</SelectItem>
+                <SelectItem value="fixed">Cobrar valor fixo em R$</SelectItem>
               </SelectContent>
             </Select>
           </div>
           <div className="space-y-2">
-            <Label>Percentual do câmbio (% por operação)</Label>
-            <div className="flex items-center gap-2">
-              <Input
-                type="number"
-                min="0"
-                step="0.01"
-                disabled={policy.exchange_fee_free}
-                value={policy.exchange_fee_free ? 0 : policy.exchange_fee_rate}
-                onChange={(event) => setPolicy((current) => ({ ...current, exchange_fee_rate: Number(event.target.value || 0), exchange_fee_free: false }))}
-              />
-              <ArrowRightLeft className="h-4 w-4 text-muted-foreground" />
-            </div>
+            {getExchangeFeeMode(policy) === 'fixed' ? (
+              <>
+                <Label>Valor do câmbio (R$ por operação)</Label>
+                <div className="flex items-center gap-2">
+                  <Input
+                    disabled={policy.exchange_fee_free}
+                    value={formatCurrency(policy.exchange_fee_fixed_amount || 0, true)}
+                    onChange={(event) =>
+                      setPolicy((current) => ({
+                        ...current,
+                        exchange_fee_fixed_amount: parseCurrency(event.target.value),
+                        exchange_fee_type: 'fixed',
+                        exchange_fee_free: false,
+                      }))
+                    }
+                  />
+                  <ArrowRightLeft className="h-4 w-4 text-muted-foreground" />
+                </div>
+              </>
+            ) : (
+              <>
+                <Label>Percentual do câmbio (% por operação)</Label>
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="0.01"
+                    disabled={policy.exchange_fee_free}
+                    value={policy.exchange_fee_free ? 0 : policy.exchange_fee_rate}
+                    onChange={(event) =>
+                      setPolicy((current) => ({
+                        ...current,
+                        exchange_fee_rate: Math.min(100, Math.max(0, Number(event.target.value || 0))),
+                        exchange_fee_type: 'percentage',
+                        exchange_fee_free: false,
+                      }))
+                    }
+                  />
+                  <Percent className="h-4 w-4 text-muted-foreground" />
+                </div>
+              </>
+            )}
           </div>
           <div className="md:col-span-2 xl:col-span-4">
             <Button onClick={handleSavePolicy} disabled={savingPolicy}>
@@ -658,56 +758,63 @@ const BankManagementPanel = () => {
         </CardHeader>
         <CardContent>
           {accountHolders.length ? (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Titular</TableHead>
-                  <TableHead>Conta</TableHead>
-                  <TableHead>Visa</TableHead>
-                  <TableHead>Mastercard</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {accountHolders.map(({ account, userId }) => {
-                  const userCards = cardsByUserId[userId] || [];
-                  const cardByBrand = CREDIT_CARD_BRANDS.reduce((accumulator, brand) => {
-                    accumulator[brand.value] = userCards.find((card) =>
-                      normalizeCardBrand(card.brand) === brand.value && card.is_active !== false
-                    );
-                    return accumulator;
-                  }, {});
+            <div className={accountHolders.length > 10 ? 'max-h-[75vh] overflow-y-auto pr-2 custom-scrollbar' : ''}>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Titular</TableHead>
+                    <TableHead>Conta</TableHead>
+                    <TableHead>Visa</TableHead>
+                    <TableHead>Mastercard</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {accountHolders.map(({ account, userId }) => {
+                    const profile = getProfile(userId);
+                    const userCards = cardsByUserId[userId] || [];
+                    const cardByBrand = CREDIT_CARD_BRANDS.reduce((accumulator, brand) => {
+                      accumulator[brand.value] = userCards.find((card) =>
+                        normalizeCardBrand(card.brand) === brand.value && card.is_active !== false
+                      );
+                      return accumulator;
+                    }, {});
 
-                  return (
-                    <TableRow key={userId}>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <User className="h-4 w-4 text-muted-foreground" />
-                          <span>{getProfileName(userId)}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
-                        {account ? `Ag. ${account.agency_number || '0000'} / Cc. ${formatAccount(account.account_number || '')}` : 'Sem conta localizada'}
-                      </TableCell>
-                      {CREDIT_CARD_BRANDS.map((brand) => {
-                        const card = cardByBrand[brand.value];
-                        return (
-                          <TableCell key={brand.value} className="align-top">
-                            <CardLimitControl
-                              card={card}
-                              draft={card ? issuedCardLimits[card.id] : ''}
-                              policy={policy}
-                              saving={savingIssuedCardId === card?.id}
-                              onDraftChange={(value) => setIssuedCardLimits((current) => ({ ...current, [card.id]: value }))}
-                              onSave={() => handleSaveIssuedCardLimit(card)}
-                            />
-                          </TableCell>
-                        );
-                      })}
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
+                    return (
+                      <TableRow key={userId}>
+                        <TableCell>
+                          <div className="flex items-center gap-3">
+                            <Avatar className="h-9 w-9 border border-white/10">
+                              <AvatarImage src={profile.avatar_url} alt={getProfileName(userId)} />
+                              <AvatarFallback>{getProfileInitials(profile)}</AvatarFallback>
+                            </Avatar>
+                            <span className="font-medium">{getProfileName(userId)}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">
+                          {account ? `Ag. ${account.agency_number || '0000'} / Cc. ${formatAccount(account.account_number || '')}` : 'Sem conta localizada'}
+                        </TableCell>
+                        {CREDIT_CARD_BRANDS.map((brand) => {
+                          const card = cardByBrand[brand.value];
+                          return (
+                            <TableCell key={brand.value} className="align-top">
+                              <CardLimitControl
+                                card={card}
+                                brand={brand.value}
+                                draft={card ? issuedCardLimits[card.id] : ''}
+                                policy={policy}
+                                saving={savingIssuedCardId === card?.id}
+                                onDraftChange={(value) => setIssuedCardLimits((current) => ({ ...current, [card.id]: value }))}
+                                onSave={() => handleSaveIssuedCardLimit(card)}
+                              />
+                            </TableCell>
+                          );
+                        })}
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
           ) : (
             <p className="py-6 text-center text-muted-foreground">Nenhum titular com conta ou cartão encontrado.</p>
           )}

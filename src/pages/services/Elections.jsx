@@ -71,7 +71,7 @@ const CandidatesList = ({ election, onVote, onNullVote, userVote }) => {
             setLoading(true);
             let { data, error } = await supabase
                 .from('candidates')
-                .select('*, political_parties(acronym, logo_url, ideology), profiles!candidates_user_id_fkey(avatar_url), vice:profiles!candidates_vice_candidate_id_fkey(full_name, avatar_url)')
+                .select('*, political_parties(name, acronym, logo_url, ideology), profiles!candidates_user_id_fkey(avatar_url), vice:profiles!candidates_vice_candidate_id_fkey(full_name, avatar_url)')
                 .eq('status', 'Approved')
                 .eq('election_id', election.id);
 
@@ -102,9 +102,24 @@ const CandidatesList = ({ election, onVote, onNullVote, userVote }) => {
                             </Avatar>
                             <div>
                                 <p className="font-semibold">{candidate.political_name}</p>
-                                <div className="flex items-center gap-1.5">
-                                  <p className="text-sm text-muted-foreground">{candidate.political_parties?.acronym || 'Avulso'}</p>
-                                  {candidate.political_parties?.ideology && <span className="text-xs text-muted-foreground">· {candidate.political_parties.ideology}</span>}
+                                <div className="mt-1 flex items-center gap-2">
+                                  {candidate.political_parties?.logo_url && (
+                                    <img
+                                      src={candidate.political_parties.logo_url}
+                                      alt={candidate.political_parties.acronym || candidate.political_parties.name}
+                                      className="h-6 w-6 rounded-md border border-white/10 bg-secondary object-cover p-0.5"
+                                    />
+                                  )}
+                                  <div className="leading-tight">
+                                    <p className="text-sm text-muted-foreground">
+                                      {candidate.political_parties
+                                        ? `${candidate.political_parties.name} (${candidate.political_parties.acronym})`
+                                        : 'Avulso'}
+                                    </p>
+                                    {candidate.political_parties?.ideology && (
+                                      <span className="text-xs text-muted-foreground">{candidate.political_parties.ideology}</span>
+                                    )}
+                                  </div>
                                 </div>
                                 {election.election_types?.requires_vice_candidate && candidate.vice && (
                                   <div className="flex items-center gap-2 mt-1">
@@ -305,8 +320,11 @@ const ExecutiveConstitutionCard = ({ executiveState }) => {
         return null;
     }
 
+    const viceAssumedPresidency = Boolean(executiveState.viceAssumedPresidency);
     const currentPresident = executiveState.currentPresidentProfile?.full_name || 'Sem presidente em exercício';
-    const currentVice = executiveState.currentViceProfile?.full_name || 'Vice-Presidente não definido';
+    const currentVice = viceAssumedPresidency
+      ? 'Vaga após sucessão presidencial'
+      : executiveState.currentViceProfile?.full_name || 'Vice-Presidente não definido';
     const presidentParty = executiveState.currentTerm?.winner?.party || null;
     const viceParty = presidentParty;
     const currentTermLabel = executiveState.currentTerm
@@ -344,6 +362,9 @@ const ExecutiveConstitutionCard = ({ executiveState }) => {
                   )}
                   <div>
                     <p className="text-lg font-semibold text-foreground">{currentPresident}</p>
+                    {viceAssumedPresidency && (
+                      <p className="text-xs font-medium text-emerald-300">Vice eleito que assumiu a Presidência</p>
+                    )}
                     {presidentParty && (
                       <div className="flex items-center gap-1.5 mt-0.5">
                         {presidentParty.logo_url && <img src={presidentParty.logo_url} alt={presidentParty.acronym} className="w-4 h-4 rounded-full object-cover" />}
@@ -392,6 +413,8 @@ const ExecutiveConstitutionCard = ({ executiveState }) => {
                   <p className="font-semibold text-foreground">
                     {executiveState.isVacant
                       ? 'Vacância presidencial identificada'
+                      : viceAssumedPresidency
+                        ? 'Sucessão presidencial automática'
                       : executiveState.manualExecutiveOfficeActive
                         ? 'Cargos executivos ativos'
                         : 'Mandato presidencial ativo'}
@@ -399,6 +422,8 @@ const ExecutiveConstitutionCard = ({ executiveState }) => {
                   <p className="text-sm text-muted-foreground mt-1">
                     {executiveState.isVacant
                       ? `Na ausência de Presidente em exercício, assume sucessivamente ${executiveState.actingAuthority?.label || 'a autoridade sucessória disponível'}.`
+                      : viceAssumedPresidency
+                        ? 'O vice-presidente assumiu a chefia do Executivo porque a Presidência ficou sem ocupante ativo.'
                       : 'O chefe do Executivo exerce a direção superior da administração federal, sanciona ou veta projetos e pode editar medidas provisórias.'}
                   </p>
                 </div>
@@ -609,7 +634,7 @@ const Elections = () => {
                                         </CardTitle>
                                         {(activeDisplay === 'candidatos' || activeDisplay === 'resultados') && (
                                             <div className="w-full md:w-auto">
-                                                <Select onValueChange={setSelectedElection} defaultValue="all">
+                                                <Select onValueChange={setSelectedElection} value={selectedElection}>
                                                     <SelectTrigger>
                                                         <SelectValue placeholder="Selecione uma eleição" />
                                                     </SelectTrigger>

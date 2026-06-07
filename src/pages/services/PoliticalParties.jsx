@@ -32,6 +32,40 @@ const orientationColors = {
   'Não definido': 'bg-gray-700 hover:bg-gray-600 text-white'
 };
 
+const PARTY_LEADERSHIP_FIELDS = ['owner', 'president', 'vice_president'];
+
+const suppressDuplicatePartyLeaders = (partyList = []) => {
+    const occupiedLeaderParties = new Map();
+
+    return partyList.map((party) => {
+        const normalizedParty = { ...party };
+
+        PARTY_LEADERSHIP_FIELDS.forEach((field) => {
+            const fieldId = `${field}_id`;
+            const conflictKey = `${field}_conflict`;
+            const leaderId = party[fieldId];
+
+            if (!leaderId) {
+                return;
+            }
+
+            const occupiedPartyId = occupiedLeaderParties.get(leaderId);
+            if (occupiedPartyId && occupiedPartyId !== party.id) {
+                normalizedParty[fieldId] = null;
+                normalizedParty[field] = null;
+                normalizedParty[conflictKey] = true;
+                return;
+            }
+
+            if (!occupiedPartyId) {
+                occupiedLeaderParties.set(leaderId, party.id);
+            }
+        });
+
+        return normalizedParty;
+    });
+};
+
 const PoliticalParties = () => {
     const { user } = useAuth();
     const { toast } = useToast();
@@ -57,22 +91,23 @@ const PoliticalParties = () => {
             query = query.eq('orientation', orientationFilter);
         }
 
-        const { data, error } = await query;
+        const { data, error } = await query.order('created_at', { ascending: true });
         if (error) { toast({ title: "Erro ao buscar partidos", description: error.message, variant: "destructive" }); }
+        const normalizedParties = suppressDuplicatePartyLeaders(data || []);
 
         if (user?.id) {
             const { data: memberData } = await supabase.from('party_members').select('*, party:political_parties(*, members:party_members(*, profile:profiles(*)))').eq('user_id', user.id).limit(1).maybeSingle();
             setUserAffiliation(memberData);
             
-            if (memberData && data) {
-                const sortedData = [...data].sort((a, b) => {
+            if (memberData && normalizedParties) {
+                const sortedData = [...normalizedParties].sort((a, b) => {
                     if (a.id === memberData.party_id) return -1;
                     if (b.id === memberData.party_id) return 1;
                     return 0;
                 });
                 setParties(sortedData);
             } else {
-                setParties(data || []);
+                setParties(normalizedParties);
             }
 
             if (!memberData) {
@@ -82,7 +117,7 @@ const PoliticalParties = () => {
               setPendingRequest(null);
             }
         } else {
-            setParties(data || []);
+            setParties(normalizedParties);
         }
         setLoading(false);
     }, [user, toast, orientationFilter]);
@@ -225,12 +260,16 @@ const PoliticalParties = () => {
                                 <motion.div key={party.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
                                     <Card className={`glass-effect flex flex-col h-full hover:border-primary transition-colors duration-300 ${isUserParty ? 'border-primary' : ''} ${!isActive && 'border-dashed border-amber-500'}`}>
                                         <CardHeader>
-                                            <div className="flex items-center gap-4 relative">
-                                                <img src={party.logo_url || `https://api.dicebear.com/7.x/initials/svg?seed=${party.acronym}`} alt={party.name} className="w-16 h-16 rounded-lg bg-secondary p-1 object-cover" />
-                                                <div>
+                                            <div className="relative space-y-3">
+                                                <div className="flex items-center gap-3 pr-8">
+                                                    <img
+                                                      src={party.logo_url || `https://api.dicebear.com/7.x/initials/svg?seed=${party.acronym}`}
+                                                      alt={party.name}
+                                                      className="h-14 w-14 shrink-0 rounded-lg bg-secondary p-1 object-cover"
+                                                    />
                                                     <CardTitle className="text-foreground">{party.name} ({party.acronym})</CardTitle>
-                                                    <CardDescription className="text-muted-foreground">{party.description}</CardDescription>
                                                 </div>
+                                                <CardDescription className="text-muted-foreground">{party.description}</CardDescription>
                                                 {isUserParty && <Star className="absolute top-0 right-0 w-5 h-5 text-yellow-400 fill-yellow-400" />}
                                             </div>
                                         </CardHeader>
@@ -260,8 +299,9 @@ const PoliticalParties = () => {
                                                     </Tooltip>
                                                 </TooltipProvider>
                                             </div>
-                                            <p className="text-sm text-muted-foreground">Dono: {party.owner?.full_name || 'Não definido'}</p>
-                                            <p className="text-sm text-muted-foreground">Presidente: {party.president?.full_name || 'Não definido'}</p>
+                                            <p className="text-sm text-muted-foreground">Dono: {party.owner?.full_name || (party.owner_conflict ? 'Conflito de liderança' : 'Não definido')}</p>
+                                            <p className="text-sm text-muted-foreground">Presidente: {party.president?.full_name || (party.president_conflict ? 'Conflito de liderança' : 'Não definido')}</p>
+                                            <p className="text-sm text-muted-foreground">Vice-Presidente: {party.vice_president?.full_name || (party.vice_president_conflict ? 'Conflito de liderança' : 'Não definido')}</p>
                                             <p className="text-sm text-muted-foreground">Fundador: {party.founder?.full_name || 'Desconhecido'}</p>
                                             <p className="text-sm text-muted-foreground">Membros: {memberCount}</p>
                                             <p className="text-sm text-muted-foreground">Filiação: <span className="font-semibold">{party.affiliation_mode === 'automatic' ? 'Automática' : 'Manual'}</span></p>

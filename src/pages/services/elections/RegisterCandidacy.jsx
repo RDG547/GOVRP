@@ -45,6 +45,28 @@ const isPresidentialTicketElection = (election) => {
     electionName.includes('presidencial');
 };
 
+const ACTIVE_CANDIDACY_STATUSES = new Set(['Pendente', 'Approved']);
+const ACTIVE_ELECTION_STATUSES_FOR_CANDIDACY = new Set(['scheduled', 'candidacy', 'voting']);
+
+const isElectionStillBlockingCandidacy = (election) => {
+  const status = `${election?.status || ''}`.trim().toLowerCase();
+
+  if (ACTIVE_ELECTION_STATUSES_FOR_CANDIDACY.has(status)) {
+    return true;
+  }
+
+  if (election?.voting_end_date) {
+    const votingEnd = new Date(election.voting_end_date).getTime();
+    return Number.isFinite(votingEnd) && votingEnd > Date.now();
+  }
+
+  return false;
+};
+
+const isActiveCandidacyRecord = (candidate) =>
+  ACTIVE_CANDIDACY_STATUSES.has(candidate?.status) &&
+  isElectionStillBlockingCandidacy(candidate?.elections);
+
 const RegisterCandidacy = ({ onFinished }) => {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -97,7 +119,7 @@ const RegisterCandidacy = ({ onFinished }) => {
         ] = await Promise.all([
           supabase
             .from('candidates')
-            .select('*, elections(name), vice:profiles!candidates_vice_candidate_id_fkey(full_name)')
+            .select('*, elections(id, name, status, voting_end_date), vice:profiles!candidates_vice_candidate_id_fkey(full_name)')
             .eq('user_id', user.id)
             .in('status', ['Pendente', 'Approved']),
           user?.id
@@ -137,10 +159,13 @@ const RegisterCandidacy = ({ onFinished }) => {
           throw partyMemberResponse.error;
         }
 
-        const existingData = existingResponse.data || [];
+        const existingData = (existingResponse.data || []).filter(isActiveCandidacyRecord);
+        const currentCandidacyElectionIds = new Set((electionsResponse.data || []).map((election) => election.id));
         const pendingInvitation =
           (pendingViceResponse.data || []).find(
-            (notification) => `${notification?.metadata?.status || ''}`.toLowerCase() === 'pending'
+            (notification) =>
+              `${notification?.metadata?.status || ''}`.toLowerCase() === 'pending' &&
+              currentCandidacyElectionIds.has(notification?.metadata?.election_id)
           ) || null;
 
         setExistingCandidacy(existingData[0] || null);

@@ -31,6 +31,7 @@ const EXECUTIVE_GOVERNANCE_SETTINGS_KEY = 'executive_governance';
 const ELECTION_OFFICE_SYNC_SETTINGS_KEY = 'election_office_sync';
 const AUTOMATIC_ELECTIONS_SETTINGS_KEY = 'automatic_elections';
 const ACTIVE_CANDIDACY_STATUSES = ['Pendente', 'Approved'];
+const ACTIVE_ELECTION_STATUSES_FOR_CANDIDACY = new Set(['scheduled', 'candidacy', 'voting']);
 const VICE_CANDIDACY_INVITATION_TYPE = 'vice_candidacy_invitation';
 const VICE_CANDIDACY_TRACKER_TYPE = 'vice_candidacy_request_sent';
 const VICE_CANDIDACY_ACCEPTED_TYPE = 'vice_candidacy_request_accepted';
@@ -596,6 +597,21 @@ const cancelPendingViceInvitation = async (
   }
 };
 
+const isElectionStillBlockingCandidacy = (election) => {
+  const status = trimString(election?.status).toLowerCase();
+
+  if (ACTIVE_ELECTION_STATUSES_FOR_CANDIDACY.has(status)) {
+    return true;
+  }
+
+  if (election?.voting_end_date) {
+    const votingEnd = new Date(election.voting_end_date).getTime();
+    return Number.isFinite(votingEnd) && votingEnd > Date.now();
+  }
+
+  return false;
+};
+
 const fetchActiveCandidacyForUser = async (supabase, userId) => {
   if (!userId) {
     return null;
@@ -603,18 +619,17 @@ const fetchActiveCandidacyForUser = async (supabase, userId) => {
 
   const { data, error } = await supabase
     .from('candidates')
-    .select('id, election_id, user_id, vice_candidate_id, status')
+    .select('id, election_id, user_id, vice_candidate_id, status, election:elections(id, status, voting_end_date)')
     .eq('user_id', userId)
     .in('status', ACTIVE_CANDIDACY_STATUSES)
     .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
+    .limit(10);
 
-  if (error && error.code !== 'PGRST116') {
+  if (error) {
     throw error;
   }
 
-  return data || null;
+  return (data || []).find((candidate) => isElectionStillBlockingCandidacy(candidate.election)) || null;
 };
 
 const fetchElectionParticipantConflicts = async (supabase, electionId, participantIds = []) => {

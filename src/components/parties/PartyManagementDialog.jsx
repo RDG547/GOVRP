@@ -22,6 +22,11 @@ import { buildStoragePath } from '@/lib/security';
 
 const politicalOrientations = ['Extrema Esquerda', 'Esquerda', 'Centro-Esquerda', 'Centro', 'Centro-Direita', 'Direita', 'Extrema-Direita'];
 const roleHierarchy = { 'Dono': 4, 'Presidente': 3, 'Vice-Presidente': 2, 'Membro': 1 };
+const leadershipFieldLabels = {
+    owner_id: 'dono',
+    president_id: 'presidente',
+    vice_president_id: 'vice-presidente',
+};
 const partyRoleLabels = {
     'Dono': 'Dono(a) do Partido',
     'Presidente': 'Presidente do Partido',
@@ -50,15 +55,37 @@ const EditPartyForm = ({ party, onAction, closeDialog, userRole, members }) => {
         e.preventDefault();
         
         const leaderIds = [formData.owner_id, formData.president_id, formData.vice_president_id].filter(Boolean);
-        const uniqueLeaderIds = new Set(leaderIds);
+        const viceDuplicatesCoreRole =
+            formData.vice_president_id &&
+            [formData.owner_id, formData.president_id].filter(Boolean).includes(formData.vice_president_id);
 
-        if (leaderIds.length !== uniqueLeaderIds.size) {
-            toast({ title: 'Erro de Validação', description: 'Um membro não pode ocupar mais de um cargo de liderança (Dono, Presidente, Vice).', variant: 'destructive' });
+        if (viceDuplicatesCoreRole) {
+            toast({ title: 'Erro de Validação', description: 'O vice-presidente deve ser diferente do dono e do presidente.', variant: 'destructive' });
             return;
         }
 
         setLoading(true);
         try {
+            if (leaderIds.length) {
+                const { data: otherParties, error: leaderConflictError } = await supabase
+                    .from('political_parties')
+                    .select('id, name, acronym, owner_id, president_id, vice_president_id')
+                    .neq('id', party.id);
+
+                if (leaderConflictError) {
+                    throw leaderConflictError;
+                }
+
+                const leaderConflict = (otherParties || []).find((otherParty) =>
+                    Object.keys(leadershipFieldLabels).some((field) => leaderIds.includes(otherParty[field]))
+                );
+
+                if (leaderConflict) {
+                    const conflictField = Object.keys(leadershipFieldLabels).find((field) => leaderIds.includes(leaderConflict[field]));
+                    throw new Error(`Este usuário já ocupa cargo de ${leadershipFieldLabels[conflictField]} no partido ${leaderConflict.name} (${leaderConflict.acronym}).`);
+                }
+            }
+
             let finalLogoUrl = formData.logo_url;
             if (logoFile) {
                 const { data: uploadData, error: uploadError } = await supabase.storage.from('public-assets').upload(buildStoragePath({ prefix: 'party-logos', entityId: party.id, fileName: logoFile.name }), logoFile);

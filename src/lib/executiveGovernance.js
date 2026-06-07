@@ -672,10 +672,42 @@ export const fetchExecutiveConstitutionalState = async (supabase) => {
   const manualViceProfile = activeManualExecutiveProfiles.find((profile) => profile.role === 'Vice-Presidente') || null;
   const electedPresidentProfile = currentTerm?.winner?.profile || null;
   const electedViceProfile = currentTerm?.winner?.vice_profile || null;
+  const electedPresidentOfficeActive = Boolean(currentTerm?.id && electedPresidentProfile?.role === 'Presidente');
+  const automaticViceSuccessionApplies = Boolean(
+    currentTerm?.id &&
+    !successionApplies &&
+    !electedPresidentOfficeActive &&
+    electedViceProfile
+  );
   const currentPresidentProfile = successionApplies
     ? electedViceProfile || null
-    : electedPresidentProfile || manualPresidentProfile;
-  const currentViceProfile = successionApplies ? null : electedViceProfile || manualViceProfile;
+    : currentTerm
+      ? automaticViceSuccessionApplies
+        ? electedViceProfile
+        : electedPresidentOfficeActive
+          ? electedPresidentProfile
+          : null
+      : manualPresidentProfile;
+  const currentViceProfile = (successionApplies || automaticViceSuccessionApplies)
+    ? null
+    : currentTerm
+      ? electedViceProfile
+      : manualViceProfile;
+  const viceAssumedPresidency = Boolean(successionApplies || automaticViceSuccessionApplies);
+  const effectivePresidentialSuccession = successionApplies
+    ? presidentialSuccession
+    : automaticViceSuccessionApplies
+      ? {
+          promoted_president_id: electedViceProfile.id,
+          previous_vice_id: electedViceProfile.id,
+          former_president_id: electedPresidentProfile?.id || null,
+          term_election_id: currentTerm.id,
+          promoted_at: null,
+          reason: 'Vacância presidencial detectada',
+          triggered_by: null,
+          inferred: true,
+        }
+      : null;
   const manualExecutiveOfficeActive = !currentTerm && Boolean(manualPresidentProfile || manualViceProfile);
   const isVacant = vacancyStillApplies || !currentPresidentProfile;
   const actingAuthority = !isVacant
@@ -697,9 +729,21 @@ export const fetchExecutiveConstitutionalState = async (supabase) => {
     manualPresidentProfile,
     manualViceProfile,
     manualExecutiveOfficeActive,
-    executiveOfficeSource: currentTerm ? 'election' : manualExecutiveOfficeActive ? 'manual_admin_role' : 'vacant',
+    executiveOfficeSource: currentTerm
+      ? viceAssumedPresidency
+        ? 'vice_succession'
+        : 'election'
+      : manualExecutiveOfficeActive
+        ? 'manual_admin_role'
+        : 'vacant',
     officeVacancy,
-    presidentialSuccession,
+    presidentialSuccession: effectivePresidentialSuccession,
+    viceAssumedPresidency,
+    viceAssumptionSource: successionApplies
+      ? 'registered_succession'
+      : automaticViceSuccessionApplies
+        ? 'detected_presidential_vacancy'
+        : null,
     isVacant,
     actingAuthority,
     successionLine,

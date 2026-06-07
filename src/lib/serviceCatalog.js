@@ -60,7 +60,7 @@ export const SERVICE_CATEGORIES = [
     name: 'Governo e Cidadania',
     services: [
       { key: '/services/bank', name: 'Banco Nacional', path: '/services/bank', icon: Landmark, color: 'text-green-400', description: 'Gerencie suas finanças, realize transferências e solicite cartões.' },
-      { key: '/services/dic', name: 'DIC', path: '/services/dic', icon: FileText, color: 'text-purple-400', description: 'Emita e gerencie seus documentos de identificação civil.' },
+      { key: '/services/dic', name: 'Departamento de Identificação Civil', path: '/services/dic', icon: FileText, color: 'text-purple-400', description: 'Emita e gerencie seus documentos de identificação civil.' },
       { key: '/services/elections', name: 'Portal Eleitoral', path: '/services/elections', icon: Vote, color: 'text-teal-400', description: 'Exerça seu direito de voto e acompanhe os resultados eleitorais.' },
       { key: '/services/political-parties', name: 'Partidos Políticos', path: '/services/political-parties', icon: Users, color: 'text-red-400', description: 'Crie ou filie-se a um partido para participar da vida política.' },
       { key: '/services/parliament', name: 'Parlamento', path: '/services/parliament', icon: Scale, color: 'text-yellow-400', description: 'Proponha, debata e vote em projetos de lei que moldam a nação.' },

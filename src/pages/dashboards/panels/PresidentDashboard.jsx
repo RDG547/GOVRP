@@ -1062,8 +1062,11 @@ const TariffManager = ({ baseTariffs, onUpdate }) => {
 
 const ConstitutionalStatusCard = ({ executiveState }) => {
     const currentTerm = executiveState?.currentTerm;
+    const viceAssumedPresidency = Boolean(executiveState?.viceAssumedPresidency);
     const currentPresident = executiveState?.currentPresidentProfile?.full_name || 'Sem presidente em exercício';
-    const currentVice = executiveState?.currentViceProfile?.full_name || 'Vice-Presidente não definido';
+    const currentVice = viceAssumedPresidency
+        ? 'Vaga após sucessão presidencial'
+        : executiveState?.currentViceProfile?.full_name || 'Vice-Presidente não definido';
     const actingAuthority = executiveState?.actingAuthority?.profile?.full_name || executiveState?.actingAuthority?.label || 'Conselho dos Administradores (CDA)';
     const currentTermLabel = currentTerm
         ? `${new Date(currentTerm.term_start_at).toLocaleString('pt-BR')} até ${new Date(currentTerm.term_end_at).toLocaleString('pt-BR')}`
@@ -1087,6 +1090,9 @@ const ConstitutionalStatusCard = ({ executiveState }) => {
                     <div className="rounded-xl border border-white/10 bg-white/5 p-4">
                         <p className="text-sm text-muted-foreground">Presidente da República</p>
                         <p className="font-semibold text-foreground mt-1">{currentPresident}</p>
+                        {viceAssumedPresidency && (
+                            <p className="mt-1 text-xs font-medium text-emerald-300">Vice eleito que assumiu a Presidência</p>
+                        )}
                     </div>
                     <div className="rounded-xl border border-white/10 bg-white/5 p-4">
                         <p className="text-sm text-muted-foreground">Vice-Presidente</p>
@@ -1107,11 +1113,17 @@ const ConstitutionalStatusCard = ({ executiveState }) => {
                         )}
                         <div>
                             <p className="font-semibold text-foreground">
-                                {executiveState?.isVacant ? 'Vacância presidencial em curso' : 'Chefia do Executivo regular'}
+                                {executiveState?.isVacant
+                                    ? 'Vacância presidencial em curso'
+                                    : viceAssumedPresidency
+                                        ? 'Sucessão presidencial automática'
+                                        : 'Chefia do Executivo regular'}
                             </p>
                             <p className="text-sm text-muted-foreground mt-1">
                                 {executiveState?.isVacant
                                     ? `Na vacância, a condução do Executivo passa sucessivamente para ${actingAuthority}.`
+                                    : viceAssumedPresidency
+                                        ? 'O vice-presidente assumiu a chefia do Executivo porque a Presidência ficou sem ocupante ativo.'
                                     : 'Compete privativamente ao Presidente nomear cargos-chave, sancionar ou vetar projetos, promulgar textos aprovados e editar medidas provisórias.'}
                             </p>
                         </div>
@@ -1245,7 +1257,7 @@ const SpecialAppointmentsManager = ({ executiveState, onUpdate, actorId }) => {
                                     <SelectTrigger>
                                         <SelectValue placeholder="Selecione um ocupante" />
                                     </SelectTrigger>
-                                    <SelectContent>
+                                    <SelectContent className="max-h-80 overflow-y-auto">
                                         {(availableProfiles[office.key] || []).map((profile) => (
                                             <SelectItem key={profile.id} value={profile.id}>
                                                 {profile.full_name} ({profile.role})
@@ -2462,8 +2474,11 @@ const PresidentDashboard = () => {
     const topBudgetAreas = [...budgetAreas]
         .sort((left, right) => Number(right.allocated_value || 0) - Number(left.allocated_value || 0))
         .slice(0, 5);
+    const viceAssumedPresidency = Boolean(executiveState?.viceAssumedPresidency);
     const currentPresidentName = executiveState?.currentPresidentProfile?.full_name || 'Cargo vago';
-    const currentViceName = executiveState?.currentViceProfile?.full_name || 'Sem vice em exercício';
+    const currentViceName = viceAssumedPresidency
+        ? 'Vaga após sucessão presidencial'
+        : executiveState?.currentViceProfile?.full_name || 'Sem vice em exercício';
     const executiveMandateLabel = executiveState?.currentTerm?.name
         || (executiveState?.manualExecutiveOfficeActive
             ? 'Cargo atribuído manualmente pelo admin'
@@ -2505,7 +2520,13 @@ const PresidentDashboard = () => {
                                     <div className="rounded-lg border border-white/10 bg-black/20 p-4">
                                         <p className="text-xs uppercase text-muted-foreground">Presidente em exercício</p>
                                         <p className="mt-2 text-lg font-semibold text-foreground">{currentPresidentName}</p>
-                                        <p className="text-sm text-muted-foreground">{executiveState?.isVacant ? 'Vacância presidencial ativa' : 'Chefia do Executivo regular'}</p>
+                                        <p className="text-sm text-muted-foreground">
+                                            {executiveState?.isVacant
+                                                ? 'Vacância presidencial ativa'
+                                                : viceAssumedPresidency
+                                                    ? 'Vice eleito que assumiu a Presidência'
+                                                    : 'Chefia do Executivo regular'}
+                                        </p>
                                     </div>
                                     <div className="rounded-lg border border-white/10 bg-black/20 p-4">
                                         <p className="text-xs uppercase text-muted-foreground">Vice-Presidência</p>
