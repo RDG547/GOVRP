@@ -5,9 +5,17 @@ import Stripe from 'stripe';
 const DONATION_MIN_AMOUNT = 5;
 const STRIPE_API_VERSION = '2026-02-25.clover';
 const PIX_EXPIRATION_SECONDS = 60 * 60;
-const PIX_BASE_URL = 'https://api.abacatepay.com/v1';
+const ABACATEPAY_API_BASE_URL = 'https://api.abacatepay.com/v2';
 
 let stripeClient;
+
+class PixGatewayError extends Error {
+  constructor(message, statusCode) {
+    super(message);
+    this.name = 'PixGatewayError';
+    this.statusCode = statusCode;
+  }
+}
 
 const json = (response, statusCode, payload) => {
   response.statusCode = statusCode;
@@ -169,7 +177,7 @@ const normalizeRemoteError = (errorPayload, fallbackMessage) => {
 
 const callPixGateway = async ({ endpoint, method = 'GET', payload }) => {
   const apiKey = getRequiredServerEnv('ABACATEPAY_API_KEY');
-  const response = await fetch(`${PIX_BASE_URL}${endpoint}`, {
+  const response = await fetch(`${ABACATEPAY_API_BASE_URL}${endpoint}`, {
     method,
     headers: {
       Authorization: `Bearer ${apiKey}`,
@@ -187,9 +195,9 @@ const callPixGateway = async ({ endpoint, method = 'GET', payload }) => {
     throw new Error('O serviço de PIX retornou uma resposta inválida.');
   }
 
-  if (!response.ok || parsed?.error) {
+  if (!response.ok || parsed?.success === false || parsed?.error) {
     const fallbackMessage = `O serviço de PIX retornou ${response.status}.`;
-    throw new Error(normalizeRemoteError(parsed?.error, fallbackMessage));
+    throw new PixGatewayError(normalizeRemoteError(parsed?.error, fallbackMessage), response.status);
   }
 
   return parsed?.data ?? parsed;
@@ -213,6 +221,22 @@ const sendUnexpectedError = (response, error) => {
   json(response, 500, {
     error: error instanceof Error ? error.message : 'Não foi possível processar a solicitação.',
   });
+};
+
+const sendPixGatewayError = (response, error, fallbackMessage) => {
+  if (error instanceof PixGatewayError) {
+    const statusCode = error.statusCode === 401 || error.statusCode === 403 ? 502 : 500;
+
+    json(response, statusCode, {
+      error:
+        error.statusCode === 401 || error.statusCode === 403
+          ? 'A chave da AbacatePay está inválida, inativa ou sem permissão para gerar PIX.'
+          : error.message,
+    });
+    return;
+  }
+
+  json(response, 500, { error: fallbackMessage });
 };
 
 export const createStripeCheckoutHandler = async (request, response) => {
@@ -289,17 +313,21 @@ export const createPixChargeHandler = async (request, response) => {
     const userEmail = typeof body.userEmail === 'string' ? body.userEmail.trim() : '';
 
     const charge = await callPixGateway({
-      endpoint: '/pixQrCode/create',
+      endpoint: '/transparents/create',
       method: 'POST',
       payload: {
-        amount: toCents(amount),
-        description: 'Doacao GOV.RP',
-        expiresIn: PIX_EXPIRATION_SECONDS,
-        metadata: {
-          source: 'govrp-donation',
-          userId,
-          userEmail,
-          amount: amount.toFixed(2),
+        method: 'PIX',
+        data: {
+          amount: toCents(amount),
+          description: 'Doacao GOV.RP',
+          expiresIn: PIX_EXPIRATION_SECONDS,
+          externalId: userId ? `govrp-donation-${userId}-${Date.now()}` : undefined,
+          metadata: {
+            source: 'govrp-donation',
+            userId,
+            userEmail,
+            amount: amount.toFixed(2),
+          },
         },
       },
     });
@@ -309,9 +337,11 @@ export const createPixChargeHandler = async (request, response) => {
     });
   } catch (error) {
     console.error('[donations:pix-create]', error);
-    json(response, 500, {
-      error: 'Não foi possível gerar o código PIX agora. Tente novamente em instantes.',
-    });
+    sendPixGatewayError(
+      response,
+      error,
+      'Não foi possível gerar o código PIX agora. Tente novamente em instantes.'
+    );
   }
 };
 
@@ -334,21 +364,19 @@ export const checkPixChargeHandler = async (request, response) => {
     }
 
     const status = await callPixGateway({
-      endpoint: `/pixQrCode/check?id=${encodeURIComponent(chargeId)}`,
+      endpoint: `/transparents/check?id=${encodeURIComponent(chargeId)}`,
       method: 'GET',
     });
 
     json(response, 200, {
       status: {
-        id: chargeId,
+        id: status?.id || chargeId,
         status: status?.status || 'PENDING',
         expiresAt: status?.expiresAt || null,
       },
     });
   } catch (error) {
     console.error('[donations:pix-status]', error);
-    json(response, 500, {
-      error: 'Não foi possível consultar o status do PIX agora.',
-    });
+    sendPixGatewayError(response, error, 'Não foi possível consultar o status do PIX agora.');
   }
 };
