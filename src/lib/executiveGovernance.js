@@ -1,5 +1,7 @@
-import { mapBillTypeToGazetteType, publishOfficialGazetteEntry } from '@/lib/officialGazette';
-import { PARLIAMENT_HOUSE_IDS } from '@/lib/parliamentGovernance';
+import { mapBillTypeToGazetteType, publishOfficialGazetteEntry } from './officialGazette.js';
+import { PARLIAMENT_HOUSE_IDS } from './parliamentGovernance.js';
+import { fetchElectionOfficeSyncState } from './electionOfficeSync.js';
+import { isManualElectionRoleSuperseded } from './roleResolution.js';
 
 export const EXECUTIVE_GOVERNANCE_SETTINGS_KEY = 'executive_governance';
 export const PRESIDENTIAL_TERM_MONTHS = 1;
@@ -31,6 +33,12 @@ export const EXECUTIVE_SPECIAL_OFFICES = [
     description: 'Coordena as Forças Armadas e executa a cadeia de comando militar.',
     eligibleRoles: ['Militar', 'Cidadão'],
   },
+  {
+    key: 'national_bank_president',
+    label: 'Presidente do Banco Nacional',
+    description: 'Dirige o banco estatal, decide crédito e administra a política de juros.',
+    eligibleRoles: ['Cidadão', 'Ministro', 'Deputado', 'Senador', 'Juiz', 'Policial', 'Agente Secreto', 'Militar'],
+  },
 ];
 
 const SUCCESSION_ROLE_FALLBACKS = {
@@ -38,6 +46,7 @@ const SUCCESSION_ROLE_FALLBACKS = {
   senate_president: ['Presidente do Senado'],
   supreme_court_president: ['Presidente do STF'],
 };
+const EXECUTIVE_OFFICE_ROLES = ['Presidente', 'Vice-Presidente'];
 
 const dedupe = (values = []) => [...new Set(values.filter(Boolean))];
 
@@ -132,9 +141,40 @@ const normalizeExecutiveGovernanceValue = (rawValue = {}) => {
         reason: '',
         triggered_by: null,
       };
+  const presidentialSuccession =
+    value.presidentialSuccession && typeof value.presidentialSuccession === 'object'
+      ? {
+          promoted_president_id:
+            value.presidentialSuccession.promoted_president_id ||
+            value.presidentialSuccession.promotedPresidentId ||
+            null,
+          previous_vice_id:
+            value.presidentialSuccession.previous_vice_id ||
+            value.presidentialSuccession.previousViceId ||
+            null,
+          former_president_id:
+            value.presidentialSuccession.former_president_id ||
+            value.presidentialSuccession.formerPresidentId ||
+            null,
+          term_election_id:
+            value.presidentialSuccession.term_election_id ||
+            value.presidentialSuccession.termElectionId ||
+            null,
+          promoted_at:
+            value.presidentialSuccession.promoted_at ||
+            value.presidentialSuccession.promotedAt ||
+            null,
+          reason: value.presidentialSuccession.reason || '',
+          triggered_by:
+            value.presidentialSuccession.triggered_by ||
+            value.presidentialSuccession.triggeredBy ||
+            null,
+        }
+      : null;
 
   return {
     officeVacancy,
+    presidentialSuccession,
     specialAppointments:
       value.specialAppointments && typeof value.specialAppointments === 'object'
         ? value.specialAppointments
@@ -176,7 +216,7 @@ const fetchPartiesMap = async (supabase, partyIds = []) => {
 
   const { data, error } = await supabase
     .from('political_parties')
-    .select('id, name, acronym, logo_url')
+    .select('id, name, acronym, logo_url, ideology')
     .in('id', ids);
 
   if (error) {
@@ -398,6 +438,28 @@ const fetchFallbackSuccessionProfiles = async (supabase) => {
   return data || [];
 };
 
+const isMissingManualRoleMetadataError = (error) =>
+  /manual_role_override|role_assigned_at|role_assigned_by/i.test(error?.message || '');
+
+const fetchManualExecutiveOfficeProfiles = async (supabase) => {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id, full_name, avatar_url, role, username, x_handle, manual_role_override, role_assigned_at, role_assigned_by')
+    .in('role', EXECUTIVE_OFFICE_ROLES)
+    .eq('manual_role_override', true)
+    .order('role_assigned_at', { ascending: false });
+
+  if (error) {
+    if (isMissingManualRoleMetadataError(error)) {
+      return [];
+    }
+
+    throw error;
+  }
+
+  return data || [];
+};
+
 const fetchHouseLeadershipProfiles = async (supabase) => {
   const { data: terms, error: termsError } = await supabase
     .from('parliament_leadership_terms')
@@ -562,7 +624,14 @@ export const fetchPotentialRunningMates = async (supabase, { electionId = null, 
 };
 
 export const fetchExecutiveConstitutionalState = async (supabase) => {
-  const [{ elections, currentTerm, presidentialType }, settingsRow, successionLine, pendingBillsResponse] =
+  const [
+    { elections, currentTerm, presidentialType },
+    settingsRow,
+    successionLine,
+    pendingBillsResponse,
+    electionOfficeState,
+    manualExecutiveProfiles,
+  ] =
     await Promise.all([
       fetchPresidentialElectionHistory(supabase),
       fetchExecutiveGovernanceSettings(supabase),
@@ -572,6 +641,11 @@ export const fetchExecutiveConstitutionalState = async (supabase) => {
         .select('id, title, summary, full_text, author_id, house_id, type, status, created_at, updated_at, house:parliament_houses(name), author:profiles(full_name, avatar_url)')
         .in('status', PRESIDENTIAL_PENDING_BILL_STATUSES)
         .order('updated_at', { ascending: false }),
+      fetchElectionOfficeSyncState(supabase).catch((error) => {
+        console.error('Erro ao carregar sincronização eleitoral do Executivo:', error);
+        return null;
+      }),
+      fetchManualExecutiveOfficeProfiles(supabase),
     ]);
 
   if (pendingBillsResponse.error) {
@@ -580,13 +654,62 @@ export const fetchExecutiveConstitutionalState = async (supabase) => {
 
   const settings = await attachProfilesToSettings(supabase, settingsRow.value);
   const officeVacancy = settings.officeVacancy || { vacant: false };
+  const presidentialSuccession = settings.presidentialSuccession || null;
+  const successionApplies =
+    Boolean(currentTerm?.id) &&
+    Boolean(presidentialSuccession?.promoted_president_id) &&
+    (!presidentialSuccession?.term_election_id ||
+      presidentialSuccession.term_election_id === currentTerm.id);
   const vacancyStillApplies =
+    !successionApplies &&
     officeVacancy.vacant &&
     (!currentTerm || !officeVacancy.since || new Date(officeVacancy.since) >= new Date(currentTerm.term_start_at));
 
-  const currentPresidentProfile = currentTerm?.winner?.profile || null;
-  const currentViceProfile = currentTerm?.winner?.vice_profile || null;
-  const isVacant = vacancyStillApplies || !currentPresidentProfile || !currentTerm;
+  const activeManualExecutiveProfiles = (manualExecutiveProfiles || []).filter(
+    (profile) => !isManualElectionRoleSuperseded(profile, electionOfficeState)
+  );
+  const manualPresidentProfile = activeManualExecutiveProfiles.find((profile) => profile.role === 'Presidente') || null;
+  const manualViceProfile = activeManualExecutiveProfiles.find((profile) => profile.role === 'Vice-Presidente') || null;
+  const electedPresidentProfile = currentTerm?.winner?.profile || null;
+  const electedViceProfile = currentTerm?.winner?.vice_profile || null;
+  const electedPresidentOfficeActive = Boolean(currentTerm?.id && electedPresidentProfile?.role === 'Presidente');
+  const automaticViceSuccessionApplies = Boolean(
+    currentTerm?.id &&
+    !successionApplies &&
+    !electedPresidentOfficeActive &&
+    electedViceProfile
+  );
+  const currentPresidentProfile = successionApplies
+    ? electedViceProfile || null
+    : currentTerm
+      ? automaticViceSuccessionApplies
+        ? electedViceProfile
+        : electedPresidentOfficeActive
+          ? electedPresidentProfile
+          : null
+      : manualPresidentProfile;
+  const currentViceProfile = (successionApplies || automaticViceSuccessionApplies)
+    ? null
+    : currentTerm
+      ? electedViceProfile
+      : manualViceProfile;
+  const viceAssumedPresidency = Boolean(successionApplies || automaticViceSuccessionApplies);
+  const effectivePresidentialSuccession = successionApplies
+    ? presidentialSuccession
+    : automaticViceSuccessionApplies
+      ? {
+          promoted_president_id: electedViceProfile.id,
+          previous_vice_id: electedViceProfile.id,
+          former_president_id: electedPresidentProfile?.id || null,
+          term_election_id: currentTerm.id,
+          promoted_at: null,
+          reason: 'Vacância presidencial detectada',
+          triggered_by: null,
+          inferred: true,
+        }
+      : null;
+  const manualExecutiveOfficeActive = !currentTerm && Boolean(manualPresidentProfile || manualViceProfile);
+  const isVacant = vacancyStillApplies || !currentPresidentProfile;
   const actingAuthority = !isVacant
     ? {
         key: 'president',
@@ -601,7 +724,26 @@ export const fetchExecutiveConstitutionalState = async (supabase) => {
     currentTerm,
     currentPresidentProfile,
     currentViceProfile,
+    electedPresidentProfile,
+    electedViceProfile,
+    manualPresidentProfile,
+    manualViceProfile,
+    manualExecutiveOfficeActive,
+    executiveOfficeSource: currentTerm
+      ? viceAssumedPresidency
+        ? 'vice_succession'
+        : 'election'
+      : manualExecutiveOfficeActive
+        ? 'manual_admin_role'
+        : 'vacant',
     officeVacancy,
+    presidentialSuccession: effectivePresidentialSuccession,
+    viceAssumedPresidency,
+    viceAssumptionSource: successionApplies
+      ? 'registered_succession'
+      : automaticViceSuccessionApplies
+        ? 'detected_presidential_vacancy'
+        : null,
     isVacant,
     actingAuthority,
     successionLine,

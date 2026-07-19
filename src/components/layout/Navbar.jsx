@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Menu, X, ChevronDown, Settings, LayoutDashboard, Tally5, Landmark, Store, FileText, Library, Archive, MessageSquare, Users, Newspaper, Home as HomeIcon, Heart, HelpCircle, Headphones as Headset, Grid, Mail, BookOpen, LogOut, Scale, Gavel, Shield, Vote, Eye, ShieldCheck, Crown, HeartHandshake as Handcuffs, Map, Siren, Wifi, Zap, Droplet, Smartphone, Wrench, Milestone, LogIn, UserPlus, FolderKanban, User, Flame, GraduationCap, Briefcase, Building2 } from 'lucide-react';
+import { Menu, X, ChevronDown, Settings, LayoutDashboard, Tally5, Landmark, Store, FileText, Library, Archive, MessageSquare, Users, Newspaper, Home as HomeIcon, Heart, HelpCircle, Headphones as Headset, Grid, Mail, BookOpen, LogOut, Scale, Gavel, Shield, Vote, Eye, ShieldCheck, Crown, HeartHandshake as Handcuffs, Map, Siren, Wifi, Zap, Droplet, Smartphone, Wrench, LogIn, UserPlus, FolderKanban, User, Flame, GraduationCap, Briefcase, Building2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
@@ -21,7 +21,7 @@ const serviceCategories = [
     name: 'Governo e Cidadania',
     services: [
       { name: 'Banco Nacional', path: '/services/bank', icon: Landmark, color: "text-green-400" },
-      { name: 'DIC', path: '/services/dic', icon: FileText, color: "text-purple-400" },
+      { name: 'Departamento de Identificação Civil', path: '/services/dic', icon: FileText, color: "text-purple-400" },
       { name: 'Portal Eleitoral', path: '/services/elections', icon: Vote, color: "text-teal-400" },
       { name: 'Partidos Políticos', path: '/services/political-parties', icon: Users, color: "text-red-400" },
       { name: 'Parlamento', path: '/services/parliament', icon: Scale, color: "text-yellow-400" },
@@ -68,12 +68,26 @@ const serviceCategories = [
   }
 ];
 
+const SERVICE_INITIALS_IGNORED_WORDS = new Set(['a', 'as', 'da', 'das', 'de', 'do', 'dos', 'e', 'o', 'os']);
+
+const getServiceInitials = (name = '') => {
+  const words = name
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .split(/\s+/)
+    .map((word) => word.replace(/[^a-zA-Z0-9]/g, '').toLowerCase())
+    .filter((word) => word && !SERVICE_INITIALS_IGNORED_WORDS.has(word));
+
+  return words.map((word) => word[0]).join('').toUpperCase() || name.slice(0, 1).toUpperCase();
+};
+
+const formatServiceMenuLabel = (serviceName) => `${serviceName} (${getServiceInitials(serviceName)})`;
+
 const helpLinks = [
     { name: 'Contato', path: '/contact', icon: Mail, color: "text-orange-400" },
     { name: 'Suporte', path: '/support', icon: Headset, color: "text-blue-400" },
     { name: 'FAQ', path: '/faq', icon: HelpCircle, color: "text-yellow-400" },
     { name: 'Docs', path: '/docs', icon: BookOpen, color: "text-green-400" },
-    { name: 'Roadmap', path: '/roadmap', icon: Milestone, color: "text-purple-400" },
 ];
 
 const Navbar = () => {
@@ -202,7 +216,7 @@ const Navbar = () => {
                                    <h3 className="font-semibold text-sm text-muted-foreground px-2 mb-2">{category.name}</h3>
                                     {category.services.map((service) => (
                                       <Link key={service.path} to={service.path} className="flex items-center space-x-3 px-2 py-2 text-sm hover:bg-accent transition-colors rounded-md text-popover-foreground">
-                                        <service.icon className={`w-4 h-4 ${service.color}`}/><span>{service.name}</span>
+                                        <service.icon className={`w-4 h-4 ${service.color}`}/><span>{formatServiceMenuLabel(service.name)}</span>
                                       </Link>
                                     ))}
                                  </div>
@@ -404,7 +418,7 @@ const MobileMenu = ({ isOpen, setIsOpen }) => {
                           {serviceCategories.map(category => (
                             <div key={category.name} className="py-2">
                               <h3 className="font-semibold text-sm text-muted-foreground px-3 mb-2">{category.name}</h3>
-                              {category.services.map(s => <Link key={s.path} to={s.path} onClick={() => setIsOpen(false)} className="text-lg p-3 rounded-md hover:bg-accent flex items-center w-full text-foreground gap-3"><s.icon className={`w-5 h-5 ${s.color}`}/>{s.name}</Link>)}
+                              {category.services.map(s => <Link key={s.path} to={s.path} onClick={() => setIsOpen(false)} className="text-lg p-3 rounded-md hover:bg-accent flex items-center w-full text-foreground gap-3"><s.icon className={`w-5 h-5 ${s.color}`}/>{formatServiceMenuLabel(s.name)}</Link>)}
                             </div>
                           ))}
                           <div className="border-t border-border my-2 mx-3"></div>

@@ -11,6 +11,7 @@ import { Loader2, PlusCircle, Edit, Trash2, Calendar, Vote } from 'lucide-react'
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
 
 const statusTranslations = {
     Scheduled: 'Agendada',
@@ -19,7 +20,29 @@ const statusTranslations = {
     Finished: 'Finalizada',
 };
 
-const ElectionForm = ({ election, onFinish }) => {
+const AUTOMATIC_ELECTIONS_SETTINGS_KEY = 'automatic_elections';
+
+const parseElectionSequence = (name = '') => {
+    const match = name.trim().match(/^(\d+)[ªº]?\s+(.+)$/i);
+
+    return {
+        sequence: match ? Number(match[1]) || 1 : 1,
+        suffix: match?.[2] || name.trim() || 'Eleição',
+    };
+};
+
+const findAutomaticPlanForElection = (plans = {}, electionId) => {
+    if (!electionId) return null;
+
+    return Object.entries(plans).find(([, plan]) => (
+        plan?.root_election_id === electionId ||
+        plan?.last_election_id === electionId ||
+        (Array.isArray(plan?.generated_election_ids) && plan.generated_election_ids.includes(electionId))
+    )) || null;
+};
+
+const ElectionForm = ({ election, onFinish, automaticElectionPlans }) => {
+    const automaticPlanEntry = findAutomaticPlanForElection(automaticElectionPlans, election?.id);
     const [formData, setFormData] = useState({
         name: election?.name || '',
         description: election?.description || '',
@@ -29,6 +52,7 @@ const ElectionForm = ({ election, onFinish }) => {
         voting_start_date: election?.voting_start_date ? format(new Date(election.voting_start_date), "yyyy-MM-dd'T'HH:mm") : '',
         voting_end_date: election?.voting_end_date ? format(new Date(election.voting_end_date), "yyyy-MM-dd'T'HH:mm") : '',
     });
+    const [autoRecurring, setAutoRecurring] = useState(Boolean(automaticPlanEntry?.[1]?.enabled));
     const [electionTypes, setElectionTypes] = useState([]);
     const [loading, setLoading] = useState(false);
     const { toast } = useToast();
@@ -43,12 +67,79 @@ const ElectionForm = ({ election, onFinish }) => {
         fetchTypes();
     }, [toast]);
 
+    useEffect(() => {
+        const currentPlanEntry = findAutomaticPlanForElection(automaticElectionPlans, election?.id);
+        setAutoRecurring(Boolean(currentPlanEntry?.[1]?.enabled));
+    }, [automaticElectionPlans, election?.id]);
+
+    useEffect(() => {
+        setFormData({
+            name: election?.name || '',
+            description: election?.description || '',
+            election_type_id: election?.election_type_id || '',
+            candidacy_start_date: election?.candidacy_start_date ? format(new Date(election.candidacy_start_date), "yyyy-MM-dd'T'HH:mm") : '',
+            candidacy_end_date: election?.candidacy_end_date ? format(new Date(election.candidacy_end_date), "yyyy-MM-dd'T'HH:mm") : '',
+            voting_start_date: election?.voting_start_date ? format(new Date(election.voting_start_date), "yyyy-MM-dd'T'HH:mm") : '',
+            voting_end_date: election?.voting_end_date ? format(new Date(election.voting_end_date), "yyyy-MM-dd'T'HH:mm") : '',
+        });
+    }, [election]);
+
     const handleChange = (e) => {
         setFormData(prev => ({ ...prev, [e.target.id]: e.target.value }));
     };
 
     const handleSelectChange = (value) => {
         setFormData(prev => ({ ...prev, election_type_id: value }));
+    };
+
+    const syncAutomaticElectionPlan = async (savedElection) => {
+        const { data: currentSettings, error: settingsError } = await supabase
+            .from('system_settings')
+            .select('value')
+            .eq('key', AUTOMATIC_ELECTIONS_SETTINGS_KEY)
+            .maybeSingle();
+
+        if (settingsError) {
+            throw settingsError;
+        }
+
+        const settingsValue = currentSettings?.value && typeof currentSettings.value === 'object'
+            ? currentSettings.value
+            : {};
+        const plans = settingsValue.plans && typeof settingsValue.plans === 'object' ? settingsValue.plans : {};
+        const existingEntry = findAutomaticPlanForElection(plans, savedElection.id);
+        const planId = existingEntry?.[0] || savedElection.id;
+        const existingPlan = existingEntry?.[1] || {};
+        const parsedSequence = parseElectionSequence(savedElection.name);
+
+        plans[planId] = {
+            ...existingPlan,
+            enabled: autoRecurring,
+            root_election_id: existingPlan.root_election_id || savedElection.id,
+            last_election_id: existingPlan.last_election_id || savedElection.id,
+            election_type_id: savedElection.election_type_id,
+            sequence: Number(existingPlan.sequence || parsedSequence.sequence || 1),
+            updated_at: new Date().toISOString(),
+        };
+
+        const { error: upsertError } = await supabase
+            .from('system_settings')
+            .upsert(
+                {
+                    key: AUTOMATIC_ELECTIONS_SETTINGS_KEY,
+                    value: {
+                        ...settingsValue,
+                        plans,
+                        updated_at: new Date().toISOString(),
+                    },
+                    description: 'Agenda eleições automáticas recorrentes.',
+                },
+                { onConflict: 'key' }
+            );
+
+        if (upsertError) {
+            throw upsertError;
+        }
     };
 
     const handleSubmit = async (e) => {
@@ -75,16 +166,27 @@ const ElectionForm = ({ election, onFinish }) => {
 
         let query;
         if (election) {
-            query = supabase.from('elections').update(payload).eq('id', election.id);
+            query = supabase.from('elections').update(payload).eq('id', election.id).select('id, name, election_type_id').single();
         } else {
-            query = supabase.from('elections').insert({ ...payload, status: statusData });
+            query = supabase.from('elections').insert({ ...payload, status: statusData }).select('id, name, election_type_id').single();
         }
 
-        const { error } = await query;
+        const { data: savedElection, error } = await query;
 
         if (error) {
             toast({ title: "Erro ao salvar eleição", description: error.message, variant: "destructive" });
         } else {
+            try {
+                await syncAutomaticElectionPlan(savedElection);
+            } catch (settingsError) {
+                toast({
+                    title: "Eleição salva, mas recorrência não foi atualizada",
+                    description: settingsError.message,
+                    variant: "destructive"
+                });
+                setLoading(false);
+                return;
+            }
             toast({ title: "Sucesso!", description: `Eleição ${election ? 'atualizada' : 'criada'} com sucesso.` });
             onFinish();
         }
@@ -112,6 +214,15 @@ const ElectionForm = ({ election, onFinish }) => {
                 <div><Label htmlFor="voting_start_date">Início da Votação</Label><Input id="voting_start_date" type="datetime-local" value={formData.voting_start_date} onChange={handleChange} required min={formData.candidacy_end_date || minDateTime} /></div>
                 <div><Label htmlFor="voting_end_date">Fim da Votação</Label><Input id="voting_end_date" type="datetime-local" value={formData.voting_end_date} onChange={handleChange} required min={formData.voting_start_date || minDateTime} /></div>
             </div>
+            <div className="flex items-center justify-between rounded-lg border border-white/10 bg-white/5 p-4">
+                <div>
+                    <Label htmlFor="auto-recurring-election" className="text-base">Eleição automática mensal</Label>
+                    <p className="text-sm text-muted-foreground">
+                        Ao finalizar, cria a próxima eleição 1 mês depois com as mesmas janelas e numeração sequencial.
+                    </p>
+                </div>
+                <Switch id="auto-recurring-election" checked={autoRecurring} onCheckedChange={setAutoRecurring} />
+            </div>
             <DialogFooter>
                 <Button type="submit" disabled={loading}>{loading ? <Loader2 className="animate-spin" /> : 'Salvar Eleição'}</Button>
             </DialogFooter>
@@ -124,15 +235,23 @@ const ElectionManagement = () => {
     const [loading, setLoading] = useState(true);
     const [isFormOpen, setIsFormOpen] = useState(false);
     const [editingElection, setEditingElection] = useState(null);
+    const [automaticElectionPlans, setAutomaticElectionPlans] = useState({});
     const { toast } = useToast();
 
     const fetchElections = useCallback(async () => {
         setLoading(true);
-        const { data, error } = await supabase.from('elections').select('*, election_types(name)').order('created_at', { ascending: false });
-        if (error) {
-            toast({ title: "Erro ao buscar eleições", description: error.message, variant: "destructive" });
+        const [electionsResponse, automaticSettingsResponse] = await Promise.all([
+            supabase.from('elections').select('*, election_types(name)').order('created_at', { ascending: false }),
+            supabase.from('system_settings').select('value').eq('key', AUTOMATIC_ELECTIONS_SETTINGS_KEY).maybeSingle(),
+        ]);
+        if (electionsResponse.error) {
+            toast({ title: "Erro ao buscar eleições", description: electionsResponse.error.message, variant: "destructive" });
+        } else if (automaticSettingsResponse.error) {
+            toast({ title: "Erro ao buscar recorrência eleitoral", description: automaticSettingsResponse.error.message, variant: "destructive" });
+            setElections(electionsResponse.data);
         } else {
-            setElections(data);
+            setElections(electionsResponse.data);
+            setAutomaticElectionPlans(automaticSettingsResponse.data?.value?.plans || {});
         }
         setLoading(false);
     }, [toast]);
@@ -181,7 +300,14 @@ const ElectionManagement = () => {
                         <Card key={election.id} className="glass-effect">
                             <CardHeader>
                                 <CardTitle>{election.name}</CardTitle>
-                                <CardDescription>{election.election_types?.name || 'Tipo não definido'} - {election.description}</CardDescription>
+                                <CardDescription>
+                                    {election.election_types?.name || 'Tipo não definido'} - {election.description}
+                                    {findAutomaticPlanForElection(automaticElectionPlans, election.id)?.[1]?.enabled ? (
+                                        <span className="ml-2 inline-flex rounded-full bg-emerald-500/20 px-2 py-0.5 text-xs font-semibold text-emerald-300">
+                                            Automática
+                                        </span>
+                                    ) : null}
+                                </CardDescription>
                             </CardHeader>
                             <CardContent className="space-y-2 text-sm">
                                 <p className="flex items-center gap-2"><Calendar className="w-4 h-4 text-muted-foreground" /> <strong>Candidaturas:</strong> {format(new Date(election.candidacy_start_date), 'dd/MM/yy HH:mm', { locale: ptBR })} - {format(new Date(election.candidacy_end_date), 'dd/MM/yy HH:mm', { locale: ptBR })}</p>
@@ -202,7 +328,11 @@ const ElectionManagement = () => {
                     <DialogHeader>
                         <DialogTitle>{editingElection ? 'Editar Eleição' : 'Criar Nova Eleição'}</DialogTitle>
                     </DialogHeader>
-                    <ElectionForm election={editingElection} onFinish={handleFormFinish} />
+                    <ElectionForm
+                        election={editingElection}
+                        onFinish={handleFormFinish}
+                        automaticElectionPlans={automaticElectionPlans}
+                    />
                 </DialogContent>
             </Dialog>
         </div>

@@ -4,7 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
-import { Loader2, Trash2, CreditCard, RefreshCw, CalendarDays, DollarSign, ChevronDown, ChevronUp } from 'lucide-react';
+import { Loader2, Trash2, CreditCard, RefreshCw, CalendarDays, DollarSign, ChevronDown, ChevronUp, Clock, XCircle, CheckCircle } from 'lucide-react';
 import Cards from 'react-credit-cards-2'; // Importando o componente da biblioteca
 import 'react-credit-cards-2/dist/es/styles-compiled.css'; // Importando o estilo da biblioteca
 import {
@@ -183,6 +183,7 @@ const CardsTab = ({ onUpdate }) => {
     const { toast } = useToast();
     const [cards, setCards] = useState([]);
     const [invoices, setInvoices] = useState([]);
+    const [cardApplications, setCardApplications] = useState([]);
     const [loading, setLoading] = useState(true);
     const [isFlipped, setIsFlipped] = useState({});
     const [isRequesting, setIsRequesting] = useState(false);
@@ -217,7 +218,21 @@ const CardsTab = ({ onUpdate }) => {
               } else {
                 setInvoices(invoicesData || []);
               }
+            } else {
+              setInvoices([]);
             }
+        }
+
+        const { data: applicationsData, error: applicationsError } = await supabase
+            .from('credit_card_applications')
+            .select('*')
+            .eq('user_id', user.id)
+            .order('created_at', { ascending: false });
+
+        if (applicationsError) {
+            toast({ title: 'Erro ao buscar solicitações de cartão', description: applicationsError.message, variant: 'destructive' });
+        } else {
+            setCardApplications(applicationsData || []);
         }
         setLoading(false);
     }, [user, toast]);
@@ -238,10 +253,26 @@ const CardsTab = ({ onUpdate }) => {
     const handleRequestCard = async (brand) => {
         setIsRequesting(true);
         try {
-            const { data, error } = await supabase.rpc('request_credit_card', { p_card_brand: brand });
+            const normalizedBrand = brand.toLowerCase();
+            const hasExistingCard = cards.some((card) => card.brand.toLowerCase() === normalizedBrand);
+            const hasPendingRequest = cardApplications.some((application) =>
+                application.brand?.toLowerCase() === normalizedBrand &&
+                ['Pendente', 'pending'].includes(application.status)
+            );
+
+            if (hasExistingCard || hasPendingRequest) {
+                throw new Error('Você já possui ou solicitou um cartão desta bandeira.');
+            }
+
+            const { error } = await supabase
+                .from('credit_card_applications')
+                .insert({
+                    user_id: user.id,
+                    brand: normalizedBrand,
+                    status: 'Pendente',
+                });
             if (error) throw error;
-            if (data && !data.success) throw new Error(data.message);
-            toast({ title: 'Sucesso', description: data.message });
+            toast({ title: 'Solicitação enviada', description: 'O Banco Nacional analisará seu pedido de cartão.' });
             fetchData();
             if (onUpdate) onUpdate(true);
         } catch (error) {
@@ -296,6 +327,18 @@ const CardsTab = ({ onUpdate }) => {
         const texts = { paid: 'Paga', open: 'Aberta', closed: 'Fechada', overdue: 'Vencida' };
         return texts[status] || status;
     }
+
+    const getApplicationStatusIcon = (status) => {
+      if (['Aprovado', 'approved'].includes(status)) return <CheckCircle className="w-4 h-4 text-green-400" />;
+      if (['Rejeitado', 'rejected'].includes(status)) return <XCircle className="w-4 h-4 text-red-400" />;
+      return <Clock className="w-4 h-4 text-yellow-400" />;
+    };
+
+    const getApplicationBadgeClass = (status) => {
+      if (['Aprovado', 'approved'].includes(status)) return 'border-green-500/30 bg-green-500/15 text-green-300';
+      if (['Rejeitado', 'rejected'].includes(status)) return 'border-red-500/30 bg-red-500/15 text-red-300';
+      return 'border-yellow-500/30 bg-yellow-500/15 text-yellow-300';
+    };
     
     const getFormattedDate = (day) => {
         let date = setDate(new Date(), day);
@@ -304,6 +347,9 @@ const CardsTab = ({ onUpdate }) => {
         }
         return format(date, 'dd/MMM', { locale: ptBR });
     }
+
+    const pendingCardApplications = cardApplications.filter((application) => ['Pendente', 'pending'].includes(application.status));
+    const canRequestMoreCards = cards.length + pendingCardApplications.length < 2;
 
     return (
         <div className="space-y-6">
@@ -452,18 +498,44 @@ const CardsTab = ({ onUpdate }) => {
               </Card>
             )}
 
-             {cards.length < 2 && (
+            {cardApplications.length > 0 && (
+                <Card className="glass-effect">
+                    <CardHeader>
+                        <CardTitle>Solicitações de Cartão</CardTitle>
+                        <CardDescription>Acompanhe a análise dos seus pedidos junto ao Banco Nacional.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                        {cardApplications.map((application) => (
+                            <div key={application.id} className="flex flex-col gap-3 rounded-lg bg-slate-800/50 p-4 sm:flex-row sm:items-center sm:justify-between">
+                                <div>
+                                    <p className="font-semibold capitalize">Cartão {application.brand}</p>
+                                    <p className="text-xs text-muted-foreground">
+                                        Solicitado em {new Date(application.created_at).toLocaleDateString('pt-BR')}
+                                    </p>
+                                    {application.feedback ? <p className="mt-1 text-xs text-muted-foreground">Feedback: {application.feedback}</p> : null}
+                                </div>
+                                <Badge className={`w-fit gap-1 border ${getApplicationBadgeClass(application.status)}`}>
+                                    {getApplicationStatusIcon(application.status)}
+                                    {application.status}
+                                </Badge>
+                            </div>
+                        ))}
+                    </CardContent>
+                </Card>
+            )}
+
+             {canRequestMoreCards && (
                 <Card className="glass-effect">
                     <CardHeader>
                         <CardTitle>Solicitar Novo Cartão</CardTitle>
-                        <CardDescription>Escolha a bandeira e solicite um novo cartão de crédito com limite pré-aprovado.</CardDescription>
+                        <CardDescription>Escolha a bandeira e envie o pedido para análise do Banco Nacional.</CardDescription>
                     </CardHeader>
                     <CardContent className="flex flex-col sm:flex-row gap-4">
-                        <Button onClick={() => handleRequestCard('visa')} disabled={isRequesting || cards.some(c => c.brand.toLowerCase() === 'visa')}>
+                        <Button onClick={() => handleRequestCard('visa')} disabled={isRequesting || cards.some(c => c.brand.toLowerCase() === 'visa') || pendingCardApplications.some(c => c.brand?.toLowerCase() === 'visa')}>
                             {isRequesting && <Loader2 className="animate-spin mr-2 h-4 w-4"/>}
                             <CreditCard className="mr-2 h-4 w-4"/> Solicitar Cartão Visa
                         </Button>
-                         <Button onClick={() => handleRequestCard('mastercard')} disabled={isRequesting || cards.some(c => c.brand.toLowerCase() === 'mastercard')}>
+                         <Button onClick={() => handleRequestCard('mastercard')} disabled={isRequesting || cards.some(c => c.brand.toLowerCase() === 'mastercard') || pendingCardApplications.some(c => c.brand?.toLowerCase() === 'mastercard')}>
                             {isRequesting && <Loader2 className="animate-spin mr-2 h-4 w-4"/>}
                             <CreditCard className="mr-2 h-4 w-4"/> Solicitar Cartão Mastercard
                         </Button>

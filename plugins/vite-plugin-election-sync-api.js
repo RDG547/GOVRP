@@ -1,6 +1,18 @@
-import { syncElectionOfficesHandler } from '../server/elections/http.js';
+import {
+  cancelCandidacyHandler,
+  respondViceCandidacyInvitationHandler,
+  resignPresidencyHandler,
+  submitPresidentialCandidacyHandler,
+  syncElectionOfficesHandler,
+} from '../server/elections/http.js';
+import { adminUpdateUserHandler } from '../server/admin/http.js';
 
 const ROUTE_HANDLERS = {
+  '/api/admin/update-user': adminUpdateUserHandler,
+  '/api/elections/cancel-candidacy': cancelCandidacyHandler,
+  '/api/elections/respond-vice-invitation': respondViceCandidacyInvitationHandler,
+  '/api/elections/resign-presidency': resignPresidencyHandler,
+  '/api/elections/submit-candidacy': submitPresidentialCandidacyHandler,
   '/api/elections/sync-offices': syncElectionOfficesHandler,
 };
 

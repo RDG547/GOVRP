@@ -26,6 +26,7 @@ import { Link } from 'react-router-dom';
 import { PieChart, Pie, Cell, Legend, ResponsiveContainer, Tooltip } from 'recharts';
 import { supabase } from '@/lib/supabaseClient';
 import { useAuth } from '@/contexts/AuthContext';
+import { fetchElectionOfficeSyncState } from '@/lib/electionOfficeSync';
 import { useToast } from '@/components/ui/use-toast';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -51,6 +52,12 @@ import {
 } from '@/lib/parliament';
 import { publishBillProposedNews } from '@/lib/newsPublisher';
 import {
+  filterCompatibleParliamentMembers,
+  resolvePrimaryRole,
+  resolvePrimaryRoleFromPool,
+  resolveParliamentHouseIdFromRole,
+} from '@/lib/roleResolution';
+import {
   canManageParliamentGovernance,
   COMMISSION_STATUS_META,
   COMMISSION_TYPE_OPTIONS,
@@ -65,7 +72,6 @@ import {
   isGovernanceSchemaMissing,
   isInquiryCommission,
   refreshParliamentGovernanceState,
-  resolveParliamentHouseIdFromRole,
 } from '@/lib/parliamentGovernance';
 
 const PARLIAMENT_RULE_ICON_MAP = {
@@ -254,9 +260,16 @@ const ParliamentPanel = () => {
     manifesto: '',
   });
 
-  const canStartVote = canManageParliamentVoting(user?.role);
-  const canManageGovernance = canManageParliamentGovernance(user?.role);
-  const canParticipateInGovernance = Boolean(parliamentMember) && !['Admin', 'Presidente'].includes(user?.role);
+  const rolePool = Array.isArray(user?.effective_roles)
+    ? user.effective_roles
+    : [user?.role].filter(Boolean);
+  const primaryUserRole = resolvePrimaryRoleFromPool(rolePool, user?.role || 'Usuário');
+  const isAdministrativeViewer =
+    rolePool.includes('Admin') || rolePool.includes('Presidente');
+  const canStartVote = rolePool.some((role) => canManageParliamentVoting(role));
+  const canManageGovernance = rolePool.some((role) => canManageParliamentGovernance(role));
+  const canParticipateInGovernance =
+    Boolean(parliamentMember) && !isAdministrativeViewer;
 
   const filteredBills = useMemo(
     () =>
@@ -371,23 +384,24 @@ const ParliamentPanel = () => {
     setLoading(true);
 
     try {
-      const { data: housesData, error: housesError } = await supabase
-        .from('parliament_houses')
-        .select('id, name, description')
-        .order('name');
+      const [{ data: housesData, error: housesError }, syncState] = await Promise.all([
+        supabase
+          .from('parliament_houses')
+          .select('id, name, description')
+          .order('name'),
+        fetchElectionOfficeSyncState(supabase).catch((error) => {
+          console.error('Erro ao carregar cargos eleitorais no painel parlamentar:', error);
+          return null;
+        }),
+      ]);
 
       if (housesError) {
         throw housesError;
       }
 
-      const effectiveRoles = Array.isArray(user?.effective_roles)
-        ? user.effective_roles
-        : [user?.role].filter(Boolean);
       const effectiveHouseRole =
-        effectiveRoles.find((role) => resolveParliamentHouseIdFromRole(role, housesData || [])) ||
+        rolePool.find((role) => resolveParliamentHouseIdFromRole(role, housesData || [])) ||
         user.role;
-      const isAdministrativeViewer =
-        effectiveRoles.includes('Admin') || effectiveRoles.includes('Presidente');
       const resolvedHouseId = isAdministrativeViewer
         ? adminTargetHouseId
         : resolveParliamentHouseIdFromRole(effectiveHouseRole, housesData || []);
@@ -408,11 +422,13 @@ const ParliamentPanel = () => {
 
       const selectedHouseId = resolvedHouseId || adminTargetHouseId || DEFAULT_PARLIAMENT_HOUSE_ID;
       const currentHouse = resolveHouseDetails(selectedHouseId, housesData || []);
-      const currentOperator = await ensureParliamentOperatorMember(supabase, {
-        userId: user.id,
-        houseId: selectedHouseId,
-        member: null,
-      });
+      const currentOperator = isAdministrativeViewer
+        ? null
+        : await ensureParliamentOperatorMember(supabase, {
+            userId: user.id,
+            houseId: selectedHouseId,
+            member: null,
+          });
 
       setAccessData({ hasAccess: true });
       setParliamentMember(currentOperator);
@@ -453,7 +469,7 @@ const ParliamentPanel = () => {
           .order('created_at', { ascending: false }),
         supabase
           .from('parliament_members')
-          .select('id, user_id, house_id, term_start_date, term_end_date, profile:profiles(id, full_name, avatar_url, x_handle, role), party:political_parties(name, acronym, logo_url)')
+          .select('id, user_id, house_id, term_start_date, term_end_date, profile:profiles(id, full_name, avatar_url, x_handle, role, titles), party:political_parties(name, acronym, logo_url)')
           .eq('house_id', selectedHouseId)
           .order('term_start_date', { ascending: false }),
         supabase
@@ -486,14 +502,26 @@ const ParliamentPanel = () => {
       setBills(billsResponse.data || []);
       setSuggestions(suggestionsResponse.data || []);
       setPlebisciteRequests(plebiscitesResponse.data || []);
+      const eligibleMembers = filterCompatibleParliamentMembers(
+        membersResponse.data || [],
+        syncState,
+        housesData || []
+      );
       setMembers(
-        (membersResponse.data || []).map((member) => ({
+        eligibleMembers.map((member) => ({
           parliament_member_id: member.id,
           user_id: member.user_id,
           full_name: member.profile?.full_name,
           avatar_url: member.profile?.avatar_url,
           x_handle: member.profile?.x_handle,
           role: member.profile?.role,
+          display_role: resolvePrimaryRole(
+            {
+              ...(member.profile || {}),
+              id: member.user_id,
+            },
+            syncState
+          ),
           party: member.party || null,
           term_start_date: member.term_start_date,
           term_end_date: member.term_end_date,
@@ -522,7 +550,7 @@ const ParliamentPanel = () => {
     } finally {
       setLoading(false);
     }
-  }, [adminTargetHouseId, resolveVotingTitles, toast, user]);
+  }, [adminTargetHouseId, isAdministrativeViewer, resolveVotingTitles, rolePool, toast, user]);
 
   useEffect(() => {
     fetchPanelData();
@@ -574,7 +602,7 @@ const ParliamentPanel = () => {
         ...newBill,
         author_id: user.id,
         house_id: house.id,
-        author_role: user.role,
+        author_role: primaryUserRole,
         status: 'Em tramitação',
       };
 
@@ -1030,7 +1058,7 @@ const ParliamentPanel = () => {
           />
         </div>
 
-        {(user?.role === 'Admin' || user?.role === 'Presidente') && (
+        {isAdministrativeViewer && (
           <div className="mb-6">
             <Label>Operando como gestor na Casa:</Label>
             <Select value={adminTargetHouseId} onValueChange={setAdminTargetHouseId}>
@@ -1049,13 +1077,25 @@ const ParliamentPanel = () => {
         )}
 
         <Tabs value={activeMainTab} onValueChange={setActiveMainTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-2 gap-2 md:grid-cols-6">
-            <TabsTrigger value="projects">Projetos</TabsTrigger>
-            <TabsTrigger value="votes">Votações</TabsTrigger>
-            <TabsTrigger value="commissions">Comissões</TabsTrigger>
-            <TabsTrigger value="leadership">Mesa Diretora</TabsTrigger>
-            <TabsTrigger value="plebiscites">Plebiscitos</TabsTrigger>
-            <TabsTrigger value="members">Membros</TabsTrigger>
+          <TabsList className="grid h-auto w-full grid-cols-2 items-stretch gap-2 md:grid-cols-6">
+            <TabsTrigger className="h-full min-h-10 whitespace-normal px-2 py-2 text-center leading-tight" value="projects">
+              Projetos
+            </TabsTrigger>
+            <TabsTrigger className="h-full min-h-10 whitespace-normal px-2 py-2 text-center leading-tight" value="votes">
+              Votações
+            </TabsTrigger>
+            <TabsTrigger className="h-full min-h-10 whitespace-normal px-2 py-2 text-center leading-tight" value="commissions">
+              Comissões
+            </TabsTrigger>
+            <TabsTrigger className="h-full min-h-10 whitespace-normal px-2 py-2 text-center leading-tight" value="leadership">
+              Mesa Diretora
+            </TabsTrigger>
+            <TabsTrigger className="h-full min-h-10 whitespace-normal px-2 py-2 text-center leading-tight" value="plebiscites">
+              Plebiscitos
+            </TabsTrigger>
+            <TabsTrigger className="h-full min-h-10 whitespace-normal px-2 py-2 text-center leading-tight" value="members">
+              Membros
+            </TabsTrigger>
           </TabsList>
 
           <motion.div
@@ -1067,9 +1107,19 @@ const ParliamentPanel = () => {
           >
             <TabsContent value="projects" className="space-y-6">
               <Tabs value={activeSubTab} onValueChange={setActiveSubTab}>
-                <TabsList className="grid w-full grid-cols-2">
-                  <TabsTrigger value="member_projects">Projetos dos Membros</TabsTrigger>
-                  <TabsTrigger value="citizen_suggestions">Sugestões Populares</TabsTrigger>
+                <TabsList className="grid h-auto w-full grid-cols-2 items-stretch gap-2">
+                  <TabsTrigger
+                    className="h-full min-h-10 whitespace-normal px-2 py-2 text-center leading-tight"
+                    value="member_projects"
+                  >
+                    Projetos dos Membros
+                  </TabsTrigger>
+                  <TabsTrigger
+                    className="h-full min-h-10 whitespace-normal px-2 py-2 text-center leading-tight"
+                    value="citizen_suggestions"
+                  >
+                    Sugestões Populares
+                  </TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="member_projects" className="mt-4">
@@ -1823,7 +1873,7 @@ const ParliamentPanel = () => {
                             @{member.x_handle}
                           </Link>
                         ) : (
-                          <CardDescription>{member.role || 'Parlamentar'}</CardDescription>
+                          <CardDescription>{member.display_role || member.role || 'Parlamentar'}</CardDescription>
                         )}
                         {member.party ? (
                           <Badge variant="secondary" className="mt-3 inline-flex items-center gap-2">

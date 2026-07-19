@@ -9,10 +9,10 @@ import Register from '@/pages/Register';
 import AuthCallback from '@/pages/AuthCallback';
 import About from '@/pages/About';
 import Contact from '@/pages/Contact';
+import AccountDeletion from '@/pages/AccountDeletion';
 import Support from '@/pages/Support';
 import Terms from '@/pages/Terms';
 import Privacy from '@/pages/Privacy';
-import Roadmap from '@/pages/Roadmap';
 import Services from '@/pages/Services';
 import Bank from '@/pages/services/Bank';
 import Business from '@/pages/services/Business';
@@ -42,6 +42,7 @@ import ServiceProtectedRoute from '@/components/ServiceProtectedRoute';
 import AdminDashboardPage from '@/pages/admin/AdminDashboard';
 import AdminProtectedRoute from '@/components/admin/AdminProtectedRoute';
 import WelcomeTutorial from '@/components/WelcomeTutorial';
+import ResidencyOnboarding from '@/components/ResidencyOnboarding';
 import CookieConsent from '@/components/CookieConsent';
 import TutorialPage from '@/pages/TutorialPage';
 import DonationPage from '@/pages/DonationPage';
@@ -50,7 +51,11 @@ import ParticlesBackground from '@/components/ParticlesBackground';
 import BetaAccessWall from '@/pages/BetaAccessWall';
 import ScrollToTop from '@/components/ScrollToTop';
 import DailyCheckInPopup from '@/components/DailyCheckInPopup';
+import BusinessBalancePopup from '@/components/BusinessBalancePopup';
 import ElectionOfficeAwardPopup from '@/components/ElectionOfficeAwardPopup';
+import SalaryPaymentPopup from '@/components/SalaryPaymentPopup';
+import ViceCandidacyDecisionPopup from '@/components/ViceCandidacyDecisionPopup';
+import UserActivityTracker from '@/components/UserActivityTracker';
 import { InternetSpeedProvider } from '@/contexts/InternetSpeedContext';
 
 import SocialX from '@/pages/services/SocialX';
@@ -100,6 +105,7 @@ import { isPrisonSentenceActive } from '@/lib/prison';
 import { PARLIAMENT_PANEL_ROLES } from '@/lib/parliament';
 import ServiceAvailabilityGate from '@/components/ServiceAvailabilityGate';
 import EntrepreneurPortal from '@/pages/services/EntrepreneurPortal';
+import GlobalSiteAvailabilityGate from '@/components/GlobalSiteAvailabilityGate';
 
 const MainLayout = ({ children }) => {
   const location = useLocation();
@@ -140,6 +146,20 @@ function App() {
 
   return (
     <AuthProvider>
+      <AppShell location={location} theme={theme} isAuthCallback={isAuthCallback} />
+    </AuthProvider>
+  );
+}
+
+const AppShell = ({ location, theme, isAuthCallback }) => {
+  const { user } = useAuth();
+  const rolePool = Array.isArray(user?.effective_roles)
+    ? user.effective_roles
+    : [user?.role].filter(Boolean);
+  const isAdmin = rolePool.includes('Admin') || user?.role === 'Admin';
+
+  return (
+    <GlobalSiteAvailabilityGate pathname={location.pathname} isAdmin={isAdmin}>
       <div className={`${theme} min-h-screen bg-background text-foreground custom-scrollbar`}>
         {!isAuthCallback && <ParticlesBackground />}
         <div className="relative z-10">
@@ -147,6 +167,7 @@ function App() {
             <InternetSpeedProvider>
             <MainLayout>
               <ScrollRestoration />
+              {!isAuthCallback && <ResidencyOnboarding />}
               {!isAuthCallback && <WelcomeTutorial />}
               <AnimatePresence mode="wait">
                 <Routes location={location} key={location.pathname.startsWith('/services/x') ? '/services/x' : location.pathname}>
@@ -159,10 +180,10 @@ function App() {
                 <Route path="/about" element={<About />} />
                 <Route path="/country-info" element={<CountryInfo />} />
                 <Route path="/contact" element={<Contact />} />
+                <Route path="/account-deletion" element={<AccountDeletion />} />
                 <Route path="/support" element={<Support />} />
                 <Route path="/terms" element={<Terms />} />
                 <Route path="/privacy" element={<Privacy />} />
-                <Route path="/roadmap" element={<Roadmap />} />
                 <Route path="/faq" element={<FAQ />} />
                 <Route path="/donation" element={<DonationPage />} />
                 <Route path="/support-us" element={<SupportUs />} />
@@ -175,13 +196,13 @@ function App() {
                 <Route path="/coming-soon" element={<ComingSoon />} />
                 <Route path="/maintenance" element={<MaintenanceMode />} />
                 <Route path="/beta-access" element={<BetaAccessWall />} />
-                
+
                 <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
                 <Route path="/dashboard/citizen" element={<ProtectedRoute><CitizenDashboard /></ProtectedRoute>} />
                 <Route path="/role-dashboard" element={<ProtectedRoute><RoleDashboard /></ProtectedRoute>} />
                 <Route path="/dashboard/president" element={<RoleProtectedRoute roles={['Presidente', 'Admin']}><PresidentDashboard /></RoleProtectedRoute>} />
                 <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
-                
+
                 <Route path="/services" element={<ServiceProtectedRoute><Services /></ServiceProtectedRoute>} />
                 <Route path="/services/bank" element={<ManagedServiceRoute serviceKey="/services/bank"><Bank /></ManagedServiceRoute>} />
                 <Route path="/services/business" element={<ManagedServiceRoute serviceKey="/services/business"><Business /></ManagedServiceRoute>} />
@@ -190,7 +211,7 @@ function App() {
                 <Route path="/services/dic" element={<ManagedServiceRoute serviceKey="/services/dic"><DIC /></ManagedServiceRoute>} />
                 <Route path="/services/prison" element={<ManagedServiceRoute serviceKey="/services/prison"><Prison /></ManagedServiceRoute>} />
                 <Route path="/services/entrepreneur-portal" element={<ManagedServiceRoute serviceKey="/services/entrepreneur-portal"><EntrepreneurPortal /></ManagedServiceRoute>} />
-                
+
                 <Route path="/services/x" element={<ManagedServiceRoute serviceKey="/services/x"><SocialX /></ManagedServiceRoute>}>
                     <Route index element={<Navigate to="feed" replace />} />
                     <Route path="feed" element={<XFeed />} />
@@ -201,12 +222,12 @@ function App() {
                     <Route path="search" element={<XSearch />} />
                     <Route path="profile/:handle" element={<XProfile />} />
                 </Route>
-                
+
                 <Route path="/services/elections" element={<ManagedServiceRoute serviceKey="/services/elections"><Elections /></ManagedServiceRoute>} />
 
                 <Route path="/services/political-parties" element={<ManagedServiceRoute serviceKey="/services/political-parties"><PoliticalParties /></ManagedServiceRoute>} />
                 <Route path="/services/political-parties/:partyId" element={<ManagedServiceRoute serviceKey="/services/political-parties"><PartyPage /></ManagedServiceRoute>} />
-                
+
                 <Route path="/services/parliament" element={<ManagedServiceRoute serviceKey="/services/parliament"><ServiceAccess requiredRoles={PARLIAMENT_PANEL_ROLES} citizenPath="/services/parliament/citizen" panelPath="/services/parliament/panel" /></ManagedServiceRoute>} />
                 <Route path="/services/parliament/citizen" element={<ManagedServiceRoute serviceKey="/services/parliament"><Parliament /></ManagedServiceRoute>} />
                 <Route path="/services/parliament/panel" element={<ManagedServiceRoute serviceKey="/services/parliament"><RoleProtectedRoute roles={PARLIAMENT_PANEL_ROLES}><ParliamentPanel /></RoleProtectedRoute></ManagedServiceRoute>} />
@@ -214,7 +235,7 @@ function App() {
                 <Route path="/services/penal-system" element={<ManagedServiceRoute serviceKey="/services/penal-system"><ServiceAccess requiredRoles={['Juiz', 'Admin']} citizenPath="/services/penal-system/citizen" panelPath="/services/penal-system/panel" /></ManagedServiceRoute>} />
                 <Route path="/services/penal-system/citizen" element={<ManagedServiceRoute serviceKey="/services/penal-system"><PenalSystem /></ManagedServiceRoute>} />
                 <Route path="/services/penal-system/panel" element={<ManagedServiceRoute serviceKey="/services/penal-system"><RoleProtectedRoute roles={['Juiz', 'Admin']}><PenalSystemPanel /></RoleProtectedRoute></ManagedServiceRoute>} />
-                
+
                 <Route path="/services/police" element={<ManagedServiceRoute serviceKey="/services/police"><ServiceAccess requiredRoles={['Policial', 'Admin']} citizenPath="/services/police/citizen" panelPath="/services/police/panel" /></ManagedServiceRoute>} />
                 <Route path="/services/police/citizen" element={<ManagedServiceRoute serviceKey="/services/police"><Police /></ManagedServiceRoute>} />
                 <Route path="/services/police/panel" element={<ManagedServiceRoute serviceKey="/services/police"><RoleProtectedRoute roles={['Policial', 'Admin']}><PolicePanel /></RoleProtectedRoute></ManagedServiceRoute>} />
@@ -229,7 +250,7 @@ function App() {
 
                 <Route path="/services/library" element={<ManagedServiceRoute serviceKey="/services/library"><Library /></ManagedServiceRoute>} />
                 <Route path="/services/digital-archive" element={<ManagedServiceRoute serviceKey="/services/digital-archive"><DigitalArchive /></ManagedServiceRoute>} />
-                
+
                 <Route path="/services/internet" element={<ManagedServiceRoute serviceKey="/services/internet"><Internet /></ManagedServiceRoute>} />
                 <Route path="/services/electricity" element={<ManagedServiceRoute serviceKey="/services/electricity"><Electricity /></ManagedServiceRoute>} />
                 <Route path="/services/water" element={<ManagedServiceRoute serviceKey="/services/water"><Water /></ManagedServiceRoute>} />
@@ -249,13 +270,17 @@ function App() {
             </InternetSpeedProvider>
           </PrisonRouteGuard>
           <Toaster />
+          {!isAuthCallback && <UserActivityTracker />}
           {!isAuthCallback && <CookieConsent />}
           {!isAuthCallback && <DailyCheckInPopup />}
+          {!isAuthCallback && <SalaryPaymentPopup />}
+          {!isAuthCallback && <BusinessBalancePopup />}
+          {!isAuthCallback && <ViceCandidacyDecisionPopup />}
           {!isAuthCallback && <ElectionOfficeAwardPopup />}
         </div>
       </div>
-    </AuthProvider>
+    </GlobalSiteAvailabilityGate>
   );
-}
+};
 
 export default App;

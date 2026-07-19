@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '@/lib/supabaseClient';
+import { fetchElectionOfficeSyncState } from '@/lib/electionOfficeSync';
+import { resolvePrimaryRole } from '@/lib/roleResolution';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader2, Edit, Trash2, Search, Wallet, Crown, KeyRound, Filter, CreditCard, User, Shield, Scale, Gavel, Briefcase, GraduationCap, Building, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Loader2, Edit, Trash2, Search, Wallet, Crown, KeyRound, Filter, CreditCard, User, Shield, Scale, Gavel, Briefcase, GraduationCap, Building, ChevronLeft, ChevronRight, Landmark } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -161,26 +163,50 @@ const EditUserDialog = ({ user, onFinish, onUpdate }) => {
     const handleSubmit = async () => {
         setIsProcessing(true);
         const titlesArray = formData.titles.split(',').map(t => t.trim()).filter(Boolean);
-        
-        const { data, error } = await supabase.rpc('admin_update_user', {
-            p_user_id: user.id,
-            p_full_name: formData.full_name,
-            p_username: formData.username,
-            p_role: formData.role,
-            p_titles: titlesArray
-        });
 
-        if (error || !data.success) {
-            toast({ title: "Erro ao atualizar", description: data?.message || error?.message, variant: "destructive" });
-        } else {
-            toast({ title: "Sucesso", description: data.message });
+        try {
+            const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+            if (sessionError) {
+                throw sessionError;
+            }
+
+            const accessToken = sessionData?.session?.access_token;
+            if (!accessToken) {
+                throw new Error('Sua sessão expirou. Faça login novamente para continuar.');
+            }
+
+            const response = await fetch('/api/admin/update-user', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${accessToken}`,
+                },
+                body: JSON.stringify({
+                    userId: user.id,
+                    fullName: formData.full_name,
+                    username: formData.username,
+                    role: formData.role,
+                    titles: titlesArray,
+                }),
+            });
+
+            const payload = await response.json().catch(() => ({}));
+
+            if (!response.ok || payload?.success === false) {
+                throw new Error(payload?.error || payload?.message || 'Não foi possível atualizar o usuário.');
+            }
+
+            toast({ title: "Sucesso", description: payload.message || 'Usuário atualizado com sucesso.' });
             onUpdate();
             onFinish();
+        } catch (error) {
+            toast({ title: "Erro ao atualizar", description: error.message, variant: "destructive" });
+        } finally {
+            setIsProcessing(false);
         }
-        setIsProcessing(false);
     };
 
-    const availableRoles = ['Usuário', 'Cidadão', 'Admin', 'Presidente', 'Vice-Presidente', 'Presidente da Câmara', 'Presidente da Câmara dos Deputados', 'Vice-Presidente da Câmara dos Deputados', 'Presidente do Senado', 'Vice-Presidente do Senado', 'Vice-Presidente do Senado Federal', 'Presidente do STF', 'Deputado', 'Senador', 'Juiz', 'Policial', 'Ministro', 'Agente Secreto', 'Militar'];
+    const availableRoles = ['Usuário', 'Cidadão', 'Admin', 'Presidente', 'Vice-Presidente', 'Presidente da Câmara', 'Presidente da Câmara dos Deputados', 'Vice-Presidente da Câmara dos Deputados', 'Presidente do Senado', 'Vice-Presidente do Senado', 'Vice-Presidente do Senado Federal', 'Presidente do STF', 'Presidente do Banco Nacional', 'Deputado', 'Senador', 'Juiz', 'Policial', 'Ministro', 'Agente Secreto', 'Militar'];
 
     return (
         <DialogContent className="glass-effect text-white">
@@ -351,6 +377,7 @@ const roleConfig = {
     'Vice-Presidente do Senado': { color: 'text-indigo-300', bg: 'bg-indigo-600/80', icon: Gavel },
     'Vice-Presidente do Senado Federal': { color: 'text-indigo-300', bg: 'bg-indigo-600/80', icon: Gavel },
     'Presidente do STF': { color: 'text-zinc-200', bg: 'bg-zinc-600/80', icon: Gavel },
+    'Presidente do Banco Nacional': { color: 'text-emerald-300', bg: 'bg-emerald-600/80', icon: Landmark },
     'Ministro': { color: 'text-purple-400', bg: 'bg-purple-500/80', icon: Briefcase },
     'Senador': { color: 'text-blue-400', bg: 'bg-blue-500/80', icon: Scale },
     'Deputado': { color: 'text-sky-400', bg: 'bg-sky-500/80', icon: Scale },
@@ -365,9 +392,40 @@ const roleConfig = {
 
 const USERS_PER_PAGE = 12;
 const roleOrder = [
-    'Admin', 'Presidente', 'Vice-Presidente', 'Presidente da Câmara', 'Presidente da Câmara dos Deputados', 'Vice-Presidente da Câmara dos Deputados', 'Presidente do Senado', 'Vice-Presidente do Senado', 'Vice-Presidente do Senado Federal', 'Presidente do STF', 'Ministro', 'Senador', 'Deputado',
+    'Admin', 'Presidente', 'Vice-Presidente', 'Presidente da Câmara', 'Presidente da Câmara dos Deputados', 'Vice-Presidente da Câmara dos Deputados', 'Presidente do Senado', 'Vice-Presidente do Senado', 'Vice-Presidente do Senado Federal', 'Presidente do STF', 'Presidente do Banco Nacional', 'Ministro', 'Senador', 'Deputado',
     'Juiz', 'Policial', 'Agente Secreto', 'Militar', 'Cidadão', 'Usuário'
 ];
+
+const getDisplayRole = (user) => user?.display_role || user?.role || 'Usuário';
+
+const isMissingManualRoleMetadataError = (error) =>
+    /manual_role_override|role_assigned_at|role_assigned_by/i.test(error?.message || '');
+
+const fetchManualRoleMetadataByUserId = async (userIds = []) => {
+    const ids = [...new Set(userIds.filter(Boolean))];
+
+    if (!ids.length) {
+        return {};
+    }
+
+    const { data, error } = await supabase
+        .from('profiles')
+        .select('id, manual_role_override, role_assigned_at, role_assigned_by')
+        .in('id', ids);
+
+    if (error) {
+        if (isMissingManualRoleMetadataError(error)) {
+            return {};
+        }
+
+        throw error;
+    }
+
+    return (data || []).reduce((accumulator, profile) => {
+        accumulator[profile.id] = profile;
+        return accumulator;
+    }, {});
+};
 
 const UserManagement = () => {
     const { user: adminUser } = useAuth();
@@ -385,12 +443,41 @@ const UserManagement = () => {
     const [deletingUserId, setDeletingUserId] = useState(null);
 
     const fetchUsers = useCallback(async () => {
-        const { data, error } = await supabase.rpc('admin_get_all_users');
+        const [{ data, error }, syncState] = await Promise.all([
+            supabase.rpc('admin_get_all_users'),
+            fetchElectionOfficeSyncState(supabase).catch((syncError) => {
+                console.error('Erro ao carregar cargos eleitorais no admin:', syncError);
+                return null;
+            }),
+        ]);
         if (error) {
             toast({ title: "Erro ao buscar usuários", description: error.message, variant: "destructive" });
         } else {
-            setUsers(data || []);
-            const max = Math.max(...data.map(u => u.balance || 0), 1000000);
+            const manualRoleMetadataByUserId = await fetchManualRoleMetadataByUserId((data || []).map((currentUser) => currentUser.id));
+            const enhancedUsers = (data || []).map((currentUser) => {
+                const currentProfile = {
+                    ...currentUser,
+                    ...(manualRoleMetadataByUserId[currentUser.id] || {}),
+                };
+
+                return {
+                    ...currentProfile,
+                    display_role: resolvePrimaryRole(
+                        {
+                            id: currentProfile.id,
+                            role: currentProfile.role,
+                            titles: currentProfile.titles,
+                            manual_role_override: currentProfile.manual_role_override,
+                            role_assigned_at: currentProfile.role_assigned_at,
+                        },
+                        syncState,
+                        currentProfile.role || 'Usuário'
+                    ),
+                };
+            });
+
+            setUsers(enhancedUsers);
+            const max = Math.max(...enhancedUsers.map(u => u.balance || 0), 1000000);
             setMaxBalance(max);
             setFilters(f => ({ ...f, balance: [f.balance[0], max] }));
         }
@@ -447,13 +534,13 @@ const UserManagement = () => {
                                   (user.username || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
                                   (user.email || '').toLowerCase().includes(searchTerm.toLowerCase());
                 const letterMatch = filters.letter === 'all' || (user.full_name || ' ').toLowerCase().startsWith(filters.letter);
-                const roleMatch = filters.role === 'all' || user.role === filters.role;
+                const roleMatch = filters.role === 'all' || getDisplayRole(user) === filters.role;
                 const balanceMatch = (user.balance || 0) >= filters.balance[0] && (user.balance || 0) <= filters.balance[1];
                 return nameMatch && letterMatch && roleMatch && balanceMatch;
             })
             .sort((a, b) => {
-                const roleAIndex = roleOrder.indexOf(a.role || 'Usuário');
-                const roleBIndex = roleOrder.indexOf(b.role || 'Usuário');
+                const roleAIndex = roleOrder.indexOf(getDisplayRole(a));
+                const roleBIndex = roleOrder.indexOf(getDisplayRole(b));
                 const finalRoleAIndex = roleAIndex === -1 ? roleOrder.length : roleAIndex;
                 const finalRoleBIndex = roleBIndex === -1 ? roleOrder.length : roleBIndex;
                 if (finalRoleAIndex !== finalRoleBIndex) {
@@ -474,7 +561,7 @@ const UserManagement = () => {
     if (adminUser?.role !== 'Admin') return <div className="text-center py-10 text-white">Acesso não autorizado.</div>;
 
     const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
-    const allRoles = [...new Set(users.map(u => u.role).filter(Boolean))].sort();
+    const allRoles = [...new Set(users.map((currentUser) => getDisplayRole(currentUser)).filter(Boolean))].sort();
 
     let lastRole = null;
 
@@ -532,15 +619,16 @@ const UserManagement = () => {
             {/* Mobile: Card Layout */}
             <div className="md:hidden space-y-3">
                 {paginatedUsers.length > 0 ? paginatedUsers.map((user, index) => {
-                    const showSeparator = user.role !== lastRole && lastRole !== null;
-                    lastRole = user.role;
-                    const roleColorClass = roleConfig[user.role]?.color || roleConfig.default.color;
+                    const displayRole = getDisplayRole(user);
+                    const showSeparator = displayRole !== lastRole && lastRole !== null;
+                    lastRole = displayRole;
+                    const roleColorClass = roleConfig[displayRole]?.color || roleConfig.default.color;
                     return (
                         <React.Fragment key={user.id}>
                             {showSeparator && (
                                 <div className="flex items-center overflow-hidden py-1">
                                     <Separator className="flex-1 bg-border min-w-0" />
-                                    <span className={`px-4 text-xs font-semibold uppercase whitespace-nowrap ${roleColorClass}`}>{user.role}s</span>
+                                    <span className={`px-4 text-xs font-semibold uppercase whitespace-nowrap ${roleColorClass}`}>{displayRole}s</span>
                                     <Separator className="flex-1 bg-border min-w-0" />
                                 </div>
                             )}
@@ -567,9 +655,10 @@ const UserManagement = () => {
                     <tbody>
                         {(() => { lastRole = null; return null; })()}
                         {paginatedUsers.length > 0 ? paginatedUsers.map((user, index) => {
-                             const showSeparator = user.role !== lastRole && lastRole !== null;
-                             lastRole = user.role;
-                             const roleColorClass = roleConfig[user.role]?.color || roleConfig.default.color;
+                             const displayRole = getDisplayRole(user);
+                             const showSeparator = displayRole !== lastRole && lastRole !== null;
+                             lastRole = displayRole;
+                             const roleColorClass = roleConfig[displayRole]?.color || roleConfig.default.color;
                              return (
                                 <React.Fragment key={user.id}>
                                 {showSeparator && (
@@ -577,7 +666,7 @@ const UserManagement = () => {
                                         <td colSpan="5" className="px-6 py-2">
                                             <div className="flex items-center overflow-hidden">
                                                 <Separator className="flex-1 bg-border min-w-0" />
-                                                <span className={`px-4 text-xs font-semibold uppercase whitespace-nowrap ${roleColorClass}`}>{user.role}s</span>
+                                                <span className={`px-4 text-xs font-semibold uppercase whitespace-nowrap ${roleColorClass}`}>{displayRole}s</span>
                                                 <Separator className="flex-1 bg-border min-w-0" />
                                             </div>
                                         </td>
@@ -665,7 +754,8 @@ const UserActionButtons = ({ user, adminUser, setModifyingBalanceUser, setChangi
 };
 
 const UserCard = ({ user, adminUser, setModifyingBalanceUser, setChangingPasswordUser, setEditingUser, handleDeleteUser, setManagingCardLimitUser, deletingUserId }) => {
-    const config = roleConfig[user.role] || roleConfig.default;
+    const displayRole = getDisplayRole(user);
+    const config = roleConfig[displayRole] || roleConfig.default;
     const Icon = config.icon;
 
     return (
@@ -678,7 +768,7 @@ const UserCard = ({ user, adminUser, setModifyingBalanceUser, setChangingPasswor
                 </div>
                 <Badge className={`text-white ${config.bg} shrink-0 text-xs`}>
                     <Icon className="w-3 h-3 mr-1"/>
-                    {user.role}
+                    {displayRole}
                 </Badge>
             </div>
             <div className="flex items-center justify-between">
@@ -697,7 +787,8 @@ const UserCard = ({ user, adminUser, setModifyingBalanceUser, setChangingPasswor
 };
 
 const UserRow = ({ user, adminUser, setModifyingBalanceUser, setChangingPasswordUser, setEditingUser, handleDeleteUser, setManagingCardLimitUser, deletingUserId }) => {
-    const config = roleConfig[user.role] || roleConfig.default;
+    const displayRole = getDisplayRole(user);
+    const config = roleConfig[displayRole] || roleConfig.default;
     const Icon = config.icon;
 
     return (
@@ -713,7 +804,7 @@ const UserRow = ({ user, adminUser, setModifyingBalanceUser, setChangingPassword
             <td className="px-6 py-4 text-center">
               <Badge className={`text-white ${config.bg}`}>
                 <Icon className="w-3 h-3 mr-1"/>
-                {user.role}
+                {displayRole}
               </Badge>
             </td>
             <td className="px-6 py-4 text-right space-x-2">

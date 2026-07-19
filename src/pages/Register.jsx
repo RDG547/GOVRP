@@ -79,8 +79,27 @@ const Register = () => {
   const handleGenerateCPF = () => setFormData({ ...formData, cpf: formatCPF(generateCPF()) });
   const handleGenerateRG = () => setFormData({ ...formData, rg: formatRG(generateRG()) });
 
+  const validateUsername = (username) => {
+    if (!username || username.length < 3) {
+      return 'O nome de usuário deve ter no mínimo 3 caracteres.';
+    }
+    if (username.length > 20) {
+      return 'O nome de usuário deve ter no máximo 20 caracteres.';
+    }
+    if (!/^[a-zA-Z0-9._-]+$/.test(username)) {
+      return 'O nome de usuário só pode conter letras, números, ponto, underline ou hífen.';
+    }
+    return null;
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    const usernameError = validateUsername(formData.username);
+    if (usernameError) {
+      toast({ title: "Erro no cadastro", description: usernameError, variant: "destructive" });
+      return;
+    }
 
     if (passwordScore < 3) {
       toast({ title: "Senha fraca", description: "Sua senha deve ser pelo menos 'Razoável'.", variant: "destructive" });
@@ -182,8 +201,17 @@ const Register = () => {
           </motion.div>
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-6">
-              <div><Label htmlFor="fullName">Nome Completo</Label><div className="relative"><User className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5 z-10" /><Input id="fullName" name="fullName" type="text" required value={formData.fullName} onChange={handleChange} className={inputClass} placeholder="Seu nome completo" /></div></div>
-              <div><Label htmlFor="username">Nome de usuário</Label><div className="relative"><User className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5 z-10" /><Input id="username" name="username" type="text" required value={formData.username} onChange={handleChange} className={inputClass} placeholder="Ex: joao.silva" /></div></div>
+              <div>
+                <Label htmlFor="fullName">Nome Completo</Label>
+                <p className="text-xs text-gray-400 mb-1.5">Seu nome da vida real</p>
+                <div className="relative"><User className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5 z-10" /><Input id="fullName" name="fullName" type="text" required value={formData.fullName} onChange={handleChange} className={inputClass} placeholder="Seu nome completo" /></div>
+              </div>
+              <div>
+                <Label htmlFor="username">Nome de usuário</Label>
+                <p className="text-xs text-gray-400 mb-1.5">O nome do seu personagem no RP</p>
+                <div className="relative"><User className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5 z-10" /><Input id="username" name="username" type="text" required minLength={3} maxLength={20} value={formData.username} onChange={handleChange} className={inputClass} placeholder="Ex: joao.silva" /></div>
+                <p className="text-xs text-gray-500 mt-1.5">De 3 a 20 caracteres. Use letras, números, ponto, underline ou hífen.</p>
+              </div>
               <div><Label htmlFor="dateOfBirth">Data de Nascimento</Label><div className="relative"><Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5 z-10" /><Input id="dateOfBirth" name="dateOfBirth" type="date" required value={formData.dateOfBirth} onChange={handleChange} className={inputClass} min={`${minBirthYear}-01-01`} max={`${maxBirthYear}-12-31`} /></div></div>
               <div><Label htmlFor="email">Email</Label><div className="relative"><Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5 z-10" /><Input id="email" name="email" type="email" required value={formData.email} onChange={handleChange} className={inputClass} placeholder="seu@email.com" /></div></div>
 
@@ -209,27 +237,29 @@ const Register = () => {
                 </div>
               </div>
 
-              <div>
-                <Label htmlFor="cpf">CPF</Label>
-                <div className="relative">
-                  <FileText className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5 z-10" />
-                  <Input id="cpf" name="cpf" type="text" required value={formData.cpf} readOnly className={`${inputClass} pr-10`} placeholder="Clique no ícone para gerar" />
-                  <div className="absolute right-1 top-1/2 -translate-y-1/2">
-                    <Button type="button" size="icon" variant="ghost" onClick={handleGenerateCPF} className="h-8 w-8 text-gray-400 hover:text-white">
-                      <RefreshCw className="w-4 h-4" />
-                    </Button>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="cpf">CPF</Label>
+                  <div className="relative">
+                    <FileText className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5 z-10" />
+                    <Input id="cpf" name="cpf" type="text" required value={formData.cpf} readOnly className={`${inputClass} pr-10`} placeholder="Clique no ícone para gerar" />
+                    <div className="absolute right-1 top-1/2 -translate-y-1/2">
+                      <Button type="button" size="icon" variant="ghost" onClick={handleGenerateCPF} className="h-8 w-8 text-gray-400 hover:text-white">
+                        <RefreshCw className="w-4 h-4" />
+                      </Button>
+                    </div>
                   </div>
                 </div>
-              </div>
-              <div>
-                <Label htmlFor="rg">RG</Label>
-                <div className="relative">
-                  <FileText className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5 z-10" />
-                  <Input id="rg" name="rg" type="text" required value={formData.rg} readOnly className={`${inputClass} pr-10`} placeholder="Clique no ícone para gerar" />
-                  <div className="absolute right-1 top-1/2 -translate-y-1/2">
-                    <Button type="button" size="icon" variant="ghost" onClick={handleGenerateRG} className="h-8 w-8 text-gray-400 hover:text-white">
-                      <RefreshCw className="w-4 h-4" />
-                    </Button>
+                <div>
+                  <Label htmlFor="rg">RG</Label>
+                  <div className="relative">
+                    <FileText className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5 z-10" />
+                    <Input id="rg" name="rg" type="text" required value={formData.rg} readOnly className={`${inputClass} pr-10`} placeholder="Clique no ícone para gerar" />
+                    <div className="absolute right-1 top-1/2 -translate-y-1/2">
+                      <Button type="button" size="icon" variant="ghost" onClick={handleGenerateRG} className="h-8 w-8 text-gray-400 hover:text-white">
+                        <RefreshCw className="w-4 h-4" />
+                      </Button>
+                    </div>
                   </div>
                 </div>
               </div>

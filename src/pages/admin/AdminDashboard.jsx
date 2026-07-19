@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { motion, AnimatePresence } from 'framer-motion';
-import { BarChart3, Users, Settings, Newspaper, Vote, ShieldCheck, Crown } from 'lucide-react';
+import { BarChart3, Users, Settings, Newspaper, Vote, ShieldCheck, Crown, Flag } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 import { useToast } from '@/components/ui/use-toast';
 import PageHeader from '@/components/layout/PageHeader';
@@ -12,12 +12,14 @@ import SystemSettings from '@/components/admin/SystemSettings';
 import ContentModeration from '@/components/admin/ContentModeration';
 import ElectionManagement from '@/components/admin/ElectionManagement';
 import CandidacyManagement from '@/components/admin/CandidacyManagement';
+import PartyManagement from '@/components/admin/PartyManagement';
 
 const tabs = [
     { id: 'analytics', label: 'Análises', icon: BarChart3, component: SiteAnalytics },
     { id: 'users', label: 'Usuários', icon: Users, component: UserManagement },
     { id: 'candidacies', label: 'Candidaturas', icon: ShieldCheck, component: CandidacyManagement },
     { id: 'elections', label: 'Eleições', icon: Vote, component: ElectionManagement },
+    { id: 'parties', label: 'Partidos', icon: Flag, component: PartyManagement },
     { id: 'content', label: 'Conteúdo', icon: Newspaper, component: ContentModeration },
     { id: 'settings', label: 'Sistema', icon: Settings, component: SystemSettings },
 ];

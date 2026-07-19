@@ -22,12 +22,23 @@ const CandidateCard = ({ candidate }) => (
         <CardTitle>{candidate.political_name}</CardTitle>
         <p className="text-sm text-muted-foreground">{candidate.elections.name}</p>
         {candidate.vice?.full_name ? (
-          <p className="text-xs text-muted-foreground mt-1">Vice na chapa: {candidate.vice.full_name}</p>
+          <div className="flex items-center gap-1.5 mt-1">
+            <Avatar className="w-5 h-5">
+              <AvatarImage src={candidate.vice.avatar_url} alt={candidate.vice.full_name} />
+              <AvatarFallback className="text-[8px]">{candidate.vice.full_name.charAt(0)}</AvatarFallback>
+            </Avatar>
+            <p className="text-xs text-muted-foreground">Vice: {candidate.vice.full_name}</p>
+          </div>
         ) : null}
         {candidate.political_parties && (
-          <Badge variant="secondary" className="mt-2 flex items-center gap-1 w-fit">
-            <Landmark className="w-3 h-3" /> {candidate.political_parties.acronym}
-          </Badge>
+          <div className="flex items-center gap-2 mt-2">
+            <Badge variant="secondary" className="flex items-center gap-1 w-fit">
+              {candidate.political_parties.logo_url ? <img src={candidate.political_parties.logo_url} alt={candidate.political_parties.acronym} className="w-3 h-3 rounded-full object-cover" /> : <Landmark className="w-3 h-3" />} {candidate.political_parties.acronym}
+            </Badge>
+            {candidate.political_parties.ideology && (
+              <span className="text-xs text-muted-foreground">{candidate.political_parties.ideology}</span>
+            )}
+          </div>
         )}
       </div>
     </CardHeader>
@@ -63,7 +74,7 @@ const ConsultCandidates = () => {
 
         const { data: candidatesData, error: candidatesError } = await supabase
           .from('candidates')
-          .select('*, elections(name), political_parties(acronym), vice:profiles!candidates_vice_candidate_id_fkey(full_name)')
+          .select('*, elections(name), political_parties(acronym, logo_url, ideology), vice:profiles!candidates_vice_candidate_id_fkey(full_name, avatar_url)')
           .eq('status', 'Approved');
 
         if (candidatesError) throw candidatesError;
@@ -84,7 +95,7 @@ const ConsultCandidates = () => {
       result = result.filter(c => c.election_id === selectedElection);
     }
     if (searchTerm) {
-      result = result.filter(c => 
+      result = result.filter(c =>
         c.political_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         c.political_parties?.acronym.toLowerCase().includes(searchTerm.toLowerCase())
       );
@@ -107,8 +118,8 @@ const ConsultCandidates = () => {
       <div className="my-8 p-4 glass-effect rounded-lg flex flex-col md:flex-row gap-4 items-center">
         <div className="relative w-full md:w-1/2">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-          <Input 
-            placeholder="Buscar por nome ou partido..." 
+          <Input
+            placeholder="Buscar por nome ou partido..."
             className="pl-10"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}

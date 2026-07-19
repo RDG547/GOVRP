@@ -155,6 +155,42 @@ const ProductFormDialog = ({ isOpen, setIsOpen, product, onSuccess }) => {
 
     try {
       let finalImageUrl = formData.image_url;
+      const finalCategory = formData.category === 'custom' ? customCategory.trim() : formData.category;
+      const normalizedPrice = parseCurrencyInput(formData.price);
+      const normalizedStock = parseInt(formData.stock, 10);
+      const normalizedPromotionPrice = parseCurrencyInput(formData.promotion_price);
+
+      if (!formData.name.trim()) {
+        throw new Error('Informe o nome do produto.');
+      }
+
+      if (!finalImageUrl && !imageFile) {
+        throw new Error('Informe uma imagem do produto por URL ou upload.');
+      }
+
+      if (!Number.isFinite(normalizedPrice) || normalizedPrice <= 0) {
+        throw new Error('Informe um preço maior que zero.');
+      }
+
+      if (!formData.description.trim()) {
+        throw new Error('Informe a descrição do produto.');
+      }
+
+      if (!finalCategory) {
+        throw new Error('Informe a categoria do produto.');
+      }
+
+      if (!formData.product_type) {
+        throw new Error('Informe o tipo do produto.');
+      }
+
+      if (formData.product_type === 'one-time' && (!Number.isInteger(normalizedStock) || normalizedStock < 1)) {
+        throw new Error('Informe um estoque válido para compra única.');
+      }
+
+      if (formData.product_type === 'subscription' && !formData.subscription_interval) {
+        throw new Error('Defina a periodicidade da assinatura antes de anunciar o produto.');
+      }
 
       if (imageFile) {
         const oldFilePath = product?.image_url ? extractStoragePathFromUrl(product.image_url, 'product-images') : null;
@@ -173,26 +209,22 @@ const ProductFormDialog = ({ isOpen, setIsOpen, product, onSuccess }) => {
         }
       }
 
-      const finalCategory = formData.category === 'custom' ? customCategory : formData.category;
-      const normalizedPrice = parseCurrencyInput(formData.price);
-
-      if (formData.product_type === 'subscription' && !formData.subscription_interval) {
-        throw new Error('Defina a periodicidade da assinatura antes de anunciar o produto.');
-      }
-
       const productData = {
         ...formData,
         category: finalCategory,
         seller_id: user.id,
         price: normalizedPrice,
-        stock: formData.product_type === 'one-time' ? parseInt(formData.stock, 10) : null,
+        stock: formData.product_type === 'one-time' ? normalizedStock : null,
         subscription_interval:
           formData.product_type === 'subscription' ? formData.subscription_interval : null,
         subscription_price:
           formData.product_type === 'subscription' ? normalizedPrice : null,
         image_url: finalImageUrl,
-        promotion_price: showPromotion ? parseCurrencyInput(formData.promotion_price) : null,
-        promotion_expires_at: showPromotion && formData.promotion_expires_at ? new Date(formData.promotion_expires_at).toISOString() : null,
+        promotion_price: showPromotion && normalizedPromotionPrice > 0 ? normalizedPromotionPrice : null,
+        promotion_expires_at:
+          showPromotion && normalizedPromotionPrice > 0 && formData.promotion_expires_at
+            ? new Date(formData.promotion_expires_at).toISOString()
+            : null,
       };
 
       delete productData.price_formatted;
@@ -215,11 +247,11 @@ const ProductFormDialog = ({ isOpen, setIsOpen, product, onSuccess }) => {
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
+      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-hidden p-0">
+        <DialogHeader className="px-6 pt-6">
           <DialogTitle>{product ? 'Editar Produto' : 'Adicionar Novo Produto'}</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4 py-4">
+        <form onSubmit={handleSubmit} className="max-h-[calc(90vh-5rem)] space-y-4 overflow-y-auto px-6 pb-6 pt-4 custom-scrollbar">
           <ImageUploader
             onUrlChange={(url) => setFormData(p => ({ ...p, image_url: url }))}
             onFileChange={setImageFile}
@@ -237,7 +269,7 @@ const ProductFormDialog = ({ isOpen, setIsOpen, product, onSuccess }) => {
               required
             />
           </div>
-          <div><Label htmlFor="description">Descrição</Label><Textarea id="description" value={formData.description} onChange={handleChange} /></div>
+          <div><Label htmlFor="description">Descrição</Label><Textarea id="description" value={formData.description} onChange={handleChange} required /></div>
           <div>
             <Label htmlFor="category">Categoria</Label>
             <Select onValueChange={(value) => handleSelectChange('category', value)} value={formData.category}>
@@ -246,10 +278,10 @@ const ProductFormDialog = ({ isOpen, setIsOpen, product, onSuccess }) => {
                 {PREDEFINED_CATEGORIES.map(cat => <SelectItem key={cat} value={cat}>{cat}</SelectItem>)}
                 <SelectItem value="custom">Outra (Personalizada)</SelectItem>
               </SelectContent>
-            </Select>
+          </Select>
           </div>
           {showCustomCategory && (
-            <div><Label htmlFor="custom_category">Nome da Categoria Personalizada</Label><Input id="custom_category" value={customCategory} onChange={(e) => setCustomCategory(e.target.value)} /></div>
+            <div><Label htmlFor="custom_category">Nome da Categoria Personalizada</Label><Input id="custom_category" value={customCategory} onChange={(e) => setCustomCategory(e.target.value)} required /></div>
           )}
           <div>
             <Label htmlFor="product_type">Tipo</Label>

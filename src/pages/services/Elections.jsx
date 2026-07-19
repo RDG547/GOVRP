@@ -39,7 +39,7 @@ const ElectionOverviewCard = ({ election, onClick, type }) => {
                 className="w-full aspect-square rounded-2xl border border-white/10 bg-gradient-to-br from-white/5 to-white/[0.02] p-5 flex flex-col items-center justify-center gap-3 text-center hover:border-teal-500/40 hover:bg-white/10 transition-all duration-300 group"
             >
                 <div className={`p-3 rounded-full ${type === 'results' ? 'bg-teal-500/20' : 'bg-blue-500/20'} group-hover:scale-110 transition-transform`}>
-                    {type === 'results' 
+                    {type === 'results'
                         ? <BarChart3 className="w-7 h-7 text-teal-400" />
                         : <Users className="w-7 h-7 text-blue-400" />
                     }
@@ -71,7 +71,7 @@ const CandidatesList = ({ election, onVote, onNullVote, userVote }) => {
             setLoading(true);
             let { data, error } = await supabase
                 .from('candidates')
-                .select('*, political_parties(acronym, logo_url), profiles!candidates_user_id_fkey(avatar_url), vice:profiles!candidates_vice_candidate_id_fkey(full_name, avatar_url)')
+                .select('*, political_parties(name, acronym, logo_url, ideology), profiles!candidates_user_id_fkey(avatar_url), vice:profiles!candidates_vice_candidate_id_fkey(full_name, avatar_url)')
                 .eq('status', 'Approved')
                 .eq('election_id', election.id);
 
@@ -102,17 +102,41 @@ const CandidatesList = ({ election, onVote, onNullVote, userVote }) => {
                             </Avatar>
                             <div>
                                 <p className="font-semibold">{candidate.political_name}</p>
-                                <p className="text-sm text-muted-foreground">{candidate.political_parties?.acronym || 'Avulso'}</p>
-                                {election.election_types?.requires_vice_candidate && (
-                                  <p className="text-xs text-muted-foreground">
-                                    Vice na chapa: {candidate.vice?.full_name || 'Não informado'}
-                                  </p>
+                                <div className="mt-1 flex items-center gap-2">
+                                  {candidate.political_parties?.logo_url && (
+                                    <img
+                                      src={candidate.political_parties.logo_url}
+                                      alt={candidate.political_parties.acronym || candidate.political_parties.name}
+                                      className="h-6 w-6 rounded-md border border-white/10 bg-secondary object-cover p-0.5"
+                                    />
+                                  )}
+                                  <div className="leading-tight">
+                                    <p className="text-sm text-muted-foreground">
+                                      {candidate.political_parties
+                                        ? `${candidate.political_parties.name} (${candidate.political_parties.acronym})`
+                                        : 'Avulso'}
+                                    </p>
+                                    {candidate.political_parties?.ideology && (
+                                      <span className="text-xs text-muted-foreground">{candidate.political_parties.ideology}</span>
+                                    )}
+                                  </div>
+                                </div>
+                                {election.election_types?.requires_vice_candidate && candidate.vice && (
+                                  <div className="flex items-center gap-2 mt-1">
+                                    <Avatar className="w-5 h-5">
+                                      <AvatarImage src={candidate.vice.avatar_url} alt={candidate.vice.full_name} />
+                                      <AvatarFallback className="text-[8px]">{candidate.vice.full_name?.charAt(0)}</AvatarFallback>
+                                    </Avatar>
+                                    <p className="text-xs text-muted-foreground">
+                                      Vice: {candidate.vice.full_name || 'Não informado'}
+                                    </p>
+                                  </div>
                                 )}
                             </div>
                         </div>
                         {election.status === 'Voting' && (
-                            <Button 
-                                onClick={() => onVote(candidate.id)} 
+                            <Button
+                                onClick={() => onVote(candidate.id)}
                                 disabled={!!userVote}
                                 variant={userVote === candidate.id ? 'secondary' : 'default'}
                             >
@@ -134,8 +158,8 @@ const CandidatesList = ({ election, onVote, onNullVote, userVote }) => {
                             <p className="text-sm text-muted-foreground">Anular seu voto nesta eleição</p>
                         </div>
                     </div>
-                    <Button 
-                        onClick={() => onNullVote()} 
+                    <Button
+                        onClick={() => onNullVote()}
                         disabled={!!userVote}
                         variant={isNullVote ? 'secondary' : 'outline'}
                     >
@@ -213,7 +237,7 @@ const ElectionResults = ({ election }) => {
 
     if (loading) return <div className="flex justify-center p-8"><Loader2 className="animate-spin" /></div>;
     if (results.length === 0 && election?.id) return <p className="text-center p-8 text-muted-foreground">Nenhum resultado disponível para esta eleição.</p>;
-    
+
     const totalVotes = results.reduce((sum, r) => sum + Number(r.vote_count), 0);
 
     return (
@@ -232,8 +256,8 @@ const ElectionResults = ({ election }) => {
                         <span>{result.vote_count} votos ({totalVotes > 0 ? ((result.vote_count / totalVotes) * 100).toFixed(2) : 0}%)</span>
                     </div>
                     <div className="w-full bg-gray-700 rounded-full h-4 mt-1">
-                        <motion.div 
-                            className="bg-primary h-4 rounded-full" 
+                        <motion.div
+                            className="bg-primary h-4 rounded-full"
                             initial={{ width: 0 }}
                             animate={{ width: `${totalVotes > 0 ? (result.vote_count / totalVotes) * 100 : 0}%` }}
                             transition={{ duration: 0.5, ease: "easeOut" }}
@@ -296,10 +320,17 @@ const ExecutiveConstitutionCard = ({ executiveState }) => {
         return null;
     }
 
+    const viceAssumedPresidency = Boolean(executiveState.viceAssumedPresidency);
     const currentPresident = executiveState.currentPresidentProfile?.full_name || 'Sem presidente em exercício';
-    const currentVice = executiveState.currentViceProfile?.full_name || 'Vice-Presidente não definido';
+    const currentVice = viceAssumedPresidency
+      ? 'Vaga após sucessão presidencial'
+      : executiveState.currentViceProfile?.full_name || 'Vice-Presidente não definido';
+    const presidentParty = executiveState.currentTerm?.winner?.party || null;
+    const viceParty = presidentParty;
     const currentTermLabel = executiveState.currentTerm
       ? `${format(new Date(executiveState.currentTerm.term_start_at), 'dd/MM/yyyy HH:mm', { locale: ptBR })} até ${format(new Date(executiveState.currentTerm.term_end_at), 'dd/MM/yyyy HH:mm', { locale: ptBR })}`
+      : executiveState.manualExecutiveOfficeActive
+        ? 'Cargo executivo atribuído manualmente pelo admin, válido até nova eleição presidencial consolidada.'
       : 'Nenhum mandato presidencial mensal ativo foi identificado.';
 
     return (
@@ -322,11 +353,48 @@ const ExecutiveConstitutionCard = ({ executiveState }) => {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
               <div className="rounded-xl border border-white/10 bg-white/5 p-4">
                 <p className="text-sm text-muted-foreground">Presidente da República</p>
-                <p className="text-lg font-semibold text-foreground mt-1">{currentPresident}</p>
+                <div className="flex items-center gap-3 mt-2">
+                  {executiveState.currentPresidentProfile?.avatar_url && (
+                    <Avatar className="w-10 h-10">
+                      <AvatarImage src={executiveState.currentPresidentProfile.avatar_url} alt={currentPresident} />
+                      <AvatarFallback>{currentPresident?.charAt(0)}</AvatarFallback>
+                    </Avatar>
+                  )}
+                  <div>
+                    <p className="text-lg font-semibold text-foreground">{currentPresident}</p>
+                    {viceAssumedPresidency && (
+                      <p className="text-xs font-medium text-emerald-300">Vice eleito que assumiu a Presidência</p>
+                    )}
+                    {presidentParty && (
+                      <div className="flex items-center gap-1.5 mt-0.5">
+                        {presidentParty.logo_url && <img src={presidentParty.logo_url} alt={presidentParty.acronym} className="w-4 h-4 rounded-full object-cover" />}
+                        <span className="text-xs text-muted-foreground">{presidentParty.acronym}</span>
+                        {presidentParty.ideology && <span className="text-xs text-muted-foreground">· {presidentParty.ideology}</span>}
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
               <div className="rounded-xl border border-white/10 bg-white/5 p-4">
                 <p className="text-sm text-muted-foreground">Vice-Presidente</p>
-                <p className="text-lg font-semibold text-foreground mt-1">{currentVice}</p>
+                <div className="flex items-center gap-3 mt-2">
+                  {executiveState.currentViceProfile?.avatar_url && (
+                    <Avatar className="w-10 h-10">
+                      <AvatarImage src={executiveState.currentViceProfile.avatar_url} alt={currentVice} />
+                      <AvatarFallback>{currentVice?.charAt(0)}</AvatarFallback>
+                    </Avatar>
+                  )}
+                  <div>
+                    <p className="text-lg font-semibold text-foreground">{currentVice}</p>
+                    {viceParty && (
+                      <div className="flex items-center gap-1.5 mt-0.5">
+                        {viceParty.logo_url && <img src={viceParty.logo_url} alt={viceParty.acronym} className="w-4 h-4 rounded-full object-cover" />}
+                        <span className="text-xs text-muted-foreground">{viceParty.acronym}</span>
+                        {viceParty.ideology && <span className="text-xs text-muted-foreground">· {viceParty.ideology}</span>}
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
               <div className="rounded-xl border border-white/10 bg-white/5 p-4">
                 <p className="text-sm text-muted-foreground">Mandato Atual</p>
@@ -343,11 +411,19 @@ const ExecutiveConstitutionCard = ({ executiveState }) => {
                 )}
                 <div>
                   <p className="font-semibold text-foreground">
-                    {executiveState.isVacant ? 'Vacância presidencial identificada' : 'Mandato presidencial ativo'}
+                    {executiveState.isVacant
+                      ? 'Vacância presidencial identificada'
+                      : viceAssumedPresidency
+                        ? 'Sucessão presidencial automática'
+                      : executiveState.manualExecutiveOfficeActive
+                        ? 'Cargos executivos ativos'
+                        : 'Mandato presidencial ativo'}
                   </p>
                   <p className="text-sm text-muted-foreground mt-1">
                     {executiveState.isVacant
                       ? `Na ausência de Presidente em exercício, assume sucessivamente ${executiveState.actingAuthority?.label || 'a autoridade sucessória disponível'}.`
+                      : viceAssumedPresidency
+                        ? 'O vice-presidente assumiu a chefia do Executivo porque a Presidência ficou sem ocupante ativo.'
                       : 'O chefe do Executivo exerce a direção superior da administração federal, sanciona ou veta projetos e pode editar medidas provisórias.'}
                   </p>
                 </div>
@@ -378,7 +454,7 @@ const ExecutiveConstitutionCard = ({ executiveState }) => {
 };
 
 const ServiceActionSimple = ({ title, description, icon: Icon, onAction }) => (
-    <button 
+    <button
         className="w-full text-left p-4 rounded-lg bg-white/5 hover:bg-white/10 transition-all duration-200 flex items-start gap-4"
         onClick={onAction}
     >
@@ -450,7 +526,7 @@ const Elections = () => {
         const { data, error } = await supabase
             .from('votes')
             .insert({ election_id: selectedElection, voter_id: user.id, candidate_id: null });
-        
+
         if (error) {
             // Check if it's a unique constraint violation (already voted)
             if (error.code === '23505') {
@@ -537,7 +613,7 @@ const Elections = () => {
                         </TabsContent>
                     ))}
                 </Tabs>
-                
+
                 <AnimatePresence mode="wait">
                     {activeDisplay && (
                         <motion.div
@@ -558,7 +634,7 @@ const Elections = () => {
                                         </CardTitle>
                                         {(activeDisplay === 'candidatos' || activeDisplay === 'resultados') && (
                                             <div className="w-full md:w-auto">
-                                                <Select onValueChange={setSelectedElection} defaultValue="all">
+                                                <Select onValueChange={setSelectedElection} value={selectedElection}>
                                                     <SelectTrigger>
                                                         <SelectValue placeholder="Selecione uma eleição" />
                                                     </SelectTrigger>

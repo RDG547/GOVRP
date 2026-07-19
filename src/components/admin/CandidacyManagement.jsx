@@ -3,7 +3,7 @@ import { supabase } from '@/lib/supabaseClient';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
-import { Loader2, Check, X, Info, Edit, Trash2, Filter } from 'lucide-react';
+import { Loader2, Check, X, Edit, Trash2, Filter, ChevronDown, ChevronUp } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
 import {
@@ -39,6 +39,7 @@ const CandidacyManagement = () => {
     const [filterElection, setFilterElection] = useState('all');
     const [searchTerm, setSearchTerm] = useState('');
     const [editForm, setEditForm] = useState({ political_name: '', bio: '', proposals: '' });
+    const [expandedElectionIds, setExpandedElectionIds] = useState([]);
 
     const { toast } = useToast();
 
@@ -193,6 +194,14 @@ const CandidacyManagement = () => {
         orderedGroups.push(groupedCandidates.unknown);
     }
 
+    const toggleElectionGroup = (electionId) => {
+        setExpandedElectionIds((current) =>
+            current.includes(electionId)
+                ? current.filter((id) => id !== electionId)
+                : [...current, electionId]
+        );
+    };
+
     return (
         <div className="space-y-6">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -238,13 +247,23 @@ const CandidacyManagement = () => {
                 <div className="space-y-8">
                     {orderedGroups.map((group) => {
                         const pendingCount = group.candidates.filter((candidate) => candidate.status === 'Pendente').length;
+                        const isCollapsed = !expandedElectionIds.includes(group.election.id);
+                        const ToggleIcon = isCollapsed ? ChevronDown : ChevronUp;
 
                         return (
                             <section key={group.election.id} className="space-y-4">
-                                <div className="rounded-2xl border border-white/10 bg-background/20 p-5">
+                                <button
+                                    type="button"
+                                    onClick={() => toggleElectionGroup(group.election.id)}
+                                    className="w-full rounded-2xl border border-white/10 bg-background/20 p-5 text-left transition-colors hover:border-primary/50 hover:bg-white/5"
+                                    aria-expanded={!isCollapsed}
+                                >
                                     <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                                         <div>
-                                            <h3 className="text-xl font-bold text-white">{group.election.name}</h3>
+                                            <h3 className="flex items-center gap-2 text-xl font-bold text-white">
+                                                <ToggleIcon className="h-5 w-5 text-muted-foreground" />
+                                                {group.election.name}
+                                            </h3>
                                             <p className="text-sm text-muted-foreground">
                                                 {group.candidates.length} candidatura(s) nesta eleição.
                                             </p>
@@ -258,9 +277,9 @@ const CandidacyManagement = () => {
                                             </Badge>
                                         </div>
                                     </div>
-                                </div>
+                                </button>
 
-                                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                                {!isCollapsed && <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                                     {group.candidates.map((candidate) => {
                                         const status = statusConfig[candidate.status] || statusConfig.Pendente;
                                         return (
@@ -306,7 +325,7 @@ const CandidacyManagement = () => {
                                             </Card>
                                         );
                                     })}
-                                </div>
+                                </div>}
                             </section>
                         );
                     })}

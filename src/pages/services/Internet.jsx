@@ -232,7 +232,7 @@ const Internet = () => {
                                                         ) : isCurrent ? (
                                                             <><ShieldCheck className="mr-2 h-4 w-4" /> Ativo</>
                                                         ) : (
-                                                            'Alterar Plano'
+                                                            <><Signal className="mr-2 h-4 w-4" /> Alterar Plano</>
                                                         )}
                                                     </Button>
                                                 </CardFooter>

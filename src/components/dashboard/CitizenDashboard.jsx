@@ -73,6 +73,8 @@ const ActivityIcon = ({ type }) => {
         'bill_suggestion_received_party': { icon: Award, color: 'text-yellow-400', bg: 'bg-yellow-500/20' },
         'daily_check_in': { icon: Calendar, color: 'text-emerald-400', bg: 'bg-emerald-500/20' },
         'daily_check_in_reward': { icon: Calendar, color: 'text-emerald-400', bg: 'bg-emerald-500/20' },
+        'salary_payment': { icon: Banknote, color: 'text-emerald-400', bg: 'bg-emerald-500/20' },
+        'salary': { icon: Banknote, color: 'text-emerald-400', bg: 'bg-emerald-500/20' },
         'political_points_awarded': { icon: Landmark, color: 'text-amber-400', bg: 'bg-amber-500/20' },
         'default': { icon: Bell, color: 'text-gray-400', bg: 'bg-gray-500/20' }
     };
@@ -330,7 +332,7 @@ const CitizenDashboard = () => {
     : Array.isArray(user?.role)
       ? user.role
       : [user?.role].filter(Boolean);
-  const hasRolePanel = ['Presidente', 'Ministro', 'Parlamentar', 'Juiz', 'Presidente do STF', 'Deputado', 'Senador', 'Presidente da Câmara', 'Presidente da Câmara dos Deputados', 'Presidente do Senado', 'Vice-Presidente da Câmara dos Deputados', 'Vice-Presidente do Senado', 'Vice-Presidente do Senado Federal', 'Police', 'AGIES', 'Forças Armadas'].some(role => rolePool.includes(role));
+  const hasRolePanel = ['Presidente', 'Presidente do Banco Nacional', 'Ministro', 'Parlamentar', 'Juiz', 'Presidente do STF', 'Deputado', 'Senador', 'Presidente da Câmara', 'Presidente da Câmara dos Deputados', 'Presidente do Senado', 'Vice-Presidente da Câmara dos Deputados', 'Vice-Presidente do Senado', 'Vice-Presidente do Senado Federal', 'Police', 'AGIES', 'Forças Armadas'].some(role => rolePool.includes(role));
   
   const getDoc = (type) => data.documents.find(d => d.type === type);
 

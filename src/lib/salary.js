@@ -1,29 +1,38 @@
 import { supabase } from './supabaseClient';
+import { fetchWithSessionAuth } from './apiAuth';
+import {
+  SALARY_TABLE,
+  getSalaryInfoByRole,
+  getWeeklyPayrollWindowStart,
+  resolveSalaryInfoFromRolePool,
+  shouldTriggerWeeklySalaryProcessing,
+} from './salaryRules';
 
-/**
- * Public salary table for government officials.
- * Salaries are paid every Monday at 10:00 AM from the Union treasury.
- */
-export const SALARY_TABLE = [
-  { role: 'Presidente', title: 'Presidente da República', salary: 35000 },
-  { role: 'Vice-Presidente', title: 'Vice-Presidente', salary: 24500 },
-  { role: 'Deputado', title: 'Deputado Federal', salary: 10500 },
-  { role: 'Senador', title: 'Senador', salary: 17500 },
-  { role: 'Presidente do Senado', title: 'Presidente do Senado', salary: 24500 },
-  { role: 'Presidente da Câmara', title: 'Presidente da Câmara', salary: 21000 },
-  { role: 'Ministro', title: 'Ministro de Estado', salary: 17500 },
-];
+export {
+  SALARY_TABLE,
+  getSalaryInfoByRole,
+  getWeeklyPayrollWindowStart,
+  resolveSalaryInfoFromRolePool,
+  shouldTriggerWeeklySalaryProcessing,
+};
 
 /**
  * Process salary payments for all eligible officials.
- * This should be called by a cron job every Monday at 10:00 AM.
+ * This should be called by a cron job every Monday at 09:00 AM.
  * Salaries are deducted from the government balance (cofre da união).
  */
 export async function processWeeklySalaries() {
   try {
-    const { data, error } = await supabase.rpc('process_weekly_salaries');
-    if (error) throw error;
-    return data;
+    const response = await fetchWithSessionAuth('/api/salaries/process', {
+      method: 'POST',
+    });
+    const payload = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      throw new Error(payload?.error || 'Nao foi possivel processar os salarios.');
+    }
+
+    return payload;
   } catch (error) {
     console.error('Error processing salaries:', error);
     throw error;
@@ -46,6 +55,27 @@ export async function getLastPaymentDate() {
     return null;
   }
   return data?.paid_at;
+}
+
+export async function getLatestSalaryPayment(userId) {
+  if (!userId) {
+    return null;
+  }
+
+  const { data, error } = await supabase
+    .from('salary_payments')
+    .select('*')
+    .eq('user_id', userId)
+    .order('paid_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    console.error('Error fetching latest salary payment:', error);
+    return null;
+  }
+
+  return data || null;
 }
 
 /**

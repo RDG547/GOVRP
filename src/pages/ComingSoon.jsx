@@ -52,11 +52,6 @@ const ComingSoon = ({
                 <Link to="/services">
                   <Button className="w-full sm:w-auto">Voltar aos serviços</Button>
                 </Link>
-                <Link to="/roadmap">
-                  <Button variant="outline" className="w-full sm:w-auto">
-                    Ver roadmap
-                  </Button>
-                </Link>
               </div>
             </div>
           </div>

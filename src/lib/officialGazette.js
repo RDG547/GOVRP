@@ -54,6 +54,62 @@ const stripAccents = (value = '') =>
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '');
 
+const isUuid = (value = '') =>
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    `${value || ''}`.trim()
+  );
+
+const cyrb128 = (value = '') => {
+  let hashA = 1779033703;
+  let hashB = 3144134277;
+  let hashC = 1013904242;
+  let hashD = 2773480762;
+
+  for (let index = 0; index < value.length; index += 1) {
+    const char = value.charCodeAt(index);
+    hashA = hashB ^ Math.imul(hashA ^ char, 597399067);
+    hashB = hashC ^ Math.imul(hashB ^ char, 2869860233);
+    hashC = hashD ^ Math.imul(hashC ^ char, 951274213);
+    hashD = hashA ^ Math.imul(hashD ^ char, 2716044179);
+  }
+
+  hashA = Math.imul(hashC ^ (hashA >>> 18), 597399067);
+  hashB = Math.imul(hashD ^ (hashB >>> 22), 2869860233);
+  hashC = Math.imul(hashA ^ (hashC >>> 17), 951274213);
+  hashD = Math.imul(hashB ^ (hashD >>> 19), 2716044179);
+
+  return [hashA ^ hashB ^ hashC ^ hashD, hashB ^ hashA, hashC ^ hashA, hashD ^ hashA].map(
+    (part) => (part >>> 0).toString(16).padStart(8, '0')
+  );
+};
+
+export const normalizeOfficialGazetteSourceId = (value) => {
+  if (!value) {
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+      return crypto.randomUUID();
+    }
+
+    throw new Error('Nao foi possivel gerar um identificador para o Diario Oficial.');
+  }
+
+  if (isUuid(value)) {
+    return `${value}`.trim().toLowerCase();
+  }
+
+  const [partA, partB, partC, partD] = cyrb128(`${value}`);
+  const hex = `${partA}${partB}${partC}${partD}`.slice(0, 32);
+  const versionNibble = '4';
+  const variantNibble = 'a';
+
+  return [
+    hex.slice(0, 8),
+    hex.slice(8, 12),
+    `${versionNibble}${hex.slice(13, 16)}`,
+    `${variantNibble}${hex.slice(17, 20)}`,
+    hex.slice(20, 32),
+  ].join('-');
+};
+
 const normalizeGazetteType = (rawType = '') => {
   const normalized = stripAccents(rawType).toLowerCase().trim();
 
@@ -109,6 +165,39 @@ const normalizeGazetteType = (rawType = '') => {
   return rawType;
 };
 
+export const isOfficialGazetteDecreeType = (rawType = '') =>
+  normalizeGazetteType(rawType) === 'Decreto';
+
+export const formatOfficialGazettePublicationDate = (
+  dateString,
+  { includeTime = false, timeZone = 'America/Sao_Paulo' } = {}
+) => {
+  if (!dateString) {
+    return 'Data não disponível';
+  }
+
+  const formattedDate = new Date(dateString);
+
+  if (Number.isNaN(formattedDate.getTime())) {
+    return 'Data não disponível';
+  }
+
+  const options = {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    timeZone,
+  };
+
+  if (includeTime) {
+    options.hour = '2-digit';
+    options.minute = '2-digit';
+    options.second = '2-digit';
+  }
+
+  return new Intl.DateTimeFormat('pt-BR', options).format(formattedDate);
+};
+
 export const mapBillTypeToGazetteType = (billType = '') => {
   const normalized = stripAccents(billType).toUpperCase();
 
@@ -125,6 +214,39 @@ export const mapBillTypeToGazetteType = (billType = '') => {
   }
 
   return 'Lei';
+};
+
+const PRESIDENTIAL_DECIDED_BILL_STATUSES = [
+  'Aprovado',
+  'Sancionado',
+  'Promulgado',
+  'Vetado integralmente',
+  'Vetado parcialmente',
+];
+
+const buildBillGazetteEntry = (bill) => {
+  const isVeto = `${bill.status || ''}`.toLowerCase().includes('vetado');
+  const gazetteType = isVeto ? 'Veto Presidencial' : mapBillTypeToGazetteType(bill.type);
+  const statusSummary = {
+    Aprovado: `${gazetteType} aprovada${bill.house?.name ? ` em ${bill.house.name}` : ''}.`,
+    Sancionado: 'Lei sancionada e publicada pela Presidência da República.',
+    Promulgado: 'Texto promulgado e publicado pela Presidência da República.',
+    'Vetado integralmente': 'Projeto vetado integralmente pela Presidência da República.',
+    'Vetado parcialmente': 'Projeto vetado parcialmente pela Presidência da República.',
+  };
+
+  return buildEntry({
+    id: `${bill.id}-${bill.status || 'publicado'}`,
+    title: isVeto ? `${bill.status}: ${bill.title}` : bill.title,
+    summary: bill.summary || statusSummary[bill.status] || 'Publicação legislativa oficial.',
+    content: bill.full_text || bill.summary || statusSummary[bill.status] || 'Publicação legislativa oficial.',
+    publishedAt: bill.updated_at,
+    createdAt: bill.created_at,
+    type: gazetteType,
+    source: 'approved_bill',
+    author: bill.author,
+    house: bill.house,
+  });
 };
 
 const sortByPublishedAt = (entries) =>
@@ -164,15 +286,7 @@ export const publishOfficialGazetteEntry = async (
   supabase,
   { title, summary, content, type, sourceId }
 ) => {
-  const resolvedSourceId =
-    sourceId ||
-    (typeof crypto !== 'undefined' && crypto.randomUUID
-      ? crypto.randomUUID()
-      : undefined);
-
-  if (!resolvedSourceId) {
-    throw new Error('Nao foi possivel gerar um identificador para o Diario Oficial.');
-  }
+  const resolvedSourceId = normalizeOfficialGazetteSourceId(sourceId);
 
   const { error } = await supabase.from('dou_entries').insert({
     title,
@@ -220,7 +334,7 @@ export const fetchOfficialGazetteEntries = async (supabase) => {
       supabase
         .from('bills')
         .select('id, title, summary, full_text, type, status, created_at, updated_at, author:profiles(full_name, avatar_url), house:parliament_houses(name)')
-        .eq('status', 'Aprovado')
+        .in('status', PRESIDENTIAL_DECIDED_BILL_STATUSES)
         .order('updated_at', { ascending: false })
     ),
   ]);
@@ -251,22 +365,7 @@ export const fetchOfficialGazetteEntries = async (supabase) => {
     })
   );
 
-  const billEntries = approvedBills.map((bill) =>
-    buildEntry({
-      id: bill.id,
-      title: bill.title,
-      summary:
-        bill.summary ||
-        `${mapBillTypeToGazetteType(bill.type)} aprovada${bill.house?.name ? ` em ${bill.house.name}` : ''}.`,
-      content: bill.full_text || bill.summary || 'Publicacao legislativa oficial.',
-      publishedAt: bill.updated_at,
-      createdAt: bill.created_at,
-      type: mapBillTypeToGazetteType(bill.type),
-      source: 'approved_bill',
-      author: bill.author,
-      house: bill.house,
-    })
-  );
+  const billEntries = approvedBills.map(buildBillGazetteEntry);
 
   return sortByPublishedAt([
     ...normalizedDouEntries,

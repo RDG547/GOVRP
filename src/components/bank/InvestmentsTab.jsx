@@ -4,7 +4,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader2, Plus, Minus, PiggyBank, Briefcase } from 'lucide-react';
+import { Activity, BarChart3, Briefcase, Loader2, Minus, PiggyBank, Plus, ShieldCheck, TrendingUp, Wallet } from 'lucide-react';
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from '@/lib/supabaseClient';
 import { formatCurrency, parseCurrency } from '@/lib/utils';
@@ -21,6 +21,7 @@ const InvestmentActionModal = ({ isOpen, setIsOpen, action, investment, onAction
     const description = action === 'invest'
         ? `Quanto você gostaria de investir em ${investmentName}?`
         : `Você tem ${formatCurrency(investment?.amount_invested)} investido. Quanto gostaria de sacar?`;
+    const minimumAmount = Number(investment?.minimum_amount || 0);
 
     const handleAction = async (e) => {
         e.preventDefault();
@@ -33,22 +34,39 @@ const InvestmentActionModal = ({ isOpen, setIsOpen, action, investment, onAction
             return;
         }
 
-        const rpcName = action === 'invest' ? 'invest' : 'withdraw';
-        const params = action === 'invest'
-            ? { p_investment_id: investment.id, p_amount: numericAmount }
-            : { p_user_investment_id: investment.id, p_amount: numericAmount };
+        if (action === 'invest' && minimumAmount > 0 && numericAmount < minimumAmount) {
+            toast({ title: "Valor abaixo do mínimo", description: `A aplicação mínima é ${formatCurrency(minimumAmount)}.`, variant: "destructive" });
+            setIsLoading(false);
+            return;
+        }
 
-        const { data, error } = await supabase.rpc(rpcName, params);
+        if (action === 'withdraw' && numericAmount > Number(investment?.amount_invested || 0)) {
+            toast({ title: "Valor indisponível", description: "Você não pode sacar mais do que possui aplicado.", variant: "destructive" });
+            setIsLoading(false);
+            return;
+        }
 
-        if (error || !data.success) {
-            toast({ title: "Erro", description: data?.message || error?.message || "Ocorreu um erro.", variant: "destructive" });
-        } else {
+        try {
+            const rpcName = action === 'invest' ? 'invest' : 'withdraw';
+            const params = action === 'invest'
+                ? { p_investment_id: investment.id, p_amount: numericAmount }
+                : { p_user_investment_id: investment.id, p_amount: numericAmount };
+
+            const { data, error } = await supabase.rpc(rpcName, params);
+
+            if (error || !data?.success) {
+                throw new Error(data?.message || error?.message || "Ocorreu um erro.");
+            }
+
             toast({ title: "Sucesso!", description: data.message });
             setIsOpen(false);
             setAmount('');
-            onActionSuccess();
+            onActionSuccess?.(true);
+        } catch (error) {
+            toast({ title: "Erro", description: error.message, variant: "destructive" });
+        } finally {
+            setIsLoading(false);
         }
-        setIsLoading(false);
     };
 
     return (
@@ -62,6 +80,9 @@ const InvestmentActionModal = ({ isOpen, setIsOpen, action, investment, onAction
                     <div>
                         <Label htmlFor="amount">{`Valor para ${title.toLowerCase()}`}</Label>
                         <Input id="amount" value={amount} onChange={(e) => setAmount(formatCurrency(e.target.value, true))} placeholder="R$ 0,00" required />
+                        {action === 'invest' && minimumAmount > 0 ? (
+                            <p className="mt-1 text-xs text-muted-foreground">Aplicação mínima: {formatCurrency(minimumAmount)}</p>
+                        ) : null}
                     </div>
                     <DialogFooter>
                         <Button type="submit" disabled={isLoading}>{isLoading ? <Loader2 className="animate-spin" /> : title}</Button>
@@ -85,8 +106,13 @@ const RiskBadge = ({ level }) => {
         'high': 'Alto',
         'very-high': 'Muito Alto',
     };
-    return <span className={`px-2 py-1 text-xs font-medium rounded-full ${riskStyles[level]}`}>{riskLabels[level]}</span>;
+    return <span className={`px-2 py-1 text-xs font-medium rounded-full ${riskStyles[level] || riskStyles.medium}`}>{riskLabels[level] || 'Médio'}</span>;
 }
+
+const getAnnualReturnPercent = (value) => Number(value || 0) * 100;
+
+const getInvestmentProjectedReturn = (amount, rate) =>
+    Number(amount || 0) * Number(rate || 0);
 
 const InvestmentsTab = ({ investmentOptions, userInvestments, onUpdate }) => {
     const [modalState, setModalState] = useState({ isOpen: false, action: '', investment: null });
@@ -97,7 +123,6 @@ const InvestmentsTab = ({ investmentOptions, userInvestments, onUpdate }) => {
         setModalState({ isOpen: true, action, investment });
     };
 
-    const riskOrder = ['low', 'medium', 'high', 'very-high'];
     const riskLabels = {
         'all': 'Todos',
         'low': 'Baixo Risco',
@@ -111,9 +136,64 @@ const InvestmentsTab = ({ investmentOptions, userInvestments, onUpdate }) => {
         return investmentOptions.filter(opt => opt.risk_level === riskFilter);
     }, [investmentOptions, riskFilter]);
 
+    const portfolioStats = useMemo(() => {
+        const totalInvested = (userInvestments || []).reduce((sum, inv) => sum + Number(inv.amount_invested || 0), 0);
+        const projectedAnnualReturn = (userInvestments || []).reduce(
+            (sum, inv) => sum + getInvestmentProjectedReturn(inv.amount_invested, inv.investment_option?.annual_return_rate),
+            0
+        );
+        const weightedAnnualRate = totalInvested > 0 ? projectedAnnualReturn / totalInvested : 0;
+
+        return {
+            totalInvested,
+            projectedAnnualReturn,
+            weightedAnnualRate,
+            activePositions: (userInvestments || []).length,
+        };
+    }, [userInvestments]);
+
     return (
         <>
-            <div className="mt-4">
+            <div className="mt-4 space-y-6">
+                <div className="grid gap-4 md:grid-cols-4">
+                    <Card className="glass-effect border-emerald-500/20">
+                        <CardContent className="p-4">
+                            <div className="flex items-center justify-between">
+                                <p className="text-sm text-muted-foreground">Total investido</p>
+                                <Wallet className="h-4 w-4 text-emerald-300" />
+                            </div>
+                            <p className="mt-2 text-2xl font-bold text-foreground">{formatCurrency(portfolioStats.totalInvested)}</p>
+                        </CardContent>
+                    </Card>
+                    <Card className="glass-effect border-sky-500/20">
+                        <CardContent className="p-4">
+                            <div className="flex items-center justify-between">
+                                <p className="text-sm text-muted-foreground">Retorno projetado</p>
+                                <TrendingUp className="h-4 w-4 text-sky-300" />
+                            </div>
+                            <p className="mt-2 text-2xl font-bold text-foreground">{formatCurrency(portfolioStats.projectedAnnualReturn)}/ano</p>
+                        </CardContent>
+                    </Card>
+                    <Card className="glass-effect border-violet-500/20">
+                        <CardContent className="p-4">
+                            <div className="flex items-center justify-between">
+                                <p className="text-sm text-muted-foreground">Taxa média</p>
+                                <BarChart3 className="h-4 w-4 text-violet-300" />
+                            </div>
+                            <p className="mt-2 text-2xl font-bold text-foreground">{(portfolioStats.weightedAnnualRate * 100).toFixed(2)}% a.a.</p>
+                        </CardContent>
+                    </Card>
+                    <Card className="glass-effect border-amber-500/20">
+                        <CardContent className="p-4">
+                            <div className="flex items-center justify-between">
+                                <p className="text-sm text-muted-foreground">Posições ativas</p>
+                                <Activity className="h-4 w-4 text-amber-300" />
+                            </div>
+                            <p className="mt-2 text-2xl font-bold text-foreground">{portfolioStats.activePositions}</p>
+                        </CardContent>
+                    </Card>
+                </div>
+
                 <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                     <TabsList className="grid w-full grid-cols-2">
                         <TabsTrigger value="portfolio"><PiggyBank className="mr-2 h-4 w-4" />Meu Portfólio</TabsTrigger>
@@ -121,37 +201,55 @@ const InvestmentsTab = ({ investmentOptions, userInvestments, onUpdate }) => {
                     </TabsList>
                     <TabsContent value="portfolio" className="mt-4">
                         <Card className="glass-effect">
-                            <CardHeader className="text-center">
-                                <CardTitle className="text-white justify-center">Seu Portfólio de Investimentos</CardTitle>
-                                <CardDescription>Acompanhe e gerencie seus ativos.</CardDescription>
+                            <CardHeader>
+                                <CardTitle className="text-white flex items-center gap-2"><PiggyBank className="h-5 w-5 text-emerald-300" /> Seu Portfólio</CardTitle>
+                                <CardDescription>Acompanhe, aumente posição ou resgate aplicações.</CardDescription>
                             </CardHeader>
-                            <CardContent className="space-y-4">
+                            <CardContent className="grid gap-4 lg:grid-cols-2">
                                 {userInvestments && userInvestments.length > 0 ? userInvestments.map(inv => (
-                                    <motion.div initial={{opacity: 0, y: 10}} animate={{opacity: 1, y: 0}} key={inv.id} className="p-4 rounded-lg bg-slate-800/50 flex justify-between items-center">
-                                        <div>
-                                            <h4 className="font-bold text-white">{inv.investment_option.name}</h4>
+                                    <motion.div initial={{opacity: 0, y: 10}} animate={{opacity: 1, y: 0}} key={inv.id} className="rounded-xl border border-white/10 bg-slate-950/40 p-4">
+                                        <div className="flex items-start justify-between gap-3">
+                                            <div>
+                                                <h4 className="font-bold text-white">{inv.investment_option.name}</h4>
+                                                <p className="mt-1 text-sm text-muted-foreground">{inv.investment_option.description}</p>
+                                            </div>
                                             <RiskBadge level={inv.investment_option.risk_level} />
-                                            <p className="text-lg font-bold text-green-400 mt-1">{formatCurrency(inv.amount_invested)}</p>
                                         </div>
-                                        <div className="flex gap-2">
-                                            <Button size="icon" variant="outline" className="bg-green-500/10 border-green-500/30 hover:bg-green-500/20" onClick={() => openModal('invest', inv.investment_option)}><Plus className="h-4 w-4 text-green-300"/></Button>
-                                            <Button size="icon" variant="destructive" onClick={() => openModal('withdraw', inv)}><Minus className="h-4 w-4"/></Button>
+                                        <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                                            <div className="rounded-lg bg-white/5 p-3">
+                                                <p className="text-muted-foreground">Aplicado</p>
+                                                <p className="text-lg font-bold text-green-400">{formatCurrency(inv.amount_invested)}</p>
+                                            </div>
+                                            <div className="rounded-lg bg-white/5 p-3">
+                                                <p className="text-muted-foreground">Projeção anual</p>
+                                                <p className="text-lg font-bold text-sky-300">{formatCurrency(getInvestmentProjectedReturn(inv.amount_invested, inv.investment_option?.annual_return_rate))}</p>
+                                            </div>
+                                        </div>
+                                        <div className="mt-4 flex flex-wrap gap-2">
+                                            <Button size="sm" variant="outline" className="bg-green-500/10 border-green-500/30 hover:bg-green-500/20" onClick={() => openModal('invest', inv.investment_option)}>
+                                                <Plus className="mr-2 h-4 w-4 text-green-300"/> Aumentar
+                                            </Button>
+                                            <Button size="sm" variant="destructive" onClick={() => openModal('withdraw', inv)}>
+                                                <Minus className="mr-2 h-4 w-4"/> Resgatar
+                                            </Button>
                                         </div>
                                     </motion.div>
                                 )) : (
-                                    <div className="text-center py-8 text-gray-400">Você ainda não possui investimentos. Explore as oportunidades!</div>
+                                    <div className="col-span-full rounded-xl border border-dashed border-white/10 bg-white/5 py-10 text-center text-gray-400">
+                                        Você ainda não possui investimentos. Explore as oportunidades e faça sua primeira aplicação.
+                                    </div>
                                 )}
                             </CardContent>
                         </Card>
                     </TabsContent>
                      <TabsContent value="opportunities" className="mt-4">
                          <Card className="glass-effect">
-                             <CardHeader className="text-center">
-                                 <CardTitle className="text-white justify-center">Opções Para Investir</CardTitle>
-                                 <CardDescription>Explore oportunidades para fazer seu dinheiro render.</CardDescription>
+                             <CardHeader>
+                                 <CardTitle className="text-white flex items-center gap-2"><Briefcase className="h-5 w-5 text-sky-300" /> Opções Para Investir</CardTitle>
+                                 <CardDescription>Compare risco, rentabilidade e aplicação mínima.</CardDescription>
                              </CardHeader>
                              <CardContent className="space-y-6">
-                                <div className="flex flex-wrap gap-2 justify-center my-4">
+                                <div className="flex flex-wrap gap-2">
                                     {Object.keys(riskLabels).map(risk => (
                                         <Button
                                             key={risk}
@@ -162,20 +260,30 @@ const InvestmentsTab = ({ investmentOptions, userInvestments, onUpdate }) => {
                                         </Button>
                                     ))}
                                 </div>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                                     {filteredOptions && filteredOptions.map(opt => (
-                                        <motion.div initial={{opacity: 0, scale: 0.95}} animate={{opacity: 1, scale: 1}} key={opt.id} className="p-4 rounded-lg bg-slate-800/50 hover:bg-slate-700/50 transition-colors flex flex-col justify-between">
+                                        <motion.div initial={{opacity: 0, scale: 0.95}} animate={{opacity: 1, scale: 1}} key={opt.id} className="rounded-xl border border-white/10 bg-slate-950/40 p-4 transition-colors hover:border-primary/40">
                                             <div>
                                                 <div className="flex justify-between items-start">
                                                     <h4 className="font-bold text-white flex-1 mr-2">{opt.name}</h4>
                                                     <RiskBadge level={opt.risk_level} />
                                                 </div>
-                                                <p className="text-sm text-gray-400 mt-2 min-h-[40px]">{opt.description}</p>
+                                                <p className="text-sm text-gray-400 mt-2 min-h-[48px]">{opt.description}</p>
                                             </div>
-                                            <div className="flex justify-between items-end mt-4">
-                                                <div>
+                                            <div className="mt-4 grid grid-cols-2 gap-3">
+                                                <div className="rounded-lg bg-white/5 p-3">
                                                     <p className="text-xs text-gray-400">Rentabilidade</p>
-                                                    <p className="text-lg font-bold text-green-400">{(opt.annual_return_rate * 100).toFixed(0)}% a.a.</p>
+                                                    <p className="text-lg font-bold text-green-400">{getAnnualReturnPercent(opt.annual_return_rate).toFixed(2)}% a.a.</p>
+                                                </div>
+                                                <div className="rounded-lg bg-white/5 p-3">
+                                                    <p className="text-xs text-gray-400">Aplicação mínima</p>
+                                                    <p className="text-lg font-bold text-foreground">{formatCurrency(opt.minimum_amount || 0)}</p>
+                                                </div>
+                                            </div>
+                                            <div className="mt-4 flex items-center justify-between gap-3">
+                                                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                                    <ShieldCheck className="h-4 w-4 text-emerald-300" />
+                                                    Liquidez sob demanda
                                                 </div>
                                                 <Button size="sm" onClick={() => openModal('invest', opt)}>Investir</Button>
                                             </div>

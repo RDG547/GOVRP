@@ -1,6 +1,8 @@
 import {
   Archive,
+  CheckCircle2,
   Building2,
+  Clock3,
   Droplet,
   Eye,
   FileText,
@@ -25,19 +27,40 @@ import {
 } from 'lucide-react';
 
 export const SERVICE_AVAILABILITY_SETTINGS_KEY = 'service_availability';
+export const GLOBAL_SERVICE_AVAILABILITY_KEY = '__site__';
 
 export const SERVICE_MODE_OPTIONS = [
-  { value: 'active', label: 'Ativo', description: 'O serviço funciona normalmente para todos os usuários.' },
-  { value: 'coming_soon', label: 'Em breve', description: 'O serviço exibe a página de lançamento futuro.' },
-  { value: 'maintenance', label: 'Em manutenção', description: 'O serviço exibe o aviso de manutenção temporária.' },
+  {
+    value: 'active',
+    label: 'Ativo',
+    icon: CheckCircle2,
+    description: 'O serviço funciona normalmente para todos os usuários.',
+  },
+  {
+    value: 'coming_soon',
+    label: 'Em breve',
+    icon: Clock3,
+    description: 'O serviço exibe a página de lançamento futuro.',
+  },
+  {
+    value: 'maintenance',
+    label: 'Em manutenção',
+    icon: Wrench,
+    description: 'O serviço exibe o aviso de manutenção temporária.',
+  },
 ];
+
+export const SERVICE_MODE_META = SERVICE_MODE_OPTIONS.reduce((accumulator, option) => {
+  accumulator[option.value] = option;
+  return accumulator;
+}, {});
 
 export const SERVICE_CATEGORIES = [
   {
     name: 'Governo e Cidadania',
     services: [
       { key: '/services/bank', name: 'Banco Nacional', path: '/services/bank', icon: Landmark, color: 'text-green-400', description: 'Gerencie suas finanças, realize transferências e solicite cartões.' },
-      { key: '/services/dic', name: 'DIC', path: '/services/dic', icon: FileText, color: 'text-purple-400', description: 'Emita e gerencie seus documentos de identificação civil.' },
+      { key: '/services/dic', name: 'Departamento de Identificação Civil', path: '/services/dic', icon: FileText, color: 'text-purple-400', description: 'Emita e gerencie seus documentos de identificação civil.' },
       { key: '/services/elections', name: 'Portal Eleitoral', path: '/services/elections', icon: Vote, color: 'text-teal-400', description: 'Exerça seu direito de voto e acompanhe os resultados eleitorais.' },
       { key: '/services/political-parties', name: 'Partidos Políticos', path: '/services/political-parties', icon: Users, color: 'text-red-400', description: 'Crie ou filie-se a um partido para participar da vida política.' },
       { key: '/services/parliament', name: 'Parlamento', path: '/services/parliament', icon: Scale, color: 'text-yellow-400', description: 'Proponha, debata e vote em projetos de lei que moldam a nação.' },
@@ -114,6 +137,9 @@ export const normalizeServiceAvailabilitySettings = (value) => {
 
 export const resolveServiceMode = (serviceAvailability, serviceKey) =>
   serviceAvailability?.[serviceKey]?.mode || 'active';
+
+export const resolveGlobalServiceMode = (serviceAvailability) =>
+  resolveServiceMode(serviceAvailability, GLOBAL_SERVICE_AVAILABILITY_KEY);
 
 export const fetchServiceAvailabilitySettings = async (supabase) => {
   const { data, error } = await supabase

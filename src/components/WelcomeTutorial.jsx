@@ -59,12 +59,12 @@ const WelcomeTutorial = () => {
   const [step, setStep] = useState(0);
   const [dontShowAgain, setDontShowAgain] = useState(false);
   const [highlightedElement, setHighlightedElement] = useState(null);
-  const [isManualTrigger, setIsManualTrigger] = useState(false);
+  const [hasFinishedInitialTutorial, setHasFinishedInitialTutorial] = useState(false);
 
   const startTutorial = useCallback((manual = false) => {
-    setIsManualTrigger(manual);
     setIsOpen(true);
     setStep(0);
+    setDontShowAgain(false);
     if (manual && setTriggerTutorial) {
       setTriggerTutorial(false);
     }
@@ -77,10 +77,17 @@ const WelcomeTutorial = () => {
   }, [triggerTutorial, startTutorial]);
 
   useEffect(() => {
-    if (user && session && user.has_seen_tutorial === false && !isOpen) {
+    if (
+      user &&
+      session &&
+      user.onboarding_completed === true &&
+      user.has_seen_tutorial === false &&
+      !isOpen &&
+      !hasFinishedInitialTutorial
+    ) {
       startTutorial(false);
     }
-  }, [user, session, startTutorial, isOpen]);
+  }, [user, session, startTutorial, isOpen, hasFinishedInitialTutorial]);
 
   useEffect(() => {
     if (isOpen) {
@@ -128,9 +135,10 @@ const WelcomeTutorial = () => {
   const handleFinish = async () => {
     cleanHighlight();
     setIsOpen(false);
-    if (!isManualTrigger) {
+    if (user?.has_seen_tutorial === false) {
+      setHasFinishedInitialTutorial(true);
         try {
-            const { error } = await supabase.rpc('mark_tutorial_seen', { p_dont_show_again: dontShowAgain });
+        const { error } = await supabase.rpc('mark_tutorial_seen', { p_dont_show_again: dontShowAgain });
             if (error) throw error;
             await refreshUser();
         } catch (error) {
@@ -167,9 +175,9 @@ const WelcomeTutorial = () => {
               <h2 className="text-3xl font-bold text-foreground mb-3">{currentStepData.title}</h2>
               <p className="text-muted-foreground text-base">{currentStepData.description}</p>
             </motion.div>
-            
+
             <div className="p-6 bg-background/50 flex flex-col sm:flex-row items-center justify-between gap-4">
-              {!isManualTrigger && (
+              {user?.has_seen_tutorial === false && (
                 <div className="flex items-center space-x-2">
                   <Checkbox id="dont-show-again" checked={dontShowAgain} onCheckedChange={setDontShowAgain} />
                   <Label htmlFor="dont-show-again" className="text-sm text-muted-foreground">Não mostrar novamente</Label>

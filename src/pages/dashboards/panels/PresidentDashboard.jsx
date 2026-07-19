@@ -11,15 +11,30 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger, DialogClose } from '@/components/ui/dialog';
 import { Slider } from '@/components/ui/slider';
-import { Loader2, Landmark, Users, Briefcase, FileSignature, Edit, Plus, Save, Trash2, Megaphone, TrendingUp, TrendingDown, CreditCard, School as University, PiggyBank, HeartHandshake as Handshake, BrainCircuit, HeartPulse, Shield, Anchor, BookOpen, Microscope, Recycle, TramFront as Tram, Globe, Palette, Cpu, Building, Coins, Percent, Wifi, Smartphone, Droplet, Flame, Zap, Package, Package2, PackageCheck, UserPlus, FilePlus, UserX, LogOut, AlertTriangle, Clock3 } from 'lucide-react';
+import { Loader2, Landmark, Users, Briefcase, FileSignature, Edit, Plus, Save, Trash2, Megaphone, TrendingUp, TrendingDown, CreditCard, School as University, PiggyBank, HeartHandshake as Handshake, BrainCircuit, HeartPulse, Shield, Anchor, BookOpen, Microscope, Recycle, TramFront as Tram, Globe, Palette, Cpu, Building, Coins, Percent, Wifi, Smartphone, Droplet, Flame, Zap, Package, Package2, PackageCheck, UserPlus, FilePlus, UserX, LogOut, AlertTriangle, Clock3, LayoutDashboard, Settings, Ban, CircleSlash, Power, PowerOff, Lock, ChevronLeft, FileText, Store, Gavel, DollarSign, Wrench, Banknote, Scale, HardHat, Leaf, Car, Contact, FileCheck, Receipt, Building2 } from 'lucide-react';
 import { formatCurrency, parseCurrency } from '@/lib/utils';
 import PageHeader from '@/components/layout/PageHeader';
+import { BANK_POLICY_SETTINGS_KEY, DEFAULT_BANK_POLICY } from '@/components/bank/BankManagementPanel';
 import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import {
+    getGovernmentBudgetTotal,
+    haveGovernmentBudgetAreasChanged,
+    rebalanceGovernmentBudgetAreas,
+} from '@/lib/governmentBudget';
+import {
+    annualPercentToMonthlyPercent,
+    buildInvestmentAnnualRate,
+    DEFAULT_ECONOMIC_POLICY,
+    ECONOMIC_POLICY_SETTINGS_KEY,
+    getEconomicPressureLabel,
+    normalizeBankPolicyForEconomicPolicy,
+    normalizeEconomicPolicy,
+} from '@/lib/economicPolicy';
 import { publishOfficialGazetteEntry } from '@/lib/officialGazette';
 import {
     EXECUTIVE_SPECIAL_OFFICES,
@@ -27,9 +42,23 @@ import {
     createExecutiveProvisionalMeasure,
     dismissExecutiveSpecialOffice,
     fetchExecutiveConstitutionalState,
-    markExecutiveOfficeVacancy,
     reviewPresidentialBill,
 } from '@/lib/executiveGovernance';
+import { fetchWithSessionAuth } from '@/lib/apiAuth';
+
+const MINISTRY_INFO = {
+    'Ministério da Justiça': { icon: Shield, color: 'text-blue-400', bgColor: 'bg-blue-500/20' },
+    'Ministério da Defesa': { icon: Anchor, color: 'text-gray-400', bgColor: 'bg-gray-500/20' },
+    'Ministério da Economia': { icon: Landmark, color: 'text-emerald-400', bgColor: 'bg-emerald-500/20' },
+    'Ministério da Saúde': { icon: HeartPulse, color: 'text-red-400', bgColor: 'bg-red-500/20' },
+    'Ministério da Educação': { icon: BookOpen, color: 'text-yellow-400', bgColor: 'bg-yellow-500/20' },
+    'Ministério da Infraestrutura': { icon: Tram, color: 'text-orange-400', bgColor: 'bg-orange-500/20' },
+    'Ministério do Meio Ambiente': { icon: Recycle, color: 'text-green-400', bgColor: 'bg-green-500/20' },
+    'Ministério de Relações Exteriores': { icon: Globe, color: 'text-indigo-400', bgColor: 'bg-indigo-500/20' },
+    'Ministério da Cultura': { icon: Palette, color: 'text-purple-400', bgColor: 'bg-purple-500/20' },
+    'Ministério de Pesquisa': { icon: Microscope, color: 'text-pink-400', bgColor: 'bg-pink-500/20' },
+    'Ministério da Tecnologia': { icon: Cpu, color: 'text-cyan-400', bgColor: 'bg-cyan-500/20' },
+};
 
 const MinisterManager = ({ ministers, onUpdate }) => {
     const { toast } = useToast();
@@ -38,13 +67,9 @@ const MinisterManager = ({ ministers, onUpdate }) => {
     const [selectedUser, setSelectedUser] = useState('');
     const [selectedMinistry, setSelectedMinistry] = useState('');
     const [isSaving, setIsSaving] = useState(false);
+    const [changingMinistry, setChangingMinistry] = useState(null);
 
-    const allMinistries = [
-        'Ministério da Justiça', 'Ministério da Defesa', 'Ministério da Economia',
-        'Ministério da Saúde', 'Ministério da Educação', 'Ministério da Infraestrutura',
-        'Ministério do Meio Ambiente', 'Ministério de Relações Exteriores', 'Ministério da Cultura',
-        'Ministério de Pesquisa', 'Ministério da Tecnologia'
-    ];
+    const allMinistries = Object.keys(MINISTRY_INFO);
 
     const availableMinistries = allMinistries.filter(
         (ministry) => !ministers.some((minister) => minister.ministry === ministry)
@@ -63,8 +88,32 @@ const MinisterManager = ({ ministers, onUpdate }) => {
         fetchUsers();
     }, [toast]);
 
+    const openAppointDialog = (ministry) => {
+        setSelectedMinistry(ministry || '');
+        setSelectedUser('');
+        setChangingMinistry(null);
+        setIsDialogOpen(true);
+    };
+
+    const openChangeDialog = (minister) => {
+        setChangingMinistry(minister);
+        setSelectedMinistry(minister.ministry);
+        setSelectedUser('');
+        setIsDialogOpen(true);
+    };
+
     const handleAppoint = async () => {
         setIsSaving(true);
+
+        if (changingMinistry) {
+            const { data: dismissData, error: dismissError } = await supabase.rpc('dismiss_minister', { p_user_id: changingMinistry.user_id });
+            if (dismissError || !dismissData.success) {
+                toast({ title: 'Erro ao exonerar ministro anterior', description: dismissData?.message || dismissError.message, variant: 'destructive' });
+                setIsSaving(false);
+                return;
+            }
+        }
+
         const { data, error } = await supabase.rpc('appoint_minister', { p_user_id: selectedUser, p_ministry: selectedMinistry });
         if (error || !data.success) {
             toast({ title: 'Erro ao nomear ministro', description: data?.message || error.message, variant: 'destructive' });
@@ -73,7 +122,7 @@ const MinisterManager = ({ ministers, onUpdate }) => {
 
             try {
                 await publishOfficialGazetteEntry(supabase, {
-                    title: `Nomeação ministerial: ${selectedProfile?.full_name || 'Ministro'}`,
+                    title: `${changingMinistry ? 'Alteração' : 'Nomeação'} ministerial: ${selectedProfile?.full_name || 'Ministro'}`,
                     summary: `${selectedProfile?.full_name || 'O cidadão selecionado'} foi nomeado para ${selectedMinistry}.`,
                     content: `${selectedProfile?.full_name || 'O cidadão selecionado'} assumiu oficialmente o cargo de ${selectedMinistry}.`,
                     type: 'Nomeação e Exoneração',
@@ -85,6 +134,7 @@ const MinisterManager = ({ ministers, onUpdate }) => {
             toast({ title: 'Sucesso!', description: data.message });
             onUpdate();
             setIsDialogOpen(false);
+            setChangingMinistry(null);
         }
         setIsSaving(false);
     };
@@ -111,38 +161,25 @@ const MinisterManager = ({ ministers, onUpdate }) => {
     };
 
     return (
-        <Card className="glass-effect h-full flex flex-col">
-            <CardHeader>
-                <CardTitle className="flex items-center gap-2"><Briefcase className="w-6 h-6 text-primary" />Gabinete de Ministros</CardTitle>
-                <CardDescription>Nomeie e exonere os ministros do seu governo.</CardDescription>
-            </CardHeader>
-            <CardContent className="flex-grow space-y-4">
-                {ministers.length > 0 ? ministers.map(minister => (
-                    <div key={minister.id} className="flex items-center justify-between p-3 bg-slate-800/50 rounded-lg">
-                        <div>
-                            <p className="font-semibold">{minister.profile.full_name}</p>
-                            <p className="text-sm text-muted-foreground">{minister.ministry}</p>
-                        </div>
-                        <Button variant="destructive" size="sm" onClick={() => handleDismiss(minister)}>
-                            <UserX className="mr-2 h-4 w-4" />
-                            Exonerar
-                        </Button>
-                    </div>
-                )) : <p className="text-center text-muted-foreground py-4">Nenhum ministro nomeado.</p>}
-            </CardContent>
-            <CardFooter>
-                 <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <div className="space-y-6">
+            <div className="flex items-center justify-between">
+                <div>
+                    <h3 className="text-xl font-semibold flex items-center gap-2"><Briefcase className="w-5 h-5 text-primary" /> Gabinete de Ministros</h3>
+                    <p className="text-sm text-muted-foreground mt-1">Nomeie e exonere os ministros do seu governo.</p>
+                </div>
+                <Dialog open={isDialogOpen} onOpenChange={(open) => { setIsDialogOpen(open); if (!open) setChangingMinistry(null); }}>
                     <DialogTrigger asChild>
-                        <Button className="w-full"><UserPlus className="mr-2 h-4 w-4" /> Nomear Ministro</Button>
+                        <Button onClick={() => openAppointDialog('')}><UserPlus className="w-4 h-4 mr-2" /> Nomear Ministro</Button>
                     </DialogTrigger>
                     <DialogContent>
                         <DialogHeader>
-                            <DialogTitle>Nomear Novo Ministro</DialogTitle>
+                            <DialogTitle>{changingMinistry ? 'Alterar Ministro' : 'Nomear Novo Ministro'}</DialogTitle>
+                            {changingMinistry && <DialogDescription>Substituindo: {changingMinistry.profile.full_name} — {changingMinistry.ministry}</DialogDescription>}
                         </DialogHeader>
                         <div className="grid gap-4 py-4">
                             <div className="grid gap-2">
                                 <Label htmlFor="user">Cidadão</Label>
-                                <Select onValueChange={setSelectedUser}>
+                                <Select value={selectedUser} onValueChange={setSelectedUser}>
                                     <SelectTrigger><SelectValue placeholder="Selecione um cidadão" /></SelectTrigger>
                                     <SelectContent>
                                         <ScrollArea className="h-72">
@@ -151,27 +188,72 @@ const MinisterManager = ({ ministers, onUpdate }) => {
                                     </SelectContent>
                                 </Select>
                             </div>
-                            <div className="grid gap-2">
-                                <Label htmlFor="ministry">Ministério</Label>
-                                <Select onValueChange={setSelectedMinistry}>
-                                    <SelectTrigger><SelectValue placeholder="Selecione um ministério" /></SelectTrigger>
-                                    <SelectContent>
-                                        <ScrollArea className="h-72">
-                                          {availableMinistries.map(min => <SelectItem key={min} value={min}>{min}</SelectItem>)}
-                                        </ScrollArea>
-                                    </SelectContent>
-                                </Select>
-                            </div>
+                            {!changingMinistry && (
+                                <div className="grid gap-2">
+                                    <Label htmlFor="ministry">Ministério</Label>
+                                    <Select value={selectedMinistry} onValueChange={setSelectedMinistry}>
+                                        <SelectTrigger><SelectValue placeholder="Selecione um ministério" /></SelectTrigger>
+                                        <SelectContent>
+                                            <ScrollArea className="h-72">
+                                              {availableMinistries.map(min => <SelectItem key={min} value={min}>{min}</SelectItem>)}
+                                            </ScrollArea>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            )}
                         </div>
                         <DialogFooter>
                             <Button onClick={handleAppoint} disabled={isSaving || !selectedUser || !selectedMinistry}>
-                                {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Nomear
+                                {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} {changingMinistry ? 'Alterar' : 'Nomear'}
                             </Button>
                         </DialogFooter>
                     </DialogContent>
                 </Dialog>
-            </CardFooter>
-        </Card>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {allMinistries.map(ministry => {
+                    const info = MINISTRY_INFO[ministry];
+                    const MinIcon = info.icon;
+                    const minister = ministers.find(m => m.ministry === ministry);
+                    return (
+                        <Card key={ministry} className={`glass-effect transition-colors ${minister ? 'border-primary/30' : 'border-dashed border-muted-foreground/30'}`}>
+                            <CardHeader className="pb-3">
+                                <div className="flex items-center gap-3">
+                                    <div className={`p-2 rounded-lg ${info.bgColor}`}>
+                                        <MinIcon className={`w-5 h-5 ${info.color}`} />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <CardTitle className="text-sm font-semibold truncate">{ministry.replace('Ministério ', 'Min. ')}</CardTitle>
+                                        {minister ? (
+                                            <CardDescription className="truncate">{minister.profile.full_name}</CardDescription>
+                                        ) : (
+                                            <CardDescription className="text-muted-foreground/50 italic">Vago</CardDescription>
+                                        )}
+                                    </div>
+                                </div>
+                            </CardHeader>
+                            <CardFooter className="pt-0 gap-2">
+                                {minister ? (
+                                    <>
+                                        <Button variant="outline" size="sm" className="flex-1" onClick={() => openChangeDialog(minister)}>
+                                            <Edit className="mr-1 h-3 w-3" /> Alterar
+                                        </Button>
+                                        <Button variant="destructive" size="sm" className="flex-1" onClick={() => handleDismiss(minister)}>
+                                            <UserX className="mr-1 h-3 w-3" /> Exonerar
+                                        </Button>
+                                    </>
+                                ) : (
+                                    <Button size="sm" className="w-full" onClick={() => openAppointDialog(ministry)}>
+                                        <UserPlus className="mr-1 h-3 w-3" /> Nomear
+                                    </Button>
+                                )}
+                            </CardFooter>
+                        </Card>
+                    );
+                })}
+            </div>
+        </div>
     );
 };
 
@@ -225,7 +307,10 @@ const DecreeManager = ({ decrees, onUpdate }) => {
     };
 
     const handlePublish = async (decreeId, isPublished) => {
-        const { error } = await supabase.from('decrees').update({ is_published: !isPublished, published_at: new Date() }).eq('id', decreeId);
+        const { error } = await supabase
+            .from('decrees')
+            .update({ is_published: !isPublished, published_at: new Date().toISOString() })
+            .eq('id', decreeId);
          if (error) {
             toast({ title: 'Erro ao publicar', variant: 'destructive' });
         } else {
@@ -238,8 +323,8 @@ const DecreeManager = ({ decrees, onUpdate }) => {
     return (
         <Card className="glass-effect h-full flex flex-col">
             <CardHeader>
-                <CardTitle className="flex items-center gap-2"><FileSignature className="w-6 h-6 text-primary" />Decretos Presidenciais</CardTitle>
-                <CardDescription>Crie, edite e publique seus decretos.</CardDescription>
+                <CardTitle className="flex items-center gap-2"><FileSignature className="w-6 h-6 text-primary" />Decretos</CardTitle>
+                <CardDescription>Crie, edite e publique decretos presidenciais.</CardDescription>
             </CardHeader>
             <CardContent className="flex-grow space-y-4">
                  {decrees.length > 0 ? decrees.map(decree => (
@@ -292,6 +377,7 @@ const BudgetManager = ({ budget, treasuryBalance, onUpdate, setActiveTab }) => {
     const [editingArea, setEditingArea] = useState(null);
     const [tempValue, setTempValue] = useState(0);
     const [inputValue, setInputValue] = useState("R$ 0,00");
+    const safeTreasuryBalance = Math.max(0, Math.floor(Number(treasuryBalance) || 0));
 
     const areaIcons = {
         'Saúde': { icon: HeartPulse, color: 'text-red-400' },
@@ -310,43 +396,31 @@ const BudgetManager = ({ budget, treasuryBalance, onUpdate, setActiveTab }) => {
 
     useEffect(() => {
         if (budget && budget.areas) {
-            const allAreaNames = ['Saúde', 'Segurança', 'Defesa', 'Educação', 'Tecnologia', 'Meio Ambiente', 'Infraestrutura', 'Cultura', 'Relações Exteriores', 'Economia', 'Pesquisa'];
-            const budgetAreas = budget.areas || [];
-            const newAreas = allAreaNames.map(name => {
-                const existing = budgetAreas.find(a => a.name === name);
-                return { name, allocated_value: existing ? existing.allocated_value : 0 };
-            });
-            
-            // Auto-adjust proportionally if total exceeds treasury
-            const totalAllocated = newAreas.reduce((sum, area) => sum + (area.allocated_value || 0), 0);
-            if (totalAllocated > treasuryBalance && totalAllocated > 0) {
-                const ratio = treasuryBalance / totalAllocated;
-                const adjustedAreas = newAreas.map(area => ({
-                    ...area,
-                    allocated_value: Math.floor((area.allocated_value || 0) * ratio)
-                }));
-                setAreas(adjustedAreas);
-                
-                // Auto-save adjusted budget
+            const adjustedAreas = rebalanceGovernmentBudgetAreas(budget.areas, safeTreasuryBalance);
+            setAreas(adjustedAreas);
+
+            if (haveGovernmentBudgetAreasChanged(budget.areas, adjustedAreas)) {
                 const saveAdjusted = async () => {
                     await supabase
                         .from('system_settings')
-                        .update({ value: { areas: adjustedAreas } })
+                        .update({ value: { ...budget, areas: adjustedAreas } })
                         .eq('key', 'government_budget');
                 };
+
                 saveAdjusted();
-            } else {
-                setAreas(newAreas);
             }
         }
-    }, [budget, treasuryBalance]);
+    }, [budget, safeTreasuryBalance]);
 
     useEffect(() => {
         setInputValue(formatCurrency(tempValue, true));
     }, [tempValue]);
 
-    const totalAllocated = areas.reduce((sum, area) => sum + (area.allocated_value || 0), 0);
-    const availableToAllocate = treasuryBalance - (totalAllocated - (editingArea?.allocated_value || 0));
+    const totalAllocated = getGovernmentBudgetTotal(areas);
+    const availableToAllocate = Math.max(
+        0,
+        safeTreasuryBalance - (totalAllocated - (editingArea?.allocated_value || 0))
+    );
 
     const handleEditArea = (area) => {
         setEditingArea(area);
@@ -356,8 +430,8 @@ const BudgetManager = ({ budget, treasuryBalance, onUpdate, setActiveTab }) => {
     };
 
     const handleUpdateAreaValue = () => {
-        const maxAllowed = availableToAllocate + (editingArea?.allocated_value || 0);
-        let finalValue = tempValue;
+        const maxAllowed = Math.max(0, availableToAllocate + (editingArea?.allocated_value || 0));
+        let finalValue = Math.max(0, tempValue);
 
         if (tempValue > maxAllowed) {
             finalValue = maxAllowed;
@@ -373,9 +447,9 @@ const BudgetManager = ({ budget, treasuryBalance, onUpdate, setActiveTab }) => {
 
     const handleSave = async () => {
         setIsSaving(true);
-        const currentTotalAllocated = areas.reduce((sum, area) => sum + (area.allocated_value || 0), 0);
+        const currentTotalAllocated = getGovernmentBudgetTotal(areas);
 
-        if (currentTotalAllocated > treasuryBalance) {
+        if (currentTotalAllocated > safeTreasuryBalance) {
             toast({ title: 'Orçamento Inválido', description: 'O valor alocado excede o saldo do cofre público.', variant: 'destructive' });
             setIsSaving(false);
             return;
@@ -410,7 +484,7 @@ const BudgetManager = ({ budget, treasuryBalance, onUpdate, setActiveTab }) => {
         <Card className="glass-effect h-full flex flex-col">
             <CardHeader>
                 <CardTitle className="flex items-center gap-2"><PiggyBank className="w-6 h-6 text-primary" />Orçamento Governamental</CardTitle>
-                <CardDescription>Distribua os recursos do cofre público. Disponível: <span className="text-green-400 font-bold">{formatCurrency(treasuryBalance - totalAllocated)}</span></CardDescription>
+                <CardDescription>Distribua os recursos do cofre público. Disponível: <span className="text-green-400 font-bold">{formatCurrency(Math.max(0, safeTreasuryBalance - totalAllocated))}</span></CardDescription>
             </CardHeader>
             <CardContent className="flex-grow space-y-4 overflow-y-auto max-h-[500px] pr-4 custom-scrollbar">
                 {areas.map((area) => {
@@ -433,8 +507,8 @@ const BudgetManager = ({ budget, treasuryBalance, onUpdate, setActiveTab }) => {
             <CardFooter className="flex-col items-stretch gap-4 pt-6">
                 <div className="text-center text-sm font-bold">
                     <p>Total Alocado: {formatCurrency(totalAllocated)}</p>
-                    <p className="text-xs text-muted-foreground">Disponível no Cofre: {formatCurrency(treasuryBalance)}</p>
-                    <Progress value={(totalAllocated / treasuryBalance) * 100} className="mt-2 h-2"/>
+                    <p className="text-xs text-muted-foreground">Disponível no Cofre: {formatCurrency(safeTreasuryBalance)}</p>
+                    <Progress value={safeTreasuryBalance > 0 ? (totalAllocated / safeTreasuryBalance) * 100 : 0} className="mt-2 h-2"/>
                 </div>
                 <Button onClick={handleSave} disabled={isSaving}>
                     <Save className="mr-2 h-4 w-4" />
@@ -460,12 +534,12 @@ const BudgetManager = ({ budget, treasuryBalance, onUpdate, setActiveTab }) => {
                             />
                         </div>
                         <div>
-                             <Label>Alocação Visual ({(((tempValue || 0) / (availableToAllocate + (editingArea?.allocated_value || 0) || 1)) * 100).toFixed(2)}%)</Label>
+                             <Label>Alocação Visual ({(((Math.max(0, tempValue) || 0) / (Math.max(0, availableToAllocate + (editingArea?.allocated_value || 0)) || 1)) * 100).toFixed(2)}%)</Label>
                              <div onPointerDown={(e) => e.stopPropagation()} onTouchStart={(e) => e.stopPropagation()}>
                                <Slider
-                                  value={[tempValue]}
-                                  onValueChange={(val) => setTempValue(val[0])}
-                                  max={availableToAllocate + (editingArea?.allocated_value || 0)}
+                                  value={[Math.max(0, tempValue)]}
+                                  onValueChange={(val) => setTempValue(Math.max(0, val[0]))}
+                                  max={Math.max(0, availableToAllocate + (editingArea?.allocated_value || 0))}
                                   step={1000}
                                />
                              </div>
@@ -617,8 +691,27 @@ const LoanManager = ({ onUpdate, setActiveTab, govFinances }) => {
     const [amount, setAmount] = useState(1000000);
     const [installments, setInstallments] = useState(12);
     const [isSaving, setIsSaving] = useState(false);
+    const [bankPolicy, setBankPolicy] = useState(DEFAULT_BANK_POLICY);
 
     const availableLoanAmount = govFinances ? govFinances.loan_limit - govFinances.loans_balance : 0;
+    const governmentDebtRate = Number(bankPolicy.government_debt_interest_rate || 0);
+    const estimatedTotalDebt = amount * (1 + governmentDebtRate / 100);
+
+    useEffect(() => {
+        const fetchBankPolicy = async () => {
+            const { data } = await supabase
+                .from('system_settings')
+                .select('value')
+                .eq('key', BANK_POLICY_SETTINGS_KEY)
+                .maybeSingle();
+
+            if (data?.value) {
+                setBankPolicy({ ...DEFAULT_BANK_POLICY, ...data.value });
+            }
+        };
+
+        fetchBankPolicy();
+    }, []);
 
     const handleTakeLoan = async () => {
         setIsSaving(true);
@@ -649,6 +742,8 @@ const LoanManager = ({ onUpdate, setActiveTab, govFinances }) => {
                         Solicite um empréstimo para o cofre público.
                         <br />
                         <span className="font-bold text-primary">Disponível para empréstimo: {formatCurrency(availableLoanAmount)}</span>
+                        <br />
+                        <span>Taxa vigente do Banco Nacional: {governmentDebtRate.toFixed(2)}% a.m.</span>
                     </DialogDescription>
                 </DialogHeader>
                 <div className="grid gap-4 py-4">
@@ -659,6 +754,9 @@ const LoanManager = ({ onUpdate, setActiveTab, govFinances }) => {
                     <div className="grid gap-2">
                         <Label htmlFor="installments">Parcelas</Label>
                         <Input id="installments" type="number" value={installments} onChange={(e) => setInstallments(parseInt(e.target.value, 10))} />
+                    </div>
+                    <div className="rounded-lg border border-white/10 bg-white/5 p-3 text-sm text-muted-foreground">
+                        Custo estimado com juros: <span className="font-semibold text-foreground">{formatCurrency(estimatedTotalDebt)}</span>
                     </div>
                 </div>
                 <DialogFooter>
@@ -671,109 +769,291 @@ const LoanManager = ({ onUpdate, setActiveTab, govFinances }) => {
     );
 };
 
-const ServicePriceManager = ({ servicePrices, onUpdate, setActiveTab }) => {
+const SelicManager = ({ economicPolicy, bankPolicy, onUpdate, actorId }) => {
     const { toast } = useToast();
-    const [prices, setPrices] = useState({});
+    const [selicRate, setSelicRate] = useState(Number(economicPolicy?.selic_rate ?? DEFAULT_ECONOMIC_POLICY.selic_rate));
     const [isSaving, setIsSaving] = useState(false);
 
-    const serviceGroups = {
-        'Internet': {
-            groupIcon: Wifi,
-            services: [
-                { key: 'Internet_Básico', label: 'Plano Básico', icon: Package },
-                { key: 'Internet_Ultra', label: 'Plano Ultra', icon: Package2 },
-                { key: 'Internet_Mega', label: 'Plano Mega', icon: PackageCheck },
-            ]
-        },
-        'Telefonia': {
-            groupIcon: Smartphone,
-            services: [
-                { key: 'Telefonia_Básico', label: 'Plano Básico', icon: Package },
-                { key: 'Telefonia_Intermediário', label: 'Plano Intermediário', icon: Package2 },
-                { key: 'Telefonia_Premium', label: 'Plano Premium', icon: PackageCheck },
-            ]
-        },
-        'Energia': {
-            groupIcon: Zap,
-            services: [
-                { key: 'Energia Elétrica', label: 'Energia Elétrica', icon: Zap },
-            ]
-        },
-        'Água': {
-            groupIcon: Droplet,
-            services: [
-                { key: 'Água', label: 'Água', icon: Droplet },
-            ]
-        },
-        'Gás': {
-            groupIcon: Flame,
-            services: [
-                { key: 'Gás', label: 'Gás', icon: Flame },
-            ]
-        }
-    };
-
     useEffect(() => {
-        if (servicePrices) {
-            setPrices(servicePrices);
-        }
-    }, [servicePrices]);
+        setSelicRate(Number(economicPolicy?.selic_rate ?? DEFAULT_ECONOMIC_POLICY.selic_rate));
+    }, [economicPolicy?.selic_rate]);
 
-    const handlePriceChange = (key, value) => {
-        setPrices(prev => ({ ...prev, [key]: parseCurrency(value) }));
-    };
+    const projectedEconomicPolicy = normalizeEconomicPolicy({
+        ...economicPolicy,
+        selic_rate: selicRate,
+    });
+    const projectedBankPolicy = normalizeBankPolicyForEconomicPolicy(
+        bankPolicy,
+        projectedEconomicPolicy,
+        DEFAULT_BANK_POLICY
+    );
+    const projectedSelicMonthlyRate = annualPercentToMonthlyPercent(projectedEconomicPolicy.selic_rate);
+    const lowRiskInvestmentRate = buildInvestmentAnnualRate(projectedEconomicPolicy.selic_rate, 'low');
+    const highRiskInvestmentRate = buildInvestmentAnnualRate(projectedEconomicPolicy.selic_rate, 'high');
 
     const handleSave = async () => {
         setIsSaving(true);
-        const { error } = await supabase.from('system_settings').update({ value: prices }).eq('key', 'basic_service_prices');
-        if (error) {
-            toast({ title: 'Erro ao salvar preços', description: error.message, variant: 'destructive' });
-        } else {
-            toast({ title: 'Preços dos serviços atualizados!' });
-            onUpdate();
-            setActiveTab('finances');
+
+        try {
+            const nextEconomicPolicy = normalizeEconomicPolicy({
+                ...economicPolicy,
+                selic_rate: selicRate,
+                updated_at: new Date().toISOString(),
+                updated_by: actorId || null,
+            });
+            const nextBankPolicy = normalizeBankPolicyForEconomicPolicy(
+                bankPolicy,
+                nextEconomicPolicy,
+                DEFAULT_BANK_POLICY
+            );
+            const { data: investmentOptions, error: investmentOptionsError } = await supabase
+                .from('investment_options')
+                .select('id, risk_level');
+
+            if (investmentOptionsError) {
+                throw investmentOptionsError;
+            }
+
+            await Promise.all([
+                supabase
+                    .from('system_settings')
+                    .upsert(
+                        {
+                            key: ECONOMIC_POLICY_SETTINGS_KEY,
+                            value: nextEconomicPolicy,
+                            description: 'Política monetária nacional e taxa Selic.',
+                        },
+                        { onConflict: 'key' }
+                    )
+                    .then(({ error }) => {
+                        if (error) throw error;
+                    }),
+                supabase
+                    .from('system_settings')
+                    .upsert(
+                        {
+                            key: BANK_POLICY_SETTINGS_KEY,
+                            value: nextBankPolicy,
+                            description: 'Política de juros e crédito do Banco Nacional.',
+                        },
+                        { onConflict: 'key' }
+                    )
+                    .then(({ error }) => {
+                        if (error) throw error;
+                    }),
+                ...(investmentOptions || []).map(async (option) => {
+                    const { error } = await supabase
+                        .from('investment_options')
+                        .update({ annual_return_rate: buildInvestmentAnnualRate(nextEconomicPolicy.selic_rate, option.risk_level || 'medium') })
+                        .eq('id', option.id);
+
+                    if (error) {
+                        throw error;
+                    }
+                }),
+            ]);
+
+            await publishOfficialGazetteEntry(supabase, {
+                title: `Fixação da taxa Selic em ${nextEconomicPolicy.selic_rate.toFixed(2)}% a.a.`,
+                summary: 'A Presidência atualizou a taxa básica de juros da economia nacional.',
+                content:
+                    `A taxa Selic foi definida em ${nextEconomicPolicy.selic_rate.toFixed(2)}% ao ano, equivalente a ${annualPercentToMonthlyPercent(nextEconomicPolicy.selic_rate).toFixed(2)}% ao mês.` +
+                    ` A decisão repercute sobre o custo do crédito, a dívida pública e a remuneração das aplicações financeiras disponíveis no GOV.RP.`,
+                type: 'Decreto',
+                sourceId: `selic-${Date.now()}`,
+            });
+
+            toast({ title: 'Taxa Selic atualizada com sucesso' });
+            await onUpdate?.();
+        } catch (error) {
+            toast({ title: 'Erro ao atualizar a Selic', description: error.message, variant: 'destructive' });
+        } finally {
+            setIsSaving(false);
         }
-        setIsSaving(false);
     };
 
     return (
         <Card className="glass-effect">
             <CardHeader>
-                <CardTitle>Preços dos Serviços Básicos</CardTitle>
-                <CardDescription>Defina o valor semanal para os serviços essenciais.</CardDescription>
+                <CardTitle className="flex items-center gap-2"><Percent className="w-5 h-5 text-primary" /> Política Monetária</CardTitle>
+                <CardDescription>
+                    Defina a Selic e propague automaticamente o impacto sobre crédito, dívida pública e investimentos.
+                </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-                {Object.entries(serviceGroups).map(([groupName, groupData]) => {
-                    const GroupIcon = groupData.groupIcon;
-                    return (
-                        <div key={groupName} className="space-y-4">
-                            <div className="flex items-center gap-2">
-                                <GroupIcon className="w-5 h-5 text-primary" />
-                                <h4 className="font-semibold text-lg text-foreground">{groupName}</h4>
-                                <Separator className="flex-grow ml-2" />
-                            </div>
-                            {groupData.services.map(({ key, label, icon: ServiceIcon }) => (
-                                <div key={key} className="flex items-center justify-between pl-4">
-                                     <div className="flex items-center gap-2">
-                                        <ServiceIcon className="w-4 h-4 text-muted-foreground" />
-                                        <Label htmlFor={key}>{label}</Label>
-                                    </div>
-                                    <Input
-                                        id={key}
-                                        value={formatCurrency(prices[key] || 0, true)}
-                                        onChange={(e) => handlePriceChange(key, e.target.value)}
-                                        className="w-32"
-                                    />
-                                </div>
-                            ))}
+                <div className="space-y-3 rounded-xl border border-white/10 bg-white/5 p-4">
+                    <div className="flex items-center justify-between gap-4">
+                        <div>
+                            <p className="text-sm text-muted-foreground">Taxa Selic (% a.a.)</p>
+                            <p className="text-2xl font-bold text-foreground">{Number(selicRate || 0).toFixed(2)}%</p>
+                            <p className="text-xs text-muted-foreground">Equivalente mensal: {projectedSelicMonthlyRate.toFixed(2)}% a.m.</p>
                         </div>
-                    );
-                })}
+                        <div className="w-32">
+                            <Input
+                                type="number"
+                                min="0"
+                                max="100"
+                                step="0.01"
+                                value={selicRate}
+                                onChange={(event) => setSelicRate(Number(event.target.value || 0))}
+                            />
+                        </div>
+                    </div>
+                    <Slider value={[Number(selicRate || 0)]} onValueChange={(value) => setSelicRate(Number(value[0] || 0))} max={40} step={0.05} />
+                    <p className="text-sm text-muted-foreground">{getEconomicPressureLabel(selicRate)}</p>
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                    <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+                        <p className="text-xs uppercase tracking-wide text-muted-foreground">Empréstimos</p>
+                        <p className="mt-2 text-xl font-bold text-emerald-400">{Number(projectedBankPolicy.loan_interest_rate || 0).toFixed(2)}% a.m.</p>
+                        <p className="text-xs text-muted-foreground">Spread preservado: {Number(projectedBankPolicy.loan_interest_spread || 0).toFixed(2)} p.p.</p>
+                    </div>
+                    <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+                        <p className="text-xs uppercase tracking-wide text-muted-foreground">Cartão rotativo</p>
+                        <p className="mt-2 text-xl font-bold text-orange-400">{Number(projectedBankPolicy.credit_card_revolving_rate || 0).toFixed(2)}% a.m.</p>
+                        <p className="text-xs text-muted-foreground">Spread preservado: {Number(projectedBankPolicy.credit_card_revolving_spread || 0).toFixed(2)} p.p.</p>
+                    </div>
+                    <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+                        <p className="text-xs uppercase tracking-wide text-muted-foreground">Dívida pública</p>
+                        <p className="mt-2 text-xl font-bold text-amber-300">{Number(projectedBankPolicy.government_debt_interest_rate || 0).toFixed(2)}% a.m.</p>
+                        <p className="text-xs text-muted-foreground">Custo financeiro do Tesouro ajustado automaticamente.</p>
+                    </div>
+                    <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+                        <p className="text-xs uppercase tracking-wide text-muted-foreground">Investimentos</p>
+                        <p className="mt-2 text-xl font-bold text-cyan-300">{(lowRiskInvestmentRate * 100).toFixed(2)}% a.a.</p>
+                        <p className="text-xs text-muted-foreground">Baixo risco: {(highRiskInvestmentRate * 100).toFixed(2)}% a.a. em alto risco.</p>
+                    </div>
+                </div>
             </CardContent>
             <CardFooter>
-                 <Button onClick={handleSave} disabled={isSaving} className="w-full">
+                <Button onClick={handleSave} disabled={isSaving} className="w-full">
+                    {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                    Salvar Taxa Selic
+                </Button>
+            </CardFooter>
+        </Card>
+    );
+};
+
+const TARIFF_GROUPS = {
+    'Emissão de Documentos': {
+        groupIcon: FileText,
+        tariffs: [
+            { key: 'doc_CNH', label: 'CNH', icon: Car },
+            { key: 'doc_Passport', label: 'Passaporte', icon: Globe },
+            { key: 'doc_CNPJ', label: 'CNPJ', icon: Building2 },
+            { key: 'doc_CTD', label: 'Carteira de Trabalho Digital', icon: Contact },
+            { key: 'doc_Titulo_Eleitor', label: 'Título de Eleitor', icon: FileCheck },
+            { key: 'doc_Certificado_Reservista', label: 'Certificado de Reservista', icon: Shield },
+            { key: 'doc_Certidao_Casamento', label: 'Certidão de Casamento', icon: FileSignature },
+            { key: 'doc_Registro_Profissional', label: 'Registro Profissional', icon: Briefcase },
+        ]
+    },
+    'Criação de Empresas': {
+        groupIcon: Store,
+        tariffs: [
+            { key: 'biz_banco', label: 'Banco', icon: Landmark },
+            { key: 'biz_construtora', label: 'Construtora', icon: HardHat },
+            { key: 'biz_fabrica', label: 'Fábrica', icon: Building },
+            { key: 'biz_loja', label: 'Loja / Comércio', icon: Store },
+            { key: 'biz_transportadora', label: 'Transportadora', icon: Tram },
+            { key: 'biz_consultoria', label: 'Consultoria', icon: BrainCircuit },
+            { key: 'biz_seguranca', label: 'Empresa de Segurança', icon: Shield },
+            { key: 'biz_distribuidora', label: 'Distribuidora', icon: Package },
+        ]
+    },
+    'Multas': {
+        groupIcon: Gavel,
+        tariffs: [
+            { key: 'fine_leve', label: 'Infração Leve', icon: AlertTriangle },
+            { key: 'fine_media', label: 'Infração Média', icon: AlertTriangle },
+            { key: 'fine_grave', label: 'Infração Grave', icon: Ban },
+            { key: 'fine_gravissima', label: 'Infração Gravíssima', icon: Ban },
+        ]
+    },
+};
+
+const TARIFF_GROUP_KEYS = Object.keys(TARIFF_GROUPS);
+
+const TariffManager = ({ baseTariffs, onUpdate }) => {
+    const { toast } = useToast();
+    const [tariffs, setTariffs] = useState({});
+    const [isSaving, setIsSaving] = useState(false);
+    const [activeTariffTab, setActiveTariffTab] = useState(TARIFF_GROUP_KEYS[0]);
+
+    useEffect(() => {
+        if (baseTariffs) {
+            setTariffs(baseTariffs);
+        }
+    }, [baseTariffs]);
+
+    const handleTariffChange = (key, value) => {
+        setTariffs(prev => ({ ...prev, [key]: parseCurrency(value) }));
+    };
+
+    const handleSave = async () => {
+        setIsSaving(true);
+        const { error } = await supabase.from('system_settings').upsert({ key: 'base_tariffs', value: tariffs });
+        if (error) {
+            toast({ title: 'Erro ao salvar tarifas', description: error.message, variant: 'destructive' });
+        } else {
+            toast({ title: 'Tarifas atualizadas com sucesso!' });
+            onUpdate();
+        }
+        setIsSaving(false);
+    };
+
+    const groupData = TARIFF_GROUPS[activeTariffTab];
+    const GroupIcon = groupData.groupIcon;
+
+    return (
+        <Card className="glass-effect">
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2"><Receipt className="w-5 h-5 text-primary" /> Valores de Tarifas Base</CardTitle>
+                <CardDescription>Defina os valores cobrados para emissão de documentos, criação de empresas e multas.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+                <Tabs value={activeTariffTab} onValueChange={setActiveTariffTab} className="w-full">
+                    <TabsList className="w-full grid grid-cols-3">
+                        {TARIFF_GROUP_KEYS.map(groupName => {
+                            const GIcon = TARIFF_GROUPS[groupName].groupIcon;
+                            return (
+                                <TabsTrigger key={groupName} value={groupName} className="text-xs sm:text-sm">
+                                    <GIcon className="w-4 h-4 mr-1.5" />
+                                    {groupName.split(' ').slice(-1)[0]}
+                                </TabsTrigger>
+                            );
+                        })}
+                    </TabsList>
+                </Tabs>
+
+                <div className="flex items-center gap-2 mb-2">
+                    <GroupIcon className="w-5 h-5 text-primary" />
+                    <h4 className="font-semibold text-lg text-foreground">{activeTariffTab}</h4>
+                </div>
+
+                <div className="space-y-3">
+                    {groupData.tariffs.map(({ key, label, icon: TariffIcon }) => (
+                        <div key={key} className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <TariffIcon className="w-4 h-4 text-muted-foreground" />
+                                <Label htmlFor={key}>{label}</Label>
+                            </div>
+                            <Input
+                                id={key}
+                                value={formatCurrency(tariffs[key] || 0, true)}
+                                onChange={(e) => handleTariffChange(key, e.target.value)}
+                                className="w-32"
+                            />
+                        </div>
+                    ))}
+                </div>
+            </CardContent>
+            <CardFooter>
+                <Button onClick={handleSave} disabled={isSaving} className="w-full">
                     <Save className="mr-2 h-4 w-4" />
-                    {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : 'Salvar Preços'}
+                    {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : 'Salvar Tarifas'}
                 </Button>
             </CardFooter>
         </Card>
@@ -782,9 +1062,17 @@ const ServicePriceManager = ({ servicePrices, onUpdate, setActiveTab }) => {
 
 const ConstitutionalStatusCard = ({ executiveState }) => {
     const currentTerm = executiveState?.currentTerm;
+    const viceAssumedPresidency = Boolean(executiveState?.viceAssumedPresidency);
     const currentPresident = executiveState?.currentPresidentProfile?.full_name || 'Sem presidente em exercício';
-    const currentVice = executiveState?.currentViceProfile?.full_name || 'Vice-Presidente não definido';
+    const currentVice = viceAssumedPresidency
+        ? 'Vaga após sucessão presidencial'
+        : executiveState?.currentViceProfile?.full_name || 'Vice-Presidente não definido';
     const actingAuthority = executiveState?.actingAuthority?.profile?.full_name || executiveState?.actingAuthority?.label || 'Conselho dos Administradores (CDA)';
+    const currentTermLabel = currentTerm
+        ? `${new Date(currentTerm.term_start_at).toLocaleString('pt-BR')} até ${new Date(currentTerm.term_end_at).toLocaleString('pt-BR')}`
+        : executiveState?.manualExecutiveOfficeActive
+            ? 'Cargo executivo atribuído manualmente pelo admin, válido até nova eleição presidencial consolidada.'
+            : 'Nenhum mandato ativo identificado no histórico eleitoral.';
 
     return (
         <Card className="glass-effect">
@@ -802,6 +1090,9 @@ const ConstitutionalStatusCard = ({ executiveState }) => {
                     <div className="rounded-xl border border-white/10 bg-white/5 p-4">
                         <p className="text-sm text-muted-foreground">Presidente da República</p>
                         <p className="font-semibold text-foreground mt-1">{currentPresident}</p>
+                        {viceAssumedPresidency && (
+                            <p className="mt-1 text-xs font-medium text-emerald-300">Vice eleito que assumiu a Presidência</p>
+                        )}
                     </div>
                     <div className="rounded-xl border border-white/10 bg-white/5 p-4">
                         <p className="text-sm text-muted-foreground">Vice-Presidente</p>
@@ -809,11 +1100,7 @@ const ConstitutionalStatusCard = ({ executiveState }) => {
                     </div>
                     <div className="rounded-xl border border-white/10 bg-white/5 p-4">
                         <p className="text-sm text-muted-foreground">Mandato mensal</p>
-                        <p className="text-sm font-medium text-foreground mt-1">
-                            {currentTerm
-                                ? `${new Date(currentTerm.term_start_at).toLocaleString('pt-BR')} até ${new Date(currentTerm.term_end_at).toLocaleString('pt-BR')}`
-                                : 'Nenhum mandato ativo identificado no histórico eleitoral.'}
-                        </p>
+                        <p className="text-sm font-medium text-foreground mt-1">{currentTermLabel}</p>
                     </div>
                 </div>
 
@@ -826,11 +1113,17 @@ const ConstitutionalStatusCard = ({ executiveState }) => {
                         )}
                         <div>
                             <p className="font-semibold text-foreground">
-                                {executiveState?.isVacant ? 'Vacância presidencial em curso' : 'Chefia do Executivo regular'}
+                                {executiveState?.isVacant
+                                    ? 'Vacância presidencial em curso'
+                                    : viceAssumedPresidency
+                                        ? 'Sucessão presidencial automática'
+                                        : 'Chefia do Executivo regular'}
                             </p>
                             <p className="text-sm text-muted-foreground mt-1">
                                 {executiveState?.isVacant
                                     ? `Na vacância, a condução do Executivo passa sucessivamente para ${actingAuthority}.`
+                                    : viceAssumedPresidency
+                                        ? 'O vice-presidente assumiu a chefia do Executivo porque a Presidência ficou sem ocupante ativo.'
                                     : 'Compete privativamente ao Presidente nomear cargos-chave, sancionar ou vetar projetos, promulgar textos aprovados e editar medidas provisórias.'}
                             </p>
                         </div>
@@ -934,14 +1227,14 @@ const SpecialAppointmentsManager = ({ executiveState, onUpdate, actorId }) => {
             <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                     <Shield className="w-6 h-6 text-primary" />
-                    Nomeações Privativas
+                    Nomeações Estratégicas do Executivo
                 </CardTitle>
-                <CardDescription>Defina os ocupantes do comando da Polícia Federal e das Forças Armadas.</CardDescription>
+                <CardDescription>Defina os ocupantes de cargos executivos estratégicos, incluindo segurança, defesa e Banco Nacional.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
                 {EXECUTIVE_SPECIAL_OFFICES.map((office) => {
                     const appointment = executiveState?.settings?.specialAppointmentsDetailed?.[office.key];
-                    const officeIcon = office.key === 'armed_forces_commander' ? Anchor : Shield;
+                    const officeIcon = office.key === 'armed_forces_commander' ? Anchor : office.key === 'national_bank_president' ? Landmark : Shield;
                     const OfficeIcon = officeIcon;
 
                     return (
@@ -964,7 +1257,7 @@ const SpecialAppointmentsManager = ({ executiveState, onUpdate, actorId }) => {
                                     <SelectTrigger>
                                         <SelectValue placeholder="Selecione um ocupante" />
                                     </SelectTrigger>
-                                    <SelectContent>
+                                    <SelectContent className="max-h-80 overflow-y-auto">
                                         {(availableProfiles[office.key] || []).map((profile) => (
                                             <SelectItem key={profile.id} value={profile.id}>
                                                 {profile.full_name} ({profile.role})
@@ -1068,10 +1361,12 @@ const BillReviewManager = ({ executiveState, onUpdate, actorId }) => {
                                 </Button>
                                 {!isPromulgationOnly && (
                                     <>
-                                        <Button variant="outline" onClick={() => openReviewDialog(bill, 'veto_total')}>
+                                        <Button variant="outline" className="border-red-500/50 text-red-400 hover:bg-red-500/10 hover:text-red-300" onClick={() => openReviewDialog(bill, 'veto_total')}>
+                                            <Ban className="mr-2 h-4 w-4" />
                                             Veto total
                                         </Button>
-                                        <Button variant="outline" onClick={() => openReviewDialog(bill, 'veto_partial')}>
+                                        <Button variant="outline" className="border-orange-500/50 text-orange-400 hover:bg-orange-500/10 hover:text-orange-300" onClick={() => openReviewDialog(bill, 'veto_partial')}>
+                                            <CircleSlash className="mr-2 h-4 w-4" />
                                             Veto parcial
                                         </Button>
                                     </>
@@ -1277,6 +1572,776 @@ const ResignationManager = ({ onResign }) => {
     );
 };
 
+const ENTERPRISE_SECTORS = [
+    { value: 'Banco Nacional', label: 'Banco Nacional', icon: Landmark, color: 'text-emerald-400', bgColor: 'bg-emerald-500/20' },
+    { value: 'Internet', label: 'Internet', icon: Wifi, color: 'text-cyan-400', bgColor: 'bg-cyan-500/20' },
+    { value: 'Energia Elétrica', label: 'Energia Elétrica', icon: Zap, color: 'text-yellow-400', bgColor: 'bg-yellow-500/20' },
+    { value: 'Água', label: 'Água', icon: Droplet, color: 'text-blue-400', bgColor: 'bg-blue-500/20' },
+    { value: 'Telefonia', label: 'Telefonia', icon: Smartphone, color: 'text-violet-400', bgColor: 'bg-violet-500/20' },
+    { value: 'Gás', label: 'Gás', icon: Flame, color: 'text-orange-500', bgColor: 'bg-orange-500/20' },
+    { value: 'Outros', label: 'Outros', icon: Building, color: 'text-gray-400', bgColor: 'bg-gray-500/20' },
+];
+
+const isNationalBankEnterprise = (enterprise) =>
+    enterprise?.sector === 'Banco Nacional' || `${enterprise?.name || ''}`.toLowerCase() === 'banco nacional';
+
+const SECTOR_SERVICE_KEYS = {
+    'Internet': [
+        { key: 'Internet_Básico', label: 'Plano Básico', icon: Package },
+        { key: 'Internet_Ultra', label: 'Plano Ultra', icon: Package2 },
+        { key: 'Internet_Mega', label: 'Plano Mega', icon: PackageCheck },
+    ],
+    'Telefonia': [
+        { key: 'Telefonia_Básico', label: 'Plano Básico', icon: Package },
+        { key: 'Telefonia_Intermediário', label: 'Plano Intermediário', icon: Package2 },
+        { key: 'Telefonia_Premium', label: 'Plano Premium', icon: PackageCheck },
+    ],
+    'Energia Elétrica': [
+        { key: 'Energia Elétrica', label: 'Energia Elétrica', icon: Zap },
+    ],
+    'Água': [
+        { key: 'Água', label: 'Água', icon: Droplet },
+    ],
+    'Gás': [
+        { key: 'Gás', label: 'Gás', icon: Flame },
+    ],
+};
+
+const ENTERPRISE_COST_LABELS = {
+    employees: 'Funcionários',
+    infrastructure: 'Infraestrutura',
+    maintenance: 'Manutenção',
+    energy: 'Energia',
+    licenses: 'Licenças',
+};
+
+const WEEKS_PER_MONTH = 4.345;
+const DEFAULT_ENTERPRISE_FORM = {
+    name: '',
+    sector: '',
+    description: '',
+    market_value: 'R$ 1.000.000,00',
+    health_score: 75,
+};
+
+const normalizeEnterpriseCosts = (value = {}) =>
+    Object.keys(ENTERPRISE_COST_LABELS).reduce((accumulator, key) => {
+        accumulator[key] = Number(value?.[key] || 0);
+        return accumulator;
+    }, {});
+
+const sumEnterpriseCosts = (costs = {}) =>
+    Object.values(costs || {}).reduce((sum, current) => sum + Number(current || 0), 0);
+
+const getEnterpriseHealthScore = (enterprise) =>
+    Math.min(100, Math.max(0, Number(enterprise?.health_score ?? 75)));
+
+const getEnterpriseMarketValue = (enterprise) => Number(enterprise?.market_value || 0);
+
+const EnterpriseDetailView = ({ enterprise, onBack, onUpdate }) => {
+    const { toast } = useToast();
+    const sectorInfo = ENTERPRISE_SECTORS.find(s => s.value === enterprise.sector) || ENTERPRISE_SECTORS.find(s => s.value === 'Outros');
+    const SectorIcon = sectorInfo.icon;
+    const sectorServices = SECTOR_SERVICE_KEYS[enterprise.sector] || [];
+    const isNationalBank = isNationalBankEnterprise(enterprise);
+
+    const [prices, setPrices] = useState({});
+    const [costs, setCosts] = useState(() => normalizeEnterpriseCosts());
+    const [savingPrices, setSavingPrices] = useState(false);
+    const [savingCosts, setSavingCosts] = useState(false);
+    const [loadingData, setLoadingData] = useState(true);
+
+    useEffect(() => {
+        const loadData = async () => {
+            setLoadingData(true);
+            const [pricesRes, costsRes] = await Promise.all([
+                supabase.from('system_settings').select('value').eq('key', 'basic_service_prices').single(),
+                supabase.from('system_settings').select('value').eq('key', 'enterprise_costs').single(),
+            ]);
+            if (pricesRes.data?.value) setPrices(pricesRes.data.value);
+            setCosts(normalizeEnterpriseCosts(costsRes.data?.value?.[enterprise.id]));
+            setLoadingData(false);
+        };
+        loadData();
+    }, [enterprise.id]);
+
+    const handlePriceChange = (key, value) => {
+        setPrices(prev => ({ ...prev, [key]: parseCurrency(value) }));
+    };
+
+    const handleCostChange = (key, value) => {
+        setCosts(prev => ({ ...prev, [key]: parseCurrency(value) }));
+    };
+
+    const handleSavePrices = async () => {
+        setSavingPrices(true);
+        const { error } = await supabase.from('system_settings').update({ value: prices }).eq('key', 'basic_service_prices');
+        if (error) {
+            toast({ title: 'Erro ao salvar preços', description: error.message, variant: 'destructive' });
+        } else {
+            toast({ title: 'Preços atualizados!' });
+            onUpdate?.();
+        }
+        setSavingPrices(false);
+    };
+
+    const handleSaveCosts = async () => {
+        setSavingCosts(true);
+        const { data: existing } = await supabase.from('system_settings').select('value').eq('key', 'enterprise_costs').single();
+        const allCosts = existing?.value || {};
+        allCosts[enterprise.id] = costs;
+        const { error } = await supabase.from('system_settings').upsert({ key: 'enterprise_costs', value: allCosts });
+        if (error) {
+            toast({ title: 'Erro ao salvar custos', description: error.message, variant: 'destructive' });
+        } else {
+            toast({ title: 'Custos operacionais atualizados!' });
+            onUpdate?.();
+        }
+        setSavingCosts(false);
+    };
+
+    const totalMonthlyCost = sumEnterpriseCosts(costs);
+    const totalWeeklyCost = totalMonthlyCost / WEEKS_PER_MONTH;
+    const marketValue = getEnterpriseMarketValue(enterprise);
+    const healthScore = getEnterpriseHealthScore(enterprise);
+
+    if (loadingData) return <div className="flex justify-center py-8"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
+
+    return (
+        <div className="space-y-6">
+            <div className="flex items-center gap-4">
+                <Button variant="ghost" size="sm" onClick={onBack}>
+                    <ChevronLeft className="w-4 h-4 mr-1" /> Voltar
+                </Button>
+                <div className="flex items-center gap-3">
+                    <div className={`p-2 rounded-lg ${sectorInfo.bgColor}`}><SectorIcon className={`w-6 h-6 ${sectorInfo.color}`} /></div>
+                    <div>
+                        <h3 className="text-xl font-semibold">{enterprise.name}</h3>
+                        <p className="text-sm text-muted-foreground">{sectorInfo.label} • {enterprise.is_active ? 'Ativa' : 'Inativa'}</p>
+                    </div>
+                </div>
+            </div>
+
+            {enterprise.description && (
+                <Card className="glass-effect">
+                    <CardContent className="pt-4">
+                        <p className="text-sm text-muted-foreground">{enterprise.description}</p>
+                    </CardContent>
+                </Card>
+            )}
+
+            {isNationalBank ? (
+                <Card className="glass-effect border-emerald-500/20">
+                    <CardHeader>
+                        <CardTitle className="text-lg flex items-center gap-2"><Lock className="w-5 h-5 text-emerald-400" /> Operações do Banco Nacional</CardTitle>
+                        <CardDescription>
+                            A Presidência pode gerir a estatal e conduzir sua privatização, mas a política operacional de juros, empréstimos e cartões é exclusiva do Presidente do Banco Nacional e não aparece neste painel.
+                        </CardDescription>
+                    </CardHeader>
+                </Card>
+            ) : null}
+
+            <Card className="glass-effect border-emerald-500/20">
+                <CardHeader>
+                    <CardTitle className="text-lg flex items-center gap-2"><Scale className="w-5 h-5 text-emerald-400" /> Valor e Saúde da Estatal</CardTitle>
+                    <CardDescription>
+                        O balanço semanal usa estes indicadores para calibrar lucro, prejuízo e impacto no cofre público.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent className="grid gap-4 sm:grid-cols-2">
+                    <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+                        <p className="text-xs uppercase tracking-wide text-muted-foreground">Valor de mercado</p>
+                        <p className="mt-2 text-2xl font-bold text-foreground">{formatCurrency(marketValue)}</p>
+                    </div>
+                    <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+                        <div className="flex items-center justify-between">
+                            <p className="text-xs uppercase tracking-wide text-muted-foreground">Saúde operacional</p>
+                            <span className={healthScore >= 70 ? 'text-emerald-300' : healthScore >= 40 ? 'text-amber-300' : 'text-red-300'}>{healthScore}%</span>
+                        </div>
+                        <Progress value={healthScore} className="mt-3 h-3" />
+                    </div>
+                </CardContent>
+            </Card>
+
+            <Card className="glass-effect border-amber-500/20">
+                <CardHeader>
+                    <CardTitle className="text-lg flex items-center gap-2"><Coins className="w-5 h-5 text-amber-400" /> Resumo de Custos</CardTitle>
+                    <CardDescription>
+                        Custos configurados para esta estatal: <span className="font-semibold text-foreground">{formatCurrency(totalMonthlyCost)}</span>/mês e <span className="font-semibold text-foreground">{formatCurrency(totalWeeklyCost)}</span>/semana.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+                    {Object.entries(ENTERPRISE_COST_LABELS).map(([key, label]) => (
+                        <div key={key} className="rounded-xl border border-white/10 bg-white/5 p-3">
+                            <p className="text-xs uppercase tracking-wide text-muted-foreground">{label}</p>
+                            <p className="mt-2 text-lg font-semibold text-foreground">{formatCurrency(costs[key] || 0)}</p>
+                        </div>
+                    ))}
+                </CardContent>
+            </Card>
+
+            {sectorServices.length > 0 && (
+                <Card className="glass-effect">
+                    <CardHeader>
+                        <CardTitle className="text-lg flex items-center gap-2"><DollarSign className="w-5 h-5 text-primary" /> Preços dos Serviços</CardTitle>
+                        <CardDescription>Defina o valor semanal para os serviços desta estatal.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        {sectorServices.map(({ key, label, icon: ServiceIcon }) => (
+                            <div key={key} className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                    <ServiceIcon className={`w-4 h-4 ${sectorInfo.color}`} />
+                                    <Label htmlFor={`price-${key}`}>{label}</Label>
+                                </div>
+                                <Input
+                                    id={`price-${key}`}
+                                    value={formatCurrency(prices[key] || 0, true)}
+                                    onChange={(e) => handlePriceChange(key, e.target.value)}
+                                    className="w-32"
+                                />
+                            </div>
+                        ))}
+                    </CardContent>
+                    <CardFooter>
+                        <Button onClick={handleSavePrices} disabled={savingPrices} className="w-full">
+                            {savingPrices ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                            Salvar Preços
+                        </Button>
+                    </CardFooter>
+                </Card>
+            )}
+
+            <Card className="glass-effect">
+                <CardHeader>
+                    <CardTitle className="text-lg flex items-center gap-2"><Coins className="w-5 h-5 text-amber-400" /> Custos Operacionais</CardTitle>
+                    <CardDescription>Custos mensais de operação da estatal. Total: <span className="font-bold text-foreground">{formatCurrency(totalMonthlyCost)}</span>/mês</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    {Object.entries(ENTERPRISE_COST_LABELS).map(([key, label]) => (
+                        <div key={key} className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <Wrench className="w-4 h-4 text-muted-foreground" />
+                                <Label htmlFor={`cost-${key}`}>{label}</Label>
+                            </div>
+                            <Input
+                                id={`cost-${key}`}
+                                value={formatCurrency(costs[key] || 0, true)}
+                                onChange={(e) => handleCostChange(key, e.target.value)}
+                                className="w-32"
+                            />
+                        </div>
+                    ))}
+                </CardContent>
+                <CardFooter>
+                    <Button onClick={handleSaveCosts} disabled={savingCosts} className="w-full">
+                        {savingCosts ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                        Salvar Custos
+                    </Button>
+                </CardFooter>
+            </Card>
+        </div>
+    );
+};
+
+const StateEnterpriseManager = ({ onUpdate }) => {
+    const { user } = useAuth();
+    const { toast } = useToast();
+    const [enterprises, setEnterprises] = useState([]);
+    const [enterpriseCostsMap, setEnterpriseCostsMap] = useState({});
+    const [loading, setLoading] = useState(true);
+    const [isDialogOpen, setIsDialogOpen] = useState(false);
+    const [editingEnterprise, setEditingEnterprise] = useState(null);
+    const [selectedEnterprise, setSelectedEnterprise] = useState(null);
+    const [form, setForm] = useState(() => ({ ...DEFAULT_ENTERPRISE_FORM }));
+    const [saving, setSaving] = useState(false);
+    const [servicePrices, setServicePrices] = useState({});
+    const [savingPricesFor, setSavingPricesFor] = useState(null);
+    const [enterpriseToPrivatize, setEnterpriseToPrivatize] = useState(null);
+    const [privatizationPrice, setPrivatizationPrice] = useState('R$ 0,00');
+
+    const fetchEnterprises = useCallback(async () => {
+        setLoading(true);
+        const [entRes, pricesRes, costsRes] = await Promise.all([
+            supabase.from('state_enterprises').select('*').order('created_at', { ascending: true }),
+            supabase.from('system_settings').select('value').eq('key', 'basic_service_prices').single(),
+            supabase.from('system_settings').select('value').eq('key', 'enterprise_costs').single(),
+        ]);
+        if (entRes.error) {
+            toast({ title: 'Erro ao carregar estatais', description: entRes.error.message, variant: 'destructive' });
+        } else {
+            setEnterprises(entRes.data || []);
+            if (selectedEnterprise) {
+                const updated = (entRes.data || []).find(e => e.id === selectedEnterprise.id);
+                if (updated) setSelectedEnterprise(updated);
+            }
+        }
+        if (pricesRes.data?.value) setServicePrices(pricesRes.data.value);
+        setEnterpriseCostsMap(costsRes.data?.value || {});
+        setLoading(false);
+    }, [toast, selectedEnterprise]);
+
+    useEffect(() => { fetchEnterprises(); }, []);
+
+    const openCreate = () => {
+        setEditingEnterprise(null);
+        setForm({ ...DEFAULT_ENTERPRISE_FORM });
+        setIsDialogOpen(true);
+    };
+
+    const openEdit = (enterprise) => {
+        setEditingEnterprise(enterprise);
+        setForm({
+            name: enterprise.name,
+            sector: enterprise.sector,
+            description: enterprise.description || '',
+            market_value: formatCurrency(getEnterpriseMarketValue(enterprise), true),
+            health_score: getEnterpriseHealthScore(enterprise),
+        });
+        setIsDialogOpen(true);
+    };
+
+    const handleSave = async () => {
+        if (!form.name.trim() || !form.sector) {
+            toast({ title: 'Preencha nome e setor', variant: 'destructive' });
+            return;
+        }
+        setSaving(true);
+        const enterprisePayload = {
+            name: form.name.trim(),
+            sector: form.sector,
+            description: form.description.trim(),
+            market_value: parseCurrency(form.market_value),
+            health_score: Number(form.health_score || 0),
+            updated_at: new Date().toISOString(),
+        };
+        if (editingEnterprise) {
+            const { error } = await supabase
+                .from('state_enterprises')
+                .update(enterprisePayload)
+                .eq('id', editingEnterprise.id);
+            if (error) {
+                toast({ title: 'Erro ao atualizar', description: error.message, variant: 'destructive' });
+            } else {
+                toast({ title: 'Estatal atualizada com sucesso' });
+                await publishOfficialGazetteEntry(supabase, {
+                    title: `Atualização de Estatal: ${form.name.trim()}`,
+                    content: `A estatal "${form.name.trim()}" (setor: ${form.sector}) foi atualizada pelo Presidente da República.`,
+                    category: 'decree',
+                    author_id: user?.id,
+                });
+            }
+        } else {
+            const { error } = await supabase
+                .from('state_enterprises')
+                .insert({ ...enterprisePayload, created_by: user?.id });
+            if (error) {
+                toast({ title: 'Erro ao criar estatal', description: error.message, variant: 'destructive' });
+            } else {
+                toast({ title: 'Estatal criada com sucesso' });
+                await publishOfficialGazetteEntry(supabase, {
+                    title: `Criação de Estatal: ${form.name.trim()}`,
+                    content: `O Presidente da República criou a estatal "${form.name.trim()}" no setor de ${form.sector}.`,
+                    category: 'decree',
+                    author_id: user?.id,
+                });
+            }
+        }
+        setSaving(false);
+        setIsDialogOpen(false);
+        fetchEnterprises();
+        onUpdate?.();
+    };
+
+    const openPrivatizationDialog = (enterprise) => {
+        setEnterpriseToPrivatize(enterprise);
+        setPrivatizationPrice(formatCurrency(enterprise.privatization_price || 0, true));
+    };
+
+    const handlePrivatize = async () => {
+        if (!enterpriseToPrivatize?.id) return;
+        const targetEnterprise = enterpriseToPrivatize;
+        const price = parseCurrency(privatizationPrice);
+        if (!price || price <= 0) {
+            toast({ title: 'Informe um preço de privatização válido', variant: 'destructive' });
+            return;
+        }
+        const { error } = await supabase
+            .from('state_enterprises')
+            .update({
+                privatization_status: 'for_sale',
+                privatization_price: price,
+                is_privatized: false,
+                updated_at: new Date().toISOString(),
+            })
+            .eq('id', targetEnterprise.id);
+        if (error) {
+            toast({ title: 'Erro ao privatizar', description: error.message, variant: 'destructive' });
+        } else {
+            setEnterpriseToPrivatize(null);
+            setPrivatizationPrice('R$ 0,00');
+            toast({ title: `"${targetEnterprise.name}" está à venda para privatização` });
+            await fetchEnterprises();
+            onUpdate?.();
+            publishOfficialGazetteEntry(supabase, {
+                title: `Privatização aberta: ${targetEnterprise.name}`,
+                content: `O Presidente da República abriu a privatização da estatal "${targetEnterprise.name}" pelo valor de ${formatCurrency(price)}. A empresa permanecerá estatal até que haja comprador.`,
+                type: 'Decreto',
+            }).catch((gazetteError) => {
+                console.error('Erro ao publicar privatização no Diário Oficial:', gazetteError);
+            });
+        }
+    };
+
+    const handleCancelPrivatization = async (enterprise) => {
+        const { error } = await supabase
+            .from('state_enterprises')
+            .update({
+                privatization_status: 'none',
+                privatization_price: null,
+                updated_at: new Date().toISOString(),
+            })
+            .eq('id', enterprise.id);
+
+        if (error) {
+            toast({ title: 'Erro ao cancelar privatização', description: error.message, variant: 'destructive' });
+        } else {
+            toast({ title: `Privatização de "${enterprise.name}" cancelada` });
+            fetchEnterprises();
+            onUpdate?.();
+        }
+    };
+
+    const handleReactivate = async (enterprise) => {
+        const { error } = await supabase
+            .from('state_enterprises')
+            .update({
+                is_privatized: false,
+                is_active: true,
+                privatization_status: 'none',
+                privatization_price: null,
+                privatization_buyer_id: null,
+                privatized_at: null,
+                updated_at: new Date().toISOString(),
+            })
+            .eq('id', enterprise.id);
+        if (error) {
+            toast({ title: 'Erro ao reestatizar', description: error.message, variant: 'destructive' });
+        } else {
+            toast({ title: `"${enterprise.name}" foi reestatizada` });
+            fetchEnterprises();
+            onUpdate?.();
+        }
+    };
+
+    const handleToggleActive = async (enterprise) => {
+        const { error } = await supabase
+            .from('state_enterprises')
+            .update({ is_active: !enterprise.is_active, updated_at: new Date().toISOString() })
+            .eq('id', enterprise.id);
+        if (error) {
+            toast({ title: 'Erro', description: error.message, variant: 'destructive' });
+        } else {
+            fetchEnterprises();
+        }
+    };
+
+    const handleInlinePriceChange = (key, value) => {
+        setServicePrices(prev => ({ ...prev, [key]: parseCurrency(value) }));
+    };
+
+    const handleSaveInlinePrices = async (enterpriseId) => {
+        setSavingPricesFor(enterpriseId);
+        const { error } = await supabase.from('system_settings').update({ value: servicePrices }).eq('key', 'basic_service_prices');
+        if (error) {
+            toast({ title: 'Erro ao salvar preços', description: error.message, variant: 'destructive' });
+        } else {
+            toast({ title: 'Preços atualizados!' });
+            onUpdate?.();
+        }
+        setSavingPricesFor(null);
+    };
+
+    if (loading) return <div className="flex justify-center py-8"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
+
+    if (selectedEnterprise) {
+        return <EnterpriseDetailView enterprise={selectedEnterprise} onBack={() => setSelectedEnterprise(null)} onUpdate={() => { fetchEnterprises(); onUpdate?.(); }} />;
+    }
+
+    const activeEnterprises = enterprises.filter(e => !e.is_privatized);
+    const privatizedEnterprises = enterprises.filter(e => e.is_privatized);
+
+    return (
+        <div className="space-y-6">
+            <div className="flex items-center justify-between">
+                <div>
+                    <h3 className="text-xl font-semibold flex items-center gap-2"><Building className="w-5 h-5 text-primary" /> Estatais do Governo</h3>
+                    <p className="text-sm text-muted-foreground mt-1">Crie, gerencie e privatize empresas estatais.</p>
+                </div>
+                <Button onClick={openCreate}><Plus className="w-4 h-4 mr-2" /> Nova Estatal</Button>
+            </div>
+
+            {activeEnterprises.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {activeEnterprises.map(enterprise => {
+                        const sectorInfo = ENTERPRISE_SECTORS.find(s => s.value === enterprise.sector) || ENTERPRISE_SECTORS.find(s => s.value === 'Outros');
+                        const SectorIcon = sectorInfo.icon;
+                        const sectorServices = SECTOR_SERVICE_KEYS[enterprise.sector] || [];
+                        const isNationalBank = isNationalBankEnterprise(enterprise);
+                        const enterpriseCosts = normalizeEnterpriseCosts(enterpriseCostsMap[enterprise.id]);
+                        const monthlyCost = sumEnterpriseCosts(enterpriseCosts);
+                        const marketValue = getEnterpriseMarketValue(enterprise);
+                        const healthScore = getEnterpriseHealthScore(enterprise);
+                        return (
+                            <Card key={enterprise.id} className="glass-effect cursor-pointer hover:border-primary/50 transition-colors" onClick={() => setSelectedEnterprise(enterprise)}>
+                                <CardHeader className="pb-3">
+                                    <div className="flex items-start justify-between">
+                                        <div className="flex items-center gap-3">
+                                            <div className={`p-2 rounded-lg ${sectorInfo.bgColor}`}><SectorIcon className={`w-5 h-5 ${sectorInfo.color}`} /></div>
+                                            <div>
+                                                <CardTitle className="text-base">{enterprise.name}</CardTitle>
+                                                <CardDescription>{sectorInfo.label}</CardDescription>
+                                            </div>
+                                        </div>
+                                        <span className={`text-xs px-2 py-1 rounded-full ${
+                                            isNationalBank
+                                                ? 'bg-emerald-500/20 text-emerald-300'
+                                                : enterprise.privatization_status === 'for_sale'
+                                                ? 'bg-amber-500/20 text-amber-300'
+                                                : enterprise.is_active
+                                                    ? 'bg-emerald-500/20 text-emerald-400'
+                                                    : 'bg-red-500/20 text-red-400'
+                                        }`}>
+                                            {isNationalBank ? 'Estatal estratégica' : enterprise.privatization_status === 'for_sale' ? 'À venda' : enterprise.is_active ? 'Ativa' : 'Inativa'}
+                                        </span>
+                                    </div>
+                                </CardHeader>
+                                {enterprise.description && (
+                                    <CardContent className="pt-0 pb-3">
+                                        <p className="text-sm text-muted-foreground">{enterprise.description}</p>
+                                    </CardContent>
+                                )}
+                                <CardContent className="pt-0 pb-3">
+                                    <div className="grid gap-3 sm:grid-cols-2">
+                                      <div className="rounded-xl border border-white/10 bg-black/20 p-3">
+                                        <div className="flex items-center justify-between gap-3">
+                                            <div>
+                                                <p className="text-xs uppercase tracking-wide text-muted-foreground">Custos operacionais</p>
+                                                <p className="mt-1 text-lg font-semibold text-foreground">{formatCurrency(monthlyCost)}/mês</p>
+                                            </div>
+                                            <Coins className="h-5 w-5 text-amber-400" />
+                                        </div>
+                                        <p className="mt-2 text-xs text-muted-foreground">
+                                            Funcionários: {formatCurrency(enterpriseCosts.employees)} • Infraestrutura: {formatCurrency(enterpriseCosts.infrastructure)}
+                                        </p>
+                                      </div>
+                                      <div className="rounded-xl border border-white/10 bg-black/20 p-3">
+                                        <div className="flex items-center justify-between gap-3">
+                                            <div>
+                                                <p className="text-xs uppercase tracking-wide text-muted-foreground">Valor de mercado</p>
+                                                <p className="mt-1 text-lg font-semibold text-foreground">{formatCurrency(marketValue)}</p>
+                                            </div>
+                                            <Scale className="h-5 w-5 text-emerald-400" />
+                                        </div>
+                                        <div className="mt-2">
+                                            <div className="mb-1 flex justify-between text-xs text-muted-foreground">
+                                                <span>Saúde operacional</span>
+                                                <span>{healthScore}%</span>
+                                            </div>
+                                            <Progress value={healthScore} className="h-2" />
+                                        </div>
+                                      </div>
+                                    </div>
+                                </CardContent>
+                                {sectorServices.length > 0 && (
+                                    <CardContent className="pt-0 pb-3" onClick={e => e.stopPropagation()}>
+                                        <div className="space-y-2 border-t border-border/40 pt-3">
+                                            <p className="text-xs font-medium text-muted-foreground flex items-center gap-1"><DollarSign className="w-3 h-3" /> Preços dos Serviços</p>
+                                            {sectorServices.map(({ key, label, icon: ServiceIcon }) => (
+                                                <div key={key} className="flex items-center justify-between gap-2">
+                                                    <div className="flex items-center gap-1.5">
+                                                        <ServiceIcon className={`w-3 h-3 ${sectorInfo.color}`} />
+                                                        <span className="text-xs">{label}</span>
+                                                    </div>
+                                                    <Input
+                                                        value={formatCurrency(servicePrices[key] || 0, true)}
+                                                        onChange={(e) => handleInlinePriceChange(key, e.target.value)}
+                                                        className="w-24 h-7 text-xs"
+                                                    />
+                                                </div>
+                                            ))}
+                                            <Button size="sm" variant="outline" className="w-full mt-1 h-7 text-xs" onClick={() => handleSaveInlinePrices(enterprise.id)} disabled={savingPricesFor === enterprise.id}>
+                                                {savingPricesFor === enterprise.id ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Save className="w-3 h-3 mr-1" />}
+                                                Salvar Preços
+                                            </Button>
+                                        </div>
+                                    </CardContent>
+                                )}
+                                <CardFooter className="gap-2 flex-wrap" onClick={e => e.stopPropagation()}>
+                                    <Button size="sm" variant="outline" onClick={() => openEdit(enterprise)}><Edit className="w-3 h-3 mr-1" /> Editar</Button>
+                                    {isNationalBank ? (
+                                        <>
+                                            <Button size="sm" onClick={() => setSelectedEnterprise(enterprise)}><Landmark className="w-3 h-3 mr-1" /> Ver Detalhes</Button>
+                                            {enterprise.privatization_status === 'for_sale' ? (
+                                                <Button size="sm" variant="outline" onClick={() => handleCancelPrivatization(enterprise)}>
+                                                    <CircleSlash className="w-3 h-3 mr-1" /> Cancelar Privatização
+                                                </Button>
+                                            ) : (
+                                                <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white" onClick={() => openPrivatizationDialog(enterprise)}><Banknote className="w-3 h-3 mr-1" /> Privatizar</Button>
+                                            )}
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Button size="sm" variant={enterprise.is_active ? "destructive" : "outline"} onClick={() => handleToggleActive(enterprise)}>
+                                                {enterprise.is_active ? <><PowerOff className="w-3 h-3 mr-1" /> Desativar</> : <><Power className="w-3 h-3 mr-1" /> Ativar</>}
+                                            </Button>
+                                            {enterprise.privatization_status === 'for_sale' ? (
+                                                <Button size="sm" variant="outline" onClick={() => handleCancelPrivatization(enterprise)}>
+                                                    <CircleSlash className="w-3 h-3 mr-1" /> Cancelar Privatização
+                                                </Button>
+                                            ) : (
+                                                <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white" onClick={() => openPrivatizationDialog(enterprise)}><Banknote className="w-3 h-3 mr-1" /> Privatizar</Button>
+                                            )}
+                                        </>
+                                    )}
+                                </CardFooter>
+                            </Card>
+                        );
+                    })}
+                </div>
+            ) : (
+                <Card className="glass-effect p-8 text-center text-muted-foreground">
+                    <Building className="w-12 h-12 mx-auto mb-3 opacity-40" />
+                    <p>Nenhuma estatal ativa encontrada.</p>
+                </Card>
+            )}
+
+            {privatizedEnterprises.length > 0 && (
+                <div>
+                    <h4 className="text-lg font-semibold mb-3 text-muted-foreground">Empresas Privatizadas</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {privatizedEnterprises.map(enterprise => {
+                            const sectorInfo = ENTERPRISE_SECTORS.find(s => s.value === enterprise.sector) || ENTERPRISE_SECTORS.find(s => s.value === 'Outros');
+                            const SectorIcon = sectorInfo.icon;
+                            return (
+                                <Card key={enterprise.id} className="glass-effect opacity-60">
+                                    <CardHeader className="pb-3">
+                                        <div className="flex items-center gap-3">
+                                            <div className="p-2 rounded-lg bg-gray-500/20"><SectorIcon className="w-5 h-5 text-gray-400" /></div>
+                                            <div>
+                                                <CardTitle className="text-base line-through">{enterprise.name}</CardTitle>
+                                                <CardDescription>{sectorInfo.label} — Privatizada</CardDescription>
+                                            </div>
+                                        </div>
+                                    </CardHeader>
+                                    <CardFooter>
+                                        <Button size="sm" variant="outline" onClick={() => handleReactivate(enterprise)}>Reestatizar</Button>
+                                    </CardFooter>
+                                </Card>
+                            );
+                        })}
+                    </div>
+                </div>
+            )}
+
+            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>{editingEnterprise ? 'Editar Estatal' : 'Criar Nova Estatal'}</DialogTitle>
+                        <DialogDescription>
+                            {editingEnterprise ? 'Atualize as informações da empresa estatal.' : 'Defina os dados da nova empresa estatal do governo.'}
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                        <div>
+                            <Label>Nome da Estatal</Label>
+                            <Input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Ex: GOV Telecom" />
+                        </div>
+                        <div>
+                            <Label>Setor</Label>
+                            <Select
+                                value={form.sector}
+                                onValueChange={(value) =>
+                                    setForm((current) => ({
+                                        ...current,
+                                        sector: value,
+                                        name: value === 'Banco Nacional' && !current.name.trim() ? 'Banco Nacional' : current.name,
+                                    }))
+                                }
+                            >
+                                <SelectTrigger><SelectValue placeholder="Selecione o setor" /></SelectTrigger>
+                                <SelectContent>
+                                    {ENTERPRISE_SECTORS.map(s => (
+                                        <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="grid gap-4 sm:grid-cols-2">
+                            <div>
+                                <Label>Valor de mercado</Label>
+                                <Input
+                                    value={form.market_value}
+                                    onChange={(event) => setForm((current) => ({ ...current, market_value: formatCurrency(event.target.value, true) }))}
+                                    placeholder="R$ 0,00"
+                                />
+                            </div>
+                            <div>
+                                <div className="flex items-center justify-between">
+                                    <Label>Saúde operacional</Label>
+                                    <span className="text-sm text-muted-foreground">{Number(form.health_score || 0)}%</span>
+                                </div>
+                                <Slider
+                                    value={[Number(form.health_score || 0)]}
+                                    min={0}
+                                    max={100}
+                                    step={1}
+                                    onValueChange={([value]) => setForm((current) => ({ ...current, health_score: value }))}
+                                />
+                            </div>
+                        </div>
+                        <div>
+                            <Label>Descrição</Label>
+                            <Textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder="Breve descrição da estatal..." rows={3} />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <DialogClose asChild><Button variant="outline">Cancelar</Button></DialogClose>
+                        <Button onClick={handleSave} disabled={saving}>
+                            {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
+                            {editingEnterprise ? 'Salvar' : 'Criar'}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+            <Dialog open={Boolean(enterpriseToPrivatize)} onOpenChange={(open) => !open && setEnterpriseToPrivatize(null)}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Privatizar Estatal</DialogTitle>
+                        <DialogDescription>
+                            Defina o preço de venda. A estatal continuará pública até que alguém compre.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-2 py-4">
+                        <Label>Preço de privatização</Label>
+                        <Input
+                            value={privatizationPrice}
+                            onChange={(event) => setPrivatizationPrice(formatCurrency(event.target.value, true))}
+                            placeholder="R$ 0,00"
+                        />
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setEnterpriseToPrivatize(null)}>Cancelar</Button>
+                        <Button onClick={handlePrivatize}>
+                            <Banknote className="w-4 h-4 mr-2" />
+                            Colocar à Venda
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+        </div>
+    );
+};
+
 
 const PresidentDashboard = () => {
     const { toast } = useToast();
@@ -1288,7 +2353,10 @@ const PresidentDashboard = () => {
     const [budget, setBudget] = useState(null);
     const [taxes, setTaxes] = useState(null);
     const [servicePrices, setServicePrices] = useState(null);
+    const [baseTariffs, setBaseTariffs] = useState(null);
     const [govFinances, setGovFinances] = useState(null);
+    const [bankPolicy, setBankPolicy] = useState(DEFAULT_BANK_POLICY);
+    const [economicPolicy, setEconomicPolicy] = useState(DEFAULT_ECONOMIC_POLICY);
     const [deficit, setDeficit] = useState(0);
     const [executiveState, setExecutiveState] = useState(null);
     const [activeTab, setActiveTab] = useState('overview');
@@ -1320,11 +2388,38 @@ const PresidentDashboard = () => {
             }, {});
 
             const budgetData = settingsMap.government_budget || { areas: [] };
-            setBudget(budgetData);
+            const adjustedBudgetAreas = rebalanceGovernmentBudgetAreas(
+                budgetData.areas,
+                financesRes.data.treasury_balance
+            );
+            const normalizedBudgetData = { ...budgetData, areas: adjustedBudgetAreas };
+
+            if (haveGovernmentBudgetAreasChanged(budgetData.areas, adjustedBudgetAreas)) {
+                const { error: budgetSaveError } = await supabase
+                    .from('system_settings')
+                    .update({ value: normalizedBudgetData })
+                    .eq('key', 'government_budget');
+
+                if (budgetSaveError) {
+                    throw budgetSaveError;
+                }
+            }
+
+            setBudget(normalizedBudgetData);
             setTaxes(settingsMap.tax_rates || { product_tax: 0, service_tax: 0, transaction_tax: { type: 'percentage', value: 0 } });
             setServicePrices(settingsMap.basic_service_prices || {});
+            setBaseTariffs(settingsMap.base_tariffs || {});
+            const normalizedEconomicPolicy = normalizeEconomicPolicy(settingsMap[ECONOMIC_POLICY_SETTINGS_KEY]);
+            setEconomicPolicy(normalizedEconomicPolicy);
+            setBankPolicy(
+                normalizeBankPolicyForEconomicPolicy(
+                    settingsMap[BANK_POLICY_SETTINGS_KEY],
+                    normalizedEconomicPolicy,
+                    DEFAULT_BANK_POLICY
+                )
+            );
 
-            const totalAllocated = budgetData.areas ? budgetData.areas.reduce((sum, area) => sum + (area.allocated_value || 0), 0) : 0;
+            const totalAllocated = getGovernmentBudgetTotal(adjustedBudgetAreas);
             setDeficit(financesRes.data.treasury_balance - totalAllocated);
 
         } catch (error) {
@@ -1339,21 +2434,21 @@ const PresidentDashboard = () => {
     }, [fetchData]);
 
     const handleResignation = async () => {
-        const { data, error } = await supabase.rpc('resign_presidency');
-        if (error || !data.success) {
-            toast({ title: 'Erro ao renunciar', description: data?.message || error.message, variant: 'destructive' });
-        } else {
-            try {
-                await markExecutiveOfficeVacancy(supabase, {
-                    reason: 'Renúncia presidencial.',
-                    triggeredBy: user?.id || null,
-                });
-            } catch (vacancyError) {
-                console.error('Erro ao registrar vacância presidencial:', vacancyError);
+        try {
+            const response = await fetchWithSessionAuth('/api/elections/resign-presidency', {
+                method: 'POST',
+            });
+            const payload = await response.json().catch(() => ({}));
+
+            if (!response.ok) {
+                throw new Error(payload?.error || 'Não foi possível registrar a renúncia presidencial.');
             }
-            toast({ title: 'Renúncia Aceita', description: data.message });
+
+            toast({ title: 'Renúncia Aceita', description: payload.message });
             navigate('/');
-            window.location.reload(); // Forçar recarregamento para atualizar o estado do usuário
+            window.location.reload();
+        } catch (error) {
+            toast({ title: 'Erro ao renunciar', description: error.message, variant: 'destructive' });
         }
     };
 
@@ -1362,20 +2457,38 @@ const PresidentDashboard = () => {
         return <div className="flex justify-center items-center h-screen"><Loader2 className="animate-spin w-16 h-16" /></div>;
     }
 
-    const cardUsage = govFinances ? (govFinances.corporate_card_used / govFinances.corporate_card_limit) * 100 : 0;
-    const loanUsage = govFinances ? (govFinances.loans_balance / govFinances.loan_limit) * 100 : 0;
+    const cardUsage = govFinances?.corporate_card_limit ? (govFinances.corporate_card_used / govFinances.corporate_card_limit) * 100 : 0;
+    const loanUsage = govFinances?.loan_limit ? (govFinances.loans_balance / govFinances.loan_limit) * 100 : 0;
 
     const corporateCardValue = govFinances
         ? `${formatCurrency(govFinances.corporate_card_used)} / ${formatCurrency(govFinances.corporate_card_limit)}`
         : 'R$ 0,00';
 
-    const availableTreasury = govFinances ? govFinances.treasury_balance - (budget?.areas?.reduce((sum, area) => sum + (area.allocated_value || 0), 0) || 0) : 0;
+    const availableTreasury = govFinances
+        ? Math.max(0, govFinances.treasury_balance - getGovernmentBudgetTotal(budget?.areas || []))
+        : 0;
+    const budgetAreas = budget?.areas || [];
+    const allocatedBudget = getGovernmentBudgetTotal(budgetAreas);
+    const treasuryBalance = Number(govFinances?.treasury_balance || 0);
+    const loanAvailable = govFinances ? Math.max(0, Number(govFinances.loan_limit || 0) - Number(govFinances.loans_balance || 0)) : 0;
+    const topBudgetAreas = [...budgetAreas]
+        .sort((left, right) => Number(right.allocated_value || 0) - Number(left.allocated_value || 0))
+        .slice(0, 5);
+    const viceAssumedPresidency = Boolean(executiveState?.viceAssumedPresidency);
+    const currentPresidentName = executiveState?.currentPresidentProfile?.full_name || 'Cargo vago';
+    const currentViceName = viceAssumedPresidency
+        ? 'Vaga após sucessão presidencial'
+        : executiveState?.currentViceProfile?.full_name || 'Sem vice em exercício';
+    const executiveMandateLabel = executiveState?.currentTerm?.name
+        || (executiveState?.manualExecutiveOfficeActive
+            ? 'Cargo atribuído manualmente pelo admin'
+            : 'Nenhum mandato ativo identificado');
 
     return (
         <>
             <Helmet>
                 <title>Painel Presidencial - GOV.RP</title>
-                <meta name="description" content="Gerencie o governo, ministros, decretos e o orçamento." />
+                <meta name="description" content="Gerencie o governo, ministros, atos presidenciais, estatais e a gestão financeira." />
             </Helmet>
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
                 <PageHeader
@@ -1388,16 +2501,76 @@ const PresidentDashboard = () => {
                 />
 
                 <Tabs defaultValue="overview" value={activeTab} onValueChange={setActiveTab} className="w-full">
-                    <div className="overflow-x-auto custom-scrollbar -mx-4 px-4 pb-2">
+                    <div className="overflow-x-auto custom-scrollbar -mx-4 px-4 pb-2 flex justify-center">
                         <TabsList className="inline-flex min-w-max w-max gap-2">
-                            <TabsTrigger value="overview" className="min-w-[9.5rem] shrink-0">Visão Geral</TabsTrigger>
-                            <TabsTrigger value="finances" className="min-w-[8.5rem] shrink-0">Finanças</TabsTrigger>
-                            <TabsTrigger value="management" className="min-w-[13rem] shrink-0">Gestão Governamental</TabsTrigger>
+                            <TabsTrigger value="overview" className="min-w-[9.5rem] shrink-0"><LayoutDashboard className="w-4 h-4 mr-2" />Visão Geral</TabsTrigger>
+                            <TabsTrigger value="finances" className="min-w-[11rem] shrink-0"><Coins className="w-4 h-4 mr-2" />Gestão Financeira</TabsTrigger>
+                            <TabsTrigger value="management" className="min-w-[13rem] shrink-0"><Settings className="w-4 h-4 mr-2" />Gestão Governamental</TabsTrigger>
                         </TabsList>
                     </div>
 
-                    <TabsContent value="overview" className="mt-6 space-y-8">
-                        {/* Estatísticas Principais (Cards Superiores) */}
+                    <TabsContent value="overview" className="mt-6 space-y-6">
+                        <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.65fr)] gap-6">
+                            <Card className="glass-effect overflow-hidden">
+                                <CardHeader className="border-b border-white/10 bg-white/[0.03]">
+                                    <CardTitle className="flex items-center gap-2"><Shield className="w-5 h-5 text-emerald-400" /> Situação do Executivo</CardTitle>
+                                    <CardDescription>Comando institucional, sucessão e mandato presidencial vigente.</CardDescription>
+                                </CardHeader>
+                                <CardContent className="grid gap-4 p-6 sm:grid-cols-2">
+                                    <div className="rounded-lg border border-white/10 bg-black/20 p-4">
+                                        <p className="text-xs uppercase text-muted-foreground">Presidente em exercício</p>
+                                        <p className="mt-2 text-lg font-semibold text-foreground">{currentPresidentName}</p>
+                                        <p className="text-sm text-muted-foreground">
+                                            {executiveState?.isVacant
+                                                ? 'Vacância presidencial ativa'
+                                                : viceAssumedPresidency
+                                                    ? 'Vice eleito que assumiu a Presidência'
+                                                    : 'Chefia do Executivo regular'}
+                                        </p>
+                                    </div>
+                                    <div className="rounded-lg border border-white/10 bg-black/20 p-4">
+                                        <p className="text-xs uppercase text-muted-foreground">Vice-Presidência</p>
+                                        <p className="mt-2 text-lg font-semibold text-foreground">{currentViceName}</p>
+                                        <p className="text-sm text-muted-foreground">{executiveMandateLabel}</p>
+                                    </div>
+                                    <div className="rounded-lg border border-white/10 bg-black/20 p-4 sm:col-span-2">
+                                        <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                                            <div>
+                                                <p className="text-xs uppercase text-muted-foreground">Cofre público disponível</p>
+                                                <p className="mt-2 text-3xl font-bold text-emerald-400">{formatCurrency(availableTreasury)}</p>
+                                            </div>
+                                            <Button variant="outline" onClick={() => setActiveTab('finances')}>Abrir Gestão Financeira</Button>
+                                        </div>
+                                    </div>
+                                </CardContent>
+                            </Card>
+
+                            <Card className="glass-effect">
+                                <CardHeader>
+                                    <CardTitle className="flex items-center gap-2"><PiggyBank className="w-5 h-5 text-primary" /> Resumo Fiscal</CardTitle>
+                                    <CardDescription>Visão rápida de orçamento e capacidade de crédito.</CardDescription>
+                                </CardHeader>
+                                <CardContent className="space-y-4">
+                                    <div className="flex items-center justify-between rounded-lg bg-white/5 p-3">
+                                        <span className="text-sm text-muted-foreground">Saldo bruto do cofre</span>
+                                        <span className="font-semibold">{formatCurrency(treasuryBalance)}</span>
+                                    </div>
+                                    <div className="flex items-center justify-between rounded-lg bg-white/5 p-3">
+                                        <span className="text-sm text-muted-foreground">Orçamento alocado</span>
+                                        <span className="font-semibold">{formatCurrency(allocatedBudget)}</span>
+                                    </div>
+                                    <div className="flex items-center justify-between rounded-lg bg-white/5 p-3">
+                                        <span className="text-sm text-muted-foreground">{deficit >= 0 ? 'Superávit' : 'Déficit'}</span>
+                                        <span className={`font-semibold ${deficit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>{formatCurrency(Math.abs(deficit))}</span>
+                                    </div>
+                                    <div className="flex items-center justify-between rounded-lg bg-white/5 p-3">
+                                        <span className="text-sm text-muted-foreground">Crédito governamental livre</span>
+                                        <span className="font-semibold text-amber-300">{formatCurrency(loanAvailable)}</span>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        </div>
+
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                             {govFinances && (
                                 <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
@@ -1417,54 +2590,69 @@ const PresidentDashboard = () => {
                                     <FinanceCard title="Uso do Cartão Governamental" value={corporateCardValue} icon={CreditCard} isCurrency={false} colorClass="text-orange-400" />
                                 </motion.div>
                             )}
+                            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.45 }}>
+                                <FinanceCard title="Taxa Selic" value={`${Number(economicPolicy?.selic_rate || 0).toFixed(2)}% a.a.`} icon={Percent} isCurrency={false} colorClass="text-cyan-300" />
+                            </motion.div>
                         </div>
 
-                        {/* Elementos Secundários: Gráficos ou Progresso */}
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-8">
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                            <Card className="glass-effect overflow-hidden">
+                                <CardHeader className="border-b border-white/10 bg-white/[0.03]">
+                                    <CardTitle className="flex items-center gap-2"><University className="w-5 h-5 text-emerald-400" /> Execução Orçamentária</CardTitle>
+                                    <CardDescription>Distribuição dos recursos públicos por área prioritária.</CardDescription>
+                                </CardHeader>
+                                <CardContent className="space-y-4 p-6">
+                                    <div>
+                                        <div className="mb-2 flex items-center justify-between text-sm">
+                                            <span className="text-muted-foreground">Alocado sobre saldo bruto</span>
+                                            <span className="font-semibold">{treasuryBalance > 0 ? ((allocatedBudget / treasuryBalance) * 100).toFixed(1) : '0.0'}%</span>
+                                        </div>
+                                        <Progress value={treasuryBalance > 0 ? Math.min(100, (allocatedBudget / treasuryBalance) * 100) : 0} className="h-3" />
+                                    </div>
+                                    {topBudgetAreas.length ? topBudgetAreas.map((area) => (
+                                        <div key={area.name} className="flex items-center justify-between rounded-lg bg-black/20 p-3">
+                                            <span className="text-sm text-muted-foreground">{area.name}</span>
+                                            <span className="font-semibold">{formatCurrency(area.allocated_value || 0)}</span>
+                                        </div>
+                                    )) : (
+                                        <p className="py-4 text-center text-sm text-muted-foreground">Nenhuma área orçamentária configurada.</p>
+                                    )}
+                                </CardContent>
+                            </Card>
+
                             {govFinances && (
                                 <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.5 }}>
-                                    <Card className="glass-effect overflow-hidden border-t-4 border-t-orange-500/50">
-                                        <CardHeader className="bg-black/20 pb-4">
-                                            <CardTitle className="flex items-center gap-2"><CreditCard className="w-5 h-5 text-orange-400"/> Status do Cartão do Governo</CardTitle>
-                                            <CardDescription>Limite total e utilização vigente</CardDescription>
+                                    <Card className="glass-effect overflow-hidden">
+                                        <CardHeader className="border-b border-white/10 bg-white/[0.03]">
+                                            <CardTitle className="flex items-center gap-2"><CreditCard className="w-5 h-5 text-orange-400"/> Crédito e Endividamento</CardTitle>
+                                            <CardDescription>Cartão governamental e empréstimos ativos.</CardDescription>
                                         </CardHeader>
-                                        <CardContent className="p-6">
-                                            <div className="flex justify-between items-end mb-2">
-                                                <div>
-                                                    <p className="text-3xl font-bold text-orange-400">{formatCurrency(govFinances.corporate_card_used)}</p>
-                                                    <p className="text-sm text-muted-foreground mt-1">Utilizado do limite de {formatCurrency(govFinances.corporate_card_limit)}</p>
+                                        <CardContent className="space-y-6 p-6">
+                                            <div>
+                                                <div className="mb-2 flex justify-between">
+                                                    <div>
+                                                        <p className="text-sm text-muted-foreground">Cartão governamental</p>
+                                                        <p className="text-xl font-bold text-orange-400">{formatCurrency(govFinances.corporate_card_used)}</p>
+                                                    </div>
+                                                    <p className="text-sm font-semibold">{cardUsage.toFixed(1)}%</p>
                                                 </div>
-                                                <div className="text-right">
-                                                    <p className="text-xl font-bold">{cardUsage.toFixed(1)}%</p>
-                                                </div>
+                                                <Progress value={Math.min(100, cardUsage)} className="h-3 bg-muted" indicatorClassName={`${cardUsage > 80 ? 'bg-red-500' : cardUsage > 50 ? 'bg-orange-500' : 'bg-green-500'}`} />
+                                                <p className="mt-2 text-xs text-muted-foreground">Limite total: {formatCurrency(govFinances.corporate_card_limit)}</p>
                                             </div>
-                                            <Progress value={cardUsage} className="h-3 bg-muted" indicatorClassName={`${cardUsage > 80 ? 'bg-red-500' : cardUsage > 50 ? 'bg-orange-500' : 'bg-green-500'}`} />
-                                        </CardContent>
-                                    </Card>
-                                </motion.div>
-                            )}
-                            
-                            {govFinances && (
-                                <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.6 }}>
-                                    <Card className="glass-effect overflow-hidden border-t-4 border-t-amber-500/50">
-                                        <CardHeader className="bg-black/20 pb-4">
-                                            <CardTitle className="flex items-center gap-2"><Handshake className="w-5 h-5 text-amber-400"/> Capacidade de Empréstimo</CardTitle>
-                                            <CardDescription>Histórico e limites de tomada de crédito</CardDescription>
-                                        </CardHeader>
-                                        <CardContent className="p-6">
-                                            <div className="flex justify-between items-end mb-2">
-                                                <div>
-                                                    <p className="text-3xl font-bold text-amber-400">{formatCurrency(govFinances.loans_balance)}</p>
-                                                    <p className="text-sm text-muted-foreground mt-1">Dívida sobre limite de {formatCurrency(govFinances.loan_limit)}</p>
+                                            <div>
+                                                <div className="mb-2 flex justify-between">
+                                                    <div>
+                                                        <p className="text-sm text-muted-foreground">Empréstimos ativos</p>
+                                                        <p className="text-xl font-bold text-amber-400">{formatCurrency(govFinances.loans_balance)}</p>
+                                                    </div>
+                                                    <p className="text-sm font-semibold">{loanUsage.toFixed(1)}%</p>
                                                 </div>
-                                                <div className="text-right">
-                                                    <p className="text-xl font-bold">{loanUsage.toFixed(1)}%</p>
-                                                </div>
+                                                <Progress value={Math.min(100, loanUsage)} className="h-3 bg-muted" indicatorClassName={`${loanUsage > 80 ? 'bg-red-500' : loanUsage > 50 ? 'bg-amber-500' : 'bg-green-500'}`} />
+                                                <p className="mt-2 text-xs text-muted-foreground">Limite total: {formatCurrency(govFinances.loan_limit)}</p>
+                                                {loanUsage >= 100 && (
+                                                    <p className="text-xs text-red-500 mt-3">A nação atingiu o topo do limite de dívidas permitido no momento.</p>
+                                                )}
                                             </div>
-                                            <Progress value={loanUsage} className="h-3 bg-muted" indicatorClassName={`${loanUsage > 80 ? 'bg-red-500' : loanUsage > 50 ? 'bg-amber-500' : 'bg-green-500'}`} />
-                                            {loanUsage >= 100 && (
-                                                <p className="text-xs text-red-500 mt-4 text-center">Nação atingiu o topo do limite de dívidas permitido no momento.</p>
-                                            )}
                                         </CardContent>
                                     </Card>
                                 </motion.div>
@@ -1474,12 +2662,13 @@ const PresidentDashboard = () => {
 
                     <TabsContent value="finances" className="mt-6">
                         <Tabs defaultValue="budget" className="w-full">
-                            <div className="overflow-x-auto custom-scrollbar -mx-4 px-4 pb-2 mb-6">
+                            <div className="overflow-x-auto custom-scrollbar -mx-4 px-4 pb-2 mb-6 flex justify-center">
                                 <TabsList className="inline-flex min-w-max w-max gap-2 border-b border-border/40 bg-transparent p-0">
-                                    <TabsTrigger value="budget" className="min-w-[14rem] shrink-0 data-[state=active]:bg-card data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-t-lg px-6">Orçamento Governamental</TabsTrigger>
-                                    <TabsTrigger value="taxes" className="min-w-[12rem] shrink-0 data-[state=active]:bg-card data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-t-lg px-6">Gestão de Impostos</TabsTrigger>
-                                    <TabsTrigger value="prices" className="min-w-[14rem] shrink-0 data-[state=active]:bg-card data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-t-lg px-6">Valores de Tarifas Base</TabsTrigger>
-                                    <TabsTrigger value="actions" className="min-w-[11rem] shrink-0 data-[state=active]:bg-card data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-t-lg px-6">Empréstimos/Cofre</TabsTrigger>
+                                    <TabsTrigger value="budget" className="min-w-[14rem] shrink-0 data-[state=active]:bg-card data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-t-lg px-6"><Building2 className="mr-2 h-4 w-4" />Orçamento Governamental</TabsTrigger>
+                                    <TabsTrigger value="taxes" className="min-w-[12rem] shrink-0 data-[state=active]:bg-card data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-t-lg px-6"><Receipt className="mr-2 h-4 w-4" />Gestão de Impostos</TabsTrigger>
+                                    <TabsTrigger value="prices" className="min-w-[14rem] shrink-0 data-[state=active]:bg-card data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-t-lg px-6"><DollarSign className="mr-2 h-4 w-4" />Valores de Tarifas Base</TabsTrigger>
+                                    <TabsTrigger value="monetary" className="min-w-[12rem] shrink-0 data-[state=active]:bg-card data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-t-lg px-6"><Percent className="mr-2 h-4 w-4" />Política Monetária</TabsTrigger>
+                                    <TabsTrigger value="actions" className="min-w-[11rem] shrink-0 data-[state=active]:bg-card data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-t-lg px-6"><Banknote className="mr-2 h-4 w-4" />Empréstimos/Cofre</TabsTrigger>
                                 </TabsList>
                             </div>
 
@@ -1489,19 +2678,25 @@ const PresidentDashboard = () => {
                                         {budget && govFinances && <BudgetManager budget={budget} treasuryBalance={govFinances.treasury_balance} onUpdate={fetchData} setActiveTab={setActiveTab} />}
                                     </div>
                                 </TabsContent>
-                                
+
                                 <TabsContent value="taxes" className="mt-0">
                                     <div className="max-w-3xl mx-auto">
                                         {taxes && <TaxManager taxes={taxes} onUpdate={fetchData} setActiveTab={setActiveTab} />}
                                     </div>
                                 </TabsContent>
-                                
+
                                 <TabsContent value="prices" className="mt-0">
                                     <div className="max-w-3xl mx-auto">
-                                        {servicePrices && <ServicePriceManager servicePrices={servicePrices} onUpdate={fetchData} setActiveTab={setActiveTab} />}
+                                        <TariffManager baseTariffs={baseTariffs} onUpdate={fetchData} />
                                     </div>
                                 </TabsContent>
-                                
+
+                                <TabsContent value="monetary" className="mt-0">
+                                    <div className="max-w-4xl mx-auto">
+                                        <SelicManager economicPolicy={economicPolicy} bankPolicy={bankPolicy} onUpdate={fetchData} actorId={user?.id} />
+                                    </div>
+                                </TabsContent>
+
                                 <TabsContent value="actions" className="mt-0">
                                     <div className="max-w-xl mx-auto pt-8">
                                         <Card className="glass-effect">
@@ -1525,12 +2720,13 @@ const PresidentDashboard = () => {
 
                     <TabsContent value="management" className="mt-6">
                         <Tabs defaultValue="constitutional" className="w-full">
-                            <div className="overflow-x-auto custom-scrollbar -mx-4 px-4 pb-2 mb-6">
+                            <div className="overflow-x-auto custom-scrollbar -mx-4 px-4 pb-2 mb-6 flex justify-center">
                                 <TabsList className="inline-flex min-w-max w-max gap-2 border-b border-border/40 bg-transparent p-0">
-                                    <TabsTrigger value="constitutional" className="min-w-[14rem] shrink-0 data-[state=active]:bg-card data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-t-lg px-6">Constituição Executiva</TabsTrigger>
-                                    <TabsTrigger value="ministers" className="min-w-[8rem] shrink-0 data-[state=active]:bg-card data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-t-lg px-6">Ministros</TabsTrigger>
-                                    <TabsTrigger value="decrees" className="min-w-[14rem] shrink-0 data-[state=active]:bg-card data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-t-lg px-6">Decretos Presidenciais</TabsTrigger>
-                                    <TabsTrigger value="resignation" className="min-w-[8rem] shrink-0 data-[state=active]:bg-card data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-t-lg px-6">Renúncia</TabsTrigger>
+                                    <TabsTrigger value="constitutional" className="min-w-[12rem] shrink-0 data-[state=active]:bg-card data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-t-lg px-6"><Shield className="mr-2 h-4 w-4" />Estado Executivo</TabsTrigger>
+                                    <TabsTrigger value="ministers" className="min-w-[13rem] shrink-0 data-[state=active]:bg-card data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-t-lg px-6"><UserPlus className="mr-2 h-4 w-4" />Ministros e Nomeações</TabsTrigger>
+                                    <TabsTrigger value="decrees" className="min-w-[13rem] shrink-0 data-[state=active]:bg-card data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-t-lg px-6"><FileCheck className="mr-2 h-4 w-4" />Atos Presidenciais</TabsTrigger>
+                                    <TabsTrigger value="enterprises" className="min-w-[8rem] shrink-0 data-[state=active]:bg-card data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-t-lg px-6"><Building2 className="mr-2 h-4 w-4" />Estatais</TabsTrigger>
+                                    <TabsTrigger value="resignation" className="min-w-[8rem] shrink-0 data-[state=active]:bg-card data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-t-lg px-6"><LogOut className="mr-2 h-4 w-4" />Renúncia</TabsTrigger>
                                 </TabsList>
                             </div>
 
@@ -1538,21 +2734,27 @@ const PresidentDashboard = () => {
                                 <TabsContent value="constitutional" className="mt-0">
                                     <div className="space-y-6 max-w-5xl mx-auto">
                                         <ConstitutionalStatusCard executiveState={executiveState} />
+                                    </div>
+                                </TabsContent>
+
+                                <TabsContent value="ministers" className="mt-0">
+                                    <div className="space-y-6 max-w-5xl mx-auto">
+                                        <MinisterManager ministers={ministers} onUpdate={fetchData} />
                                         <SpecialAppointmentsManager executiveState={executiveState} onUpdate={fetchData} actorId={user?.id} />
+                                    </div>
+                                </TabsContent>
+
+                                <TabsContent value="decrees" className="mt-0">
+                                    <div className="space-y-6 max-w-5xl mx-auto">
+                                        <DecreeManager decrees={decrees} onUpdate={fetchData} />
                                         <BillReviewManager executiveState={executiveState} onUpdate={fetchData} actorId={user?.id} />
                                         <ProvisionalMeasureManager executiveState={executiveState} onUpdate={fetchData} actorId={user?.id} />
                                     </div>
                                 </TabsContent>
 
-                                <TabsContent value="ministers" className="mt-0">
-                                    <div className="max-w-4xl mx-auto">
-                                        <MinisterManager ministers={ministers} onUpdate={fetchData} />
-                                    </div>
-                                </TabsContent>
-
-                                <TabsContent value="decrees" className="mt-0">
-                                    <div className="max-w-4xl mx-auto">
-                                        <DecreeManager decrees={decrees} onUpdate={fetchData} />
+                                <TabsContent value="enterprises" className="mt-0">
+                                    <div className="max-w-5xl mx-auto">
+                                        <StateEnterpriseManager onUpdate={fetchData} />
                                     </div>
                                 </TabsContent>
 

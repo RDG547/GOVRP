@@ -28,14 +28,36 @@ const Bank = () => {
         const targetUserId = user.id;
 
         try {
-            const { data: account, error: accountError } = await supabase
+            const { data: accountData, error: accountError } = await supabase
                 .from('accounts')
                 .select('*')
                 .eq('user_id', targetUserId)
-                .single();
+                .limit(1)
+                .maybeSingle();
+            let account = accountData;
 
             if (accountError && accountError.code !== 'PGRST116') {
-                throw accountError;
+                const { data: fallbackAccountData, error: fallbackAccountError } = await supabase.rpc('get_my_bank_account');
+                const fallbackAccount = Array.isArray(fallbackAccountData)
+                  ? fallbackAccountData[0]
+                  : fallbackAccountData;
+
+                if (fallbackAccountError || !fallbackAccount) {
+                  throw accountError;
+                }
+
+                account = fallbackAccount;
+            }
+
+            if (!account) {
+                const { data: fallbackAccountData } = await supabase.rpc('get_my_bank_account');
+                const fallbackAccount = Array.isArray(fallbackAccountData)
+                  ? fallbackAccountData[0]
+                  : fallbackAccountData;
+
+                if (fallbackAccount) {
+                  account = fallbackAccount;
+                }
             }
 
             if (!account) {
@@ -44,21 +66,43 @@ const Bank = () => {
                 return;
             }
             
-            const [{ data: transactions }, { data: cards }, { data: investments }, { data: loans }, { data: investmentOptions }] = await Promise.all([
+            const [
+              transactionsResponse,
+              cardsResponse,
+              investmentsResponse,
+              loansResponse,
+              investmentOptionsResponse,
+            ] = await Promise.all([
               supabase.rpc('get_user_transactions', { p_user_id: targetUserId }),
               supabase.from('cards').select('*').eq('user_id', targetUserId),
               supabase.from('user_investments').select('*, investment_option:investment_options(*)').eq('user_id', targetUserId),
               supabase.from('loan_applications').select('*').eq('user_id', targetUserId).order('created_at', { ascending: false }),
-              supabase.from('investment_options').select('*')
+              supabase.from('investment_options').select('*').order('annual_return_rate', { ascending: true })
             ]);
+
+            const queryError =
+              transactionsResponse.error ||
+              cardsResponse.error ||
+              investmentsResponse.error ||
+              loansResponse.error ||
+              investmentOptionsResponse.error;
+
+            if (queryError) {
+              console.error("Error fetching complementary bank data:", queryError);
+              toast({
+                title: "Dados bancários parcialmente carregados",
+                description: "Sua conta foi encontrada, mas alguns dados complementares não puderam ser carregados.",
+                variant: "destructive",
+              });
+            }
             
             setBankData({
                 account,
-                transactions: transactions || [],
-                cards: cards || [],
-                investments: investments || [],
-                loans: loans || [],
-                investmentOptions: investmentOptions || [],
+                transactions: transactionsResponse.data || [],
+                cards: cardsResponse.data || [],
+                investments: investmentsResponse.data || [],
+                loans: loansResponse.data || [],
+                investmentOptions: (investmentOptionsResponse.data || []).filter((option) => option.is_active !== false),
             });
 
         } catch (error) {

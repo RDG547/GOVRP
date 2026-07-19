@@ -53,12 +53,18 @@ const buildMrzLine = (value) =>
         .padEnd(44, '<')
         .slice(0, 44);
 
+const buildMrzDocumentNumber = (value = '') =>
+    normalizeMrzValue(value)
+        .replace(/\s+/g, '')
+        .padEnd(9, '<')
+        .slice(0, 9);
+
 const getPassportNames = (fullName = '') => {
     const normalized = normalizeMrzValue(fullName);
     if (!normalized) {
         return {
-            surname: 'N/A',
-            givenNames: 'N/A',
+            surname: 'GOVRP',
+            givenNames: '',
         };
     }
 
@@ -66,7 +72,7 @@ const getPassportNames = (fullName = '') => {
     if (parts.length === 1) {
         return {
             surname: parts[0],
-            givenNames: 'N/A',
+            givenNames: '',
         };
     }
 
@@ -78,24 +84,33 @@ const getPassportNames = (fullName = '') => {
 
 const PassportField = ({ label, value, className = '' }) => (
     <div className={className}>
-        <p className="block font-semibold text-slate-500 uppercase tracking-[0.18em] text-[0.44rem] sm:text-[0.55rem] leading-tight">
+        <p className="block font-semibold text-slate-500 uppercase tracking-[0.14em] text-[0.42rem] sm:text-[0.48rem] leading-tight">
             {label}
         </p>
-        <p className="font-bold text-slate-950 text-[0.58rem] sm:text-[0.76rem] leading-snug break-words">
+        <p className="font-bold text-slate-950 text-[0.56rem] sm:text-[0.66rem] leading-snug break-words">
             {value || 'N/A'}
         </p>
     </div>
 );
 
-const DocumentField = ({ label, value, className = '' }) => (
-    <div className={className}>
-        <p className="block font-semibold text-gray-500 uppercase tracking-wider text-[0.5rem] sm:text-[9px] leading-tight">{label}</p>
-        <p className="font-bold text-black text-[0.6rem] sm:text-[12px] leading-snug break-words">{value || 'N/A'}</p>
-    </div>
-);
+const hasTextColorClass = (className = '') =>
+    /\btext-(black|white|gray|slate|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose)-/.test(className) ||
+    className.includes('text-white') ||
+    className.includes('text-black');
+
+const DocumentField = ({ label, value, className = '' }) => {
+    const inheritTextColor = hasTextColorClass(className);
+
+    return (
+        <div className={className}>
+            <p className={`block font-semibold uppercase tracking-wider text-[0.5rem] sm:text-[9px] leading-tight ${inheritTextColor ? 'opacity-70' : 'text-gray-500'}`}>{label}</p>
+            <p className={`font-bold text-[0.6rem] sm:text-[12px] leading-snug break-words ${inheritTextColor ? '' : 'text-black'}`}>{value || 'N/A'}</p>
+        </div>
+    );
+};
 
 const DocumentContainer = ({ children, className = '' }) => (
-    <div className={`relative w-full max-w-[430px] min-h-[280px] h-auto flex flex-col overflow-hidden shadow-lg border rounded-lg p-3 sm:p-4 ${className}`}>
+    <div className={`relative aspect-[1.42/1] w-full max-w-[470px] flex flex-col overflow-hidden shadow-lg border rounded-lg p-2.5 sm:p-3 ${className}`}>
         <div className="relative z-10 flex h-full flex-col">
             {children}
         </div>
@@ -384,9 +399,9 @@ const CNHDocument = ({ user, doc, side }) => {
 const PassportDocument = ({ user, doc, side }) => {
     const dateOfBirth = new Date(user.date_of_birth.replace(/-/g, '\/')).toLocaleDateString('pt-BR');
     const { surname, givenNames } = getPassportNames(user.full_name);
-    const mrzLineOne = buildMrzLine(`P<GOV${surname}<<${givenNames}`);
+    const mrzLineOne = buildMrzLine(`P<GOV${surname}${givenNames ? `<<${givenNames}` : '<<'}`);
     const mrzLineTwo = buildMrzLine(
-        `${normalizeMrzValue(doc.document_number)}<0GOV${formatPassportMrzDate(user.date_of_birth)}X${formatPassportMrzDate(doc.expires_at)}`
+        `${buildMrzDocumentNumber(doc.document_number)}<GOV${formatPassportMrzDate(user.date_of_birth)}X${formatPassportMrzDate(doc.expires_at)}<<<<<<<<<<<<<<`
     );
 
     return (
@@ -399,23 +414,23 @@ const PassportDocument = ({ user, doc, side }) => {
                 <p className="text-xl sm:text-3xl font-bold tracking-wider">PASSAPORTE</p>
             </div>
         ) : (
-            <div className="flex h-full flex-col gap-3 rounded-md bg-white/80 p-3 sm:gap-4 sm:p-4">
-                 <div className="flex items-start justify-between gap-3 border-b border-slate-200 pb-2">
+            <div className="flex h-full flex-col gap-2 rounded-md bg-white/80 p-2 sm:p-3">
+                 <div className="flex items-start justify-between gap-3 border-b border-slate-200 pb-1.5">
                     <div>
-                        <p className="text-[0.6rem] sm:text-[0.78rem] text-slate-500 tracking-[0.28em]">PASSAPORTE</p>
-                        <p className="text-[0.46rem] sm:text-[0.6rem] uppercase tracking-[0.22em] text-slate-400">República Federativa de GOV.RP</p>
+                        <p className="text-[0.56rem] sm:text-[0.72rem] text-slate-500 tracking-[0.24em]">PASSAPORTE</p>
+                        <p className="text-[0.44rem] sm:text-[0.54rem] uppercase tracking-[0.18em] text-slate-400">República Federativa de GOV.RP</p>
                     </div>
-                    <div className="rounded-full border border-slate-200 bg-slate-50 px-2 py-1 text-[0.48rem] font-semibold uppercase tracking-[0.22em] text-slate-500 sm:text-[0.58rem]">
+                    <div className="rounded-full border border-slate-200 bg-slate-50 px-2 py-1 text-[0.44rem] font-semibold uppercase tracking-[0.18em] text-slate-500 sm:text-[0.52rem]">
                         Documento Oficial
                     </div>
                  </div>
 
-                 <div className="grid flex-1 grid-cols-[96px_1fr] gap-3 sm:grid-cols-[112px_1fr] sm:gap-4">
+                 <div className="grid min-h-0 flex-1 grid-cols-[90px_1fr] gap-2.5 sm:grid-cols-[108px_1fr] sm:gap-3">
                     <div className="overflow-hidden rounded-md border border-slate-200 bg-slate-100">
                         <img src={user.avatar_url} alt="Foto" className="h-full w-full object-cover"/>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-x-3 gap-y-2 sm:gap-x-4 sm:gap-y-2.5">
+                    <div className="grid grid-cols-2 content-start gap-x-2.5 gap-y-1.5 sm:gap-x-3 sm:gap-y-2">
                         <PassportField label="Tipo/Type" value="P" />
                         <PassportField label="País/Country" value="GOV" />
                         <PassportField label="Passaporte Nº" value={doc.document_number} className="col-span-2" />
@@ -428,7 +443,7 @@ const PassportDocument = ({ user, doc, side }) => {
                     </div>
                  </div>
 
-                 <div className="rounded-md border border-slate-200 bg-slate-50 px-2 py-2 font-mono text-[0.43rem] leading-none tracking-[0.16em] text-slate-900 sm:px-3 sm:text-[0.56rem]">
+                 <div className="rounded-md border border-slate-200 bg-slate-50 px-2 py-1.5 font-mono text-[0.42rem] leading-none tracking-[0.12em] text-slate-900 sm:px-3 sm:text-[0.5rem]">
                     <p className="overflow-hidden whitespace-nowrap">{mrzLineOne}</p>
                     <p className="mt-1 overflow-hidden whitespace-nowrap">{mrzLineTwo}</p>
                  </div>
@@ -570,7 +585,7 @@ export const OfficialDocument = ({ user, doc, onBack, side: initialSide = 'front
   }
 
   return (
-    <div className={`relative mx-auto w-full ${onBack ? 'max-w-[30rem] pr-12' : 'max-w-md'}`}>
+    <div className={`relative mx-auto w-full ${onBack ? 'max-w-[34rem] pr-14' : 'max-w-[30rem]'}`}>
       <DocumentComponent user={user} doc={doc} side={side}/>
        {onBack && (
         <div className="absolute right-2 top-2 flex flex-col gap-2">

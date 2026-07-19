@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link } from 'react-router-dom';
@@ -33,15 +33,21 @@ import {
   Wrench,
   Lightbulb,
   Shield,
+  Tag,
+  ShoppingCart,
+  XCircle,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import PageHeader from '@/components/layout/PageHeader';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/supabaseClient';
+import { fetchWithSessionAuth } from '@/lib/apiAuth';
 
 // ═══════════════════════════════════════════════════════════════
 // BUSINESS TYPE CATALOG — all company types with costs & details
@@ -256,6 +262,30 @@ const PROFIT_COLOR = {
 
 const formatCurrency = (value) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+
+const parseCurrencyInput = (value = '') => {
+  const numericString = `${value}`
+    .replace(/[^\d,.-]/g, '')
+    .replace(/\./g, '')
+    .replace(',', '.')
+    .trim();
+
+  return Number.parseFloat(numericString) || 0;
+};
+
+const formatCurrencyInput = (value = '') => {
+  const digits = `${value}`.replace(/\D/g, '');
+  const amount = digits ? Number.parseInt(digits, 10) / 100 : 0;
+  return formatCurrency(amount);
+};
+
+const STATE_SECTOR_BUSINESS_TYPE = {
+  Internet: 'consultoria',
+  Telefonia: 'consultoria',
+  'Energia Elétrica': 'fabrica',
+  Água: 'distribuidora',
+  Gás: 'distribuidora',
+};
 
 // ════════════════════════════════════════════════
 // COMPONENTS
@@ -502,7 +532,7 @@ const BusinessTypeCard = ({ business, index, onSelect }) => {
 // ═════════════════════════════════════════════
 // MY BUSINESSES SECTION
 // ═════════════════════════════════════════════
-const MyBusinessCard = ({ biz, index }) => {
+const MyBusinessCard = ({ biz, index, onSell, onCancelSale }) => {
   const typeData = BUSINESS_TYPES.find((t) => t.id === biz.type) || BUSINESS_TYPES[0];
   const Icon = typeData.icon;
   const totalMonthlyCost = Object.values(typeData.monthlyCosts).reduce((s, v) => s + v, 0);
@@ -554,6 +584,12 @@ const MyBusinessCard = ({ biz, index }) => {
             </div>
           </div>
 
+          {biz.isForSale ? (
+            <div className="mt-4 rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-sm text-amber-100">
+              À venda por <span className="font-bold">{formatCurrency(biz.salePrice || 0)}</span>
+            </div>
+          ) : null}
+
           <div className="flex gap-2 mt-4">
             <Button variant="outline" size="sm" className="flex-1 text-xs">
               <Settings className="w-3.5 h-3.5 mr-1.5" />
@@ -568,6 +604,106 @@ const MyBusinessCard = ({ biz, index }) => {
               Operações
             </Button>
           </div>
+          <div className="mt-2">
+            {biz.isForSale ? (
+              <Button variant="outline" size="sm" className="w-full text-xs" onClick={() => onCancelSale(biz)}>
+                <XCircle className="w-3.5 h-3.5 mr-1.5" />
+                Cancelar Venda
+              </Button>
+            ) : (
+              <Button variant="outline" size="sm" className="w-full text-xs" onClick={() => onSell(biz)}>
+                <Tag className="w-3.5 h-3.5 mr-1.5" />
+                Colocar à Venda
+              </Button>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+    </motion.div>
+  );
+};
+
+const SalePriceDialog = ({ open, onOpenChange, title, description, onConfirm, loading }) => {
+  const [price, setPrice] = useState('');
+
+  useEffect(() => {
+    if (open) {
+      setPrice('');
+    }
+  }, [open]);
+
+  const handleConfirm = () => {
+    const numericPrice = parseCurrencyInput(price);
+    onConfirm(numericPrice);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="glass-effect">
+        <DialogHeader>
+          <DialogTitle>{title}</DialogTitle>
+          {description ? <p className="text-sm text-muted-foreground">{description}</p> : null}
+        </DialogHeader>
+        <div className="space-y-2 py-4">
+          <Label htmlFor="sale-price">Preço de venda</Label>
+          <Input
+            id="sale-price"
+            value={price}
+            onChange={(event) => setPrice(formatCurrencyInput(event.target.value))}
+            placeholder="R$ 0,00"
+          />
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>Cancelar</Button>
+          <Button onClick={handleConfirm} disabled={loading || parseCurrencyInput(price) <= 0}>
+            {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Tag className="mr-2 h-4 w-4" />}
+            Confirmar
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
+const BusinessForSaleCard = ({ listing, index, onBuy, buyingId }) => {
+  const isStateListing = listing.listingType === 'state';
+  const typeData = BUSINESS_TYPES.find((type) => type.id === listing.type) || BUSINESS_TYPES[0];
+  const Icon = isStateListing ? Landmark : typeData.icon;
+  const isBuying = buyingId === `${listing.listingType}:${listing.id}`;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 14 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: index * 0.05 }}
+    >
+      <Card className="glass-effect h-full border-white/10 hover:border-primary/40 transition-colors">
+        <CardHeader>
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className={`flex h-12 w-12 items-center justify-center rounded-xl bg-white/5 ${isStateListing ? 'text-amber-400' : typeData.color}`}>
+                <Icon className="h-6 w-6" />
+              </div>
+              <div>
+                <CardTitle>{listing.name}</CardTitle>
+                <CardDescription>{isStateListing ? 'Privatização estatal' : 'Venda privada'}</CardDescription>
+              </div>
+            </div>
+            <Badge className={isStateListing ? 'bg-amber-500/15 text-amber-300 border-amber-500/30' : 'bg-cyan-500/15 text-cyan-300 border-cyan-500/30'}>
+              {isStateListing ? 'Governo' : 'Privado'}
+            </Badge>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-sm text-muted-foreground line-clamp-3">{listing.description || 'Sem descrição.'}</p>
+          <div className="rounded-lg bg-white/5 p-4">
+            <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Preço de venda</p>
+            <p className="mt-1 text-2xl font-bold text-foreground">{formatCurrency(listing.price || 0)}</p>
+          </div>
+          <Button className="w-full" onClick={() => onBuy(listing)} disabled={isBuying}>
+            {isBuying ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ShoppingCart className="mr-2 h-4 w-4" />}
+            Comprar Empresa
+          </Button>
         </CardContent>
       </Card>
     </motion.div>
@@ -586,55 +722,154 @@ const EntrepreneurPortal = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState('catalog');
   const [myBusinesses, setMyBusinesses] = useState([]);
+  const [saleListings, setSaleListings] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [salesLoading, setSalesLoading] = useState(true);
+  const [businessTariffs, setBusinessTariffs] = useState({});
+  const [businessToSell, setBusinessToSell] = useState(null);
+  const [savingSale, setSavingSale] = useState(false);
+  const [buyingListingId, setBuyingListingId] = useState(null);
+
+  // Fetch base tariffs for registration fees
+  useEffect(() => {
+    const fetchTariffs = async () => {
+      const { data } = await supabase.from('system_settings').select('value').eq('key', 'base_tariffs').single();
+      if (data?.value) setBusinessTariffs(data.value);
+    };
+    fetchTariffs();
+  }, []);
+
+  // Merge tariffs into business types
+  const TARIFF_KEY_MAP = {
+    banco: 'biz_banco', construtora: 'biz_construtora', fabrica: 'biz_fabrica',
+    loja: 'biz_loja', transportadora: 'biz_transportadora', consultoria: 'biz_consultoria',
+    seguranca: 'biz_seguranca', distribuidora: 'biz_distribuidora',
+  };
+  const businessTypes = BUSINESS_TYPES.map(bt => {
+    const tariffKey = TARIFF_KEY_MAP[bt.id];
+    if (tariffKey && businessTariffs[tariffKey] != null) {
+      return { ...bt, registrationFee: businessTariffs[tariffKey] };
+    }
+    return bt;
+  });
+
+  const fetchMyBusinesses = useCallback(async () => {
+    if (!user?.id) {
+      setIsLoading(false);
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('businesses')
+        .select('*')
+        .eq('owner_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      setMyBusinesses(
+        (data || []).map((b) => ({
+          id: b.id,
+          name: b.name,
+          type: b.business_type_id,
+          status: b.status,
+          employees: b.employees,
+          revenue: parseFloat(b.monthly_revenue) || 0,
+          createdAt: b.created_at?.split('T')[0],
+          isForSale: Boolean(b.is_for_sale),
+          salePrice: Number(b.sale_price || 0),
+        }))
+      );
+    } catch (err) {
+      console.error('Erro ao buscar empresas:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [user?.id]);
 
   // Fetch user's businesses from Supabase
   useEffect(() => {
-    let isMounted = true;
-
-    const fetchMyBusinesses = async () => {
-      if (!user?.id) {
-        setIsLoading(false);
-        return;
-      }
-
-      try {
-        const { data, error } = await supabase
-          .from('businesses')
-          .select('*')
-          .eq('owner_id', user.id)
-          .order('created_at', { ascending: false });
-
-        if (error) throw error;
-
-        if (isMounted) {
-          setMyBusinesses(
-            (data || []).map((b) => ({
-              id: b.id,
-              name: b.name,
-              type: b.business_type_id,
-              status: b.status,
-              employees: b.employees,
-              revenue: parseFloat(b.monthly_revenue) || 0,
-              createdAt: b.created_at?.split('T')[0],
-            }))
-          );
-        }
-      } catch (err) {
-        console.error('Erro ao buscar empresas:', err);
-      } finally {
-        if (isMounted) setIsLoading(false);
-      }
-    };
-
     fetchMyBusinesses();
-    return () => { isMounted = false; };
+  }, [fetchMyBusinesses]);
+
+  const fetchSaleListings = useCallback(async () => {
+    setSalesLoading(true);
+    try {
+      const [privateListingsResponse, stateListingsResponse] = await Promise.all([
+        supabase
+          .from('businesses')
+          .select('id, owner_id, business_type_id, name, description, sale_price, sale_listed_at, owner:profiles(full_name)')
+          .eq('is_for_sale', true)
+          .order('sale_listed_at', { ascending: false }),
+        supabase
+          .from('state_enterprises')
+          .select('id, name, sector, description, privatization_price, updated_at')
+          .eq('privatization_status', 'for_sale')
+          .or('is_privatized.eq.false,is_privatized.is.null')
+          .order('updated_at', { ascending: false }),
+      ]);
+
+      if (privateListingsResponse.error) {
+        console.error('Erro ao buscar empresas privadas à venda:', privateListingsResponse.error);
+      }
+
+      if (stateListingsResponse.error) {
+        console.error('Erro ao buscar estatais em privatização:', stateListingsResponse.error);
+      }
+
+      const privateListings = privateListingsResponse.error ? [] : (privateListingsResponse.data || [])
+        .filter((business) => business.owner_id !== user?.id)
+        .map((business) => ({
+          id: business.id,
+          listingType: 'private',
+          name: business.name,
+          description: business.description,
+          type: business.business_type_id,
+          price: Number(business.sale_price || 0),
+          sellerName: business.owner?.full_name || 'Empreendedor',
+        }));
+      const stateListings = stateListingsResponse.error ? [] : (stateListingsResponse.data || []).map((enterprise) => ({
+        id: enterprise.id,
+        listingType: 'state',
+        name: enterprise.name,
+        description: enterprise.description,
+        type: STATE_SECTOR_BUSINESS_TYPE[enterprise.sector] || 'consultoria',
+        sector: enterprise.sector,
+        price: Number(enterprise.privatization_price || 0),
+        sellerName: 'Governo Federal',
+      }));
+
+      setSaleListings([...stateListings, ...privateListings]);
+    } catch (err) {
+      console.error('Erro ao buscar empresas à venda:', err);
+      setSaleListings([]);
+    } finally {
+      setSalesLoading(false);
+    }
   }, [user?.id]);
 
+  useEffect(() => {
+    fetchSaleListings();
+  }, [fetchSaleListings]);
+
+  useEffect(() => {
+    const channel = supabase
+      .channel('entrepreneur-sale-listings')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'state_enterprises' }, fetchSaleListings)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'businesses' }, fetchSaleListings)
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [fetchSaleListings]);
+
   const filteredTypes = useMemo(() => {
-    if (!searchQuery.trim()) return BUSINESS_TYPES;
+    if (!searchQuery.trim()) return businessTypes;
     const q = searchQuery.toLowerCase();
-    return BUSINESS_TYPES.filter(
+    return businessTypes.filter(
       (b) =>
         b.name.toLowerCase().includes(q) ||
         b.category.toLowerCase().includes(q) ||
@@ -645,7 +880,7 @@ const EntrepreneurPortal = () => {
   const totalRevenue = myBusinesses.reduce((s, b) => s + b.revenue, 0);
   const totalEmployees = myBusinesses.reduce((s, b) => s + b.employees, 0);
   const totalMonthlyCosts = myBusinesses.reduce((s, b) => {
-    const type = BUSINESS_TYPES.find((t) => t.id === b.type);
+    const type = businessTypes.find((t) => t.id === b.type);
     return s + (type ? Object.values(type.monthlyCosts).reduce((a, v) => a + v, 0) : 0);
   }, 0);
 
@@ -659,31 +894,23 @@ const EntrepreneurPortal = () => {
 
     try {
       const companyName = `${business.name} do ${user?.full_name?.split(' ')[0] || 'Cidadão'}`;
-
-      // Insert into Supabase
-      const { data: newBiz, error: insertError } = await supabase
-        .from('businesses')
-        .insert({
-          owner_id: user.id,
-          business_type_id: business.id,
-          name: companyName,
+      const response = await fetchWithSessionAuth('/api/businesses/register', {
+        method: 'POST',
+        body: JSON.stringify({
+          businessTypeId: business.id,
+          companyName,
           description: business.description,
-          status: 'pending',
-          employees: business.minEmployees,
-          monthly_revenue: 0,
-        })
-        .select()
-        .single();
-
-      if (insertError) throw insertError;
-
-      // Record the registration transaction
-      await supabase.from('business_transactions').insert({
-        business_id: newBiz.id,
-        type: 'registration',
-        amount: -business.registrationFee,
-        description: `Taxa de registro: ${companyName}`,
+          minEmployees: business.minEmployees,
+          registrationFee: business.registrationFee,
+        }),
       });
+      const payload = await response.json().catch(() => ({}));
+
+      if (!response.ok || !payload?.success) {
+        throw new Error(payload?.error || payload?.message || 'Nao foi possivel registrar a empresa.');
+      }
+
+      const newBiz = payload.business;
 
       setMyBusinesses((prev) => [
         {
@@ -703,7 +930,7 @@ const EntrepreneurPortal = () => {
 
       toast({
         title: '🎉 Empresa registrada com sucesso!',
-        description: `${companyName} foi criada e está pendente de aprovação.`,
+        description: payload?.message || `${companyName} foi criada e está pendente de aprovação.`,
       });
     } catch (err) {
       console.error('Erro ao registrar empresa:', err);
@@ -717,9 +944,98 @@ const EntrepreneurPortal = () => {
     }
   };
 
+  const handleConfirmBusinessSale = async (price) => {
+    if (!businessToSell?.id || price <= 0) {
+      toast({ title: 'Preço inválido', description: 'Informe um preço maior que zero.', variant: 'destructive' });
+      return;
+    }
+
+    setSavingSale(true);
+    const { error } = await supabase
+      .from('businesses')
+      .update({
+        is_for_sale: true,
+        sale_price: price,
+        sale_listed_at: new Date().toISOString(),
+      })
+      .eq('id', businessToSell.id)
+      .eq('owner_id', user.id);
+
+    if (error) {
+      toast({ title: 'Erro ao colocar empresa à venda', description: error.message, variant: 'destructive' });
+    } else {
+      toast({ title: 'Empresa colocada à venda', description: `${businessToSell.name} agora aparece na aba Empresas à Venda.` });
+      setMyBusinesses((current) =>
+        current.map((business) =>
+          business.id === businessToSell.id
+            ? { ...business, isForSale: true, salePrice: price }
+            : business
+        )
+      );
+      setBusinessToSell(null);
+      fetchSaleListings();
+    }
+    setSavingSale(false);
+  };
+
+  const handleCancelBusinessSale = async (business) => {
+    const { error } = await supabase
+      .from('businesses')
+      .update({
+        is_for_sale: false,
+        sale_price: null,
+        sale_listed_at: null,
+      })
+      .eq('id', business.id)
+      .eq('owner_id', user.id);
+
+    if (error) {
+      toast({ title: 'Erro ao cancelar venda', description: error.message, variant: 'destructive' });
+    } else {
+      toast({ title: 'Venda cancelada' });
+      setMyBusinesses((current) =>
+        current.map((item) =>
+          item.id === business.id ? { ...item, isForSale: false, salePrice: 0 } : item
+        )
+      );
+      fetchSaleListings();
+    }
+  };
+
+  const handleBuyListing = async (listing) => {
+    if (!user?.id) {
+      toast({ title: 'Login necessário', description: 'Entre na sua conta para comprar empresas.', variant: 'destructive' });
+      return;
+    }
+
+    const listingKey = `${listing.listingType}:${listing.id}`;
+    setBuyingListingId(listingKey);
+
+    const { data, error } = await supabase.rpc('buy_business_listing', {
+      p_listing_type: listing.listingType,
+      p_listing_id: listing.id,
+    });
+
+    if (error || data?.success === false) {
+      toast({
+        title: 'Erro na compra',
+        description: data?.message || error?.message || 'Não foi possível comprar a empresa.',
+        variant: 'destructive',
+      });
+    } else {
+      toast({ title: 'Empresa comprada!', description: data?.message || `${listing.name} agora é sua empresa.` });
+      fetchSaleListings();
+      fetchMyBusinesses();
+      setActiveTab('my-businesses');
+    }
+
+    setBuyingListingId(null);
+  };
+
   const tabs = [
     { id: 'catalog', label: 'Catálogo de Empresas', icon: ShoppingBag },
     { id: 'my-businesses', label: `Minhas Empresas (${myBusinesses.length})`, icon: Building2 },
+    { id: 'for-sale', label: `Empresas à Venda (${saleListings.length})`, icon: Tag },
   ];
 
   return (
@@ -890,7 +1206,49 @@ const EntrepreneurPortal = () => {
               ) : (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                   {myBusinesses.map((biz, index) => (
-                    <MyBusinessCard key={biz.id} biz={biz} index={index} />
+                    <MyBusinessCard
+                      key={biz.id}
+                      biz={biz}
+                      index={index}
+                      onSell={setBusinessToSell}
+                      onCancelSale={handleCancelBusinessSale}
+                    />
+                  ))}
+                </div>
+              )}
+            </motion.div>
+          )}
+
+          {/* TAB: Businesses for Sale */}
+          {activeTab === 'for-sale' && (
+            <motion.div
+              key="for-sale"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+            >
+              {salesLoading ? (
+                <div className="flex justify-center py-16">
+                  <Loader2 className="h-10 w-10 animate-spin text-primary" />
+                </div>
+              ) : saleListings.length === 0 ? (
+                <div className="text-center py-20">
+                  <Tag className="w-16 h-16 text-muted-foreground mx-auto mb-4 opacity-30" />
+                  <h3 className="text-xl font-bold text-foreground mb-2">Nenhuma empresa à venda</h3>
+                  <p className="text-muted-foreground max-w-md mx-auto">
+                    Empresas privadas anunciadas por donos e estatais em privatização aparecerão aqui.
+                  </p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+                  {saleListings.map((listing, index) => (
+                    <BusinessForSaleCard
+                      key={`${listing.listingType}-${listing.id}`}
+                      listing={listing}
+                      index={index}
+                      onBuy={handleBuyListing}
+                      buyingId={buyingListingId}
+                    />
                   ))}
                 </div>
               )}
@@ -952,6 +1310,15 @@ const EntrepreneurPortal = () => {
           />
         )}
       </AnimatePresence>
+
+      <SalePriceDialog
+        open={Boolean(businessToSell)}
+        onOpenChange={(open) => !open && setBusinessToSell(null)}
+        title="Colocar empresa à venda"
+        description={businessToSell ? `Defina o preço de venda para ${businessToSell.name}.` : ''}
+        onConfirm={handleConfirmBusinessSale}
+        loading={savingSale}
+      />
     </>
   );
 };
