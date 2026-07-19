@@ -168,7 +168,7 @@ export const AuthProvider = ({ children }) => {
           .select('*')
           .eq('id', currentSession.user.id)
           .single();
-        
+
         if (error?.code === 'PGRST116' || !profile) {
           const { error: creationError } = await supabase.rpc('ensure_profile_exists');
           if (creationError) {
@@ -285,18 +285,18 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     let isMounted = true;
-    
+
     const getSession = async () => {
       try {
         const { data: { session: currentSession }, error: sessionError } = await supabase.auth.getSession();
-        
+
         if (!isMounted) return;
 
         if(sessionError && (sessionError.message === 'Invalid Refresh Token: Refresh Token Not Found' || sessionError.message === 'NetworkError when attempting to fetch resource.')) {
           await logout();
           return;
         }
-        
+
         setSession(currentSession);
         const profile = await fetchUserProfile(currentSession);
         if (isMounted) setUser(profile);
@@ -315,7 +315,7 @@ export const AuthProvider = ({ children }) => {
     let safetyTimeout = setTimeout(() => {
       if (isMounted) {
         console.warn("Safety timeout triggered: forcing loading to false.");
-        
+
         // If we timeout but have a session, ensure user isn't blindly null causing UI issues.
         // Try fallback to session metadata so TopNavbar and Dashboard don't crash.
         setSession((currentValidSession) => {
@@ -366,7 +366,7 @@ export const AuthProvider = ({ children }) => {
     const normalizedIdentifier = identifier.trim();
     const normalizedPhone = normalizedIdentifier.replace(/\D/g, '');
     let email = normalizedIdentifier.toLowerCase();
-    
+
     if (!email.includes('@')) {
       let profile = null;
       let error = null;
@@ -392,24 +392,24 @@ export const AuthProvider = ({ children }) => {
         profile = response.data;
         error = response.error;
       }
-        
+
       if (error || !profile) {
         throw new Error(AUTH_FAILURE_MESSAGE);
       }
       email = profile.email;
     }
-    
+
     const { data, error } = await supabase.auth.signInWithPassword({ email, password, options: { captchaToken } });
     if (error) {
       throw new Error(AUTH_FAILURE_MESSAGE);
     }
-    
+
     const profileData = await fetchUserProfile(data.session);
     setUser(profileData);
-    
+
     return { ...data, user: profileData };
   };
-  
+
   const register = async ({ email, password, captchaToken, ...meta }) => {
     const { data, error } = await supabase.auth.signUp({
       email,
@@ -427,8 +427,32 @@ export const AuthProvider = ({ children }) => {
         }
       }
     });
-    if (error) throw error;
-    
+    if (error) {
+      // Traduz erros comuns de constraint do Supabase para mensagens amigáveis
+      const message = error.message || '';
+      if (message.includes('username_length')) {
+        throw new Error('O nome de usuário deve ter entre 3 e 20 caracteres e não pode conter caracteres especiais.');
+      }
+      if (message.includes('profiles_username_key') || message.toLowerCase().includes('username') && message.toLowerCase().includes('already')) {
+        throw new Error('Este nome de usuário já está em uso. Escolha outro.');
+      }
+      if (message.includes('profiles_email_key') || message.includes('users_email_key') || (message.toLowerCase().includes('email') && message.toLowerCase().includes('already'))) {
+        throw new Error('Este email já está cadastrado. Tente fazer login.');
+      }
+      // Erros de envio de email não devem bloquear o cadastro visualmente
+      if (message.toLowerCase().includes('confirmation email') || message.toLowerCase().includes('sending confirmation')) {
+        throw new Error('Cadastro criado, mas não foi possível enviar o email de confirmação. Verifique a configuração de SMTP do projeto ou desative a confirmação por email no dashboard do Supabase.');
+      }
+      throw error;
+    }
+
+    // Garante que o perfil foi criado corretamente após o signUp
+    try {
+      await supabase.rpc('ensure_profile_exists');
+    } catch (profileError) {
+      console.warn('ensure_profile_exists falhou após signUp:', profileError);
+    }
+
     return data;
   };
 

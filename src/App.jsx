@@ -42,6 +42,7 @@ import ServiceProtectedRoute from '@/components/ServiceProtectedRoute';
 import AdminDashboardPage from '@/pages/admin/AdminDashboard';
 import AdminProtectedRoute from '@/components/admin/AdminProtectedRoute';
 import WelcomeTutorial from '@/components/WelcomeTutorial';
+import ResidencyOnboarding from '@/components/ResidencyOnboarding';
 import CookieConsent from '@/components/CookieConsent';
 import TutorialPage from '@/pages/TutorialPage';
 import DonationPage from '@/pages/DonationPage';
@@ -166,6 +167,7 @@ const AppShell = ({ location, theme, isAuthCallback }) => {
             <InternetSpeedProvider>
             <MainLayout>
               <ScrollRestoration />
+              {!isAuthCallback && <ResidencyOnboarding />}
               {!isAuthCallback && <WelcomeTutorial />}
               <AnimatePresence mode="wait">
                 <Routes location={location} key={location.pathname.startsWith('/services/x') ? '/services/x' : location.pathname}>
@@ -194,13 +196,13 @@ const AppShell = ({ location, theme, isAuthCallback }) => {
                 <Route path="/coming-soon" element={<ComingSoon />} />
                 <Route path="/maintenance" element={<MaintenanceMode />} />
                 <Route path="/beta-access" element={<BetaAccessWall />} />
-                
+
                 <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
                 <Route path="/dashboard/citizen" element={<ProtectedRoute><CitizenDashboard /></ProtectedRoute>} />
                 <Route path="/role-dashboard" element={<ProtectedRoute><RoleDashboard /></ProtectedRoute>} />
                 <Route path="/dashboard/president" element={<RoleProtectedRoute roles={['Presidente', 'Admin']}><PresidentDashboard /></RoleProtectedRoute>} />
                 <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
-                
+
                 <Route path="/services" element={<ServiceProtectedRoute><Services /></ServiceProtectedRoute>} />
                 <Route path="/services/bank" element={<ManagedServiceRoute serviceKey="/services/bank"><Bank /></ManagedServiceRoute>} />
                 <Route path="/services/business" element={<ManagedServiceRoute serviceKey="/services/business"><Business /></ManagedServiceRoute>} />
@@ -209,7 +211,7 @@ const AppShell = ({ location, theme, isAuthCallback }) => {
                 <Route path="/services/dic" element={<ManagedServiceRoute serviceKey="/services/dic"><DIC /></ManagedServiceRoute>} />
                 <Route path="/services/prison" element={<ManagedServiceRoute serviceKey="/services/prison"><Prison /></ManagedServiceRoute>} />
                 <Route path="/services/entrepreneur-portal" element={<ManagedServiceRoute serviceKey="/services/entrepreneur-portal"><EntrepreneurPortal /></ManagedServiceRoute>} />
-                
+
                 <Route path="/services/x" element={<ManagedServiceRoute serviceKey="/services/x"><SocialX /></ManagedServiceRoute>}>
                     <Route index element={<Navigate to="feed" replace />} />
                     <Route path="feed" element={<XFeed />} />
@@ -220,12 +222,12 @@ const AppShell = ({ location, theme, isAuthCallback }) => {
                     <Route path="search" element={<XSearch />} />
                     <Route path="profile/:handle" element={<XProfile />} />
                 </Route>
-                
+
                 <Route path="/services/elections" element={<ManagedServiceRoute serviceKey="/services/elections"><Elections /></ManagedServiceRoute>} />
 
                 <Route path="/services/political-parties" element={<ManagedServiceRoute serviceKey="/services/political-parties"><PoliticalParties /></ManagedServiceRoute>} />
                 <Route path="/services/political-parties/:partyId" element={<ManagedServiceRoute serviceKey="/services/political-parties"><PartyPage /></ManagedServiceRoute>} />
-                
+
                 <Route path="/services/parliament" element={<ManagedServiceRoute serviceKey="/services/parliament"><ServiceAccess requiredRoles={PARLIAMENT_PANEL_ROLES} citizenPath="/services/parliament/citizen" panelPath="/services/parliament/panel" /></ManagedServiceRoute>} />
                 <Route path="/services/parliament/citizen" element={<ManagedServiceRoute serviceKey="/services/parliament"><Parliament /></ManagedServiceRoute>} />
                 <Route path="/services/parliament/panel" element={<ManagedServiceRoute serviceKey="/services/parliament"><RoleProtectedRoute roles={PARLIAMENT_PANEL_ROLES}><ParliamentPanel /></RoleProtectedRoute></ManagedServiceRoute>} />
@@ -233,7 +235,7 @@ const AppShell = ({ location, theme, isAuthCallback }) => {
                 <Route path="/services/penal-system" element={<ManagedServiceRoute serviceKey="/services/penal-system"><ServiceAccess requiredRoles={['Juiz', 'Admin']} citizenPath="/services/penal-system/citizen" panelPath="/services/penal-system/panel" /></ManagedServiceRoute>} />
                 <Route path="/services/penal-system/citizen" element={<ManagedServiceRoute serviceKey="/services/penal-system"><PenalSystem /></ManagedServiceRoute>} />
                 <Route path="/services/penal-system/panel" element={<ManagedServiceRoute serviceKey="/services/penal-system"><RoleProtectedRoute roles={['Juiz', 'Admin']}><PenalSystemPanel /></RoleProtectedRoute></ManagedServiceRoute>} />
-                
+
                 <Route path="/services/police" element={<ManagedServiceRoute serviceKey="/services/police"><ServiceAccess requiredRoles={['Policial', 'Admin']} citizenPath="/services/police/citizen" panelPath="/services/police/panel" /></ManagedServiceRoute>} />
                 <Route path="/services/police/citizen" element={<ManagedServiceRoute serviceKey="/services/police"><Police /></ManagedServiceRoute>} />
                 <Route path="/services/police/panel" element={<ManagedServiceRoute serviceKey="/services/police"><RoleProtectedRoute roles={['Policial', 'Admin']}><PolicePanel /></RoleProtectedRoute></ManagedServiceRoute>} />
@@ -248,7 +250,7 @@ const AppShell = ({ location, theme, isAuthCallback }) => {
 
                 <Route path="/services/library" element={<ManagedServiceRoute serviceKey="/services/library"><Library /></ManagedServiceRoute>} />
                 <Route path="/services/digital-archive" element={<ManagedServiceRoute serviceKey="/services/digital-archive"><DigitalArchive /></ManagedServiceRoute>} />
-                
+
                 <Route path="/services/internet" element={<ManagedServiceRoute serviceKey="/services/internet"><Internet /></ManagedServiceRoute>} />
                 <Route path="/services/electricity" element={<ManagedServiceRoute serviceKey="/services/electricity"><Electricity /></ManagedServiceRoute>} />
                 <Route path="/services/water" element={<ManagedServiceRoute serviceKey="/services/water"><Water /></ManagedServiceRoute>} />
