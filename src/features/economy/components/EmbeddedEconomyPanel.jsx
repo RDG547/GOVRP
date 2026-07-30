@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
@@ -54,7 +54,7 @@ const views = {
 
 const EmbeddedEconomyPanel = ({ view = 'public', showHeader = true }) => {
   const { toast } = useToast();
-  const config = useMemo(() => views[view] || views.public, [view]);
+  const config = views[view] || views.public;
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
