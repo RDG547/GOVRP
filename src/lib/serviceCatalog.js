@@ -69,8 +69,7 @@ export const SERVICE_CATEGORIES = [
   {
     name: 'Segurança e Justiça',
     services: [
-      { key: '/services/police', name: 'Polícia', path: '/services/police', icon: Siren, color: 'text-blue-500', description: 'Acesse os serviços do departamento de polícia e registre ocorrências.' },
-      { key: '/services/penal-system', name: 'Sistema Penal', path: '/services/penal-system', icon: Gavel, color: 'text-amber-400', description: 'Consulte registros criminais e o status do sistema prisional.' },
+      { key: '/services/justice', name: 'Segurança e Justiça', path: '/services/justice', icon: Scale, color: 'text-cyan-400', description: 'Denuncie, investigue, exerça defesa, julgue processos e acompanhe consequências em um único sistema.' },
       { key: '/services/prison', name: 'Prisão', path: '/services/prison', icon: Tally5, color: 'text-slate-400', description: 'Acesse informações sobre o sistema prisional e detentos.' },
       { key: '/services/armed-forces', name: 'Forças Armadas', path: '/services/armed-forces', icon: ShieldCheck, color: 'text-emerald-500', description: 'Painel de controle e informações das Forças Armadas.' },
       { key: '/services/agies', name: 'Agência de Inteligência', path: '/services/agies', icon: Eye, color: 'text-red-500', description: 'A vigilância é a nossa virtude. (Acesso restrito)' },
