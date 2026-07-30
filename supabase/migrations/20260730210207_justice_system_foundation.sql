@@ -882,8 +882,7 @@ set search_path = ''
 as $$
   select
     public.justice_has_role(array[
-      'Admin', 'Policial', 'Police', 'Delegado', 'Promotor', 'Juiz',
-      'Advogado', 'Defensor Público'
+      'Admin', 'Policial', 'Police', 'Delegado', 'Promotor'
     ])
     or exists (
       select 1
@@ -900,6 +899,20 @@ as $$
         and po.reported_by = (select auth.uid())
         and not coalesce(po.anonymous, po.is_anonymous, false)
     )
+    or exists (
+      select 1
+      from public.criminal_cases cc
+      left join public.case_parties cp on cp.case_id = cc.id
+      left join public.appeals a on a.case_id = cc.id
+      where cc.investigation_id = p_investigation_id
+        and (
+          cc.prosecutor_id = (select auth.uid())
+          or cc.judge_id = (select auth.uid())
+          or cp.profile_id = (select auth.uid())
+          or cp.lawyer_id = (select auth.uid())
+          or a.reviewing_judge_id = (select auth.uid())
+        )
+    )
 $$;
 
 create or replace function public.justice_can_access_case(p_case_id uuid)
@@ -910,10 +923,7 @@ security definer
 set search_path = ''
 as $$
   select
-    public.justice_has_role(array[
-      'Admin', 'Promotor', 'Juiz', 'Advogado', 'Defensor Público',
-      'Delegado', 'Agente Penitenciário', 'Diretor Penitenciário'
-    ])
+    public.justice_has_role(array['Admin'])
     or exists (
       select 1 from public.case_parties cp
       where cp.case_id = p_case_id
@@ -927,7 +937,28 @@ as $$
       from public.criminal_cases cc
       join public.criminal_investigations ci on ci.id = cc.investigation_id
       where cc.id = p_case_id
-        and (ci.lead_officer_id = (select auth.uid()) or ci.delegate_id = (select auth.uid()))
+        and (
+          cc.prosecutor_id = (select auth.uid())
+          or cc.judge_id = (select auth.uid())
+          or ci.lead_officer_id = (select auth.uid())
+          or ci.delegate_id = (select auth.uid())
+        )
+    )
+    or exists (
+      select 1
+      from public.appeals a
+      where a.case_id = p_case_id
+        and a.reviewing_judge_id = (select auth.uid())
+    )
+    or (
+      public.justice_has_role(array['Agente Penitenciário', 'Diretor Penitenciário'])
+      and exists (
+        select 1
+        from public.sentences s
+        join public.prison_terms pt on pt.sentence_id = s.id
+        where s.case_id = p_case_id
+          and pt.custody_status in ('awaiting_intake', 'provisional', 'serving')
+      )
     )
 $$;
 
@@ -2364,12 +2395,13 @@ begin
   )
   values (
     v_investigation.id, 'initial_flare_evidence', 'Prova inicial do flagrante',
-    trim(p_evidence_description), (select auth.uid()), 'sealed', 'confidential'
+    trim(p_evidence_description), (select auth.uid()), 'collected', 'confidential'
   )
   returning * into v_evidence;
 
   update public.case_evidence
-  set sealed_at = now(),
+  set status = 'sealed',
+      sealed_at = now(),
       evidence_hash = encode(
         extensions.digest(
           coalesce(v_evidence.description, '') || '|' || v_evidence.id::text,
@@ -2401,12 +2433,10 @@ begin
 
   select * into v_facility from public.prison_facilities
   where is_active
-  order by case security_level
-    when v_penal.security_level then 0
-    when 'high' then 1
-    when 'maximum' then 2
-    else 3
-  end, name
+  order by abs(
+    (case security_level when 'low' then 1 when 'medium' then 2 when 'high' then 3 else 4 end)
+    - (case v_penal.security_level when 'low' then 1 when 'medium' then 2 when 'high' then 3 else 4 end)
+  ), name
   limit 1;
   if not found then raise exception 'NO_PRISON_FACILITY'; end if;
 
