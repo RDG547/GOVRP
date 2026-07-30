@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { useSearchParams } from 'react-router-dom';
-import { Gavel, Loader2, ShieldCheck, UserRound } from 'lucide-react';
+import { Gavel, Loader2, ShieldCheck, User } from 'lucide-react';
 import PageHeader from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
@@ -88,7 +88,7 @@ const Justice = () => {
                 variant={activeView === 'citizen' ? 'default' : 'ghost'}
                 onClick={() => changeView('citizen')}
               >
-                <UserRound className="mr-2 h-4 w-4" />
+                <User className="mr-2 h-4 w-4" />
                 Minha vida jurídica
               </Button>
               <Button
