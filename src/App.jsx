@@ -72,6 +72,7 @@ import Elections from '@/pages/services/Elections';
 import PoliticalParties from '@/pages/services/PoliticalParties';
 import PartyPage from '@/pages/services/PartyPage';
 import PenalSystem from '@/pages/services/PenalSystem';
+import Justice from '@/pages/services/Justice';
 import Parliament from '@/pages/services/Parliament';
 import { useTheme } from '@/contexts/ThemeContext';
 
@@ -204,6 +205,7 @@ const AppShell = ({ location, theme, isAuthCallback }) => {
                 <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
 
                 <Route path="/services" element={<ServiceProtectedRoute><Services /></ServiceProtectedRoute>} />
+                <Route path="/services/justice" element={<ManagedServiceRoute serviceKey="/services/justice"><Justice /></ManagedServiceRoute>} />
                 <Route path="/services/bank" element={<ManagedServiceRoute serviceKey="/services/bank"><Bank /></ManagedServiceRoute>} />
                 <Route path="/services/business" element={<ManagedServiceRoute serviceKey="/services/business"><Business /></ManagedServiceRoute>} />
                 <Route path="/services/business/product/:productId" element={<ManagedServiceRoute serviceKey="/services/business"><ProductDetails /></ManagedServiceRoute>} />
