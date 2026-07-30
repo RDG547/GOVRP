@@ -1,8 +1,19 @@
-import React from 'react';
-import { Activity, Gavel, Landmark, ShieldCheck } from 'lucide-react';
+import React, { lazy, Suspense } from 'react';
+import { Activity, Gavel, Landmark, Loader2, ShieldCheck } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import EmbeddedEconomyPanel from '@/features/economy/components/EmbeddedEconomyPanel';
-import AuthorityJusticeDashboard from '@/features/justice/pages/AuthorityJusticeDashboard';
+
+const EmbeddedEconomyPanel = lazy(
+  () => import('@/features/economy/components/EmbeddedEconomyPanel')
+);
+const AuthorityJusticeDashboard = lazy(
+  () => import('@/features/justice/pages/AuthorityJusticeDashboard')
+);
+
+const PanelFallback = () => (
+  <div className="flex min-h-[320px] items-center justify-center">
+    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+  </div>
+);
 
 const GovernanceSystems = () => (
   <Tabs defaultValue="economic-engine" className="space-y-6">
@@ -33,16 +44,24 @@ const GovernanceSystems = () => (
     </TabsList>
 
     <TabsContent value="economic-engine">
-      <EmbeddedEconomyPanel view="admin" />
+      <Suspense fallback={<PanelFallback />}>
+        <EmbeddedEconomyPanel view="admin" />
+      </Suspense>
     </TabsContent>
     <TabsContent value="government">
-      <EmbeddedEconomyPanel view="government" />
+      <Suspense fallback={<PanelFallback />}>
+        <EmbeddedEconomyPanel view="government" />
+      </Suspense>
     </TabsContent>
     <TabsContent value="central-bank">
-      <EmbeddedEconomyPanel view="centralBank" />
+      <Suspense fallback={<PanelFallback />}>
+        <EmbeddedEconomyPanel view="centralBank" />
+      </Suspense>
     </TabsContent>
     <TabsContent value="justice">
-      <AuthorityJusticeDashboard />
+      <Suspense fallback={<PanelFallback />}>
+        <AuthorityJusticeDashboard />
+      </Suspense>
     </TabsContent>
   </Tabs>
 );
