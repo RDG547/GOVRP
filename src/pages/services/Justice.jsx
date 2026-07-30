@@ -12,14 +12,14 @@ import RpClock from '@/features/justice/components/RpClock';
 import { fetchRpTimeSettings } from '@/lib/justice/api';
 import { hasAnyJusticeRole } from '@/lib/justice/constants';
 
-const Justice = () => {
+const Justice = ({ defaultView = 'citizen' }) => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [searchParams, setSearchParams] = useSearchParams();
   const [timeSettings, setTimeSettings] = useState(null);
   const [loadingClock, setLoadingClock] = useState(true);
   const hasAuthorityAccess = useMemo(() => hasAnyJusticeRole(user), [user]);
-  const requestedView = searchParams.get('view');
+  const requestedView = searchParams.get('view') || defaultView;
   const activeView = requestedView === 'authority' && hasAuthorityAccess
     ? 'authority'
     : 'citizen';
@@ -111,4 +111,3 @@ const Justice = () => {
 };
 
 export default Justice;
-
