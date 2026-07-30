@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   BadgeCheck,
-  BriefcaseBusiness,
+  Briefcase,
   CalendarClock,
   CheckCircle2,
   ClipboardList,
@@ -452,7 +452,7 @@ const AuthorityJusticeDashboard = () => {
               onClick={performAction}
               disabled={acting || reason.trim().length < (action?.type === 'request-decision' ? 20 : 10)}
             >
-              {acting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <BriefcaseBusiness className="mr-2 h-4 w-4" />}
+              {acting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Briefcase className="mr-2 h-4 w-4" />}
               Confirmar ação
             </Button>
           </DialogFooter>
