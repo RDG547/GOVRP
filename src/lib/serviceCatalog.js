@@ -24,6 +24,7 @@ import {
   Wrench,
   Zap,
   Home,
+  LineChart,
 } from 'lucide-react';
 
 export const SERVICE_AVAILABILITY_SETTINGS_KEY = 'service_availability';
@@ -80,6 +81,7 @@ export const SERVICE_CATEGORIES = [
   {
     name: 'Economia',
     services: [
+      { key: '/services/economy', name: 'Economia Nacional', path: '/services/economy', icon: LineChart, color: 'text-cyan-300', description: 'Acompanhe PIB, inflação, emprego, poder de compra e as consequências das decisões econômicas.' },
       { key: '/services/entrepreneur-portal', name: 'Portal do Empreendedor', path: '/services/entrepreneur-portal', icon: Building2, color: 'text-cyan-400', description: 'Hub empresarial para criar, gerir, investir e negociar com empresas da nação.' },
       { key: '/services/business', name: 'Negócios Livres', path: '/services/business', icon: Store, color: 'text-blue-400', description: 'Compre e venda produtos e serviços no marketplace da comunidade.' },
     ],

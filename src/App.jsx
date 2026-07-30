@@ -106,6 +106,7 @@ import { isPrisonSentenceActive } from '@/lib/prison';
 import { PARLIAMENT_PANEL_ROLES } from '@/lib/parliament';
 import ServiceAvailabilityGate from '@/components/ServiceAvailabilityGate';
 import EntrepreneurPortal from '@/pages/services/EntrepreneurPortal';
+import Economy from '@/pages/services/Economy';
 import GlobalSiteAvailabilityGate from '@/components/GlobalSiteAvailabilityGate';
 
 const MainLayout = ({ children }) => {
@@ -213,6 +214,7 @@ const AppShell = ({ location, theme, isAuthCallback }) => {
                 <Route path="/services/dic" element={<ManagedServiceRoute serviceKey="/services/dic"><DIC /></ManagedServiceRoute>} />
                 <Route path="/services/prison" element={<ManagedServiceRoute serviceKey="/services/prison"><Prison /></ManagedServiceRoute>} />
                 <Route path="/services/entrepreneur-portal" element={<ManagedServiceRoute serviceKey="/services/entrepreneur-portal"><EntrepreneurPortal /></ManagedServiceRoute>} />
+                <Route path="/services/economy" element={<ManagedServiceRoute serviceKey="/services/economy"><Economy /></ManagedServiceRoute>} />
 
                 <Route path="/services/x" element={<ManagedServiceRoute serviceKey="/services/x"><SocialX /></ManagedServiceRoute>}>
                     <Route index element={<Navigate to="feed" replace />} />
