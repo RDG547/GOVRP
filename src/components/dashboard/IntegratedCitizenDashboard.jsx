@@ -1,9 +1,20 @@
-import React from 'react';
-import { Building2, Landmark, LayoutDashboard, Scale } from 'lucide-react';
+import React, { lazy, Suspense } from 'react';
+import { Building2, Landmark, LayoutDashboard, Loader2, Scale } from 'lucide-react';
 import CitizenDashboard from '@/components/dashboard/CitizenDashboard';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import EmbeddedEconomyPanel from '@/features/economy/components/EmbeddedEconomyPanel';
-import CitizenJusticeDashboard from '@/features/justice/pages/CitizenJusticeDashboard';
+
+const EmbeddedEconomyPanel = lazy(
+  () => import('@/features/economy/components/EmbeddedEconomyPanel')
+);
+const CitizenJusticeDashboard = lazy(
+  () => import('@/features/justice/pages/CitizenJusticeDashboard')
+);
+
+const PanelFallback = () => (
+  <div className="flex min-h-[320px] items-center justify-center">
+    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+  </div>
+);
 
 const IntegratedCitizenDashboard = () => (
   <div className="space-y-6">
@@ -40,13 +51,19 @@ const IntegratedCitizenDashboard = () => (
         <CitizenDashboard />
       </TabsContent>
       <TabsContent value="economy" className="mt-6">
-        <EmbeddedEconomyPanel view="citizen" />
+        <Suspense fallback={<PanelFallback />}>
+          <EmbeddedEconomyPanel view="citizen" />
+        </Suspense>
       </TabsContent>
       <TabsContent value="business" className="mt-6">
-        <EmbeddedEconomyPanel view="business" />
+        <Suspense fallback={<PanelFallback />}>
+          <EmbeddedEconomyPanel view="business" />
+        </Suspense>
       </TabsContent>
       <TabsContent value="justice" className="mt-6">
-        <CitizenJusticeDashboard />
+        <Suspense fallback={<PanelFallback />}>
+          <CitizenJusticeDashboard />
+        </Suspense>
       </TabsContent>
     </Tabs>
   </div>
