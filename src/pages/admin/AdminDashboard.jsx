@@ -1,8 +1,18 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
-import { motion, AnimatePresence } from 'framer-motion';
-import { BarChart3, Users, Settings, Newspaper, Vote, ShieldCheck, Crown, Flag } from 'lucide-react';
+import { AnimatePresence, motion } from 'framer-motion';
+import {
+  Activity,
+  BarChart3,
+  Crown,
+  Flag,
+  Newspaper,
+  Settings,
+  ShieldCheck,
+  Users,
+  Vote,
+} from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 import { useToast } from '@/components/ui/use-toast';
 import PageHeader from '@/components/layout/PageHeader';
@@ -13,130 +23,154 @@ import ContentModeration from '@/components/admin/ContentModeration';
 import ElectionManagement from '@/components/admin/ElectionManagement';
 import CandidacyManagement from '@/components/admin/CandidacyManagement';
 import PartyManagement from '@/components/admin/PartyManagement';
+import GovernanceSystems from '@/components/admin/GovernanceSystems';
 
 const tabs = [
-    { id: 'analytics', label: 'Análises', icon: BarChart3, component: SiteAnalytics },
-    { id: 'users', label: 'Usuários', icon: Users, component: UserManagement },
-    { id: 'candidacies', label: 'Candidaturas', icon: ShieldCheck, component: CandidacyManagement },
-    { id: 'elections', label: 'Eleições', icon: Vote, component: ElectionManagement },
-    { id: 'parties', label: 'Partidos', icon: Flag, component: PartyManagement },
-    { id: 'content', label: 'Conteúdo', icon: Newspaper, component: ContentModeration },
-    { id: 'settings', label: 'Sistema', icon: Settings, component: SystemSettings },
+  { id: 'analytics', label: 'Análises', icon: BarChart3, component: SiteAnalytics },
+  { id: 'systems', label: 'Justiça e Economia', icon: Activity, component: GovernanceSystems },
+  { id: 'users', label: 'Usuários', icon: Users, component: UserManagement },
+  { id: 'candidacies', label: 'Candidaturas', icon: ShieldCheck, component: CandidacyManagement },
+  { id: 'elections', label: 'Eleições', icon: Vote, component: ElectionManagement },
+  { id: 'parties', label: 'Partidos', icon: Flag, component: PartyManagement },
+  { id: 'content', label: 'Conteúdo', icon: Newspaper, component: ContentModeration },
+  { id: 'settings', label: 'Sistema', icon: Settings, component: SystemSettings },
 ];
 
 const AdminDashboard = () => {
-    const { tab: activeTabParam } = useParams();
-    const navigate = useNavigate();
-    const [activeTab, setActiveTab] = useState(tabs.find(t => t.id === activeTabParam)?.id || 'analytics');
-    const [stats, setStats] = useState({});
-    const [growthStats, setGrowthStats] = useState({});
-    const [loading, setLoading] = useState(true);
-    const { toast } = useToast();
-    const navRef = useRef(null);
+  const { tab: activeTabParam } = useParams();
+  const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState(
+    tabs.find((tab) => tab.id === activeTabParam)?.id || 'analytics'
+  );
+  const [stats, setStats] = useState({});
+  const [growthStats, setGrowthStats] = useState({});
+  const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
+  const navRef = useRef(null);
 
-    useEffect(() => {
-        const foundTab = tabs.find(t => t.id === activeTabParam);
-        if (foundTab) {
-            setActiveTab(foundTab.id);
-            // Scroll the active tab into view on mobile
-            const activeButton = navRef.current?.querySelector(`button[data-tab-id="${foundTab.id}"]`);
-            if (activeButton) {
-                activeButton.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
-            }
-        } else {
-            setActiveTab('analytics');
-        }
-    }, [activeTabParam]);
+  useEffect(() => {
+    const foundTab = tabs.find((tab) => tab.id === activeTabParam);
+    if (foundTab) {
+      setActiveTab(foundTab.id);
+      const activeButton = navRef.current?.querySelector(
+        `button[data-tab-id="${foundTab.id}"]`
+      );
+      activeButton?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'nearest',
+        inline: 'center',
+      });
+    } else {
+      setActiveTab('analytics');
+    }
+  }, [activeTabParam]);
 
-    const fetchData = useCallback(async () => {
-        setLoading(true);
-        try {
-            const { data: statsData, error: statsError } = await supabase.rpc('get_admin_dashboard_stats');
-            if (statsError) throw statsError;
-            setStats(statsData[0] || {});
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const { data: statsData, error: statsError } = await supabase.rpc(
+        'get_admin_dashboard_stats'
+      );
+      if (statsError) throw statsError;
+      setStats(statsData[0] || {});
 
-            const { data: growthData, error: growthError } = await supabase.rpc('get_dashboard_growth_stats');
-            if (growthError) throw growthError;
-            setGrowthStats(growthData[0] || {});
-        } catch (error) {
-            toast({
-                title: "Erro ao buscar estatísticas",
-                description: error.message,
-                variant: "destructive"
-            });
-        } finally {
-            setLoading(false);
-        }
-    }, [toast]);
-    
-    useEffect(() => {
-        if (activeTab === 'analytics' || activeTab === 'elections') {
-            fetchData();
-        } else {
-            setLoading(false);
-        }
-    }, [activeTab, fetchData]);
-    
-    const handleTabChange = (tabId) => {
-        navigate(`/admin-dashboard/${tabId}`, { replace: false });
-    };
+      const { data: growthData, error: growthError } = await supabase.rpc(
+        'get_dashboard_growth_stats'
+      );
+      if (growthError) throw growthError;
+      setGrowthStats(growthData[0] || {});
+    } catch (error) {
+      toast({
+        title: 'Erro ao buscar estatísticas',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
+  }, [toast]);
 
-    const ActiveComponent = tabs.find(t => t.id === activeTab)?.component;
-    const activeTabInfo = tabs.find(t => t.id === activeTab);
+  useEffect(() => {
+    if (activeTab === 'analytics' || activeTab === 'elections') {
+      fetchData();
+    } else {
+      setLoading(false);
+    }
+  }, [activeTab, fetchData]);
 
-    return (
-        <>
-            <Helmet>
-                <title>Painel de Administração - {activeTabInfo?.label}</title>
-                <meta name="description" content="Gerencie todos os aspectos do GOV.RP." />
-            </Helmet>
-            <div className="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8 py-6 sm:py-12">
-                <PageHeader
-                    icon={Crown}
-                    title="Painel de"
-                    gradientText="Administração"
-                    description="Controle total sobre a plataforma GOV.RP."
-                    iconColor="text-yellow-400"
-                    centered={true}
-                />
+  const handleTabChange = (tabId) => {
+    navigate(`/admin-dashboard/${tabId}`);
+  };
 
-                <div className="mt-8">
-                     <nav ref={navRef} className="flex flex-row gap-1 sm:gap-2 overflow-x-auto custom-scrollbar pb-2 md:pb-0 -mx-2 px-2 sm:-mx-4 sm:px-4 md:mx-0 md:px-0 justify-start md:justify-center mb-6 sm:mb-8">
-                        {tabs.map(tab => (
-                            <button
-                                key={tab.id}
-                                data-tab-id={tab.id}
-                                onClick={() => handleTabChange(tab.id)}
-                                className={`flex items-center gap-1.5 sm:gap-3 px-3 py-2 sm:px-4 sm:py-3 rounded-lg text-xs sm:text-sm font-medium whitespace-nowrap ${activeTab === tab.id
-                                    ? 'bg-primary text-primary-foreground'
-                                    : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
-                                    }`}
-                            >
-                                <tab.icon className="w-4 h-4 sm:w-5 sm:h-5" />
-                                <span className="hidden sm:inline">{tab.label}</span>
-                                <span className="sm:hidden">{tab.label.length > 8 ? tab.label.substring(0, 6) + '…' : tab.label}</span>
-                            </button>
-                        ))}
-                    </nav>
+  const ActiveComponent = tabs.find((tab) => tab.id === activeTab)?.component;
+  const activeTabInfo = tabs.find((tab) => tab.id === activeTab);
 
-                    <main className="flex-1 min-w-0">
-                        <AnimatePresence mode="wait">
-                            <motion.div
-                                key={activeTab}
-                                initial={{ opacity: 0, y: 20 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0, y: -20 }}
-                                transition={{ duration: 0.3 }}
-                                className="glass-effect p-3 sm:p-6 rounded-2xl border"
-                            >
-                                {ActiveComponent && <ActiveComponent stats={stats} growthStats={growthStats} loading={loading} />}
-                            </motion.div>
-                        </AnimatePresence>
-                    </main>
-                </div>
-            </div>
-        </>
-    );
+  return (
+    <>
+      <Helmet>
+        <title>Painel de Administração - {activeTabInfo?.label}</title>
+        <meta name="description" content="Gerencie todos os aspectos do GOV.RP." />
+      </Helmet>
+      <div className="mx-auto max-w-7xl px-2 py-6 sm:px-6 sm:py-12 lg:px-8">
+        <PageHeader
+          icon={Crown}
+          title="Painel de"
+          gradientText="Administração"
+          description="Controle operacional, econômico e jurídico do GOV.RP."
+          iconColor="text-yellow-400"
+          centered
+        />
+
+        <div className="mt-8">
+          <nav
+            ref={navRef}
+            className="-mx-2 mb-6 flex flex-row justify-start gap-1 overflow-x-auto px-2 pb-2 custom-scrollbar sm:-mx-4 sm:mb-8 sm:gap-2 sm:px-4 md:mx-0 md:justify-center md:px-0 md:pb-0"
+          >
+            {tabs.map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                data-tab-id={tab.id}
+                onClick={() => handleTabChange(tab.id)}
+                className={`flex items-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-2 text-xs font-medium sm:gap-3 sm:px-4 sm:py-3 sm:text-sm ${
+                  activeTab === tab.id
+                    ? 'bg-primary text-primary-foreground'
+                    : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+                }`}
+              >
+                <tab.icon className="h-4 w-4 sm:h-5 sm:w-5" />
+                <span className="hidden sm:inline">{tab.label}</span>
+                <span className="sm:hidden">
+                  {tab.label.length > 8 ? `${tab.label.substring(0, 6)}…` : tab.label}
+                </span>
+              </button>
+            ))}
+          </nav>
+
+          <main className="min-w-0 flex-1">
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={activeTab}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                transition={{ duration: 0.3 }}
+                className="glass-effect rounded-2xl border p-3 sm:p-6"
+              >
+                {ActiveComponent ? (
+                  <ActiveComponent
+                    stats={stats}
+                    growthStats={growthStats}
+                    loading={loading}
+                  />
+                ) : null}
+              </motion.div>
+            </AnimatePresence>
+          </main>
+        </div>
+      </div>
+    </>
+  );
 };
 
 export default AdminDashboard;
