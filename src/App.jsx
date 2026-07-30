@@ -35,7 +35,7 @@ import ComingSoon from '@/pages/ComingSoon';
 import MaintenanceMode from '@/pages/MaintenanceMode';
 import { AnimatePresence } from 'framer-motion';
 import Dashboard from '@/pages/Dashboard';
-import CitizenDashboard from '@/components/dashboard/CitizenDashboard';
+import IntegratedCitizenDashboard from '@/components/dashboard/IntegratedCitizenDashboard';
 import Settings from '@/pages/Settings';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import ServiceProtectedRoute from '@/components/ServiceProtectedRoute';
@@ -71,7 +71,6 @@ import PostDetails from '@/pages/services/x/PostDetails';
 import Elections from '@/pages/services/Elections';
 import PoliticalParties from '@/pages/services/PoliticalParties';
 import PartyPage from '@/pages/services/PartyPage';
-import PenalSystem from '@/pages/services/PenalSystem';
 import Justice from '@/pages/services/Justice';
 import Parliament from '@/pages/services/Parliament';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -79,16 +78,13 @@ import { useTheme } from '@/contexts/ThemeContext';
 
 // Service Imports
 import RoleDashboard from '@/pages/dashboards/RoleDashboard';
-import Police from '@/pages/services/Police';
 import AGIES from '@/pages/services/AGIES';
 import ArmedForces from '@/pages/services/ArmedForces';
-import PolicePanel from '@/pages/services/PolicePanel';
 import ArmedForcesPanel from '@/pages/services/ArmedForcesPanel';
 import AGIESPanel from '@/pages/services/AGIESPanel';
 import ServiceAccess from '@/components/ServiceAccess';
 import RoleProtectedRoute from '@/components/RoleProtectedRoute';
 import ParliamentPanel from '@/pages/services/ParliamentPanel';
-import PenalSystemPanel from '@/pages/services/PenalSystemPanel';
 import Prison from '@/pages/services/Prison';
 import Internet from '@/pages/services/Internet';
 import Electricity from '@/pages/services/Electricity';
@@ -100,7 +96,6 @@ import Gas from '@/pages/services/Gas';
 import Education from '@/pages/services/Education';
 import InventoryPage from '@/pages/services/InventoryPage';
 import ProductDetails from '@/pages/services/ProductDetails';
-import PresidentDashboard from '@/pages/dashboards/panels/PresidentDashboard';
 import PrisonRouteGuard from '@/components/PrisonRouteGuard';
 import { isPrisonSentenceActive } from '@/lib/prison';
 import { PARLIAMENT_PANEL_ROLES } from '@/lib/parliament';
@@ -200,9 +195,9 @@ const AppShell = ({ location, theme, isAuthCallback }) => {
                 <Route path="/beta-access" element={<BetaAccessWall />} />
 
                 <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-                <Route path="/dashboard/citizen" element={<ProtectedRoute><CitizenDashboard /></ProtectedRoute>} />
+                <Route path="/dashboard/citizen" element={<ProtectedRoute><IntegratedCitizenDashboard /></ProtectedRoute>} />
                 <Route path="/role-dashboard" element={<ProtectedRoute><RoleDashboard /></ProtectedRoute>} />
-                <Route path="/dashboard/president" element={<RoleProtectedRoute roles={['Presidente', 'Admin']}><PresidentDashboard /></RoleProtectedRoute>} />
+                <Route path="/dashboard/president" element={<RoleProtectedRoute roles={['Presidente', 'Admin']}><RoleDashboard forcedRole="Presidente" /></RoleProtectedRoute>} />
                 <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
 
                 <Route path="/services" element={<ServiceProtectedRoute><Services /></ServiceProtectedRoute>} />
@@ -237,12 +232,12 @@ const AppShell = ({ location, theme, isAuthCallback }) => {
                 <Route path="/services/parliament/panel" element={<ManagedServiceRoute serviceKey="/services/parliament"><RoleProtectedRoute roles={PARLIAMENT_PANEL_ROLES}><ParliamentPanel /></RoleProtectedRoute></ManagedServiceRoute>} />
 
                 <Route path="/services/penal-system" element={<ManagedServiceRoute serviceKey="/services/penal-system"><ServiceAccess requiredRoles={['Juiz', 'Admin']} citizenPath="/services/penal-system/citizen" panelPath="/services/penal-system/panel" /></ManagedServiceRoute>} />
-                <Route path="/services/penal-system/citizen" element={<ManagedServiceRoute serviceKey="/services/penal-system"><PenalSystem /></ManagedServiceRoute>} />
-                <Route path="/services/penal-system/panel" element={<ManagedServiceRoute serviceKey="/services/penal-system"><RoleProtectedRoute roles={['Juiz', 'Admin']}><PenalSystemPanel /></RoleProtectedRoute></ManagedServiceRoute>} />
+                <Route path="/services/penal-system/citizen" element={<ManagedServiceRoute serviceKey="/services/penal-system"><Justice /></ManagedServiceRoute>} />
+                <Route path="/services/penal-system/panel" element={<ManagedServiceRoute serviceKey="/services/penal-system"><RoleProtectedRoute roles={['Juiz', 'Admin']}><Justice defaultView="authority" /></RoleProtectedRoute></ManagedServiceRoute>} />
 
                 <Route path="/services/police" element={<ManagedServiceRoute serviceKey="/services/police"><ServiceAccess requiredRoles={['Policial', 'Admin']} citizenPath="/services/police/citizen" panelPath="/services/police/panel" /></ManagedServiceRoute>} />
-                <Route path="/services/police/citizen" element={<ManagedServiceRoute serviceKey="/services/police"><Police /></ManagedServiceRoute>} />
-                <Route path="/services/police/panel" element={<ManagedServiceRoute serviceKey="/services/police"><RoleProtectedRoute roles={['Policial', 'Admin']}><PolicePanel /></RoleProtectedRoute></ManagedServiceRoute>} />
+                <Route path="/services/police/citizen" element={<ManagedServiceRoute serviceKey="/services/police"><Justice /></ManagedServiceRoute>} />
+                <Route path="/services/police/panel" element={<ManagedServiceRoute serviceKey="/services/police"><RoleProtectedRoute roles={['Policial', 'Admin']}><Justice defaultView="authority" /></RoleProtectedRoute></ManagedServiceRoute>} />
 
                 <Route path="/services/agies" element={<ManagedServiceRoute serviceKey="/services/agies"><ServiceAccess requiredRoles={['Agente Secreto', 'Admin']} citizenPath="/services/agies/citizen" panelPath="/services/agies/panel" /></ManagedServiceRoute>} />
                 <Route path="/services/agies/citizen" element={<ManagedServiceRoute serviceKey="/services/agies"><AGIES /></ManagedServiceRoute>} />
