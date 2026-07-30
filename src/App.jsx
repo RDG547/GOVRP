@@ -89,6 +89,7 @@ import RoleProtectedRoute from '@/components/RoleProtectedRoute';
 import ParliamentPanel from '@/pages/services/ParliamentPanel';
 import PenalSystemPanel from '@/pages/services/PenalSystemPanel';
 import Prison from '@/pages/services/Prison';
+import Justice from '@/pages/services/Justice';
 import Internet from '@/pages/services/Internet';
 import Electricity from '@/pages/services/Electricity';
 import Water from '@/pages/services/Water';
@@ -210,6 +211,7 @@ const AppShell = ({ location, theme, isAuthCallback }) => {
                 <Route path="/services/inventory" element={<ManagedServiceRoute serviceKey="/services/business"><InventoryPage /></ManagedServiceRoute>} />
                 <Route path="/services/dic" element={<ManagedServiceRoute serviceKey="/services/dic"><DIC /></ManagedServiceRoute>} />
                 <Route path="/services/prison" element={<ManagedServiceRoute serviceKey="/services/prison"><Prison /></ManagedServiceRoute>} />
+                <Route path="/services/justice" element={<ManagedServiceRoute serviceKey="/services/justice"><Justice /></ManagedServiceRoute>} />
                 <Route path="/services/entrepreneur-portal" element={<ManagedServiceRoute serviceKey="/services/entrepreneur-portal"><EntrepreneurPortal /></ManagedServiceRoute>} />
 
                 <Route path="/services/x" element={<ManagedServiceRoute serviceKey="/services/x"><SocialX /></ManagedServiceRoute>}>
