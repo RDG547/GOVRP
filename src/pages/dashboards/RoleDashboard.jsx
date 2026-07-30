@@ -19,9 +19,6 @@ import ErrorPage from '@/pages/ErrorPage';
 import PageHeader from '@/components/layout/PageHeader';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PARLIAMENT_LEADERSHIP_ROLES } from '@/lib/parliament';
-import EmbeddedEconomyPanel from '@/features/economy/components/EmbeddedEconomyPanel';
-import AuthorityJusticeDashboard from '@/features/justice/pages/AuthorityJusticeDashboard';
-import CitizenJusticeDashboard from '@/features/justice/pages/CitizenJusticeDashboard';
 import { hasAnyJusticeRole } from '@/lib/justice/constants';
 
 const PresidentDashboard = lazy(() => import('./panels/PresidentDashboard'));
@@ -32,6 +29,15 @@ const PolicePanel = lazy(() => import('@/pages/services/Police'));
 const AGIESPanel = lazy(() => import('@/pages/services/AGIES'));
 const ArmedForcesPanel = lazy(() => import('@/pages/services/ArmedForces'));
 const BankManagementPanel = lazy(() => import('@/components/bank/BankManagementPanel'));
+const EmbeddedEconomyPanel = lazy(
+  () => import('@/features/economy/components/EmbeddedEconomyPanel')
+);
+const AuthorityJusticeDashboard = lazy(
+  () => import('@/features/justice/pages/AuthorityJusticeDashboard')
+);
+const CitizenJusticeDashboard = lazy(
+  () => import('@/features/justice/pages/CitizenJusticeDashboard')
+);
 
 const dashboards = {
   Presidente: {
@@ -197,13 +203,29 @@ const RoleDashboard = ({ forcedRole = null }) => {
             </TabsContent>
 
             <TabsContent value="economy">
-              <EmbeddedEconomyPanel view={economyView} />
+              <Suspense
+                fallback={(
+                  <div className="flex h-64 items-center justify-center">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                  </div>
+                )}
+              >
+                <EmbeddedEconomyPanel view={economyView} />
+              </Suspense>
             </TabsContent>
 
             <TabsContent value="justice">
-              {justiceAuthority
-                ? <AuthorityJusticeDashboard />
-                : <CitizenJusticeDashboard />}
+              <Suspense
+                fallback={(
+                  <div className="flex h-64 items-center justify-center">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                  </div>
+                )}
+              >
+                {justiceAuthority
+                  ? <AuthorityJusticeDashboard />
+                  : <CitizenJusticeDashboard />}
+              </Suspense>
             </TabsContent>
           </Tabs>
         </motion.div>
