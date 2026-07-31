@@ -12,6 +12,7 @@ import {
   formatIndex,
   formatPercent,
   laborLabels,
+  povertyStatusLabels,
 } from '@/lib/economy/format';
 
 const CitizenEconomyPanel = ({ data, onRefresh, toast }) => {
@@ -55,7 +56,7 @@ const CitizenEconomyPanel = ({ data, onRefresh, toast }) => {
         <EconomyCard label="Poder de compra" value={formatIndex(snapshot.purchasing_power_index)} detail="índice base 100" icon={Gauge} />
         <EconomyCard label="Renda disponível" value={formatCurrency(snapshot.disposable_income)} detail="após impostos e parcelas" icon={Wallet} />
         <EconomyCard label="Serviço da dívida" value={formatCurrency(snapshot.debt_service)} detail="parcelas e juros" icon={CreditCard} accent="text-rose-300" />
-        <EconomyCard label="Confiança pessoal" value={formatIndex(snapshot.consumer_confidence)} detail={snapshot.poverty_status?.replaceAll('_', ' ') || 'classificação pendente'} icon={Briefcase} />
+        <EconomyCard label="Confiança pessoal" value={formatIndex(snapshot.consumer_confidence)} detail={povertyStatusLabels[snapshot.poverty_status] || 'Classificação pendente'} icon={Briefcase} />
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[1.3fr_0.7fr]">
@@ -130,4 +131,3 @@ const CitizenEconomyPanel = ({ data, onRefresh, toast }) => {
 const formatNumberSafe = (value) => asNumber(value).toLocaleString('pt-BR', { maximumFractionDigits: 0 });
 
 export default CitizenEconomyPanel;
-
