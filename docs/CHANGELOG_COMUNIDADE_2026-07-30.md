@@ -204,3 +204,14 @@ A maior atualização estrutural do GOV.RP até agora chegou. Justiça, economia
 - O Admin ganha ferramentas de controle e auditoria sem precisar alterar diretamente os resultados oficiais.
 
 Esta atualização estabelece a base para que o GOV.RP tenha uma Justiça mais organizada, uma economia realmente jogável e decisões políticas com consequências duradouras.
+
+## 🔄 Complemento final — País, idioma e serviços unificados
+
+- A página **Sobre o País** passou a exibir a **Economia Nacional** completa dentro da própria aba **Economia**.
+- O antigo valor fixo de PIB foi removido dessa página; os números agora vêm diretamente do motor econômico oficial.
+- PIB, inflação, desemprego, Selic, dívida, poder de compra, confiança, setores, cesta de preços, boletins e alertas podem ser consultados sem sair das informações do país.
+- Os textos, estados, níveis de atividade, riscos, períodos, execuções, cenários, projetos e alertas da Economia Nacional foram padronizados em português do Brasil.
+- Termos internos do banco de dados, como `medium`, `completed`, `quarterly`, `critical`, `strong` e `in_progress`, deixaram de aparecer para os usuários.
+- **Central de Segurança e Justiça**, **Polícia** e **Sistema Penal** foram consolidados em uma única opção na página e no menu de Serviços.
+- O serviço unificado mantém recursos específicos para cidadãos, policiais, juízes e administradores conforme o cargo de cada personagem.
+- Endereços antigos da Polícia e do Sistema Penal agora redirecionam automaticamente para a Central de Segurança e Justiça, preservando links já compartilhados.
