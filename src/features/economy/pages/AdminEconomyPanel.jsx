@@ -4,7 +4,17 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { runEconomicClose } from '@/lib/economy/api';
-import { formatDate } from '@/lib/economy/format';
+import {
+  calibrationLabels,
+  economicEventLabels,
+  formatDate,
+  localizeCalibrationValue,
+  periodStatusLabels,
+  periodTypeLabels,
+  runStatusLabels,
+  runTypeLabels,
+  sourceTableLabels,
+} from '@/lib/economy/format';
 
 const AdminEconomyPanel = ({ data, toast, onRefresh }) => {
   const [running, setRunning] = useState(null);
@@ -40,12 +50,12 @@ const AdminEconomyPanel = ({ data, toast, onRefresh }) => {
             {(data?.runs || []).map((run) => (
               <div key={run.id} className="flex items-center justify-between gap-3 rounded-xl border border-border/60 p-3">
                 <div>
-                  <p className="font-medium">{run.run_type.replaceAll('_', ' ')}</p>
+                  <p className="font-medium">{runTypeLabels[run.run_type] || 'Execução econômica'}</p>
                   <p className="text-xs text-muted-foreground">{formatDate(run.started_at)}</p>
                 </div>
                 <Badge variant={run.status === 'failed' ? 'destructive' : 'outline'}>
                   {run.status === 'completed' ? <CheckCircle2 className="mr-1 h-3 w-3" /> : null}
-                  {run.status}
+                  {runStatusLabels[run.status] || 'Situação desconhecida'}
                 </Badge>
               </div>
             ))}
@@ -63,7 +73,7 @@ const AdminEconomyPanel = ({ data, toast, onRefresh }) => {
               <div key={period.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border/60 p-3">
                 <div>
                   <p className="font-medium">
-                    {period.period_type} · {period.rp_year}
+                    {periodTypeLabels[period.period_type] || 'Período'} · {period.rp_year}
                     {period.rp_quarter ? ` T${period.rp_quarter}` : ''}
                     {period.rp_month ? ` M${period.rp_month}` : ''}
                   </p>
@@ -72,7 +82,7 @@ const AdminEconomyPanel = ({ data, toast, onRefresh }) => {
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Badge variant="outline">{period.status}</Badge>
+                  <Badge variant="outline">{periodStatusLabels[period.status] || 'Situação desconhecida'}</Badge>
                   {period.status !== 'closed' ? (
                     <Button
                       size="sm"
@@ -99,10 +109,10 @@ const AdminEconomyPanel = ({ data, toast, onRefresh }) => {
               <div key={event.id} className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-4">
                 <p className="flex items-center gap-2 font-medium">
                   <AlertTriangle className="h-4 w-4 text-amber-300" />
-                  {event.event_type}
+                  {economicEventLabels[event.event_type] || 'Evento econômico em análise'}
                 </p>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  {event.source_table}:{event.source_id} · {formatDate(event.created_at)}
+                  {sourceTableLabels[event.source_table] || 'Origem econômica'}: {event.source_id} · {formatDate(event.created_at)}
                 </p>
               </div>
             )) : <p className="text-sm text-muted-foreground">Nenhum evento suspeito pendente.</p>}
@@ -115,10 +125,12 @@ const AdminEconomyPanel = ({ data, toast, onRefresh }) => {
             {(data?.calibrations || []).map((item) => (
               <div key={item.key} className="flex items-center justify-between gap-4 rounded-lg border border-border/50 p-3 text-sm">
                 <div>
-                  <p className="font-medium">{item.key}</p>
+                  <p className="font-medium">{calibrationLabels[item.key] || 'Parâmetro econômico'}</p>
                   <p className="text-xs text-muted-foreground">{item.description}</p>
                 </div>
-                <code className="rounded bg-muted px-2 py-1 text-xs">{JSON.stringify(item.value)}</code>
+                <code className="max-w-[50%] whitespace-pre-wrap rounded bg-muted px-2 py-1 text-xs">
+                  {JSON.stringify(localizeCalibrationValue(item.value), null, 2)}
+                </code>
               </div>
             ))}
           </CardContent>
@@ -129,4 +141,3 @@ const AdminEconomyPanel = ({ data, toast, onRefresh }) => {
 };
 
 export default AdminEconomyPanel;
-
