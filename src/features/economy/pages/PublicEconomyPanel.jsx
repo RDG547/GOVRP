@@ -20,6 +20,8 @@ import {
   formatDate,
   formatIndex,
   formatPercent,
+  bulletinTypeLabels,
+  severityLabels,
 } from '@/lib/economy/format';
 
 const periodLabel = (period) => {
@@ -193,7 +195,7 @@ const PublicEconomyPanel = ({ data }) => {
               <article key={bulletin.id} className="rounded-xl border border-border/60 p-4">
                 <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
                   <h3 className="font-medium">{bulletin.title}</h3>
-                  <Badge variant="outline">{bulletin.bulletin_type}</Badge>
+                  <Badge variant="outline">{bulletinTypeLabels[bulletin.bulletin_type] || 'Boletim econômico'}</Badge>
                 </div>
                 <p className="text-sm text-muted-foreground">{bulletin.summary}</p>
                 <p className="mt-2 text-xs text-muted-foreground">{formatDate(bulletin.published_at)}</p>
@@ -209,7 +211,7 @@ const PublicEconomyPanel = ({ data }) => {
                 <div className="mb-1 flex items-center justify-between gap-2">
                   <p className="font-medium">{alert.title}</p>
                   <Badge variant={alert.severity === 'critical' ? 'destructive' : 'outline'}>
-                    {alert.severity}
+                    {severityLabels[alert.severity] || 'Atenção'}
                   </Badge>
                 </div>
                 <p className="text-sm text-muted-foreground">{alert.message}</p>
@@ -223,4 +225,3 @@ const PublicEconomyPanel = ({ data }) => {
 };
 
 export default PublicEconomyPanel;
-
