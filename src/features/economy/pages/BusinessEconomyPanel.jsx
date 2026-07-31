@@ -3,7 +3,7 @@ import { Building2, Factory, Gauge, Landmark, Receipt, TrendingUp } from 'lucide
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import EconomyCard from '@/features/economy/components/EconomyCard';
-import { formatCurrency, formatIndex, formatPercent } from '@/lib/economy/format';
+import { businessHealthLabels, formatCurrency, formatIndex, formatPercent } from '@/lib/economy/format';
 
 const healthColors = {
   strong: 'bg-emerald-500/15 text-emerald-300',
@@ -63,7 +63,7 @@ const BusinessEconomyPanel = ({ data }) => {
                   <p className="mt-1 text-sm text-muted-foreground">{sector?.name || 'Setor pendente'}</p>
                 </div>
                 <Badge className={healthColors[snapshot?.health_status] || healthColors.stable}>
-                  {snapshot?.health_status?.replace('_', ' ') || 'sem diagnóstico'}
+                  {businessHealthLabels[snapshot?.health_status] || 'Sem diagnóstico'}
                 </Badge>
               </div>
             </CardHeader>
@@ -121,4 +121,3 @@ const BusinessEconomyPanel = ({ data }) => {
 };
 
 export default BusinessEconomyPanel;
-
