@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { formatCurrency } from '@/lib/utils';
-import { ArrowUpRight, ArrowDownLeft, Banknote, ShoppingCart, Landmark, Coins as HandCoins, Repeat, Loader2, ArrowRightLeft, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ArrowUpRight, ArrowDownLeft, Banknote, ShoppingCart, Landmark, Coins as HandCoins, Repeat, Loader2, ArrowRightLeft, ChevronLeft, ChevronRight, Receipt } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import ReceiptDownloadDialog from './ReceiptDownloadDialog';
 import { supabase } from '@/lib/supabaseClient';
@@ -82,7 +82,7 @@ const TransactionRow = ({ transaction, onShowReceipt }) => {
                         <p className="text-xs text-muted-foreground">{getFullDescription()}</p>
                     </div>
                 </div>
-                 <Button variant="outline" size="sm" className="sm:hidden" onClick={() => onShowReceipt(transaction.id)}>Ver Comprovante</Button>
+                 <Button variant="outline" size="sm" className="sm:hidden" onClick={() => onShowReceipt(transaction.id)}><Receipt className="mr-2 h-4 w-4" />Ver Comprovante</Button>
             </TableCell>
             <TableCell className="p-0 sm:p-4 mt-2 sm:mt-0 flex justify-between items-center sm:table-cell sm:text-right">
                 <span className="sm:hidden text-muted-foreground text-xs">Valor</span>
@@ -98,7 +98,7 @@ const TransactionRow = ({ transaction, onShowReceipt }) => {
                 </div>
             </TableCell>
              <TableCell className="p-0 sm:p-4 text-right hidden sm:table-cell">
-                <Button variant="outline" size="sm" onClick={() => onShowReceipt(transaction.id)}>Ver Comprovante</Button>
+                <Button variant="outline" size="sm" onClick={() => onShowReceipt(transaction.id)}><Receipt className="mr-2 h-4 w-4" />Ver Comprovante</Button>
             </TableCell>
         </TableRow>
     );
