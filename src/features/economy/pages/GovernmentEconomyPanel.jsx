@@ -4,7 +4,15 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import EconomyCard from '@/features/economy/components/EconomyCard';
 import PolicyStudio from '@/features/economy/components/PolicyStudio';
-import { formatCurrency, formatDate, formatPercent, policyLabels } from '@/lib/economy/format';
+import {
+  fiscalRiskLabels,
+  formatCurrency,
+  formatDate,
+  formatPercent,
+  policyLabels,
+  policyStatusLabels,
+  projectStatusLabels,
+} from '@/lib/economy/format';
 
 const GovernmentEconomyPanel = ({ data, toast, onRefresh }) => {
   const fiscal = data?.fiscal || {};
@@ -17,7 +25,7 @@ const GovernmentEconomyPanel = ({ data, toast, onRefresh }) => {
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <EconomyCard label="Receita tributária" value={formatCurrency(fiscal.tax_revenue, true)} detail="último período fiscal" icon={BadgeDollarSign} />
         <EconomyCard label="Resultado primário" value={formatCurrency(fiscal.primary_result, true)} detail="antes dos juros" icon={Landmark} accent="text-emerald-300" />
-        <EconomyCard label="Dívida / PIB" value={formatPercent(fiscal.debt_to_gdp)} detail={fiscal.fiscal_risk ? `risco ${fiscal.fiscal_risk}` : 'aguardando fechamento'} icon={Scale} accent="text-rose-300" />
+        <EconomyCard label="Dívida / PIB" value={formatPercent(fiscal.debt_to_gdp)} detail={fiscal.fiscal_risk ? `Risco ${fiscalRiskLabels[fiscal.fiscal_risk] || 'não classificado'}` : 'Aguardando fechamento'} icon={Scale} accent="text-rose-300" />
         <EconomyCard label="Reservas do Tesouro" value={formatCurrency(treasury.treasury_balance, true)} detail={`Juros: ${formatCurrency(fiscal.debt_interest, true)}`} icon={Building2} accent="text-violet-300" />
       </div>
 
@@ -34,7 +42,7 @@ const GovernmentEconomyPanel = ({ data, toast, onRefresh }) => {
                     <p className="font-medium">{project.name}</p>
                     <p className="text-xs text-muted-foreground">{project.ministry}</p>
                   </div>
-                  <Badge variant="outline">{project.status.replaceAll('_', ' ')}</Badge>
+                  <Badge variant="outline">{projectStatusLabels[project.status] || 'Situação pendente'}</Badge>
                 </div>
                 <div className="mt-3 h-2 overflow-hidden rounded-full bg-muted">
                   <div className="h-full rounded-full bg-cyan-500" style={{ width: `${Math.min(100, project.progress)}%` }} />
@@ -55,7 +63,7 @@ const GovernmentEconomyPanel = ({ data, toast, onRefresh }) => {
               <div key={policy.id} className="rounded-xl border border-border/60 p-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <p className="font-medium">{policyLabels[policy.policy_type] || policy.policy_type}</p>
-                  <Badge>{policy.status}</Badge>
+                  <Badge>{policyStatusLabels[policy.status] || 'Situação pendente'}</Badge>
                 </div>
                 <p className="mt-1 text-sm">
                   {policy.previous_value?.toLocaleString('pt-BR')} → {policy.new_value?.toLocaleString('pt-BR')}
@@ -72,4 +80,3 @@ const GovernmentEconomyPanel = ({ data, toast, onRefresh }) => {
 };
 
 export default GovernmentEconomyPanel;
-
