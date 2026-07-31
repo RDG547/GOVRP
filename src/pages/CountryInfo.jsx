@@ -14,7 +14,6 @@ import {
   Sun,
   User,
   Building,
-  Factory,
   Droplet,
   Vote,
   Shield,
@@ -52,6 +51,7 @@ import {
 import { BANK_POLICY_SETTINGS_KEY, DEFAULT_BANK_POLICY } from '@/components/bank/BankManagementPanel';
 
 const CONSTITUTION_PDF_PATH = '/constituicao-govrp.pdf';
+const EmbeddedEconomyPanel = React.lazy(() => import('@/features/economy/components/EmbeddedEconomyPanel'));
 
 const DetailedSection = ({ title, icon: Icon, description, children }) => (
   <section className="mt-6 rounded-2xl border border-white/10 bg-slate-950/40 p-6 backdrop-blur-sm">
@@ -331,14 +331,35 @@ const CountryInfo = () => {
             </TabsContent>
 
             <TabsContent value="economia" className="mt-0 outline-none">
-              <DetailedSection title="Economia" icon={DollarSign} description="Indicadores econômicos e base financeira nacional.">
-                <DetailItem
-                  icon={DollarSign}
-                  label="PIB (Produto Interno Bruto)"
-                  value={loading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'R$ 3.000.150,34'}
-                />
-                <DetailItem icon={Landmark} label="Taxa Selic" value={loading ? <Loader2 className="h-4 w-4 animate-spin" /> : `${Number(economicPolicy.selic_rate || 0).toFixed(2)}% a.a.`} />
-                <DetailItem icon={Factory} label="Setores Econômicos" value="Serviços (65%), Indústria (25%), Agricultura (10%)." />
+              <section className="rounded-2xl border border-cyan-500/20 bg-slate-950/40 p-6 backdrop-blur-sm">
+                <div className="mb-6">
+                  <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-cyan-500/30 bg-cyan-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.24em] text-cyan-300">
+                    <Landmark className="h-3.5 w-3.5" />
+                    Dados oficiais
+                  </div>
+                  <h2 className="text-3xl font-bold text-foreground">Economia Nacional</h2>
+                  <p className="mt-2 text-muted-foreground">
+                    PIB, inflação, emprego, juros, dívida e poder de compra calculados pelo motor econômico a partir das ações do RP.
+                  </p>
+                </div>
+
+                <React.Suspense
+                  fallback={(
+                    <div className="flex min-h-56 items-center justify-center gap-3 text-sm text-muted-foreground">
+                      <Loader2 className="h-5 w-5 animate-spin text-cyan-300" />
+                      Carregando os indicadores oficiais...
+                    </div>
+                  )}
+                >
+                  <EmbeddedEconomyPanel view="public" showHeader={false} />
+                </React.Suspense>
+              </section>
+
+              <DetailedSection
+                title="Estrutura Econômica e Financeira"
+                icon={DollarSign}
+                description="Informações complementares sobre moeda, crédito, investimentos e comércio exterior."
+              >
                 <DetailItem icon={Droplet} label="Moeda" value="Real (R$)." />
                 <DetailItem icon={Handshake} label="Crédito bancário de referência" value={loading ? <Loader2 className="h-4 w-4 animate-spin" /> : `${Number(bankPolicy.loan_interest_rate || 0).toFixed(2)}% a.m. para empréstimos e ${Number(bankPolicy.credit_card_revolving_rate || 0).toFixed(2)}% a.m. no rotativo.`} />
                 <DetailItem icon={DollarSign} label="Rendimento conservador" value={loading ? <Loader2 className="h-4 w-4 animate-spin" /> : `${(conservativeInvestmentRate * 100).toFixed(2)}% a.a. nas aplicações de baixo risco.`} />
