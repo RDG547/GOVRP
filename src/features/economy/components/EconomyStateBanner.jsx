@@ -1,7 +1,7 @@
 import React from 'react';
 import { Activity, Database, Users } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { cycleLabels, formatPercent } from '@/lib/economy/format';
+import { activityLevelLabels, cycleLabels, formatPercent } from '@/lib/economy/format';
 
 const stateColors = {
   expansion: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300',
@@ -31,7 +31,7 @@ const EconomyStateBanner = ({ state }) => (
       <Users className="h-5 w-5 text-violet-300" />
       <div>
         <p className="text-xs text-muted-foreground">Atividade dos jogadores</p>
-        <p className="font-medium capitalize">{state?.player_activity_level?.replace('_', ' ') || '—'}</p>
+        <p className="font-medium">{activityLevelLabels[state?.player_activity_level] || '—'}</p>
       </div>
     </div>
     <div className="flex items-center gap-3">
@@ -48,4 +48,3 @@ const EconomyStateBanner = ({ state }) => (
 );
 
 export default EconomyStateBanner;
-
