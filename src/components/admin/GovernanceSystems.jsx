@@ -1,5 +1,5 @@
 import React, { lazy, Suspense } from 'react';
-import { Activity, Gavel, Landmark, Loader2, ShieldCheck } from 'lucide-react';
+import { Activity, CreditCard, Gavel, Landmark, Loader2, ShieldCheck } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 const EmbeddedEconomyPanel = lazy(
@@ -7,6 +7,9 @@ const EmbeddedEconomyPanel = lazy(
 );
 const AuthorityJusticeDashboard = lazy(
   () => import('@/features/justice/pages/AuthorityJusticeDashboard')
+);
+const BankManagementPanel = lazy(
+  () => import('@/components/bank/BankManagementPanel')
 );
 
 const PanelFallback = () => (
@@ -20,11 +23,11 @@ const GovernanceSystems = () => (
     <div className="rounded-xl border border-border/70 bg-muted/25 p-4">
       <h2 className="text-xl font-semibold">Justiça e Economia</h2>
       <p className="mt-1 text-sm text-muted-foreground">
-        Operação, auditoria e decisões dos dois sistemas nacionais em uma única área administrativa.
+        Operação, auditoria e decisões dos sistemas nacionais em uma única área administrativa. A disponibilidade do portal e de cada rota permanece em Sistema e Serviços.
       </p>
     </div>
 
-    <TabsList className="grid h-auto w-full grid-cols-2 gap-2 bg-muted/50 p-2 xl:grid-cols-4">
+    <TabsList className="grid h-auto w-full grid-cols-2 gap-2 bg-muted/50 p-2 lg:grid-cols-3 xl:grid-cols-5">
       <TabsTrigger value="economic-engine">
         <Activity className="mr-2 h-4 w-4" />
         Motor econômico
@@ -36,6 +39,10 @@ const GovernanceSystems = () => (
       <TabsTrigger value="central-bank">
         <ShieldCheck className="mr-2 h-4 w-4" />
         Banco Central
+      </TabsTrigger>
+      <TabsTrigger value="national-bank">
+        <CreditCard className="mr-2 h-4 w-4" />
+        Banco Nacional
       </TabsTrigger>
       <TabsTrigger value="justice">
         <Gavel className="mr-2 h-4 w-4" />
@@ -56,6 +63,11 @@ const GovernanceSystems = () => (
     <TabsContent value="central-bank">
       <Suspense fallback={<PanelFallback />}>
         <EmbeddedEconomyPanel view="centralBank" />
+      </Suspense>
+    </TabsContent>
+    <TabsContent value="national-bank">
+      <Suspense fallback={<PanelFallback />}>
+        <BankManagementPanel />
       </Suspense>
     </TabsContent>
     <TabsContent value="justice">
