@@ -15,58 +15,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { SERVICE_CATEGORIES } from '@/lib/serviceCatalog';
 
-const serviceCategories = [
-  {
-    name: 'Governo e Cidadania',
-    services: [
-      { name: 'Banco Nacional', path: '/services/bank', icon: Landmark, color: "text-green-400" },
-      { name: 'Departamento de Identificação Civil', path: '/services/dic', icon: FileText, color: "text-purple-400" },
-      { name: 'Portal Eleitoral', path: '/services/elections', icon: Vote, color: "text-teal-400" },
-      { name: 'Partidos Políticos', path: '/services/political-parties', icon: Users, color: "text-red-400" },
-      { name: 'Parlamento', path: '/services/parliament', icon: Scale, color: "text-yellow-400" },
-      { name: 'Portal de Notícias', path: '/news', icon: Newspaper, color: "text-cyan-400" },
-    ]
-  },
-  {
-    name: 'Segurança e Justiça',
-    services: [
-      { name: 'Polícia', path: '/services/police', icon: Siren, color: "text-blue-500" },
-      { name: 'Sistema Penal', path: '/services/penal-system', icon: Gavel, color: "text-amber-400" },
-      { name: 'Prisão', path: '/services/prison', icon: Tally5, color: "text-slate-400" },
-      { name: 'Forças Armadas', path: '/services/armed-forces', icon: ShieldCheck, color: "text-emerald-500" },
-      { name: 'Agência de Inteligência', path: '/services/agies', icon: Eye, color: "text-red-500" },
-    ]
-  },
-  {
-    name: 'Economia',
-    services: [
-      { name: 'Portal do Empreendedor', path: '/services/entrepreneur-portal', icon: Briefcase, color: "text-cyan-400" },
-      { name: 'Negócios Livres', path: '/services/business', icon: Store, color: "text-blue-400" },
-    ]
-  },
-  {
-    name: 'Cultura e Educação',
-    services: [
-      { name: 'Ensino Superior', path: '/services/education', icon: GraduationCap, color: "text-indigo-400" },
-      { name: 'X', path: '/services/x', icon: MessageSquare, color: "text-sky-400" },
-      { name: 'Biblioteca Nacional', path: '/services/library', icon: Library, color: "text-orange-400" },
-      { name: 'Acervo Digital', path: '/services/digital-archive', icon: Archive, color: "text-rose-400" },
-    ]
-  },
-   {
-    name: 'Serviços Básicos',
-    services: [
-      { name: 'Internet', path: '/services/internet', icon: Wifi, color: "text-cyan-400" },
-      { name: 'Energia Elétrica', path: '/services/electricity', icon: Zap, color: "text-yellow-400" },
-      { name: 'Água', path: '/services/water', icon: Droplet, color: "text-blue-400" },
-      { name: 'Telefonia', path: '/services/phone', icon: Smartphone, color: "text-violet-400" },
-      { name: 'Aluguel', path: '/services/rent', icon: HomeIcon, color: "text-orange-400" },
-      { name: 'Manutenção', path: '/services/maintenance', icon: Wrench, color: "text-gray-400" },
-      { name: 'Gás', path: '/services/gas', icon: Flame, color: "text-orange-500" },
-    ]
-  }
-];
+const serviceCategories = SERVICE_CATEGORIES;
 
 const SERVICE_INITIALS_IGNORED_WORDS = new Set(['a', 'as', 'da', 'das', 'de', 'do', 'dos', 'e', 'o', 'os']);
 
