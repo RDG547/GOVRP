@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { applyPolicy, simulatePolicy } from '@/lib/economy/api';
-import { policyLabels } from '@/lib/economy/format';
+import { policyLabels, scenarioMetricLabels } from '@/lib/economy/format';
 
 const DEFAULT_POLICIES = [
   'selic',
@@ -27,7 +27,7 @@ const Scenario = ({ title, value, tone }) => (
         .slice(0, 8)
         .map(([key, entry]) => (
           <div key={key}>
-            <p className="text-muted-foreground">{key.replaceAll('_', ' ')}</p>
+            <p className="text-muted-foreground">{scenarioMetricLabels[key] || 'Indicador projetado'}</p>
             <p className="font-medium">{entry > 0 ? '+' : ''}{entry.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}</p>
           </div>
         ))}
@@ -176,4 +176,3 @@ const PolicyStudio = ({ toast, onApplied, allowedPolicies = DEFAULT_POLICIES }) 
 };
 
 export default PolicyStudio;
-
