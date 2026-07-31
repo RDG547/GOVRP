@@ -231,13 +231,8 @@ const AppShell = ({ location, theme, isAuthCallback }) => {
                 <Route path="/services/parliament/citizen" element={<ManagedServiceRoute serviceKey="/services/parliament"><Parliament /></ManagedServiceRoute>} />
                 <Route path="/services/parliament/panel" element={<ManagedServiceRoute serviceKey="/services/parliament"><RoleProtectedRoute roles={PARLIAMENT_PANEL_ROLES}><ParliamentPanel /></RoleProtectedRoute></ManagedServiceRoute>} />
 
-                <Route path="/services/penal-system" element={<ManagedServiceRoute serviceKey="/services/penal-system"><ServiceAccess requiredRoles={['Juiz', 'Admin']} citizenPath="/services/penal-system/citizen" panelPath="/services/penal-system/panel" /></ManagedServiceRoute>} />
-                <Route path="/services/penal-system/citizen" element={<ManagedServiceRoute serviceKey="/services/penal-system"><Justice /></ManagedServiceRoute>} />
-                <Route path="/services/penal-system/panel" element={<ManagedServiceRoute serviceKey="/services/penal-system"><RoleProtectedRoute roles={['Juiz', 'Admin']}><Justice defaultView="authority" /></RoleProtectedRoute></ManagedServiceRoute>} />
-
-                <Route path="/services/police" element={<ManagedServiceRoute serviceKey="/services/police"><ServiceAccess requiredRoles={['Policial', 'Admin']} citizenPath="/services/police/citizen" panelPath="/services/police/panel" /></ManagedServiceRoute>} />
-                <Route path="/services/police/citizen" element={<ManagedServiceRoute serviceKey="/services/police"><Justice /></ManagedServiceRoute>} />
-                <Route path="/services/police/panel" element={<ManagedServiceRoute serviceKey="/services/police"><RoleProtectedRoute roles={['Policial', 'Admin']}><Justice defaultView="authority" /></RoleProtectedRoute></ManagedServiceRoute>} />
+                <Route path="/services/penal-system/*" element={<Navigate to="/services/justice" replace />} />
+                <Route path="/services/police/*" element={<Navigate to="/services/justice" replace />} />
 
                 <Route path="/services/agies" element={<ManagedServiceRoute serviceKey="/services/agies"><ServiceAccess requiredRoles={['Agente Secreto', 'Admin']} citizenPath="/services/agies/citizen" panelPath="/services/agies/panel" /></ManagedServiceRoute>} />
                 <Route path="/services/agies/citizen" element={<ManagedServiceRoute serviceKey="/services/agies"><AGIES /></ManagedServiceRoute>} />
