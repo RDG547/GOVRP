@@ -146,10 +146,13 @@ export const policyStatusLabels = {
   announced: 'Anunciada',
   scheduled: 'Agendada',
   active: 'Ativa',
+  effective: 'Em vigor',
   in_effect: 'Em vigor',
   completed: 'Concluída',
   expired: 'Encerrada',
+  cancelled: 'Cancelada',
   revoked: 'Revogada',
+  superseded: 'Substituída',
 };
 
 export const runTypeLabels = {
@@ -166,6 +169,7 @@ export const runStatusLabels = {
   running: 'Em execução',
   completed: 'Concluída',
   failed: 'Falhou',
+  skipped: 'Ignorada',
   cancelled: 'Cancelada',
 };
 
@@ -176,9 +180,12 @@ export const periodTypeLabels = {
 };
 
 export const periodStatusLabels = {
+  scheduled: 'Agendado',
   open: 'Aberto',
   closing: 'Em fechamento',
   closed: 'Fechado',
+  reopened: 'Reaberto',
+  failed: 'Falhou',
 };
 
 export const bulletinTypeLabels = {
@@ -233,6 +240,16 @@ export const sourceTableLabels = {
 };
 
 export const scenarioMetricLabels = {
+  credit_percent: 'Crédito',
+  consumption_percent: 'Consumo',
+  investment_percent: 'Investimento',
+  output_percent: 'Atividade econômica',
+  inflation_points: 'Inflação',
+  employment_percent: 'Emprego',
+  consumer_confidence: 'Confiança do consumidor',
+  business_confidence: 'Confiança empresarial',
+  debt_cost_points: 'Custo da dívida',
+  revenue_percent: 'Arrecadação',
   gdp_growth_delta: 'Variação do crescimento do PIB',
   inflation_delta: 'Variação da inflação',
   unemployment_delta: 'Variação do desemprego',
