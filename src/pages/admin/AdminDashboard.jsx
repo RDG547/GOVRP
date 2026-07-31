@@ -33,7 +33,7 @@ const tabs = [
   { id: 'elections', label: 'Eleições', icon: Vote, component: ElectionManagement },
   { id: 'parties', label: 'Partidos', icon: Flag, component: PartyManagement },
   { id: 'content', label: 'Conteúdo', icon: Newspaper, component: ContentModeration },
-  { id: 'settings', label: 'Sistema', icon: Settings, component: SystemSettings },
+  { id: 'settings', label: 'Sistema e Serviços', icon: Settings, component: SystemSettings },
 ];
 
 const AdminDashboard = () => {
