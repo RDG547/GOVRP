@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/components/ui/use-toast';
 import { Link } from 'react-router-dom';
 import { FaDiscord, FaWhatsapp, FaTelegram } from 'react-icons/fa';
@@ -176,23 +177,28 @@ const Support = () => {
                   </div>
                   <div>
                     <Label htmlFor="requestType" className="text-gray-300 mb-2 block">Tipo de Atendimento</Label>
-                    <div className="relative">
-                      {formData.requestType === 'support' ? (
-                        <Headset className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
-                      ) : (
-                        <MessageSquare className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
-                      )}
-                      <select
-                        id="requestType"
-                        name="requestType"
+                    <Select
                         value={formData.requestType}
-                        onChange={handleChange}
-                        className="flex h-10 w-full rounded-md border border-white/10 bg-white/5 py-2 pl-10 pr-3 text-sm text-white outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring"
+                        onValueChange={(requestType) => setFormData((current) => ({
+                          ...current,
+                          requestType,
+                        }))}
                       >
-                        <option value="support" className="bg-slate-900">Suporte técnico ou conta</option>
-                        <option value="contact" className="bg-slate-900">Contato geral, parceria ou imprensa</option>
-                      </select>
-                    </div>
+                      <SelectTrigger id="requestType" className="bg-white/5">
+                        <span className="flex min-w-0 items-center gap-2">
+                          {formData.requestType === 'support' ? (
+                            <Headset className="h-4 w-4 shrink-0 text-cyan-300" />
+                          ) : (
+                            <MessageSquare className="h-4 w-4 shrink-0 text-cyan-300" />
+                          )}
+                          <SelectValue placeholder="Escolha o atendimento" />
+                        </span>
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="support">Suporte técnico ou conta</SelectItem>
+                        <SelectItem value="contact">Contato geral, parceria ou imprensa</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div>
                     <Label htmlFor="subject" className="text-gray-300 mb-2 block">Assunto</Label>

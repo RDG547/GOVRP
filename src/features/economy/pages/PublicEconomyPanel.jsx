@@ -206,12 +206,18 @@ const PublicEconomyPanel = ({ data }) => {
       <div className="grid gap-6 xl:grid-cols-[1.35fr_0.65fr]">
         <Card className="border-border/70 bg-card/75">
           <CardHeader>
-            <CardTitle className="text-base">PIB por setor</CardTitle>
+            <CardTitle className="text-base">PIB real por setor</CardTitle>
+            <p className="text-xs text-muted-foreground">
+              Valor adicionado a preços constantes, calculado pelo fechamento econômico do RP.
+            </p>
           </CardHeader>
           <CardContent className="space-y-4">
             {(data?.sectors || []).length ? data.sectors.map((sector) => {
-              const maximum = Math.max(...data.sectors.map((item) => asNumber(item.value_added)), 1);
-              const width = Math.max(2, asNumber(sector.value_added) / maximum * 100);
+              const sectorValue = sector.real_value_added ?? sector.value_added;
+              const maximum = Math.max(...data.sectors.map((item) => (
+                asNumber(item.real_value_added ?? item.value_added)
+              )), 1);
+              const width = Math.max(2, asNumber(sectorValue) / maximum * 100);
               const SectorIcon = iconFor(sectorIconByName, sector.name, BarChart3);
               return (
                 <div key={sector.code}>
@@ -223,7 +229,7 @@ const PublicEconomyPanel = ({ data }) => {
                       <span className="truncate">{sector.name}</span>
                     </span>
                     <span className="text-muted-foreground">
-                      {formatCurrency(sector.value_added, true)}
+                      {formatCurrency(sectorValue, true)}
                     </span>
                   </div>
                   <div className="h-2 overflow-hidden rounded-full bg-muted">

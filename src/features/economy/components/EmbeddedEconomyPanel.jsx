@@ -1,5 +1,4 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Activity } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/supabaseClient';
 import {
@@ -116,16 +115,12 @@ const EmbeddedEconomyPanel = ({ view = 'public', showHeader = true }) => {
   return (
     <div className="space-y-5">
       {showHeader ? (
-        <div className="flex flex-col gap-3 rounded-xl border border-border/70 bg-muted/25 p-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="rounded-xl border border-border/70 bg-muted/25 p-4">
           <div>
             <p className="font-semibold">{config.label}</p>
             <p className="text-sm text-muted-foreground">
               Dados oficiais do motor econômico, atualizados a partir das ações do RP.
             </p>
-          </div>
-          <div className="flex items-center gap-2 text-xs font-medium text-emerald-300">
-            <Activity className="h-4 w-4" />
-            Atualização em tempo real
           </div>
         </div>
       ) : null}

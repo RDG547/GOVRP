@@ -43,7 +43,7 @@ const DashboardSelectorDialog = ({
             >
               <Link to="/dashboard/president" onClick={close}>
                 <FolderKanban className="h-5 w-5" />
-                <span>Painel Presidencial Integrado</span>
+                <span>Painel Presidencial</span>
               </Link>
             </Button>
           )}

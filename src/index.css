@@ -60,12 +60,52 @@
 @layer base {
   * {
     @apply border-border;
+    scrollbar-color: rgba(56, 189, 248, 0.48) rgba(7, 16, 31, 0.72);
+    scrollbar-width: thin;
+  }
+
+  html {
+    scrollbar-gutter: stable;
   }
 
   body {
     @apply bg-background text-foreground;
     font-family: "Twemoji Country Flags", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   }
+
+  select {
+    color-scheme: dark;
+  }
+
+  select option {
+    background: #07101f;
+    color: #e2e8f0;
+  }
+}
+
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+*::-webkit-scrollbar-track {
+  background: rgba(7, 16, 31, 0.72);
+  border-radius: 999px;
+}
+
+*::-webkit-scrollbar-thumb {
+  min-height: 32px;
+  border: 2px solid rgba(7, 16, 31, 0.92);
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(34, 211, 238, 0.72), rgba(37, 99, 235, 0.72));
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, rgb(103, 232, 249), rgb(59, 130, 246));
+}
+
+*::-webkit-scrollbar-corner {
+  background: #07101f;
 }
 
 @layer components {
@@ -101,23 +141,6 @@
   }
 
   /* --- FIM DOS ESTILOS PARA O CAMPO DE TELEFONE --- */
-}
-
-.custom-scrollbar::-webkit-scrollbar {
-  width: 8px;
-}
-
-.custom-scrollbar::-webkit-scrollbar-track {
-  background: hsl(var(--secondary));
-}
-
-.custom-scrollbar::-webkit-scrollbar-thumb {
-  background: hsl(var(--primary) / 0.5);
-  border-radius: 4px;
-}
-
-.custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: hsl(var(--primary));
 }
 
 /* Credit Card Styles */

@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { applyPolicy, simulatePolicy } from '@/lib/economy/api';
 import { policyLabels, scenarioMetricLabels } from '@/lib/economy/format';
 
@@ -96,19 +97,22 @@ const PolicyStudio = ({ toast, onApplied, allowedPolicies = DEFAULT_POLICIES }) 
         <div className="grid gap-4 md:grid-cols-3">
           <div className="space-y-2">
             <Label htmlFor="policy-type">Política</Label>
-            <select
-              id="policy-type"
-              className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+            <Select
               value={form.policyType}
-              onChange={(event) => {
-                setForm((current) => ({ ...current, policyType: event.target.value }));
+              onValueChange={(policyType) => {
+                setForm((current) => ({ ...current, policyType }));
                 setSimulation(null);
               }}
             >
-              {allowedPolicies.map((policy) => (
-                <option key={policy} value={policy}>{policyLabels[policy] || policy}</option>
-              ))}
-            </select>
+              <SelectTrigger id="policy-type">
+                <SelectValue placeholder="Escolha a política" />
+              </SelectTrigger>
+              <SelectContent>
+                {allowedPolicies.map((policy) => (
+                  <SelectItem key={policy} value={policy}>{policyLabels[policy] || policy}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <div className="space-y-2">
             <Label htmlFor="policy-value">Novo valor</Label>

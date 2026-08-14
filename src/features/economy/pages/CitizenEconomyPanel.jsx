@@ -3,6 +3,7 @@ import { Briefcase, CreditCard, Gauge, PiggyBank, ShoppingCart, Wallet } from 'l
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import EconomyCard from '@/features/economy/components/EconomyCard';
 import EconomyChart from '@/features/economy/components/EconomyChart';
 import { updateLaborStatus } from '@/lib/economy/api';
@@ -83,12 +84,9 @@ const CitizenEconomyPanel = ({ data, onRefresh, toast }) => {
             </div>
             <div className="space-y-2">
               <Label htmlFor="labor-status">Situação declarada</Label>
-              <select
-                id="labor-status"
-                className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+              <Select
                 value={form.laborStatus}
-                onChange={(event) => {
-                  const laborStatus = event.target.value;
+                onValueChange={(laborStatus) => {
                   setForm((current) => ({
                     ...current,
                     laborStatus,
@@ -96,11 +94,16 @@ const CitizenEconomyPanel = ({ data, onRefresh, toast }) => {
                   }));
                 }}
               >
-                <option value="self_employed">Autônomo</option>
-                <option value="unemployed">Desempregado procurando trabalho</option>
-                <option value="outside_labor_force">Fora da força de trabalho</option>
-                <option value="retired">Aposentado</option>
-              </select>
+                <SelectTrigger id="labor-status">
+                  <SelectValue placeholder="Escolha a situação" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="self_employed">Autônomo</SelectItem>
+                  <SelectItem value="unemployed">Desempregado procurando trabalho</SelectItem>
+                  <SelectItem value="outside_labor_force">Fora da força de trabalho</SelectItem>
+                  <SelectItem value="retired">Aposentado</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <label className="flex items-center gap-3 text-sm">
               <input

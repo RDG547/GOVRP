@@ -6,6 +6,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
@@ -428,11 +429,16 @@ const AdminDashboard = () => {
                   </div>
                   <div>
                     <Label htmlFor="role">Função</Label>
-                    <select id="role" name="role" defaultValue={selectedUser.role} className="w-full p-2 rounded border border-slate-600 bg-slate-800 text-white">
-                      <option value="Cidadão">Cidadão</option>
-                      <option value="Admin">Admin</option>
-                      <option value="Moderador">Moderador</option>
-                    </select>
+                    <Select name="role" defaultValue={selectedUser.role}>
+                      <SelectTrigger id="role">
+                        <SelectValue placeholder="Escolha a função" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Cidadão">Cidadão</SelectItem>
+                        <SelectItem value="Admin">Admin</SelectItem>
+                        <SelectItem value="Moderador">Moderador</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                    <div>
                     <Label htmlFor="titles">Títulos (separados por vírgula)</Label>

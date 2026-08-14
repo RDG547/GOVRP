@@ -3,7 +3,6 @@ import { Helmet } from 'react-helmet-async';
 import { useSearchParams } from 'react-router-dom';
 import {
   Building2,
-  Activity,
   Landmark,
   LineChart,
   ShieldCheck,
@@ -166,7 +165,7 @@ const Economy = () => {
           centered
         />
 
-        <div className="mb-8 flex flex-col gap-3 rounded-2xl border border-border/70 bg-muted/25 p-3 lg:flex-row lg:items-center lg:justify-between">
+        <div className="mb-8 flex flex-wrap gap-2 rounded-2xl border border-border/70 bg-muted/25 p-3">
           <div className="flex flex-wrap gap-2">
             {availablePanels.map((panel) => {
               const config = panelConfig[panel];
@@ -183,10 +182,6 @@ const Economy = () => {
                 </Button>
               );
             })}
-          </div>
-          <div className="flex items-center gap-2 px-2 text-xs font-medium text-emerald-300">
-            <Activity className="h-4 w-4" />
-            <span>{loading[activePanel] ? 'Sincronizando…' : 'Atualização em tempo real'}</span>
           </div>
         </div>
 

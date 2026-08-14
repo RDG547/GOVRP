@@ -133,6 +133,7 @@ const formatRate = (value) => {
 
 const indicatorDetail = (indicator) => {
   if (!indicator) return null;
+  if (indicator.year === 'RP') return indicator.source || 'GOV.RP';
   return [indicator.source, indicator.year ? `Referência ${indicator.year}` : null]
     .filter(Boolean)
     .join(' · ') || null;
@@ -686,7 +687,7 @@ const InteractiveGlobe = () => {
             </div>
 
             {selectedCountry && (
-              <div className="custom-scrollbar mt-3 max-h-[235px] overflow-y-auto border-t border-white/10 pr-1 pt-3">
+              <div className="custom-scrollbar mt-3 max-h-[270px] overflow-y-auto border-t border-white/10 pr-1 pt-3">
                 <div className="mb-2 flex items-center justify-between gap-2">
                   <p className="text-[9px] font-semibold uppercase tracking-[0.16em] text-slate-500">Panorama nacional</p>
                   <div className="flex items-center gap-2">
@@ -697,15 +698,13 @@ const InteractiveGlobe = () => {
                           : 'border-white/10 bg-white/[0.035] text-slate-500'
                       }`}
                       >
-                        {isRpProfile
-                          ? `RP ao vivo · eco ${Math.round((rpContext?.economyInfluence ?? 0) * 100)}% · pol ${Math.round((rpContext?.politicsInfluence ?? 0) * 100)}%`
-                          : 'Base real'}
+                        {isRpProfile ? 'Dados do GOV.RP' : 'Base real'}
                       </span>
                     )}
                     {isProfileLoading && (
                       <span className="flex items-center gap-1.5 text-[9px] text-cyan-300">
                         <Loader2 className="h-3 w-3 animate-spin" />
-                        Atualizando dados
+                        Carregando dados
                       </span>
                     )}
                     {profileStatus === 'error' && (
@@ -714,91 +713,110 @@ const InteractiveGlobe = () => {
                   </div>
                 </div>
 
-                <dl className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
-                  <ProfileMetric
-                    label="PIB total"
-                    value={formatGdp(economicData?.gdp?.value)}
-                    detail={indicatorDetail(economicData?.gdp)}
-                    loading={isProfileLoading}
-                  />
-                  <ProfileMetric
-                    label="Taxa de crescimento"
-                    value={formatGrowth(economicData?.growth?.value)}
-                    detail={indicatorDetail(economicData?.growth)}
-                    loading={isProfileLoading}
-                  />
-                  <ProfileMetric
-                    label="Inflação atual"
-                    value={formatRate(economicData?.inflation?.value)}
-                    detail={indicatorDetail(economicData?.inflation)}
-                    loading={isProfileLoading}
-                  />
-                  <ProfileMetric
-                    label="Taxa de desemprego"
-                    value={formatRate(economicData?.unemployment?.value)}
-                    detail={indicatorDetail(economicData?.unemployment)}
-                    loading={isProfileLoading}
-                  />
-                  <ProfileMetric
-                    label="População total"
-                    value={formatPopulation(economicData?.population?.value)}
-                    detail={indicatorDetail(economicData?.population)}
-                    loading={isProfileLoading}
-                  />
-                  <ProfileMetric
-                    label="Área aproximada"
-                    value={formatArea(economicData?.area?.value ?? selectedCountry.info.area)}
-                    detail={indicatorDetail(economicData?.area) || 'Geometria territorial do globo'}
-                  />
-                  <ProfileMetric
-                    label="Câmbio com o dólar"
-                    value={formatExchange(exchangeData?.usd, 'US$', exchangeData?.currency)}
-                    detail={exchangeData?.date ? `Cotação ${exchangeData.date}` : null}
-                    loading={isProfileLoading}
-                  />
-                  <ProfileMetric
-                    label="Câmbio com o euro"
-                    value={formatExchange(exchangeData?.eur, '€', exchangeData?.currency)}
-                    detail={exchangeData?.date ? `Cotação ${exchangeData.date}` : null}
-                    loading={isProfileLoading}
-                  />
-                </dl>
+                <section className="rounded-xl border border-cyan-400/10 bg-cyan-400/[0.025] p-2">
+                  <h4 className="mb-1.5 flex items-center gap-1.5 text-[8px] font-bold uppercase tracking-[0.16em] text-cyan-300">
+                    <span className="h-1.5 w-1.5 rounded-full bg-cyan-400" />
+                    Economia
+                  </h4>
+                  <dl className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
+                    <ProfileMetric
+                      label="PIB total"
+                      value={formatGdp(economicData?.gdp?.value)}
+                      detail={indicatorDetail(economicData?.gdp)}
+                      loading={isProfileLoading}
+                    />
+                    <ProfileMetric
+                      label="Taxa de crescimento"
+                      value={formatGrowth(economicData?.growth?.value)}
+                      detail={indicatorDetail(economicData?.growth)}
+                      loading={isProfileLoading}
+                    />
+                    <ProfileMetric
+                      label="Inflação atual"
+                      value={formatRate(economicData?.inflation?.value)}
+                      detail={indicatorDetail(economicData?.inflation)}
+                      loading={isProfileLoading}
+                    />
+                    <ProfileMetric
+                      label="Taxa de desemprego"
+                      value={formatRate(economicData?.unemployment?.value)}
+                      detail={indicatorDetail(economicData?.unemployment)}
+                      loading={isProfileLoading}
+                    />
+                    <ProfileMetric
+                      label="Câmbio com o dólar"
+                      value={formatExchange(exchangeData?.usd, 'US$', exchangeData?.currency)}
+                      detail={exchangeData?.date ? `Cotação ${exchangeData.date}` : null}
+                      loading={isProfileLoading}
+                    />
+                    <ProfileMetric
+                      label="Câmbio com o euro"
+                      value={formatExchange(exchangeData?.eur, '€', exchangeData?.currency)}
+                      detail={exchangeData?.date ? `Cotação ${exchangeData.date}` : null}
+                      loading={isProfileLoading}
+                    />
+                  </dl>
+                </section>
 
-                <dl className="mt-1.5 grid gap-1.5 sm:grid-cols-3">
-                  <ProfileMetric
-                    label={governmentData?.office || 'Presidente / chefe de Estado'}
-                    value={governmentData?.leader || 'Indisponível'}
-                    loading={isProfileLoading}
-                    multiline
-                  />
-                  <ProfileMetric
-                    label={governmentData?.partyLabel || 'Partido'}
-                    value={governmentData?.party || 'Não informado'}
-                    loading={isProfileLoading}
-                    multiline
-                  />
-                  <ProfileMetric
-                    label="Ideologia política"
-                    value={governmentData?.ideology || 'Não informada'}
-                    loading={isProfileLoading}
-                    multiline
-                  />
-                  <ProfileMetric
-                    label="Regime político"
-                    value={regimeData?.label || 'Não classificado'}
-                    detail={regimeData?.year
-                      ? `${regimeData.source || 'V-Dem'} · Referência ${regimeData.year}`
-                      : null}
-                    loading={isProfileLoading}
-                    multiline
-                  />
-                  <ProfileMetric
-                    label="Forma de governo"
-                    value={governmentData?.governmentForm || 'Não informado'}
-                    loading={isProfileLoading}
-                    multiline
-                  />
-                </dl>
+                <section className="mt-2 rounded-xl border border-blue-400/10 bg-blue-400/[0.025] p-2">
+                  <h4 className="mb-1.5 flex items-center gap-1.5 text-[8px] font-bold uppercase tracking-[0.16em] text-blue-300">
+                    <span className="h-1.5 w-1.5 rounded-full bg-blue-400" />
+                    Demografia e território
+                  </h4>
+                  <dl className="grid grid-cols-2 gap-1.5">
+                    <ProfileMetric
+                      label="População total"
+                      value={formatPopulation(economicData?.population?.value)}
+                      detail={indicatorDetail(economicData?.population)}
+                      loading={isProfileLoading}
+                    />
+                    <ProfileMetric
+                      label="Área aproximada"
+                      value={formatArea(economicData?.area?.value ?? selectedCountry.info.area)}
+                      detail={indicatorDetail(economicData?.area) || 'Geometria territorial do globo'}
+                    />
+                  </dl>
+                </section>
+
+                <section className="mt-2 rounded-xl border border-violet-400/10 bg-violet-400/[0.025] p-2">
+                  <h4 className="mb-1.5 flex items-center gap-1.5 text-[8px] font-bold uppercase tracking-[0.16em] text-violet-300">
+                    <span className="h-1.5 w-1.5 rounded-full bg-violet-400" />
+                    Política e governo
+                  </h4>
+                  <dl className="grid gap-1.5 sm:grid-cols-3">
+                    <ProfileMetric
+                      label={governmentData?.office || 'Presidente / chefe de Estado'}
+                      value={governmentData?.leader || 'Indisponível'}
+                      loading={isProfileLoading}
+                      multiline
+                    />
+                    <ProfileMetric
+                      label={governmentData?.partyLabel || 'Partido'}
+                      value={governmentData?.party || 'Não informado'}
+                      loading={isProfileLoading}
+                      multiline
+                    />
+                    <ProfileMetric
+                      label="Ideologia política"
+                      value={governmentData?.ideology || 'Não informada'}
+                      loading={isProfileLoading}
+                      multiline
+                    />
+                    <ProfileMetric
+                      label="Regime político"
+                      value={regimeData?.label || 'Não classificado'}
+                      detail={indicatorDetail(regimeData)}
+                      loading={isProfileLoading}
+                      multiline
+                    />
+                    <ProfileMetric
+                      label="Forma de governo"
+                      value={governmentData?.governmentForm || 'Não informado'}
+                      loading={isProfileLoading}
+                      multiline
+                    />
+                  </dl>
+                </section>
 
                 {isRpProfile && rpContext?.lastEventSummary && (
                   <p className="mt-2 rounded-lg border border-cyan-400/10 bg-cyan-400/[0.04] px-2.5 py-2 text-[9px] leading-relaxed text-cyan-100/70">
@@ -808,16 +826,22 @@ const InteractiveGlobe = () => {
                 )}
 
                 <p className="mt-2 text-[8px] leading-relaxed text-slate-600">
-                  Indicadores: Banco Mundial/FMI via DBnomics · Câmbio: Frankfurter/
-                  <a
-                    href="https://www.exchangerate-api.com"
-                    target="_blank"
-                    rel="noreferrer"
-                    className="transition hover:text-slate-400"
-                  >
-                    ExchangeRate-API
-                  </a>
-                  {' '}· Política: Wikidata/Wikipedia e V-Dem/Our World in Data
+                  {isRpProfile ? (
+                    'O país iniciou com uma fotografia dos dados reais; desde então, estes valores pertencem ao estado do GOV.RP.'
+                  ) : (
+                    <>
+                      Indicadores: Banco Mundial/FMI via DBnomics · Câmbio: Frankfurter/
+                      <a
+                        href="https://www.exchangerate-api.com"
+                        target="_blank"
+                        rel="noreferrer"
+                        className="transition hover:text-slate-400"
+                      >
+                        ExchangeRate-API
+                      </a>
+                      {' '}· Política: Wikidata/Wikipedia e V-Dem/Our World in Data
+                    </>
+                  )}
                 </p>
               </div>
             )}
