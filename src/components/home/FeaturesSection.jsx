@@ -1,6 +1,8 @@
-import React from 'react';
+import React, { lazy, Suspense } from 'react';
 import { motion } from 'framer-motion';
 import { Gavel, DollarSign, Flag } from 'lucide-react';
+
+const InteractiveGlobe = lazy(() => import('@/components/home/InteractiveGlobe'));
 
 const features = [
   {
@@ -17,8 +19,8 @@ const features = [
   },
   {
     icon: Flag,
-    title: 'Criação e Gestão de Nações',
-    description: 'Funde sua própria nação, defina suas leis, cultura e dispute a hegemonia no cenário global.',
+    title: 'Governo e Gestão de Nações',
+    description: 'Assuma o governo de uma nação existente, administre suas instituições, conduza políticas públicas e dispute influência no cenário global.',
     color: 'text-blue-400'
   }
 ];
@@ -57,10 +59,18 @@ const FeaturesSection = () => {
             whileInView={{ opacity: 1, scale: 1 }}
             viewport={{ once: true }}
             transition={{ duration: 0.8, delay: 0.2 }}
-            className="relative aspect-square"
+            className="relative aspect-[3/5] min-h-[520px] sm:aspect-square sm:min-h-0"
           >
-            <div className="absolute inset-0 bg-gradient-to-br from-purple-600 to-blue-600 rounded-full blur-3xl opacity-30"></div>
-            <img className="relative w-full h-full object-cover rounded-2xl" alt="Mapa mundi digital com pontos de luz conectados" src="https://images.unsplash.com/photo-1679830238737-5bc41f101bbb" />
+            <div className="absolute inset-8 bg-gradient-to-br from-cyan-500 to-blue-700 rounded-full blur-3xl opacity-25" />
+            <Suspense
+              fallback={(
+                <div className="relative flex h-full w-full items-center justify-center overflow-hidden rounded-3xl border border-blue-400/20 bg-[#020611]">
+                  <div className="h-2/3 w-2/3 animate-pulse rounded-full border border-cyan-300/50 bg-[radial-gradient(circle_at_35%_28%,#1d4ed8,#06183d_68%,#01040d)] shadow-[0_0_70px_rgba(56,189,248,0.3)]" />
+                </div>
+              )}
+            >
+              <InteractiveGlobe />
+            </Suspense>
           </motion.div>
         </div>
       </div>

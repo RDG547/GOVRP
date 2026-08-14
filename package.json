@@ -50,11 +50,14 @@
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.0.0",
     "cmdk": "^1.0.0",
+    "country-currency": "^1.0.1",
+    "d3-geo": "^3.1.1",
     "date-fns": "^3.6.0",
     "embla-carousel-react": "^8.6.0",
     "framer-motion": "^10.16.4",
     "html2canvas": "^1.4.1",
     "input-otp": "^1.4.2",
+    "iso-3166-1": "^2.1.1",
     "jspdf": "^4.2.1",
     "libphonenumber-js": "^1.11.3",
     "lucide-react": "^0.292.0",
@@ -70,12 +73,14 @@
     "react-input-mask": "^2.0.4",
     "react-phone-number-input": "^3.4.3",
     "react-resizable-panels": "^4.10.0",
-    "react-router-dom": "^6.30.3",
+    "react-router-dom": "^7.18.2",
     "recharts": "^2.10.3",
     "stripe": "^21.0.1",
     "tailwind-merge": "^2.0.0",
     "tailwindcss-animate": "^1.0.7",
+    "topojson-client": "^3.1.0",
     "vaul": "^1.1.2",
+    "world-atlas": "^2.0.2",
     "zod": "^3.22.4"
   },
   "devDependencies": {
@@ -83,7 +88,7 @@
     "@types/react": "^18.2.15",
     "@types/react-dom": "^18.2.7",
     "@types/react-input-mask": "^3.0.4",
-    "@vitejs/plugin-react": "^4.0.3",
+    "@vitejs/plugin-react": "^5.2.0",
     "autoprefixer": "^10.4.16",
     "eslint": "^8.57.1",
     "eslint-config-react-app": "^7.0.1",
@@ -91,6 +96,11 @@
     "postcss": "^8.4.31",
     "supabase": "^2.109.1",
     "tailwindcss": "^3.3.3",
-    "vite": "^4.4.5"
+    "vite": "^7.3.6"
+  },
+  "allowScripts": {
+    "esbuild@0.28.2": true,
+    "@tsparticles/engine": false,
+    "core-js": false
   }
 }
