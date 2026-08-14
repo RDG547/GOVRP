@@ -45,6 +45,7 @@ import {
     reviewPresidentialBill,
 } from '@/lib/executiveGovernance';
 import { fetchWithSessionAuth } from '@/lib/apiAuth';
+import { applyPolicy } from '@/lib/economy/api';
 
 const MINISTRY_INFO = {
     'Ministério da Justiça': { icon: Shield, color: 'text-blue-400', bgColor: 'bg-blue-500/20' },
@@ -769,7 +770,7 @@ const LoanManager = ({ onUpdate, setActiveTab, govFinances }) => {
     );
 };
 
-const SelicManager = ({ economicPolicy, bankPolicy, onUpdate, actorId }) => {
+const SelicManager = ({ economicPolicy, bankPolicy, onUpdate }) => {
     const { toast } = useToast();
     const [selicRate, setSelicRate] = useState(Number(economicPolicy?.selic_rate ?? DEFAULT_ECONOMIC_POLICY.selic_rate));
     const [isSaving, setIsSaving] = useState(false);
@@ -798,60 +799,14 @@ const SelicManager = ({ economicPolicy, bankPolicy, onUpdate, actorId }) => {
             const nextEconomicPolicy = normalizeEconomicPolicy({
                 ...economicPolicy,
                 selic_rate: selicRate,
-                updated_at: new Date().toISOString(),
-                updated_by: actorId || null,
             });
-            const nextBankPolicy = normalizeBankPolicyForEconomicPolicy(
-                bankPolicy,
-                nextEconomicPolicy,
-                DEFAULT_BANK_POLICY
-            );
-            const { data: investmentOptions, error: investmentOptionsError } = await supabase
-                .from('investment_options')
-                .select('id, risk_level');
 
-            if (investmentOptionsError) {
-                throw investmentOptionsError;
-            }
-
-            await Promise.all([
-                supabase
-                    .from('system_settings')
-                    .upsert(
-                        {
-                            key: ECONOMIC_POLICY_SETTINGS_KEY,
-                            value: nextEconomicPolicy,
-                            description: 'Política monetária nacional e taxa Selic.',
-                        },
-                        { onConflict: 'key' }
-                    )
-                    .then(({ error }) => {
-                        if (error) throw error;
-                    }),
-                supabase
-                    .from('system_settings')
-                    .upsert(
-                        {
-                            key: BANK_POLICY_SETTINGS_KEY,
-                            value: nextBankPolicy,
-                            description: 'Política de juros e crédito do Banco Nacional.',
-                        },
-                        { onConflict: 'key' }
-                    )
-                    .then(({ error }) => {
-                        if (error) throw error;
-                    }),
-                ...(investmentOptions || []).map(async (option) => {
-                    const { error } = await supabase
-                        .from('investment_options')
-                        .update({ annual_return_rate: buildInvestmentAnnualRate(nextEconomicPolicy.selic_rate, option.risk_level || 'medium') })
-                        .eq('id', option.id);
-
-                    if (error) {
-                        throw error;
-                    }
-                }),
-            ]);
+            await applyPolicy({
+                policyType: 'selic',
+                newValue: nextEconomicPolicy.selic_rate,
+                marketExpectation: economicPolicy?.selic_rate,
+                justification: 'Decisão de política monetária registrada pela Presidência no painel oficial.',
+            });
 
             await publishOfficialGazetteEntry(supabase, {
                 title: `Fixação da taxa Selic em ${nextEconomicPolicy.selic_rate.toFixed(2)}% a.a.`,
@@ -2361,14 +2316,15 @@ const PresidentDashboard = () => {
     const [executiveState, setExecutiveState] = useState(null);
     const [activeTab, setActiveTab] = useState('overview');
 
-    const fetchData = useCallback(async () => {
-        setLoading(true);
+    const fetchData = useCallback(async (showLoading = true) => {
+        if (showLoading) setLoading(true);
         try {
-            const [ministersRes, decreesRes, settingsRes, financesRes, executiveStateRes] = await Promise.all([
+            const [ministersRes, decreesRes, settingsRes, financesRes, economicStateRes, executiveStateRes] = await Promise.all([
                 supabase.from('ministers').select('*, profile:profiles(id, full_name)'),
                 supabase.from('decrees').select('*').order('created_at', { ascending: false }),
                 supabase.from('system_settings').select('key, value'),
                 supabase.from('government_finances').select('*').single(),
+                supabase.from('economic_state').select('current_selic').eq('id', true).single(),
                 fetchExecutiveConstitutionalState(supabase),
             ]);
 
@@ -2376,6 +2332,7 @@ const PresidentDashboard = () => {
             if (decreesRes.error) throw decreesRes.error;
             if (settingsRes.error) throw settingsRes.error;
             if (financesRes.error) throw financesRes.error;
+            if (economicStateRes.error) throw economicStateRes.error;
 
             setMinisters(ministersRes.data || []);
             setDecrees(decreesRes.data || []);
@@ -2409,7 +2366,10 @@ const PresidentDashboard = () => {
             setTaxes(settingsMap.tax_rates || { product_tax: 0, service_tax: 0, transaction_tax: { type: 'percentage', value: 0 } });
             setServicePrices(settingsMap.basic_service_prices || {});
             setBaseTariffs(settingsMap.base_tariffs || {});
-            const normalizedEconomicPolicy = normalizeEconomicPolicy(settingsMap[ECONOMIC_POLICY_SETTINGS_KEY]);
+            const normalizedEconomicPolicy = normalizeEconomicPolicy({
+                ...settingsMap[ECONOMIC_POLICY_SETTINGS_KEY],
+                selic_rate: economicStateRes.data.current_selic,
+            });
             setEconomicPolicy(normalizedEconomicPolicy);
             setBankPolicy(
                 normalizeBankPolicyForEconomicPolicy(
@@ -2425,12 +2385,46 @@ const PresidentDashboard = () => {
         } catch (error) {
             toast({ title: 'Erro ao carregar dados', description: error.message, variant: 'destructive' });
         } finally {
-            setLoading(false);
+            if (showLoading) setLoading(false);
         }
     }, [toast]);
 
     useEffect(() => {
         fetchData();
+    }, [fetchData]);
+
+    useEffect(() => {
+        let refreshTimer;
+        const scheduleRefresh = () => {
+            window.clearTimeout(refreshTimer);
+            refreshTimer = window.setTimeout(() => fetchData(false), 250);
+        };
+        let channel = supabase.channel('presidential-dashboard-live');
+
+        [
+            'ministers',
+            'decrees',
+            'bills',
+            'system_settings',
+            'government_finances',
+            'economic_state',
+            'economic_policy_decisions',
+            'investment_options',
+            'profiles',
+            'elections',
+            'candidates',
+            'party_members',
+        ].forEach((table) => {
+            channel = channel.on('postgres_changes', {
+                event: '*', schema: 'public', table,
+            }, scheduleRefresh);
+        });
+
+        channel.subscribe();
+        return () => {
+            window.clearTimeout(refreshTimer);
+            supabase.removeChannel(channel);
+        };
     }, [fetchData]);
 
     const handleResignation = async () => {
@@ -2693,7 +2687,7 @@ const PresidentDashboard = () => {
 
                                 <TabsContent value="monetary" className="mt-0">
                                     <div className="max-w-4xl mx-auto">
-                                        <SelicManager economicPolicy={economicPolicy} bankPolicy={bankPolicy} onUpdate={fetchData} actorId={user?.id} />
+                                        <SelicManager economicPolicy={economicPolicy} bankPolicy={bankPolicy} onUpdate={fetchData} />
                                     </div>
                                 </TabsContent>
 

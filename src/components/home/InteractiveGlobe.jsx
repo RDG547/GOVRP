@@ -93,13 +93,14 @@ const normalizeLongitude = (longitude) => {
 
 const formatArea = (area) => `${Math.round(area).toLocaleString('pt-BR')} km²`;
 
-const formatGdp = (value) => {
+const formatGdp = (value, currency = 'USD') => {
   if (value === null || value === undefined) return 'Indisponível';
 
   return new Intl.NumberFormat('pt-BR', {
     style: 'currency',
-    currency: 'USD',
+    currency: currency || 'USD',
     notation: 'compact',
+    minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(value);
 };
@@ -117,8 +118,8 @@ const formatGrowth = (value) => {
   if (value === null || value === undefined) return 'Indisponível';
 
   return `${value >= 0 ? '+' : ''}${value.toLocaleString('pt-BR', {
-    minimumFractionDigits: 1,
-    maximumFractionDigits: 1,
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
   })}%`;
 };
 
@@ -126,7 +127,7 @@ const formatRate = (value) => {
   if (value === null || value === undefined) return 'Indisponível';
 
   return `${value.toLocaleString('pt-BR', {
-    minimumFractionDigits: 1,
+    minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })}%`;
 };
@@ -721,7 +722,7 @@ const InteractiveGlobe = () => {
                   <dl className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
                     <ProfileMetric
                       label="PIB total"
-                      value={formatGdp(economicData?.gdp?.value)}
+                      value={formatGdp(economicData?.gdp?.value, economicData?.gdp?.currency)}
                       detail={indicatorDetail(economicData?.gdp)}
                       loading={isProfileLoading}
                     />

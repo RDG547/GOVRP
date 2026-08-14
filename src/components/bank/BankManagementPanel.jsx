@@ -300,17 +300,18 @@ const BankManagementPanel = () => {
     );
   }, []);
 
-  const fetchData = useCallback(async () => {
+  const fetchData = useCallback(async (showLoading = true) => {
     if (!canManage) {
       setLoading(false);
       return;
     }
 
-    setLoading(true);
+    if (showLoading) setLoading(true);
     try {
-      const [policyResponse, economicPolicyResponse, cardsResponse, loansResponse, accountsResponse, issuedCardsResponse] = await Promise.all([
+      const [policyResponse, economicPolicyResponse, economicStateResponse, cardsResponse, loansResponse, accountsResponse, issuedCardsResponse] = await Promise.all([
         supabase.from('system_settings').select('value').eq('key', BANK_POLICY_SETTINGS_KEY).maybeSingle(),
         supabase.from('system_settings').select('value').eq('key', ECONOMIC_POLICY_SETTINGS_KEY).maybeSingle(),
+        supabase.from('economic_state').select('current_selic').eq('id', true).single(),
         supabase.from('credit_card_applications').select('*').order('created_at', { ascending: false }).limit(50),
         supabase.from('loan_applications').select('*').order('created_at', { ascending: false }).limit(50),
         supabase.from('accounts').select('id, user_id, account_number, agency_number, balance').order('created_at', { ascending: false }).limit(200),
@@ -323,6 +324,10 @@ const BankManagementPanel = () => {
 
       if (economicPolicyResponse.error) {
         throw economicPolicyResponse.error;
+      }
+
+      if (economicStateResponse.error) {
+        throw economicStateResponse.error;
       }
 
       if (cardsResponse.error) {
@@ -341,7 +346,10 @@ const BankManagementPanel = () => {
         throw issuedCardsResponse.error;
       }
 
-      const normalizedEconomicPolicy = normalizeEconomicPolicy(economicPolicyResponse.data?.value);
+      const normalizedEconomicPolicy = normalizeEconomicPolicy({
+        ...economicPolicyResponse.data?.value,
+        selic_rate: economicStateResponse.data.current_selic,
+      });
       const normalizedPolicy = normalizeBankPolicy(
         normalizeBankPolicyForEconomicPolicy(
           policyResponse.data?.value,
@@ -403,13 +411,44 @@ const BankManagementPanel = () => {
     } catch (error) {
       toast({ title: 'Erro ao carregar gestão bancária', description: error.message, variant: 'destructive' });
     } finally {
-      setLoading(false);
+      if (showLoading) setLoading(false);
     }
   }, [canManage, fetchProfiles, toast]);
 
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  useEffect(() => {
+    if (!canManage) return undefined;
+
+    let refreshTimer;
+    const scheduleRefresh = () => {
+      window.clearTimeout(refreshTimer);
+      refreshTimer = window.setTimeout(() => fetchData(false), 250);
+    };
+    let channel = supabase.channel('bank-management-live');
+
+    [
+      'economic_state',
+      'system_settings',
+      'investment_options',
+      'credit_card_applications',
+      'loan_applications',
+      'accounts',
+      'cards',
+    ].forEach((table) => {
+      channel = channel.on('postgres_changes', {
+        event: '*', schema: 'public', table,
+      }, scheduleRefresh);
+    });
+
+    channel.subscribe();
+    return () => {
+      window.clearTimeout(refreshTimer);
+      supabase.removeChannel(channel);
+    };
+  }, [canManage, fetchData]);
 
   const pendingCreditApplications = useMemo(
     () => creditApplications.filter((application) => isPendingStatus(application.status)),

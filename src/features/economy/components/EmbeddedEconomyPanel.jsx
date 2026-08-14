@@ -89,7 +89,12 @@ const EmbeddedEconomyPanel = ({ view = 'public', showHeader = true }) => {
       'price_basket_items',
       'economic_bulletins',
       'economic_alerts',
+      'economic_policy_decisions',
+      'government_finances',
+      'investment_options',
+      'system_settings',
       'country_rp_states',
+      'country_rp_economic_snapshots',
     ].forEach((table) => {
       channel = channel.on('postgres_changes', {
         event: '*', schema: 'public', table,

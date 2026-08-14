@@ -1,7 +1,7 @@
 import React from 'react';
-import { Activity, Database, Users } from 'lucide-react';
+import { Activity, Scale, Users } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { activityLevelLabels, cycleLabels, formatPercent } from '@/lib/economy/format';
+import { activityLevelLabels, cycleLabels } from '@/lib/economy/format';
 
 const stateColors = {
   expansion: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300',
@@ -35,12 +35,12 @@ const EconomyStateBanner = ({ state }) => (
       </div>
     </div>
     <div className="flex items-center gap-3">
-      <Database className="h-5 w-5 text-amber-300" />
+      <Scale className="h-5 w-5 text-amber-300" />
       <div>
-        <p className="text-xs text-muted-foreground">Composição híbrida</p>
+        <p className="text-xs text-muted-foreground">Influência nos resultados</p>
         <p className="font-medium">
-          {formatPercent((state?.player_share || 0) * 100)} jogadores ·{' '}
-          {formatPercent((state?.simulated_share || 0) * 100)} base
+          {Math.round(Number(state?.player_share ?? 0.5) * 100)}% jogadores ·{' '}
+          {Math.round(Number(state?.simulated_share ?? 0.5) * 100)}% simulação
         </p>
       </div>
     </div>

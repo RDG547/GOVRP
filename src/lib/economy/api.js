@@ -1,12 +1,33 @@
 import { supabase } from '@/lib/supabaseClient';
+import { composeNationalEconomyDashboard } from '@/lib/countryRpEconomy';
 
 const unwrap = ({ data, error }) => {
   if (error) throw error;
   return data;
 };
 
-export const fetchPublicEconomy = async () =>
-  unwrap(await supabase.rpc('get_public_economic_dashboard'));
+export const fetchPublicEconomy = async () => {
+  const [dashboardResult, rpStateResult, snapshotsResult] = await Promise.all([
+    supabase.rpc('get_public_economic_dashboard'),
+    supabase
+      .from('country_rp_states')
+      .select('country_code, is_playable, economic_current, player_share, simulated_share, reference_snapshot_at, updated_at')
+      .eq('country_code', 'BR')
+      .maybeSingle(),
+    supabase
+      .from('country_rp_economic_snapshots')
+      .select('revision, economic_state, recorded_at')
+      .eq('country_code', 'BR')
+      .order('recorded_at', { ascending: false })
+      .limit(120),
+  ]);
+
+  const dashboard = unwrap(dashboardResult);
+  const rpState = rpStateResult.error ? null : rpStateResult.data;
+  const snapshots = snapshotsResult.error ? [] : snapshotsResult.data;
+
+  return composeNationalEconomyDashboard({ dashboard, rpState, snapshots });
+};
 
 export const fetchCitizenEconomy = async () =>
   unwrap(await supabase.rpc('get_citizen_economic_dashboard'));
@@ -76,4 +97,3 @@ export const updateCalibration = async ({ key, value, justification }) =>
     p_value: value,
     p_justification: justification,
   }));
-

@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabaseClient';
 import { fetchPresidentialElectionHistory } from '@/lib/executiveGovernance';
+import { normalizeRpEconomicState } from '@/lib/countryRpEconomy';
 
 const DEFAULT_COUNTRY_CODE = 'BR';
 const missingRpSchemaCodes = new Set(['42P01', 'PGRST200', 'PGRST205']);
@@ -7,8 +8,10 @@ const missingRpSchemaCodes = new Set(['42P01', 'PGRST200', 'PGRST205']);
 const fetchManualPresident = async () => {
   const { data: president, error } = await supabase
     .from('profiles')
-    .select('id, full_name, username')
+    .select('id, full_name, username, role_assigned_at, updated_at')
     .eq('role', 'Presidente')
+    .order('role_assigned_at', { ascending: false, nullsFirst: false })
+    .order('updated_at', { ascending: false })
     .limit(1)
     .maybeSingle();
 
@@ -23,18 +26,23 @@ const fetchManualPresident = async () => {
 
   return {
     leader: president.full_name || president.username,
-    party: membership?.party?.name || null,
+    party: membership?.party?.name
+      ? `${membership.party.name}${membership.party.acronym ? ` (${membership.party.acronym})` : ''}`
+      : null,
     ideology: membership?.party?.ideology || membership?.party?.orientation || null,
     source: 'GOV.RP — cargo em jogo',
   };
 };
 
 const fetchBrazilPoliticalState = async () => {
+  const activePresident = await fetchManualPresident();
+  if (activePresident) return activePresident;
+
   try {
     const { currentTerm } = await fetchPresidentialElectionHistory(supabase);
     const winner = currentTerm?.winner;
 
-    if (winner?.profile) {
+    if (winner?.profile?.role === 'Presidente') {
       return {
         leader: winner.profile.full_name || winner.profile.username || winner.political_name,
         party: winner.party?.name || null,
@@ -46,7 +54,13 @@ const fetchBrazilPoliticalState = async () => {
     // A camada real continua visível se a governança do jogo ainda não estiver acessível.
   }
 
-  return fetchManualPresident();
+  return {
+    leader: 'Cargo vago',
+    office: 'Presidência da República no GOV.RP',
+    party: 'Não se aplica',
+    ideology: 'Não definida no GOV.RP',
+    source: 'GOV.RP — estado institucional',
+  };
 };
 
 const fetchRpStateRow = async (alpha2) => {
@@ -93,6 +107,8 @@ export const loadCountryRpContext = async (alpha2) => {
     referenceSnapshotAt: state?.reference_snapshot_at ?? null,
     updatedAt: state?.updated_at ?? null,
     lastEventSummary: state?.last_event_summary ?? null,
+    playerShare: Number(state?.player_share ?? 0.5),
+    simulatedShare: Number(state?.simulated_share ?? 0.5),
     hasGameplayData: Boolean(state?.is_playable && state?.reference_snapshot_at),
   };
 };
@@ -103,7 +119,7 @@ export const mergeCountryRpProfile = (realProfile, context) => {
   const economy = realProfile.economy ? { ...realProfile.economy } : {};
   const exchange = realProfile.exchange ? { ...realProfile.exchange } : {};
   const government = realProfile.government ? { ...realProfile.government } : {};
-  const economicCurrent = context.economicCurrent;
+  const economicCurrent = normalizeRpEconomicState(context.economicCurrent);
   const rpDate = context.updatedAt?.slice?.(0, 10) || 'agora';
   const rpIndicator = (value) => ({
     value: Number(value),
@@ -112,7 +128,10 @@ export const mergeCountryRpProfile = (realProfile, context) => {
   });
 
   if (economicCurrent.gdp != null) {
-    economy.gdp = rpIndicator(economicCurrent.gdp);
+    economy.gdp = {
+      ...rpIndicator(economicCurrent.gdp),
+      currency: economicCurrent.gdpCurrency || 'USD',
+    };
   }
 
   if (economicCurrent.growth != null) {
@@ -214,7 +233,18 @@ export const subscribeToCountryRp = (alpha2, onChange) => {
     }, scheduleRefresh);
 
   if (alpha2 === DEFAULT_COUNTRY_CODE) {
-    ['economic_state', 'economic_indicators', 'elections', 'candidates', 'profiles', 'political_parties']
+    [
+      'economic_state',
+      'economic_indicators',
+      'elections',
+      'election_types',
+      'candidates',
+      'votes',
+      'profiles',
+      'party_members',
+      'political_parties',
+      'system_settings',
+    ]
       .forEach((table) => {
         channel = channel.on('postgres_changes', {
           event: '*', schema: 'public', table,

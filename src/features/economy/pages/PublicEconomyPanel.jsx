@@ -15,12 +15,10 @@ import {
   HardHat,
   HeartPulse,
   Home,
-  Hotel,
   Landmark,
   MoreHorizontal,
   Palmtree,
   RadioTower,
-  Scale,
   Shirt,
   ShoppingBasket,
   ShoppingCart,
@@ -41,11 +39,13 @@ import {
   formatDate,
   formatIndex,
   formatPercent,
+  formatUsdCurrency,
   bulletinTypeLabels,
   severityLabels,
 } from '@/lib/economy/format';
 
 const periodLabel = (period) => {
+  if (period.label) return period.label;
   if (period.period_type === 'month') return `${period.rp_month}/${period.rp_year}`;
   if (period.period_type === 'quarter') return `T${period.rp_quarter}/${period.rp_year}`;
   return `${period.rp_year}`;
@@ -94,15 +94,17 @@ const PublicEconomyPanel = ({ data }) => {
   const state = data?.state || {};
 
   const gdpHistory = useMemo(() => (data?.history || [])
-    .filter((item) => item.period_type === 'quarter' && item.indicators?.gdp_real != null)
+    .filter((item) => item.indicators?.gdp_total != null || item.indicators?.gdp_real != null)
     .map((item) => ({
       label: periodLabel(item),
-      real: asNumber(item.indicators.gdp_real) / 1_000_000,
-      nominal: asNumber(item.indicators.gdp_nominal) / 1_000_000,
+      gdp: asNumber(item.indicators.gdp_total ?? item.indicators.gdp_real) / 1_000_000,
     })), [data]);
 
   const priceHistory = useMemo(() => (data?.history || [])
-    .filter((item) => item.period_type === 'month')
+    .filter((item) => (
+      item.indicators?.inflation_annual != null
+      || item.indicators?.unemployment_rate != null
+    ))
     .map((item) => ({
       label: periodLabel(item),
       inflacao: asNumber(item.indicators?.inflation_annual),
@@ -115,10 +117,9 @@ const PublicEconomyPanel = ({ data }) => {
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <EconomyCard
-          label="PIB real trimestral"
-          value={formatCurrency(headline.gdp_real, true)}
-          detail="preços constantes"
-          trend={headline.gdp_growth_quarterly}
+          label="PIB total"
+          value={formatUsdCurrency(headline.gdp_total ?? headline.gdp_nominal, true)}
+          detail={state.country_rp_active ? 'estado nacional do GOV.RP em dólares' : 'valor em dólares'}
           icon={BarChart3}
         />
         <EconomyCard
@@ -146,24 +147,25 @@ const PublicEconomyPanel = ({ data }) => {
           accent="text-violet-300"
         />
         <EconomyCard
+          label="Câmbio com o dólar"
+          value={formatCurrency(state.exchange_rate)}
+          detail="por US$ 1"
+          icon={CircleDollarSign}
+          accent="text-green-300"
+        />
+        <EconomyCard
+          label="Câmbio com o euro"
+          value={formatCurrency(state.exchange_eur)}
+          detail="por € 1"
+          icon={CircleDollarSign}
+          accent="text-blue-300"
+        />
+        <EconomyCard
           label="Taxa Selic"
           value={formatPercent(state.current_selic)}
           detail="ao ano no calendário RP"
           icon={Landmark}
           accent="text-emerald-300"
-        />
-        <EconomyCard
-          label="PIB nominal"
-          value={formatCurrency(headline.gdp_nominal, true)}
-          detail="preços do período"
-          icon={CircleDollarSign}
-        />
-        <EconomyCard
-          label="Dívida / PIB"
-          value={formatPercent(headline.debt_to_gdp)}
-          detail={`Dívida ${formatCurrency(state.public_debt, true)}`}
-          icon={Scale}
-          accent="text-rose-300"
         />
         <EconomyCard
           label="Poder de compra"
@@ -183,12 +185,11 @@ const PublicEconomyPanel = ({ data }) => {
 
       <div className="grid gap-6 xl:grid-cols-2">
         <EconomyChart
-          title="PIB nominal e real"
-          description="R$ milhões por trimestre do RP."
+          title="Evolução do PIB nacional"
+          description="US$ milhões desde o início do estado atual do RP."
           data={gdpHistory}
           series={[
-            { key: 'real', name: 'PIB real', color: '#22d3ee' },
-            { key: 'nominal', name: 'PIB nominal', color: '#a78bfa' },
+            { key: 'gdp', name: 'PIB total', color: '#22d3ee' },
           ]}
           type="area"
         />
@@ -206,9 +207,9 @@ const PublicEconomyPanel = ({ data }) => {
       <div className="grid gap-6 xl:grid-cols-[1.35fr_0.65fr]">
         <Card className="border-border/70 bg-card/75">
           <CardHeader>
-            <CardTitle className="text-base">PIB real por setor</CardTitle>
+            <CardTitle className="text-base">PIB por setor</CardTitle>
             <p className="text-xs text-muted-foreground">
-              Valor adicionado a preços constantes, calculado pelo fechamento econômico do RP.
+              Participação setorial calculada sobre o mesmo PIB total do Panorama nacional.
             </p>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -229,7 +230,7 @@ const PublicEconomyPanel = ({ data }) => {
                       <span className="truncate">{sector.name}</span>
                     </span>
                     <span className="text-muted-foreground">
-                      {formatCurrency(sectorValue, true)}
+                      {formatUsdCurrency(sectorValue, true)}
                     </span>
                   </div>
                   <div className="h-2 overflow-hidden rounded-full bg-muted">

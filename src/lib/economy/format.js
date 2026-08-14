@@ -12,6 +12,20 @@ const compactCurrency = new Intl.NumberFormat('pt-BR', {
   maximumFractionDigits: 2,
 });
 
+const usdCurrency = new Intl.NumberFormat('pt-BR', {
+  style: 'currency',
+  currency: 'USD',
+  maximumFractionDigits: 2,
+});
+
+const compactUsdCurrency = new Intl.NumberFormat('pt-BR', {
+  style: 'currency',
+  currency: 'USD',
+  notation: 'compact',
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+});
+
 const number = new Intl.NumberFormat('pt-BR', {
   maximumFractionDigits: 2,
 });
@@ -25,6 +39,12 @@ export const formatCurrency = (value, compact = false) => {
   const parsed = Number(value);
   if (!Number.isFinite(parsed)) return '—';
   return (compact ? compactCurrency : currency).format(parsed);
+};
+
+export const formatUsdCurrency = (value, compact = false) => {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return '—';
+  return (compact ? compactUsdCurrency : usdCurrency).format(parsed);
 };
 
 export const formatNumber = (value) => {

@@ -89,12 +89,13 @@ const CountryInfo = () => {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('constituticao');
 
-  const fetchGovFinances = useCallback(async () => {
-    setLoading(true);
+  const fetchGovFinances = useCallback(async (showLoading = true) => {
+    if (showLoading) setLoading(true);
 
-    const [statsResponse, settingsResponse] = await Promise.all([
+    const [statsResponse, settingsResponse, economicStateResponse] = await Promise.all([
       supabase.rpc('get_public_dashboard_stats'),
       supabase.from('system_settings').select('key, value').in('key', [ECONOMIC_POLICY_SETTINGS_KEY, BANK_POLICY_SETTINGS_KEY]),
+      supabase.from('economic_state').select('current_selic').eq('id', true).single(),
     ]);
 
     if (statsResponse.error) {
@@ -118,7 +119,12 @@ const CountryInfo = () => {
         accumulator[item.key] = item.value;
         return accumulator;
       }, {});
-      const normalizedEconomicPolicy = normalizeEconomicPolicy(settingsMap[ECONOMIC_POLICY_SETTINGS_KEY]);
+      const normalizedEconomicPolicy = normalizeEconomicPolicy({
+        ...settingsMap[ECONOMIC_POLICY_SETTINGS_KEY],
+        ...(economicStateResponse.data?.current_selic != null
+          ? { selic_rate: economicStateResponse.data.current_selic }
+          : {}),
+      });
 
       setEconomicPolicy(normalizedEconomicPolicy);
       setBankPolicy(
@@ -130,11 +136,33 @@ const CountryInfo = () => {
       );
     }
 
-    setLoading(false);
+    if (showLoading) setLoading(false);
   }, [toast]);
 
   useEffect(() => {
     fetchGovFinances();
+  }, [fetchGovFinances]);
+
+  useEffect(() => {
+    let refreshTimer;
+    const scheduleRefresh = () => {
+      window.clearTimeout(refreshTimer);
+      refreshTimer = window.setTimeout(() => fetchGovFinances(false), 250);
+    };
+    let channel = supabase.channel('country-info-live');
+
+    ['economic_state', 'system_settings', 'government_finances', 'investment_options']
+      .forEach((table) => {
+        channel = channel.on('postgres_changes', {
+          event: '*', schema: 'public', table,
+        }, scheduleRefresh);
+      });
+
+    channel.subscribe();
+    return () => {
+      window.clearTimeout(refreshTimer);
+      supabase.removeChannel(channel);
+    };
   }, [fetchGovFinances]);
 
   const surplusDeficit = govFinances
