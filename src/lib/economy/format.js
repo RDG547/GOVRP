@@ -8,6 +8,7 @@ const compactCurrency = new Intl.NumberFormat('pt-BR', {
   style: 'currency',
   currency: 'BRL',
   notation: 'compact',
+  minimumFractionDigits: 2,
   maximumFractionDigits: 2,
 });
 

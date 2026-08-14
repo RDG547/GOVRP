@@ -8,6 +8,7 @@ import {
   syncElectionOffices,
 } from '@/lib/electionOfficeSync';
 import { isManualElectionRoleSuperseded } from '@/lib/roleResolution';
+import { getAppRedirectUrl } from '@/lib/nativeLinks';
 
 const AuthContext = createContext();
 const AUTH_FAILURE_MESSAGE = 'Credenciais inválidas. Verifique seus dados e tente novamente.';
@@ -458,7 +459,7 @@ export const AuthProvider = ({ children }) => {
 
   const sendPasswordResetEmail = async (email) => {
     const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/update-password`
+      redirectTo: getAppRedirectUrl('/update-password')
     });
     if (error) throw error;
     return data;

@@ -1,268 +1,225 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Helmet } from 'react-helmet-async';
-import { Shield, Eye, Lock, Database, UserCheck, Settings, FileText, Globe, AlertCircle, CheckCircle, Mail, Gavel } from 'lucide-react';
+import {
+  Bot,
+  Cookie,
+  Database,
+  Eye,
+  FileText,
+  Globe,
+  Lock,
+  Mail,
+  Settings,
+  Shield,
+  UserCheck,
+  Users,
+} from 'lucide-react';
 import { Link } from 'react-router-dom';
 import PageHeader from '@/components/layout/PageHeader';
 
-const Privacy = () => {
-  const sections = [
-    {
-      icon: Database,
-      title: 'Informações que Coletamos',
-      content: [
-        'Informações de cadastro fornecidas voluntariamente: nome completo, email, telefone, data de nascimento.',
-        'Dados de identificação gerados automaticamente: CPF e RG virtuais únicos para uso na plataforma.',
-        'Dados de uso e atividade: como você interage com nossa plataforma, serviços utilizados e preferências.',
-        'Informações técnicas: endereço IP, tipo de navegador, sistema operacional, resolução de tela.',
-        'Cookies e tecnologias similares para melhorar sua experiência e personalizar conteúdo.',
-        'Conteúdo que você cria e compartilha: posts, comentários, mensagens e interações sociais.',
-        'Dados financeiros virtuais: transações, saldos e histórico bancário dentro da plataforma.',
-        'Logs de segurança e auditoria para proteção contra fraudes e atividades maliciosas.'
-      ]
-    },
-    {
-      icon: Eye,
-      title: 'Como Usamos suas Informações',
-      content: [
-        'Fornecer e manter todos os serviços de roleplay político da plataforma GOV.RP.',
-        'Personalizar sua experiência com base em suas preferências e histórico de uso.',
-        'Comunicar atualizações importantes, novidades, eventos e informações relevantes.',
-        'Melhorar continuamente nossos serviços com base no feedback e padrões de uso.',
-        'Garantir a segurança da plataforma e prevenir fraudes, abusos ou atividades maliciosas.',
-        'Cumprir obrigações legais e regulamentares quando necessário.',
-        'Realizar análises estatísticas para entender melhor nossa comunidade.',
-        'Desenvolver novos recursos e funcionalidades baseados nas necessidades dos usuários.'
-      ]
-    },
-    {
-      icon: UserCheck,
-      title: 'Compartilhamento de Dados',
-      content: [
-        'Jamais vendemos suas informações pessoais para terceiros ou empresas de marketing.',
-        'Podemos compartilhar dados com prestadores de serviços confiáveis que nos ajudam a operar a plataforma.',
-        'Informações podem ser divulgadas quando exigido por lei, ordem judicial ou autoridades competentes.',
-        'Em caso de fusão, aquisição ou venda de ativos, os dados podem ser transferidos com proteções adequadas.',
-        'Dados agregados e completamente anonimizados podem ser usados para estatísticas públicas.',
-        'Compartilhamos informações com seu consentimento explícito para funcionalidades específicas.',
-        'Dados de segurança podem ser compartilhados com autoridades em casos de atividades ilegais.',
-        'Informações públicas do seu perfil são visíveis para outros usuários conforme suas configurações.'
-      ]
-    },
-    {
-      icon: Lock,
-      title: 'Segurança e Proteção dos Dados',
-      content: [
-        'Implementamos criptografia de ponta (AES-256) para proteger dados sensíveis em trânsito e armazenamento.',
-        'Acesso restrito aos dados apenas para funcionários autorizados com necessidade legítima.',
-        'Monitoramento contínuo de segurança com sistemas de detecção de intrusão 24/7.',
-        'Backups seguros e criptografados com planos de recuperação de desastres testados regularmente.',
-        'Autenticação de dois fatores disponível para proteção adicional da sua conta.',
-        'Auditorias de segurança regulares realizadas por especialistas independentes.',
-        'Políticas rigorosas de segurança para todos os funcionários e prestadores de serviços.',
-        'Notificação imediata em caso de qualquer violação de dados que possa afetar você.'
-      ]
-    },
-    {
-      icon: Settings,
-      title: 'Seus Direitos e Controles',
-      content: [
-        'Acessar e revisar todas as suas informações pessoais armazenadas a qualquer momento.',
-        'Corrigir, atualizar ou completar dados incorretos, desatualizados ou incompletos.',
-        'Solicitar a exclusão completa de sua conta e todos os dados pessoais associados.',
-        'Portabilidade dos dados em formato estruturado e legível por máquina (JSON/CSV).',
-        'Retirar consentimento para processamento de dados não essenciais a qualquer momento.',
-        'Configurar preferências de privacidade e controlar a visibilidade do seu perfil.',
-        'Apresentar reclamações às autoridades de proteção de dados (ANPD) se necessário.',
-        'Receber cópia gratuita de todos os seus dados mediante solicitação formal.'
-      ]
-    },
-    {
-      icon: Shield,
-      title: 'Retenção e Exclusão de Dados',
-      content: [
-        'Mantemos seus dados apenas pelo tempo estritamente necessário para os fins declarados.',
-        'Dados de conta ativa são mantidos enquanto você utilizar nossos serviços.',
-        'Informações podem ser mantidas por períodos legais obrigatórios (até 5 anos para dados financeiros).',
-        'Dados de backup são automaticamente excluídos conforme cronograma pré-estabelecido.',
-        'Você pode solicitar exclusão antecipada de dados não sujeitos a obrigações legais.',
-        'Dados anonimizados podem ser mantidos indefinidamente para fins estatísticos.',
-        'Logs de segurança são mantidos por 12 meses para investigação de incidentes.',
-        'Exclusão segura e irreversível usando padrões militares de destruição de dados.'
-      ]
-    }
-  ];
+const sections = [
+  {
+    icon: Database,
+    title: 'Dados que Tratamos',
+    content: [
+      'Cadastro e conta: nome, nome de personagem, nome de usuário, e-mail, telefone, data de nascimento, avatar e identificadores internos.',
+      'Documentos virtuais do RP: CPF, RG e outros identificadores gerados ou informados exclusivamente para as mecânicas da plataforma; eles não substituem documentos oficiais.',
+      'Conteúdo e comunicações: posts, comentários, mensagens, arquivos, tickets, notícias, leis, decretos, votos e demais interações.',
+      'Atividade econômica virtual: saldos, pagamentos, empresas, empregos, produtos, investimentos, tributos e eventos usados pelo motor econômico do RP.',
+      'Dados políticos do RP: partido, ideologia declarada, candidaturas, cargos, votos quando públicos e atos institucionais. Essas informações podem revelar opinião ou filiação política e recebem proteção compatível com sua natureza.',
+      'Dados técnicos e de segurança: endereço IP, sessão, navegador, dispositivo, sistema operacional, registros de acesso, falhas, auditoria e sinais de abuso.',
+    ],
+  },
+  {
+    icon: Eye,
+    title: 'Finalidades do Tratamento',
+    content: [
+      'Criar e autenticar contas, manter sessões, recuperar senhas e proteger o acesso.',
+      'Executar a simulação política, social, jurídica e econômica, incluindo cálculos e atualizações em tempo real.',
+      'Publicar perfis e atividades que, pela natureza da funcionalidade, integram o espaço público do RP.',
+      'Prestar contato e suporte, receber anexos, responder solicitações e investigar incidentes.',
+      'Prevenir fraude, contas duplicadas, abuso, acesso indevido, manipulação de votações e violações das regras.',
+      'Medir desempenho e uso, quando autorizado, desenvolver recursos e corrigir problemas.',
+      'Cumprir obrigações legais, ordens válidas e exercer ou defender direitos.',
+    ],
+  },
+  {
+    icon: FileText,
+    title: 'Bases Legais',
+    content: [
+      'Execução dos Termos e de procedimentos solicitados por você, para fornecer a conta e as funcionalidades escolhidas.',
+      'Consentimento, quando a legislação exigir ou quando o recurso for opcional, como medição de uso não essencial.',
+      'Legítimo interesse, após avaliação de necessidade e impacto, para segurança, prevenção a abusos e melhoria do serviço.',
+      'Cumprimento de obrigação legal ou regulatória, exercício regular de direitos e proteção contra fraude.',
+      'Dados de natureza política são tratados somente no contexto das funcionalidades escolhidas pelo jogador, da publicidade inerente ao cargo/ato do RP ou de outra hipótese legal aplicável.',
+    ],
+  },
+  {
+    icon: Users,
+    title: 'Visibilidade e Conteúdo Público',
+    content: [
+      'Nome de personagem, avatar, nome de usuário, publicações, partidos, candidaturas, cargos e atos públicos do RP podem ser vistos por outros usuários e visitantes conforme a funcionalidade.',
+      'Mensagens privadas, credenciais e informações marcadas como restritas não são exibidas publicamente, salvo autorização, necessidade de segurança ou obrigação legal.',
+      'Antes de publicar, evite inserir endereços, documentos reais, dados bancários, informações de saúde ou dados pessoais de terceiros.',
+      'A exclusão da conta não implica necessariamente apagar atos públicos do RP que precisem permanecer como registro institucional; quando possível, eles serão desassociados ou minimizados.',
+    ],
+  },
+  {
+    icon: Globe,
+    title: 'Operadores, Compartilhamento e Transferência Internacional',
+    content: [
+      'Utilizamos prestadores para autenticação, banco de dados, atualização em tempo real, armazenamento e funções de backend, incluindo Supabase.',
+      'A aplicação e a medição opcional de uso podem ser processadas pela Vercel. Pagamentos de apoio são processados pela Stripe, que recebe os dados necessários ao pagamento; o GOV.RP não armazena o número completo do cartão.',
+      'Provedores de login social recebem e fornecem os dados necessários à autenticação conforme a opção escolhida.',
+      'Dados podem ser compartilhados com autoridades ou terceiros quando houver obrigação legal, ordem válida, emergência, investigação de fraude ou necessidade de proteger direitos.',
+      'Como alguns prestadores operam fora do Brasil, pode ocorrer transferência internacional com as salvaguardas contratuais, técnicas e legais aplicáveis.',
+      'Não vendemos dados pessoais nem os disponibilizamos a anunciantes para criação de perfis comerciais.',
+    ],
+  },
+  {
+    icon: Cookie,
+    title: 'Cookies, Sessão e Armazenamento Local',
+    content: [
+      'Recursos essenciais guardam tokens de autenticação, preferências de tema, carrinho virtual, avisos já visualizados e escolhas de privacidade no navegador ou no armazenamento seguro disponibilizado pelo ambiente do app.',
+      'A medição de uso da Vercel Analytics somente é carregada quando você escolhe aceitar essa categoria no aviso de privacidade.',
+      'Selecionar “Somente essenciais” não impede login, navegação nem uso das principais funcionalidades.',
+      'Você pode apagar os dados locais nas configurações do navegador ou do sistema, mas isso pode encerrar a sessão e redefinir preferências.',
+    ],
+  },
+  {
+    icon: Bot,
+    title: 'Cálculos e Decisões Automatizadas do RP',
+    content: [
+      'O motor da plataforma combina eventos reais do jogo com componentes simulados para calcular indicadores, elegibilidade, consequências econômicas e estados de serviços.',
+      'Esses resultados produzem efeitos apenas dentro do RP e não definem crédito, emprego, benefícios, direitos políticos ou situação jurídica no mundo real.',
+      'Você pode solicitar explicação ou revisão de uma decisão automatizada que afete de modo relevante sua participação na plataforma.',
+    ],
+  },
+  {
+    icon: Lock,
+    title: 'Segurança e Incidentes',
+    content: [
+      'Adotamos medidas proporcionais ao risco, como conexões protegidas, autenticação, controles de acesso, regras por linha no banco de dados, validação de arquivos, registros de auditoria e separação de privilégios.',
+      'Nenhum sistema é totalmente invulnerável. Por isso, medidas e dependências são revistas e incidentes são tratados conforme seu risco e as obrigações aplicáveis.',
+      'Não envie senhas, códigos de autenticação ou dados completos de cartão em posts, mensagens ou tickets.',
+      'Comunique imediatamente atividades suspeitas pela Central de Contato e Suporte.',
+    ],
+  },
+  {
+    icon: Settings,
+    title: 'Retenção e Exclusão',
+    content: [
+      'Dados de conta e do RP são mantidos enquanto a conta estiver ativa e pelo período necessário às finalidades descritas.',
+      'Após exclusão, podemos preservar por prazo limitado registros necessários para segurança, prevenção de fraude, cumprimento legal e exercício de direitos.',
+      'Backups e caches seguem ciclos próprios de sobrescrita. Dados anonimizados, que não permitam reidentificação razoável, podem ser mantidos para estatística e integridade histórica.',
+      'A solicitação de exclusão pode ser feita pela página pública de exclusão de conta ou pela Central de Contato e Suporte.',
+    ],
+  },
+  {
+    icon: UserCheck,
+    title: 'Direitos do Titular',
+    content: [
+      'Você pode solicitar confirmação e acesso, correção, informações sobre compartilhamento, portabilidade quando regulamentada, anonimização, bloqueio ou eliminação nos casos aplicáveis.',
+      'Também pode revogar consentimento, opor-se a tratamento irregular e pedir revisão ou explicação sobre decisões automatizadas relevantes.',
+      'Alguns pedidos exigem validação de identidade. Os direitos não são absolutos e podem existir fundamentos legais para preservar determinados registros.',
+      'Se a resposta do GOV.RP não for satisfatória, você pode peticionar perante a Autoridade Nacional de Proteção de Dados e os órgãos competentes.',
+    ],
+  },
+];
 
-  const lgpdCompliance = [
-    { icon: CheckCircle, title: 'Base Legal Sólida', description: 'Processamento baseado em consentimento, execução de contrato e legítimo interesse.' },
-    { icon: Shield, title: 'Encarregado de Dados', description: 'Profissional dedicado para garantir conformidade e atender suas solicitações.' },
-    { icon: FileText, title: 'Relatório de Impacto', description: 'Avaliação completa dos riscos e medidas de proteção implementadas.' },
-    { icon: Globe, title: 'Transferência Internacional', description: 'Proteções adequadas para qualquer transferência de dados para outros países.' }
-  ];
+const principles = [
+  { icon: FileText, title: 'Transparência', description: 'Finalidades, categorias e compartilhamentos descritos de forma compatível com a plataforma.' },
+  { icon: Shield, title: 'Necessidade', description: 'Coleta e acesso limitados ao que cada recurso e obrigação exigem.' },
+  { icon: UserCheck, title: 'Canal do Titular', description: 'Solicitações de privacidade recebidas pela central unificada e pela exclusão de conta.' },
+  { icon: Globe, title: 'Fornecedores Globais', description: 'Uso de operadores internacionais com salvaguardas compatíveis com a LGPD.' },
+];
 
-  const cookieTypes = [
-    { name: 'Cookies Essenciais', description: 'Necessários para funcionamento básico da plataforma (login, segurança, navegação).', required: true },
-    { name: 'Cookies de Desempenho', description: 'Ajudam a entender como os usuários interagem com a plataforma para melhorias.', required: false },
-    { name: 'Cookies Funcionais', description: 'Permitem funcionalidades aprimoradas e personalização da experiência.', required: false },
-    { name: 'Cookies de Marketing', description: 'Usados para fornecer conteúdo relevante e personalizado (atualmente desabilitados).', required: false }
-  ];
+const Privacy = () => (
+  <>
+    <Helmet>
+      <title>Política de Privacidade - GOV.RP</title>
+      <meta name="description" content="Como o GOV.RP trata dados na web, PWA, aplicativos, simulação política, economia, comunidade e suporte." />
+    </Helmet>
 
-  return (
-    <>
-      <Helmet>
-        <title>Política de Privacidade - GOV.RP</title>
-        <meta name="description" content="Conheça nossa política de privacidade completa e como protegemos seus dados pessoais no GOV.RP. Transparência, segurança e conformidade com a LGPD." />
-      </Helmet>
+    <div className="min-h-screen py-20">
+      <section className="mx-auto mb-20 max-w-4xl px-4 sm:px-6 lg:px-8">
+        <PageHeader
+          icon={Shield}
+          title="Política de"
+          gradientText="Privacidade"
+          description="Como seus dados são tratados no ecossistema GOV.RP, da web aos aplicativos móveis."
+          iconColor="text-red-400"
+          centered
+        />
+        <div className="mt-6 rounded-lg bg-white/5 p-4 text-sm text-gray-400">
+          <p><strong>Última atualização:</strong> 14 de agosto de 2026</p>
+          <p><strong>Versão:</strong> 2.0 | <strong>Legislação principal:</strong> LGPD e Marco Civil da Internet</p>
+          <p><strong>Responsável pelo tratamento:</strong> equipe operadora do projeto GOV.RP | <strong>Canal:</strong> suporte@govrp.online</p>
+        </div>
+      </section>
 
-      <div className="min-h-screen py-20">
-        <section className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 mb-20">
-          <PageHeader
-            icon={Gavel}
-            title="Política de"
-            gradientText="Privacidade"
-            description="Sua privacidade é fundamental para nós. Esta política explica de forma transparente como coletamos, usamos, protegemos e respeitamos suas informações pessoais no GOV.RP."
-            iconColor="text-red-400"
-            centered={true}
-          />
-            <div className="mt-6 text-sm text-gray-400 bg-white/5 rounded-lg p-4">
-              <p><strong>Última atualização:</strong> {new Date('2025-06-26').toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
-              <p><strong>Versão:</strong> 1.0 | <strong>Conformidade:</strong> LGPD (Lei 13.709/2018)</p>
-            </div>
-        </section>
-
-        <section className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="space-y-12">
-            {sections.map((section, index) => (
-              <motion.div
-                key={index}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: index * 0.1 }}
-                className="glass-effect rounded-2xl p-8"
-              >
-                <div className="flex items-center mb-6">
-                  <div className="flex items-center justify-center w-12 h-12 bg-gradient-to-r from-green-600 to-blue-600 rounded-full mr-4">
-                    <section.icon className="w-6 h-6 text-white" />
+      <section className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
+        <div className="space-y-12">
+          {sections.map((section, index) => (
+            <motion.article
+              key={section.title}
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: index * 0.04 }}
+              className="glass-effect rounded-2xl p-8"
+            >
+              <div className="mb-6 flex items-center">
+                <div className="mr-4 flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-r from-green-600 to-blue-600">
+                  <section.icon className="h-6 w-6 text-white" />
+                </div>
+                <h2 className="text-2xl font-bold text-white">{section.title}</h2>
+              </div>
+              <div className="space-y-4">
+                {section.content.map((item) => (
+                  <div key={item} className="flex items-start space-x-3">
+                    <div className="mt-2 h-2 w-2 shrink-0 rounded-full bg-blue-400" />
+                    <p className="leading-relaxed text-gray-300">{item}</p>
                   </div>
-                  <h2 className="text-2xl font-bold text-white">{section.title}</h2>
+                ))}
+              </div>
+            </motion.article>
+          ))}
+        </div>
+
+        <div className="glass-effect mt-12 rounded-2xl p-8">
+          <h2 className="mb-6 text-2xl font-bold text-white">Compromissos de Proteção de Dados</h2>
+          <div className="grid gap-6 md:grid-cols-2">
+            {principles.map((item) => (
+              <div key={item.title} className="rounded-lg bg-white/5 p-4">
+                <div className="mb-3 flex items-center">
+                  <item.icon className="mr-2 h-5 w-5 text-green-400" />
+                  <h3 className="font-semibold text-white">{item.title}</h3>
                 </div>
-                
-                <div className="space-y-4">
-                  {section.content.map((item, itemIndex) => (
-                    <div key={itemIndex} className="flex items-start space-x-3">
-                      <div className="w-2 h-2 bg-blue-400 rounded-full mt-2 flex-shrink-0" />
-                      <p className="text-gray-300 leading-relaxed">{item}</p>
-                    </div>
-                  ))}
-                </div>
-              </motion.div>
+                <p className="text-sm text-gray-400">{item.description}</p>
+              </div>
             ))}
           </div>
+        </div>
 
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="glass-effect rounded-2xl p-8 mt-12"
-          >
-            <h2 className="text-2xl font-bold text-white mb-6 flex items-center">
-              <AlertCircle className="w-6 h-6 mr-3 text-green-400" />
-              Conformidade com a LGPD
-            </h2>
-            <div className="space-y-4 text-gray-300 mb-8">
-              <p>
-                O GOV.RP está em total conformidade com a Lei Geral de Proteção de Dados (LGPD) - Lei nº 13.709/2018. 
-                Processamos seus dados pessoais exclusivamente com base em fundamentos legais válidos e sempre 
-                respeitando seus direitos como titular dos dados.
-              </p>
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {lgpdCompliance.map((item, index) => (
-                <div key={index} className="bg-white/5 rounded-lg p-4">
-                  <div className="flex items-center mb-3">
-                    <item.icon className="w-5 h-5 text-green-400 mr-2" />
-                    <h3 className="text-white font-semibold">{item.title}</h3>
-                  </div>
-                  <p className="text-sm text-gray-400">{item.description}</p>
-                </div>
-              ))}
-            </div>
-
-            <div className="mt-8 p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg">
-              <p className="text-blue-300 text-sm">
-                <strong>Encarregado de Proteção de Dados (DPO):</strong> Temos um encarregado especializado responsável 
-                por garantir a conformidade com a LGPD. 
-                Contato: <a href="mailto:suporte@govrp.online" className="underline hover:text-blue-200">suporte@govrp.online</a> (assunto: DPO).
-              </p>
-            </div>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="glass-effect rounded-2xl p-8 mt-12"
-          >
-            <h2 className="text-2xl font-bold text-white mb-6">Política Detalhada de Cookies</h2>
-            <div className="space-y-4 text-gray-300 mb-6">
-              <p>
-                Utilizamos cookies e tecnologias similares para melhorar sua experiência, personalizar conteúdo 
-                e analisar o uso de nossa plataforma. Você tem controle total sobre os cookies não essenciais.
-              </p>
-            </div>
-            
-            <div className="space-y-4">
-              {cookieTypes.map((cookie, index) => (
-                <div key={index} className="bg-white/5 rounded-lg p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <h3 className="text-white font-semibold">{cookie.name}</h3>
-                    <span className={`text-xs px-2 py-1 rounded-full ${cookie.required ? 'bg-red-500/20 text-red-300' : 'bg-green-500/20 text-green-300'}`}>
-                      {cookie.required ? 'Obrigatório' : 'Opcional'}
-                    </span>
-                  </div>
-                  <p className="text-sm text-gray-400">{cookie.description}</p>
-                </div>
-              ))}
-            </div>
-
-            <div className="mt-6 p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
-              <p className="text-yellow-300 text-sm">
-                <strong>Gerenciar Cookies:</strong> Você pode gerenciar suas preferências de cookies a qualquer momento 
-                através das configurações do seu navegador ou em suas <Link to="/settings" className="underline hover:text-yellow-200">configurações de conta</Link>.
-              </p>
-            </div>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="text-center mt-12"
-          >
-            <div className="glass-effect rounded-2xl p-8">
-              <h3 className="text-xl font-bold text-white mb-4">Dúvidas sobre Privacidade?</h3>
-              <p className="text-gray-300 mb-6">
-                Se você tiver alguma dúvida sobre nossa política de privacidade ou quiser exercer seus direitos,
-                nosso canal de suporte está à disposição.
-              </p>
-              <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <Link to="/support" className="inline-flex items-center justify-center px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-medium rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all duration-300">
-                  <Shield className="w-5 h-5 mr-2" />
-                  Ir para Suporte
-                </Link>
-                <a href="mailto:suporte@govrp.online" className="inline-flex items-center justify-center px-6 py-3 border border-white/20 text-white font-medium rounded-lg hover:bg-white/10 transition-all duration-300">
-                  <Mail className="w-5 h-5 mr-2" />
-                  Enviar E-mail
-                </a>
-              </div>
-            </div>
-          </motion.div>
-        </section>
-      </div>
-    </>
-  );
-};
+        <div className="glass-effect mt-12 rounded-2xl p-8 text-center">
+          <h2 className="mb-3 text-2xl font-bold text-white">Exerça seus direitos</h2>
+          <p className="mb-6 text-gray-300">
+            O canal de privacidade do projeto é <a href="mailto:suporte@govrp.online" className="text-blue-300 hover:underline">suporte@govrp.online</a>. Use o assunto “Privacidade/LGPD”.
+          </p>
+          <div className="flex flex-col justify-center gap-4 sm:flex-row">
+            <Link to="/support" className="inline-flex items-center justify-center rounded-lg bg-gradient-to-r from-blue-600 to-purple-600 px-6 py-3 font-medium text-white">
+              <Mail className="mr-2 h-5 w-5" /> Contato e Suporte
+            </Link>
+            <Link to="/account-deletion" className="inline-flex items-center justify-center rounded-lg border border-white/20 px-6 py-3 font-medium text-white hover:bg-white/10">
+              <Settings className="mr-2 h-5 w-5" /> Excluir minha conta
+            </Link>
+          </div>
+        </div>
+      </section>
+    </div>
+  </>
+);
 
 export default Privacy;

@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Github, Mail, Heart, HelpCircle, Headphones as Headset, BookOpen, Newspaper, Landmark, Store, FileText, Users, Scroll, ArrowRight, Home as HomeIcon } from 'lucide-react';
+import { Github, Mail, Heart, HelpCircle, Headphones as Headset, BookOpen, Newspaper, Landmark, Store, FileText, Users, Scroll, ArrowRight, Home as HomeIcon, Map } from 'lucide-react';
 import { FaWhatsapp, FaDiscord, FaTelegram } from 'react-icons/fa';
 import { cn } from '@/lib/utils';
 
@@ -59,7 +59,7 @@ const Footer = ({ disableTopSpacing = false }) => {
             <span className="text-white font-semibold mb-4 block">Geral</span>
             <div className="space-y-3">
               <Link to="/" className={footerLink}><HomeIcon className="w-4 h-4"/> Início</Link>
-              <Link to="/about" className={footerLink}><BookOpen className="w-4 h-4"/> Sobre Nós</Link>
+              <Link to="/country-info" className={footerLink}><Map className="w-4 h-4"/> Sobre o País</Link>
               <Link to="/community" className={footerLink}><Users className="w-4 h-4"/> Comunidade</Link>
               <Link to="/news" className={footerLink}><Newspaper className="w-4 h-4"/> Notícias</Link>
             </div>
@@ -78,12 +78,10 @@ const Footer = ({ disableTopSpacing = false }) => {
           <div>
             <span className="text-white font-semibold mb-4 block">Ajuda</span>
              <div className="space-y-3">
-                <Link to="/contact" className={footerLink}>
-                    <Mail className="w-4 h-4"/> Contato
-                </Link>
                 <Link to="/support" className={footerLink}>
-                    <Headset className="w-4 h-4"/> Suporte
+                    <Headset className="w-4 h-4"/> Contato e Suporte
                 </Link>
+                <Link to="/about" className={footerLink}><BookOpen className="w-4 h-4"/> Sobre Nós</Link>
                 <Link to="/faq" className={footerLink}>
                     <HelpCircle className="w-4 h-4"/> FAQ
                 </Link>

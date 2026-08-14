@@ -1,20 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Menu, X, ChevronDown, Settings, LayoutDashboard, Tally5, Landmark, Store, FileText, Library, Archive, MessageSquare, Users, Newspaper, Home as HomeIcon, Heart, HelpCircle, Headphones as Headset, Grid, Mail, BookOpen, LogOut, Scale, Gavel, Shield, Vote, Eye, ShieldCheck, Crown, HeartHandshake as Handcuffs, Map, Siren, Wifi, Zap, Droplet, Smartphone, Wrench, LogIn, UserPlus, FolderKanban, User, Flame, GraduationCap, Briefcase, Building2 } from 'lucide-react';
+import { Menu, X, ChevronDown, Settings, LayoutDashboard, Tally5, Landmark, Store, FileText, Library, Archive, MessageSquare, Users, Newspaper, Home as HomeIcon, Heart, HelpCircle, Headphones as Headset, Grid, BookOpen, LogOut, Scale, Gavel, Shield, Vote, Eye, ShieldCheck, HeartHandshake as Handcuffs, Map, Siren, Wifi, Zap, Droplet, Smartphone, Wrench, LogIn, UserPlus, Flame, GraduationCap, Briefcase, Building2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import NotificationBell from '@/components/NotificationBell';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import {
-  AlertDialog,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import DashboardSelectorDialog from '@/components/dashboard/DashboardSelectorDialog';
 import { SERVICE_CATEGORIES } from '@/lib/serviceCatalog';
 
 const serviceCategories = SERVICE_CATEGORIES;
@@ -35,10 +28,10 @@ const getServiceInitials = (name = '') => {
 const formatServiceMenuLabel = (serviceName) => `${serviceName} (${getServiceInitials(serviceName)})`;
 
 const helpLinks = [
-    { name: 'Contato', path: '/contact', icon: Mail, color: "text-orange-400" },
-    { name: 'Suporte', path: '/support', icon: Headset, color: "text-blue-400" },
+    { name: 'Contato e Suporte', path: '/support', icon: Headset, color: "text-blue-400" },
     { name: 'FAQ', path: '/faq', icon: HelpCircle, color: "text-yellow-400" },
     { name: 'Docs', path: '/docs', icon: BookOpen, color: "text-green-400" },
+    { name: 'Sobre Nós', path: '/about', icon: BookOpen, color: "text-purple-400" },
 ];
 
 const Navbar = () => {
@@ -96,7 +89,6 @@ const Navbar = () => {
       { name: 'Sobre o País', path: '/country-info', icon: Map },
       { name: 'Comunidade', path: '/community', icon: Users },
       { name: 'Ajuda', path: '#', icon: HelpCircle, isDropdown: true, type: 'help' },
-      { name: 'Sobre Nós', path: '/about', icon: BookOpen },
   ];
   
   const handleLogout = async () => {
@@ -249,40 +241,12 @@ const Navbar = () => {
         </div>
       </motion.nav>
       <MobileMenu isOpen={isOpen} setIsOpen={setIsOpen} />
-      <AlertDialog open={isDashboardAlertOpen} onOpenChange={setIsDashboardAlertOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader className="text-center">
-            <AlertDialogTitle>Qual dashboard você deseja acessar?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Seu cargo permite acesso a múltiplos painéis. Por favor, escolha um.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter className="flex-col gap-2">
-            <Link to="/dashboard/citizen" className="w-full" onClick={() => setIsDashboardAlertOpen(false)}>
-              <Button className="w-full justify-center gap-3 bg-blue-600 hover:bg-blue-700">
-                <User className="w-5 h-5" />
-                <span>Dashboard do Cidadão</span>
-              </Button>
-            </Link>
-            {(hasPresidentAccess || isAdmin) && (
-              <Link to="/dashboard/president" className="w-full" onClick={() => setIsDashboardAlertOpen(false)}>
-                <Button variant="secondary" className="w-full justify-center gap-3 bg-yellow-500 hover:bg-yellow-600 text-black">
-                  <FolderKanban className="w-5 h-5" />
-                  <span>Painel Presidencial</span>
-                </Button>
-              </Link>
-            )}
-            {isAdmin && (
-              <Link to="/admin-dashboard" className="w-full" onClick={() => setIsDashboardAlertOpen(false)}>
-                <Button variant="secondary" className="w-full justify-center gap-3 bg-slate-700 hover:bg-slate-800 text-white">
-                  <Crown className="w-5 h-5" />
-                  <span>Dashboard do Admin</span>
-                </Button>
-              </Link>
-            )}
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <DashboardSelectorDialog
+        open={isDashboardAlertOpen}
+        onOpenChange={setIsDashboardAlertOpen}
+        hasPresidentAccess={hasPresidentAccess}
+        isAdmin={isAdmin}
+      />
     </>
   );
 };
@@ -302,7 +266,6 @@ const MobileMenu = ({ isOpen, setIsOpen }) => {
     { name: 'Início', path: '/', icon: HomeIcon },
     { name: 'Sobre o País', path: '/country-info', icon: Map },
     { name: 'Comunidade', path: '/community', icon: Users },
-    { name: 'Sobre Nós', path: '/about', icon: BookOpen },
     { name: 'Apoie o Projeto', path: '/support-us', icon: Heart },
   ];
   

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { Helmet } from 'react-helmet-async';
-import { Send, HelpCircle, ArrowRight, Headphones as Headset, Users, Mail, Phone, Paperclip, X as XIcon } from 'lucide-react';
+import { Send, HelpCircle, ArrowRight, Headphones as Headset, Users, Mail, MessageSquare, Paperclip, X as XIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -29,6 +29,7 @@ const Support = () => {
     name: '',
     email: '',
     phone: '',
+    requestType: 'support',
     subject: '',
     message: ''
   });
@@ -79,7 +80,7 @@ const Support = () => {
     setLoading(true);
 
     let attachmentUrl = null;
-    if (file) {
+    if (file && formData.requestType === 'support') {
       const filePath = buildStoragePath({
         prefix: 'support-attachments',
         entityId: user?.id || 'guest',
@@ -98,19 +99,24 @@ const Support = () => {
     }
 
     try {
-        const { data, error } = await supabase.functions.invoke('send-contact-email', {
-            body: { ...formData, attachmentUrl, type: 'support' },
+        const { error } = await supabase.functions.invoke('send-contact-email', {
+            body: { ...formData, attachmentUrl, type: formData.requestType },
         });
 
         if (error) throw error;
         
         toast({
-            title: "Ticket de suporte enviado!",
-            description: "Nossa equipe analisará sua solicitação e entrará em contato em breve.",
+            title: formData.requestType === 'support' ? 'Ticket de suporte enviado!' : 'Mensagem enviada!',
+            description: 'Nossa equipe analisará sua solicitação e entrará em contato em breve.',
         });
-        if (!user) {
-            setFormData({ name: '', email: '', phone: '', subject: '', message: '' });
-        }
+        setFormData((current) => ({
+          name: user ? current.name : '',
+          email: user ? current.email : '',
+          phone: user ? current.phone : '',
+          requestType: 'support',
+          subject: '',
+          message: '',
+        }));
         setFile(null);
         if(fileInputRef.current) fileInputRef.current.value = "";
 
@@ -134,24 +140,24 @@ const Support = () => {
   return (
     <>
       <Helmet>
-        <title>Suporte - GOV.RP</title>
-        <meta name="description" content="Precisa de ajuda? Entre em contato com nossa equipe de suporte. Estamos aqui para ajudar com qualquer problema ou dúvida." />
+        <title>Contato e Suporte - GOV.RP</title>
+        <meta name="description" content="Fale com o GOV.RP, envie dúvidas gerais ou abra uma solicitação de suporte técnico." />
       </Helmet>
 
       <div className="min-h-screen py-24">
         <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <PageHeader
             icon={Headset}
-            title="Central de"
+            title="Contato e"
             gradientText="Suporte"
-            description="Encontrou um problema ou tem alguma dúvida técnica? Nossa equipe está pronta para te ajudar. Para uma resposta mais rápida, considere usar um de nossos canais comunitários."
+            description="Uma única central para dúvidas gerais, privacidade, parcerias, problemas de conta e suporte técnico."
             iconColor="text-blue-400"
             centered={true}
           />
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-16">
             <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 }}>
-              <h2 className="text-3xl font-bold text-white mb-8 text-center">Abrir um Ticket de Suporte</h2>
+              <h2 className="text-3xl font-bold text-white mb-8 text-center">Enviar uma Solicitação</h2>
               <div className="glass-effect rounded-2xl p-8 border border-white/10">
                 <form onSubmit={handleSubmit} className="space-y-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -169,14 +175,34 @@ const Support = () => {
                     <Input id="phone" name="phone" type="tel" value={formData.phone} onChange={handleChange} className="bg-white/5 border-white/10" placeholder="(00) 00000-0000" />
                   </div>
                   <div>
-                    <Label htmlFor="subject" className="text-gray-300 mb-2 block">Assunto</Label>
-                    <Input id="subject" name="subject" type="text" required value={formData.subject} onChange={handleChange} className="bg-white/5 border-white/10" placeholder="Ex: Bug no Banco Nacional" />
+                    <Label htmlFor="requestType" className="text-gray-300 mb-2 block">Tipo de Atendimento</Label>
+                    <div className="relative">
+                      {formData.requestType === 'support' ? (
+                        <Headset className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
+                      ) : (
+                        <MessageSquare className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
+                      )}
+                      <select
+                        id="requestType"
+                        name="requestType"
+                        value={formData.requestType}
+                        onChange={handleChange}
+                        className="flex h-10 w-full rounded-md border border-white/10 bg-white/5 py-2 pl-10 pr-3 text-sm text-white outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring"
+                      >
+                        <option value="support" className="bg-slate-900">Suporte técnico ou conta</option>
+                        <option value="contact" className="bg-slate-900">Contato geral, parceria ou imprensa</option>
+                      </select>
+                    </div>
                   </div>
                   <div>
-                    <Label htmlFor="message" className="text-gray-300 mb-2 block">Descrição do Problema</Label>
-                    <Textarea id="message" name="message" rows="5" required value={formData.message} onChange={handleChange} className="bg-white/5 border-white/10" placeholder="Descreva seu problema com o máximo de detalhes possível..."></Textarea>
+                    <Label htmlFor="subject" className="text-gray-300 mb-2 block">Assunto</Label>
+                    <Input id="subject" name="subject" type="text" required value={formData.subject} onChange={handleChange} className="bg-white/5 border-white/10" placeholder={formData.requestType === 'support' ? 'Ex: Bug no Banco Nacional' : 'Ex: Proposta de parceria'} />
                   </div>
-                   <div>
+                  <div>
+                    <Label htmlFor="message" className="text-gray-300 mb-2 block">{formData.requestType === 'support' ? 'Descrição do Problema' : 'Mensagem'}</Label>
+                    <Textarea id="message" name="message" rows="5" required value={formData.message} onChange={handleChange} className="bg-white/5 border-white/10" placeholder={formData.requestType === 'support' ? 'Descreva o problema com o máximo de detalhes possível...' : 'Conte como podemos ajudar...'}></Textarea>
+                  </div>
+                  {formData.requestType === 'support' && <div>
                     <Label htmlFor="attachment" className="text-gray-300 mb-2 block">Anexo (Opcional)</Label>
                     <div className="relative">
                       <Button type="button" variant="outline" className="w-full justify-start border-white/20 text-white/70" onClick={() => fileInputRef.current?.click()}>
@@ -186,16 +212,16 @@ const Support = () => {
                       <Input ref={fileInputRef} id="attachment" name="attachment" type="file" onChange={handleFileChange} className="sr-only" accept="image/png, image/jpeg, image/gif" />
                       {file && <Button type="button" variant="ghost" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8" onClick={() => { setFile(null); if(fileInputRef.current) fileInputRef.current.value = ""; }}><XIcon className="w-4 h-4" /></Button>}
                     </div>
-                  </div>
+                  </div>}
                   <Button type="submit" disabled={loading} size="lg" className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">
-                    {loading ? 'Enviando...' : <><Send className="w-5 h-5 mr-2" /> Enviar Ticket</>}
+                    {loading ? 'Enviando...' : <><Send className="w-5 h-5 mr-2" /> {formData.requestType === 'support' ? 'Enviar Ticket' : 'Enviar Mensagem'}</>}
                   </Button>
                 </form>
               </div>
             </motion.div>
 
             <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.4 }}>
-              <h2 className="text-3xl font-bold text-white mb-8 text-center">Canais de Ajuda Rápida</h2>
+              <h2 className="text-3xl font-bold text-white mb-8 text-center">Canais de Contato</h2>
               <div className="space-y-6">
                 <Link to="/faq" className="block glass-effect rounded-2xl p-6 hover:bg-white/10 transition-all duration-300 border border-white/10">
                   <div className="flex items-center gap-4">

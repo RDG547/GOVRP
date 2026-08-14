@@ -38,7 +38,7 @@ const SupportUs = () => {
   const supportWays = [
     { icon: DollarSign, title: 'Doação Financeira', description: 'Contribua diretamente para os custos de desenvolvimento e manutenção.', actionText: 'Ver Opções de Doação', action: () => navigate('/donation'), color: 'text-green-400' },
     { icon: Code, title: 'Contribuição Técnica', description: 'Ajude no desenvolvimento com código, testes ou documentação em nosso GitHub.', actionText: 'Acessar GitHub', action: () => window.open('https://github.com/RDG547/GOVRP', '_blank'), color: 'text-blue-400' },
-    { icon: Users, title: 'Feedback e Ideias', description: 'Compartilhe sugestões e reporte bugs para melhorar a experiência de todos.', actionText: 'Enviar Feedback', action: () => navigate('/contact'), color: 'text-purple-400' },
+    { icon: Users, title: 'Feedback e Ideias', description: 'Compartilhe sugestões e reporte bugs para melhorar a experiência de todos.', actionText: 'Enviar Feedback', action: () => navigate('/support'), color: 'text-purple-400' },
     { icon: Share2, title: 'Divulgação', description: 'Ajude a espalhar a palavra sobre o GOV.RP em suas redes sociais e comunidades.', actionText: 'Compartilhar Projeto', action: handleShare, color: 'text-sky-400' },
   ];
   

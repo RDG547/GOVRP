@@ -3,9 +3,9 @@ import { Helmet } from 'react-helmet-async';
 import { useSearchParams } from 'react-router-dom';
 import {
   Building2,
+  Activity,
   Landmark,
   LineChart,
-  RefreshCw,
   ShieldCheck,
   SlidersHorizontal,
   User,
@@ -90,25 +90,30 @@ const Economy = () => {
 
   useEffect(() => {
     let refreshTimer;
-    const channel = supabase
-      .channel('economy-dashboard-live')
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'economic_state',
+    const scheduleRefresh = () => {
+      window.clearTimeout(refreshTimer);
+      refreshTimer = window.setTimeout(() => loadPanel(activePanel, true), 350);
+    };
+    let channel = supabase.channel('economy-dashboard-live');
+
+    [
+      'economic_state',
+      'economic_indicators',
+      'economic_sector_snapshots',
+      'price_basket_items',
+      'economic_bulletins',
+      'economic_alerts',
+      'country_rp_states',
+    ].forEach((table) => {
+      channel = channel.on('postgres_changes', {
+        event: '*', schema: 'public', table,
       }, () => {
         window.clearTimeout(refreshTimer);
-        refreshTimer = window.setTimeout(() => loadPanel(activePanel, true), 500);
-      })
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'economic_indicators',
-      }, () => {
-        window.clearTimeout(refreshTimer);
-        refreshTimer = window.setTimeout(() => loadPanel(activePanel, true), 500);
-      })
-      .subscribe();
+        scheduleRefresh();
+      });
+    });
+
+    channel.subscribe();
 
     return () => {
       window.clearTimeout(refreshTimer);
@@ -179,15 +184,10 @@ const Economy = () => {
               );
             })}
           </div>
-          <Button
-            size="sm"
-            variant="outline"
-            disabled={loading[activePanel]}
-            onClick={() => loadPanel(activePanel)}
-          >
-            <RefreshCw className={`mr-2 h-4 w-4 ${loading[activePanel] ? 'animate-spin' : ''}`} />
-            Atualizar
-          </Button>
+          <div className="flex items-center gap-2 px-2 text-xs font-medium text-emerald-300">
+            <Activity className="h-4 w-4" />
+            <span>{loading[activePanel] ? 'Sincronizando…' : 'Atualização em tempo real'}</span>
+          </div>
         </div>
 
         {renderPanel()}
@@ -197,4 +197,3 @@ const Economy = () => {
 };
 
 export default Economy;
-

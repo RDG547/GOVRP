@@ -8,7 +8,6 @@ import Login from '@/pages/Login';
 import Register from '@/pages/Register';
 import AuthCallback from '@/pages/AuthCallback';
 import About from '@/pages/About';
-import Contact from '@/pages/Contact';
 import AccountDeletion from '@/pages/AccountDeletion';
 import Support from '@/pages/Support';
 import Terms from '@/pages/Terms';
@@ -103,6 +102,8 @@ import ServiceAvailabilityGate from '@/components/ServiceAvailabilityGate';
 import EntrepreneurPortal from '@/pages/services/EntrepreneurPortal';
 import Economy from '@/pages/services/Economy';
 import GlobalSiteAvailabilityGate from '@/components/GlobalSiteAvailabilityGate';
+import PwaInstallPrompt from '@/components/PwaInstallPrompt';
+import NativeRuntime from '@/components/NativeRuntime';
 
 const MainLayout = ({ children }) => {
   const location = useLocation();
@@ -158,6 +159,7 @@ const AppShell = ({ location, theme, isAuthCallback }) => {
   return (
     <GlobalSiteAvailabilityGate pathname={location.pathname} isAdmin={isAdmin}>
       <div className={`${theme} min-h-screen bg-background text-foreground custom-scrollbar`}>
+        <NativeRuntime />
         {!isAuthCallback && <ParticlesBackground />}
         <div className="relative z-10">
           <PrisonRouteGuard>
@@ -176,7 +178,7 @@ const AppShell = ({ location, theme, isAuthCallback }) => {
                 <Route path="/update-password" element={<UpdatePassword />} />
                 <Route path="/about" element={<About />} />
                 <Route path="/country-info" element={<CountryInfo />} />
-                <Route path="/contact" element={<Contact />} />
+                <Route path="/contact" element={<Navigate to="/support" replace />} />
                 <Route path="/account-deletion" element={<AccountDeletion />} />
                 <Route path="/support" element={<Support />} />
                 <Route path="/terms" element={<Terms />} />
@@ -266,6 +268,7 @@ const AppShell = ({ location, theme, isAuthCallback }) => {
           <Toaster />
           {!isAuthCallback && <UserActivityTracker />}
           {!isAuthCallback && <CookieConsent />}
+          {!isAuthCallback && <PwaInstallPrompt />}
           {!isAuthCallback && <DailyCheckInPopup />}
           {!isAuthCallback && <SalaryPaymentPopup />}
           {!isAuthCallback && <BusinessBalancePopup />}

@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { RefreshCw } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Activity } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/supabaseClient';
 import {
@@ -78,25 +77,30 @@ const EmbeddedEconomyPanel = ({ view = 'public', showHeader = true }) => {
 
   useEffect(() => {
     let refreshTimer;
-    const channel = supabase
-      .channel(`embedded-economy-${view}`)
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'economic_state',
+    const scheduleRefresh = () => {
+      window.clearTimeout(refreshTimer);
+      refreshTimer = window.setTimeout(() => load({ quiet: true }), 350);
+    };
+    let channel = supabase.channel(`embedded-economy-${view}`);
+
+    [
+      'economic_state',
+      'economic_indicators',
+      'economic_sector_snapshots',
+      'price_basket_items',
+      'economic_bulletins',
+      'economic_alerts',
+      'country_rp_states',
+    ].forEach((table) => {
+      channel = channel.on('postgres_changes', {
+        event: '*', schema: 'public', table,
       }, () => {
         window.clearTimeout(refreshTimer);
-        refreshTimer = window.setTimeout(() => load({ quiet: true }), 500);
-      })
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'economic_indicators',
-      }, () => {
-        window.clearTimeout(refreshTimer);
-        refreshTimer = window.setTimeout(() => load({ quiet: true }), 500);
-      })
-      .subscribe();
+        scheduleRefresh();
+      });
+    });
+
+    channel.subscribe();
 
     return () => {
       window.clearTimeout(refreshTimer);
@@ -119,10 +123,10 @@ const EmbeddedEconomyPanel = ({ view = 'public', showHeader = true }) => {
               Dados oficiais do motor econômico, atualizados a partir das ações do RP.
             </p>
           </div>
-          <Button variant="outline" size="sm" onClick={() => load()}>
-            <RefreshCw className="mr-2 h-4 w-4" />
-            Atualizar
-          </Button>
+          <div className="flex items-center gap-2 text-xs font-medium text-emerald-300">
+            <Activity className="h-4 w-4" />
+            Atualização em tempo real
+          </div>
         </div>
       ) : null}
 

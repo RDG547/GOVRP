@@ -18,7 +18,7 @@ const faqData = [
   // Geral
   { category: 'Geral', question: 'O que é o GOV.RP?', answer: 'GOV.RP é um ecossistema completo e imersivo de roleplay (RP) político. Aqui, você pode criar seu personagem, fundar nações, entrar na política, abrir negócios e interagir com uma comunidade ativa.' },
   { category: 'Geral', question: 'O GOV.RP é gratuito?', answer: 'Atualmente, a plataforma é 100% gratuita. Mantemos o projeto através de doações voluntárias da nossa comunidade. Futuramente, poderemos introduzir sistemas de assinaturas que oferecerão benefícios aos usuários assinantes, mas a equipe sempre prezará para que não se torne algo "pay-to-win", desbalanceando o projeto para quem não paga.' },
-  { category: 'Geral', question: 'Como posso me juntar à comunidade?', answer: 'É fácil! Você pode entrar em nossos grupos de WhatsApp, Discord ou Telegram. Os links estão disponíveis nas páginas da Comunidade, Suporte e Contato. É a melhor forma de ficar por dentro de tudo e conhecer outros jogadores.' },
+  { category: 'Geral', question: 'Como posso me juntar à comunidade?', answer: 'É fácil! Você pode entrar em nossos grupos de WhatsApp, Discord ou Telegram. Os links estão disponíveis nas páginas da Comunidade e de Contato e Suporte.' },
 
   // Conta
   { category: 'Sua Conta', question: 'Como posso me cadastrar?', answer: 'O cadastro é rápido! Basta clicar em "Cadastrar" no canto superior direito, preencher o formulário e confirmar seu e-mail. Em poucos minutos, você será um cidadão oficial do GOV.RP.' },
@@ -48,7 +48,7 @@ const faqData = [
   { category: 'Administração', question: 'Um admin pode alterar o saldo da minha conta?', answer: 'Sim. Administradores têm a capacidade de adicionar ou remover fundos das contas dos usuários. Essa ferramenta é usada para corrigir erros, aplicar multas de RP ou distribuir recompensas de eventos, sempre com transparência.' },
 
   // Técnico
-  { category: 'Técnico', question: 'Como posso entrar em contato com o suporte?', answer: 'Para problemas técnicos, visite nossa página de "Suporte" e abra um ticket detalhando o problema. Nossa equipe responderá o mais rápido possível.' },
+  { category: 'Técnico', question: 'Como posso entrar em contato com o suporte?', answer: 'Visite a Central de Contato e Suporte, selecione suporte técnico e abra um ticket detalhando o problema.' },
   { category: 'Técnico', question: 'Onde posso relatar um bug?', answer: 'Você pode relatar bugs diretamente na nossa Central de Suporte. Detalhes como prints e uma boa descrição do que aconteceu são sempre bem-vindos para nos ajudar a corrigir o problema.' },
   { category: 'Técnico', question: 'O site está lento, o que posso fazer?', answer: 'Tente limpar o cache do seu navegador. Se o problema persistir, verifique sua conexão com a internet. Se ainda assim estiver lento, entre em contato com nosso suporte para investigarmos.' },
 
@@ -158,7 +158,7 @@ const FAQ = () => {
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }} className="mt-16 text-center">
             <h3 className="text-2xl font-bold text-white mb-4">Não encontrou sua resposta?</h3>
             <p className="text-gray-300 mb-6 max-w-xl mx-auto">Nossa equipe de suporte está pronta para ajudar com qualquer outra dúvida que você possa ter.</p>
-            <Link to="/contact">
+            <Link to="/support">
               <Button size="lg" className="bg-gradient-to-r from-blue-600 to-purple-600 hover:scale-105 transition-transform">
                 Entre em Contato <ArrowRight className="w-4 h-4 ml-2" />
               </Button>

@@ -23,6 +23,7 @@ import { feature as topoFeature } from 'topojson-client';
 import isoCountries from 'iso-3166-1';
 import worldAtlas from 'world-atlas/countries-110m.json';
 import { loadCountryProfile } from '@/lib/countryProfile';
+import { useCountryRpProfile } from '@/hooks/use-country-rp-profile';
 
 const VIEWBOX_SIZE = 620;
 const GLOBE_CENTER = VIEWBOX_SIZE / 2;
@@ -121,6 +122,22 @@ const formatGrowth = (value) => {
   })}%`;
 };
 
+const formatRate = (value) => {
+  if (value === null || value === undefined) return 'Indisponível';
+
+  return `${value.toLocaleString('pt-BR', {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 2,
+  })}%`;
+};
+
+const indicatorDetail = (indicator) => {
+  if (!indicator) return null;
+  return [indicator.source, indicator.year ? `Referência ${indicator.year}` : null]
+    .filter(Boolean)
+    .join(' · ') || null;
+};
+
 const formatExchange = (rate, base, currency) => {
   if (rate === null || rate === undefined || !currency) return 'Indisponível';
 
@@ -186,6 +203,10 @@ const InteractiveGlobe = () => {
   const hoveredCountry = hoveredCountryId
     ? countriesById.get(String(hoveredCountryId))
     : null;
+  const { profile: displayedCountryProfile, rpContext } = useCountryRpProfile(
+    selectedCountry,
+    countryProfile,
+  );
   const filteredCountries = useMemo(() => {
     const normalizedQuery = normalizeSearch(countrySearch.trim());
 
@@ -256,6 +277,7 @@ const InteractiveGlobe = () => {
 
   useEffect(() => {
     let isCurrentSelection = true;
+    let refreshInterval;
 
     if (!selectedCountry) {
       setCountryProfile(null);
@@ -266,22 +288,26 @@ const InteractiveGlobe = () => {
     setCountryProfile(null);
     setProfileStatus('loading');
 
-    loadCountryProfile(selectedCountry.info)
-      .then((profile) => {
-        if (!isCurrentSelection) return;
+    const refreshProfile = (force = false) => loadCountryProfile({
+      ...selectedCountry.info,
+      force,
+    }).then((profile) => {
+      if (!isCurrentSelection) return;
 
-        setCountryProfile(profile);
-        setProfileStatus(profile.unavailable ? 'error' : 'ready');
-      })
-      .catch(() => {
-        if (!isCurrentSelection) return;
+      setCountryProfile(profile);
+      setProfileStatus(profile.unavailable ? 'error' : 'ready');
+    }).catch(() => {
+      if (!isCurrentSelection) return;
 
-        setCountryProfile(null);
-        setProfileStatus('error');
-      });
+      setProfileStatus('error');
+    });
+
+    refreshProfile();
+    refreshInterval = window.setInterval(() => refreshProfile(true), 15 * 60 * 1000);
 
     return () => {
       isCurrentSelection = false;
+      window.clearInterval(refreshInterval);
     };
   }, [selectedCountry]);
 
@@ -388,9 +414,11 @@ const InteractiveGlobe = () => {
   }, [pauseRotation, scheduleRotationResume]);
 
   const isProfileLoading = profileStatus === 'loading';
-  const economicData = countryProfile?.economy;
-  const exchangeData = countryProfile?.exchange;
-  const governmentData = countryProfile?.government;
+  const economicData = displayedCountryProfile?.economy;
+  const exchangeData = displayedCountryProfile?.exchange;
+  const governmentData = displayedCountryProfile?.government;
+  const regimeData = displayedCountryProfile?.regime;
+  const isRpProfile = Boolean(displayedCountryProfile?.rp?.active);
 
   return (
     <div
@@ -661,39 +689,66 @@ const InteractiveGlobe = () => {
               <div className="custom-scrollbar mt-3 max-h-[235px] overflow-y-auto border-t border-white/10 pr-1 pt-3">
                 <div className="mb-2 flex items-center justify-between gap-2">
                   <p className="text-[9px] font-semibold uppercase tracking-[0.16em] text-slate-500">Panorama nacional</p>
-                  {isProfileLoading && (
-                    <span className="flex items-center gap-1.5 text-[9px] text-cyan-300">
-                      <Loader2 className="h-3 w-3 animate-spin" />
-                      Atualizando dados
-                    </span>
-                  )}
-                  {profileStatus === 'error' && (
-                    <span className="text-[9px] text-amber-300">Dados externos indisponíveis</span>
-                  )}
+                  <div className="flex items-center gap-2">
+                    {!isProfileLoading && profileStatus !== 'error' && (
+                      <span className={`rounded-full border px-2 py-0.5 text-[8px] font-semibold uppercase tracking-wider ${
+                        isRpProfile
+                          ? 'border-cyan-400/25 bg-cyan-400/10 text-cyan-300'
+                          : 'border-white/10 bg-white/[0.035] text-slate-500'
+                      }`}
+                      >
+                        {isRpProfile
+                          ? `RP ao vivo · eco ${Math.round((rpContext?.economyInfluence ?? 0) * 100)}% · pol ${Math.round((rpContext?.politicsInfluence ?? 0) * 100)}%`
+                          : 'Base real'}
+                      </span>
+                    )}
+                    {isProfileLoading && (
+                      <span className="flex items-center gap-1.5 text-[9px] text-cyan-300">
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                        Atualizando dados
+                      </span>
+                    )}
+                    {profileStatus === 'error' && (
+                      <span className="text-[9px] text-amber-300">Dados externos indisponíveis</span>
+                    )}
+                  </div>
                 </div>
 
                 <dl className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
                   <ProfileMetric
                     label="PIB total"
                     value={formatGdp(economicData?.gdp?.value)}
-                    detail={economicData?.gdp?.year ? `Referência ${economicData.gdp.year}` : null}
+                    detail={indicatorDetail(economicData?.gdp)}
                     loading={isProfileLoading}
                   />
                   <ProfileMetric
                     label="Taxa de crescimento"
                     value={formatGrowth(economicData?.growth?.value)}
-                    detail={economicData?.growth?.year ? `Referência ${economicData.growth.year}` : null}
+                    detail={indicatorDetail(economicData?.growth)}
+                    loading={isProfileLoading}
+                  />
+                  <ProfileMetric
+                    label="Inflação atual"
+                    value={formatRate(economicData?.inflation?.value)}
+                    detail={indicatorDetail(economicData?.inflation)}
+                    loading={isProfileLoading}
+                  />
+                  <ProfileMetric
+                    label="Taxa de desemprego"
+                    value={formatRate(economicData?.unemployment?.value)}
+                    detail={indicatorDetail(economicData?.unemployment)}
                     loading={isProfileLoading}
                   />
                   <ProfileMetric
                     label="População total"
                     value={formatPopulation(economicData?.population?.value)}
-                    detail={economicData?.population?.year ? `Referência ${economicData.population.year}` : null}
+                    detail={indicatorDetail(economicData?.population)}
                     loading={isProfileLoading}
                   />
                   <ProfileMetric
                     label="Área aproximada"
-                    value={formatArea(selectedCountry.info.area)}
+                    value={formatArea(economicData?.area?.value ?? selectedCountry.info.area)}
+                    detail={indicatorDetail(economicData?.area) || 'Geometria territorial do globo'}
                   />
                   <ProfileMetric
                     label="Câmbio com o dólar"
@@ -717,7 +772,7 @@ const InteractiveGlobe = () => {
                     multiline
                   />
                   <ProfileMetric
-                    label="Partido"
+                    label={governmentData?.partyLabel || 'Partido'}
                     value={governmentData?.party || 'Não informado'}
                     loading={isProfileLoading}
                     multiline
@@ -729,12 +784,28 @@ const InteractiveGlobe = () => {
                     multiline
                   />
                   <ProfileMetric
-                    label="Regime / forma de governo"
+                    label="Regime político"
+                    value={regimeData?.label || 'Não classificado'}
+                    detail={regimeData?.year
+                      ? `${regimeData.source || 'V-Dem'} · Referência ${regimeData.year}`
+                      : null}
+                    loading={isProfileLoading}
+                    multiline
+                  />
+                  <ProfileMetric
+                    label="Forma de governo"
                     value={governmentData?.governmentForm || 'Não informado'}
                     loading={isProfileLoading}
                     multiline
                   />
                 </dl>
+
+                {isRpProfile && rpContext?.lastEventSummary && (
+                  <p className="mt-2 rounded-lg border border-cyan-400/10 bg-cyan-400/[0.04] px-2.5 py-2 text-[9px] leading-relaxed text-cyan-100/70">
+                    <span className="font-semibold uppercase tracking-wider text-cyan-300">Mudança mais recente: </span>
+                    {rpContext.lastEventSummary}
+                  </p>
+                )}
 
                 <p className="mt-2 text-[8px] leading-relaxed text-slate-600">
                   Indicadores: Banco Mundial/FMI via DBnomics · Câmbio: Frankfurter/
@@ -746,7 +817,7 @@ const InteractiveGlobe = () => {
                   >
                     ExchangeRate-API
                   </a>
-                  {' '}· Governo: Wikidata
+                  {' '}· Política: Wikidata/Wikipedia e V-Dem/Our World in Data
                 </p>
               </div>
             )}

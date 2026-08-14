@@ -1,13 +1,34 @@
 import React, { useMemo } from 'react';
 import {
   BarChart3,
+  BadgeDollarSign,
   Briefcase,
+  Building2,
+  Bus,
   CircleDollarSign,
+  Cpu,
+  Factory,
   Gauge,
+  Gamepad2,
+  Gem,
+  GraduationCap,
+  HardHat,
+  HeartPulse,
+  Home,
+  Hotel,
   Landmark,
+  MoreHorizontal,
+  Palmtree,
+  RadioTower,
   Scale,
+  Shirt,
   ShoppingBasket,
+  ShoppingCart,
+  Tractor,
   TrendingUp,
+  Truck,
+  Utensils,
+  Zap,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -29,6 +50,44 @@ const periodLabel = (period) => {
   if (period.period_type === 'quarter') return `T${period.rp_quarter}/${period.rp_year}`;
   return `${period.rp_year}`;
 };
+
+const normalizeLabel = (value = '') => value
+  .normalize('NFD')
+  .replace(/[\u0300-\u036f]/g, '')
+  .toLocaleLowerCase('pt-BR');
+
+const sectorIconByName = new Map([
+  ['industria', Factory],
+  ['comercio', ShoppingCart],
+  ['administracao publica', Landmark],
+  ['agropecuaria', Tractor],
+  ['servicos financeiros', BadgeDollarSign],
+  ['saude', HeartPulse],
+  ['construcao', HardHat],
+  ['tecnologia', Cpu],
+  ['transporte e logistica', Truck],
+  ['petroleo e mineracao', Gem],
+  ['educacao', GraduationCap],
+  ['servicos profissionais', Briefcase],
+  ['energia', Zap],
+  ['outros servicos', MoreHorizontal],
+  ['imobiliario', Building2],
+  ['telecomunicacoes', RadioTower],
+  ['turismo e lazer', Palmtree],
+]);
+
+const basketIconByName = new Map([
+  ['alimentacao', Utensils],
+  ['moradia', Home],
+  ['transporte', Bus],
+  ['saude', HeartPulse],
+  ['educacao', GraduationCap],
+  ['lazer', Gamepad2],
+  ['vestuario', Shirt],
+  ['energia', Zap],
+]);
+
+const iconFor = (mapping, name, fallback) => mapping.get(normalizeLabel(name)) || fallback;
 
 const PublicEconomyPanel = ({ data }) => {
   const headline = data?.headline || {};
@@ -61,6 +120,16 @@ const PublicEconomyPanel = ({ data }) => {
           detail="preços constantes"
           trend={headline.gdp_growth_quarterly}
           icon={BarChart3}
+        />
+        <EconomyCard
+          label="Crescimento do PIB"
+          value={formatPercent(
+            headline.gdp_growth_year_over_year ?? headline.gdp_growth_quarterly,
+            true,
+          )}
+          detail={headline.gdp_growth_year_over_year != null ? 'acumulado em 12 meses' : 'variação trimestral'}
+          icon={TrendingUp}
+          accent="text-cyan-300"
         />
         <EconomyCard
           label="Inflação anual"
@@ -143,10 +212,16 @@ const PublicEconomyPanel = ({ data }) => {
             {(data?.sectors || []).length ? data.sectors.map((sector) => {
               const maximum = Math.max(...data.sectors.map((item) => asNumber(item.value_added)), 1);
               const width = Math.max(2, asNumber(sector.value_added) / maximum * 100);
+              const SectorIcon = iconFor(sectorIconByName, sector.name, BarChart3);
               return (
                 <div key={sector.code}>
                   <div className="mb-1 flex items-center justify-between gap-3 text-sm">
-                    <span>{sector.name}</span>
+                    <span className="flex min-w-0 items-center gap-2">
+                      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-cyan-500/10 text-cyan-300">
+                        <SectorIcon className="h-4 w-4" />
+                      </span>
+                      <span className="truncate">{sector.name}</span>
+                    </span>
                     <span className="text-muted-foreground">
                       {formatCurrency(sector.value_added, true)}
                     </span>
@@ -172,9 +247,16 @@ const PublicEconomyPanel = ({ data }) => {
             <CardTitle className="text-base">Cesta oficial de preços</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            {(data?.basket || []).slice(0, 8).map((item) => (
+            {(data?.basket || []).slice(0, 8).map((item) => {
+              const BasketIcon = iconFor(basketIconByName, item.name, ShoppingBasket);
+              return (
               <div key={item.code} className="flex items-center justify-between gap-3 text-sm">
-                <span>{item.name}</span>
+                <span className="flex min-w-0 items-center gap-2">
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-amber-500/10 text-amber-300">
+                    <BasketIcon className="h-4 w-4" />
+                  </span>
+                  <span className="truncate">{item.name}</span>
+                </span>
                 <span className="text-right">
                   <span className="font-medium">{formatIndex(item.index)}</span>
                   <span className="ml-2 text-xs text-muted-foreground">
@@ -182,7 +264,8 @@ const PublicEconomyPanel = ({ data }) => {
                   </span>
                 </span>
               </div>
-            ))}
+              );
+            })}
           </CardContent>
         </Card>
       </div>

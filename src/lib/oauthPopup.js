@@ -1,5 +1,9 @@
 import { createClient } from '@supabase/supabase-js';
+import { App } from '@capacitor/app';
+import { Browser } from '@capacitor/browser';
+import { Capacitor } from '@capacitor/core';
 import { supabase, supabasePublishableKey, supabaseUrl } from '@/lib/supabaseClient';
+import { getAppRedirectUrl, getRouteFromNativeUrl } from '@/lib/nativeLinks';
 
 export const AUTH_POPUP_MESSAGE_SOURCE = 'govrp-auth-popup';
 export const AUTH_POPUP_CLOSED_CODE = 'AUTH_POPUP_CLOSED';
@@ -340,7 +344,101 @@ const waitForSessionSync = async () => {
   return null;
 };
 
+const sessionFromNativeCallback = async (client, rawUrl) => {
+  const url = new URL(rawUrl);
+  const urlError = url.searchParams.get('error_description') || url.searchParams.get('error');
+
+  if (urlError) throw new Error(urlError);
+
+  const code = url.searchParams.get('code');
+  if (code) {
+    const { data, error } = await client.auth.exchangeCodeForSession(code);
+    if (error) throw error;
+    return data.session;
+  }
+
+  const hashParams = new URLSearchParams(url.hash.replace(/^#/, ''));
+  const accessToken = hashParams.get('access_token');
+  const refreshToken = hashParams.get('refresh_token');
+
+  if (accessToken && refreshToken) {
+    const { data, error } = await client.auth.setSession({
+      access_token: accessToken,
+      refresh_token: refreshToken,
+    });
+    if (error) throw error;
+    return data.session;
+  }
+
+  throw new Error('O provedor não devolveu uma sessão de autenticação válida.');
+};
+
+const signInWithNativeOAuth = async (provider) => {
+  const { client } = getOAuthClient(provider);
+  const { data, error } = await client.auth.signInWithOAuth({
+    provider,
+    options: {
+      redirectTo: getAppRedirectUrl('/auth/callback'),
+      skipBrowserRedirect: true,
+    },
+  });
+
+  if (error) throw error;
+  if (!data?.url) throw new Error('Não foi possível iniciar a autenticação social.');
+
+  let settled = false;
+  let resolveResult;
+  let rejectResult;
+  const callbackResult = new Promise((resolve, reject) => {
+    resolveResult = resolve;
+    rejectResult = reject;
+  });
+  const appListener = await App.addListener('appUrlOpen', async ({ url }) => {
+    if (settled || getRouteFromNativeUrl(url) !== '/auth/callback') return;
+
+    try {
+      const session = await sessionFromNativeCallback(client, url);
+      settled = true;
+      resolveResult(session);
+      Browser.close().catch(() => {});
+    } catch (callbackError) {
+      settled = true;
+      rejectResult(callbackError);
+      Browser.close().catch(() => {});
+    }
+  });
+  const browserListener = await Browser.addListener('browserFinished', () => {
+    if (settled) return;
+    settled = true;
+    rejectResult(createPopupError(
+      'A autenticação foi fechada antes da conclusão.',
+      AUTH_POPUP_CLOSED_CODE,
+    ));
+  });
+  const timeoutId = window.setTimeout(() => {
+    if (settled) return;
+    settled = true;
+    rejectResult(createPopupError(
+      'A autenticação demorou mais do que o esperado. Tente novamente.',
+      AUTH_POPUP_TIMEOUT_CODE,
+    ));
+  }, AUTH_POPUP_TIMEOUT_MS);
+
+  try {
+    await Browser.open({ url: data.url, presentationStyle: 'popover' });
+    return await callbackResult;
+  } finally {
+    window.clearTimeout(timeoutId);
+    appListener.remove();
+    browserListener.remove();
+  }
+};
+
 export const signInWithOAuthPopup = async (provider) => {
+  if (Capacitor.isNativePlatform()) {
+    return signInWithNativeOAuth(provider);
+  }
+
   const attemptId = buildPopupAttemptId();
   const popupWindow = openPopup(provider);
   const { client, flowType } = getOAuthClient(provider);

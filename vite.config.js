@@ -8,6 +8,7 @@ import selectionModePlugin from './plugins/selection-mode/vite-plugin-selection-
 import donationApiPlugin from './plugins/vite-plugin-donation-api.js';
 import electionSyncApiPlugin from './plugins/vite-plugin-election-sync-api.js';
 import businessApiPlugin from './plugins/vite-plugin-business-api.js';
+import { VitePWA } from 'vite-plugin-pwa';
 
 const isDev = process.env.NODE_ENV !== 'production';
 
@@ -311,9 +312,97 @@ export default defineConfig(({ mode }) => {
 					electionSyncApiPlugin(),
 					donationApiPlugin(),
 					businessApiPlugin(),
-				  ]
+			  ]
 				: []),
 			react(),
+			VitePWA({
+				registerType: 'autoUpdate',
+				injectRegister: null,
+				includeAssets: [
+					'favicon.ico',
+					'favicon-16x16.png',
+					'favicon-32x32.png',
+					'favicon-48x48.png',
+					'apple-touch-icon.png',
+					'icon-192x192.png',
+					'icon-512x512.png',
+					'icon-maskable-512x512.png',
+				],
+				manifest: {
+					id: '/',
+					name: 'GOV.RP - Ecossistema de Roleplay Político',
+					short_name: 'GOV.RP',
+					description: 'Governe, legisle e transforme o Brasil em um roleplay político persistente.',
+					lang: 'pt-BR',
+					start_url: '/',
+					scope: '/',
+					display: 'standalone',
+					orientation: 'any',
+					background_color: '#020713',
+					theme_color: '#071a4b',
+					categories: ['games', 'social', 'simulation'],
+					icons: [
+						{
+							src: '/icon-192x192.png',
+							sizes: '192x192',
+							type: 'image/png',
+							purpose: 'any',
+						},
+						{
+							src: '/icon-512x512.png',
+							sizes: '512x512',
+							type: 'image/png',
+							purpose: 'any',
+						},
+						{
+							src: '/icon-maskable-512x512.png',
+							sizes: '512x512',
+							type: 'image/png',
+							purpose: 'maskable',
+						},
+					],
+				},
+				workbox: {
+					cleanupOutdatedCaches: true,
+					clientsClaim: true,
+					skipWaiting: true,
+					navigateFallback: '/index.html',
+					navigateFallbackDenylist: [/^\/api\//],
+					maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
+					runtimeCaching: [
+						{
+							urlPattern: ({ request, url }) => request.method === 'GET'
+								&& url.origin === self.location.origin
+								&& request.destination === 'image',
+							handler: 'CacheFirst',
+							options: {
+								cacheName: 'govrp-images',
+								expiration: { maxEntries: 120, maxAgeSeconds: 30 * 24 * 60 * 60 },
+							},
+						},
+						{
+							urlPattern: ({ url }) => [
+								'api.worldbank.org',
+								'api.db.nomics.world',
+								'api.frankfurter.dev',
+								'open.er-api.com',
+								'query.wikidata.org',
+								'www.wikidata.org',
+								'pt.wikipedia.org',
+								'en.wikipedia.org',
+								'ourworldindata.org',
+							].includes(url.hostname),
+							handler: 'NetworkFirst',
+							options: {
+								cacheName: 'govrp-reference-data',
+								networkTimeoutSeconds: 6,
+								expiration: { maxEntries: 160, maxAgeSeconds: 24 * 60 * 60 },
+								cacheableResponse: { statuses: [0, 200] },
+							},
+						},
+					],
+				},
+			}),
 			addTransformIndexHtml
 		],
 		server: {
