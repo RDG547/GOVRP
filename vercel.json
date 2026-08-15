@@ -22,6 +22,10 @@
   ],
   "rewrites": [
     {
+      "source": "/api/donations/stripe-webhook",
+      "destination": "/api/donations/stripe-checkout"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }

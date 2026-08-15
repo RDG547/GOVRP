@@ -49,8 +49,11 @@ const investments = rootFile(migrations[2]);
 verify('investimentos atômicos e idempotentes', investments.includes('for update') && investments.includes('p_idempotency_key'));
 
 const donationsServer = rootFile('server/donations/http.js');
+const stripeEndpoint = rootFile('api/donations/stripe-checkout.js');
+const vercelConfig = rootFile('vercel.json');
 const frontendSource = [rootFile('src/pages/DonationPage.jsx'), rootFile('src/pages/Login.jsx'), rootFile('src/pages/Register.jsx')].join('\n');
 verify('webhook Stripe valida assinatura', donationsServer.includes('constructEvent') && donationsServer.includes('STRIPE_WEBHOOK_SECRET'));
+verify('checkout e webhook Stripe compartilham uma função Vercel', stripeEndpoint.includes("request.headers['stripe-signature']") && vercelConfig.includes('/api/donations/stripe-webhook') && !existsSync(new URL('../api/donations/stripe-webhook.js', import.meta.url)));
 verify('chave secreta Stripe ausente do frontend', !/STRIPE_SECRET_KEY|sk_(live|test)_/i.test(frontendSource));
 verify('hCaptcha integrado no login e cadastro', frontendSource.includes('HCaptchaChallenge') && frontendSource.includes('captchaToken'));
 

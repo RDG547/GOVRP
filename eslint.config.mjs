@@ -9,6 +9,7 @@ export default [
 			'node_modules/**',
 			'dist/**',
 			'build/**',
+			'.vercel/**',
 			'android/**',
 			'ios/**',
 			'vite.config.js',
@@ -32,8 +33,9 @@ export default [
 		},
 		rules: {
 			...react.configs.recommended.rules,
-			...reactHooks.configs.recommended.rules,
 			...importPlugin.flatConfigs.recommended.rules,
+			'react-hooks/rules-of-hooks': 'error',
+			'react-hooks/exhaustive-deps': 'warn',
 
 			// Non-critical rules - disabled since code works fine without them
 			'react/prop-types': 'off',

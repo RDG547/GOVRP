@@ -60,7 +60,7 @@ Leitura pública foi limitada ao que é institucionalmente público; cidadãos v
 
 ## 8. Funções HTTP/servidor
 
-O backend Vercel de doações foi atualizado e ganhou endpoint `api/donations/stripe-webhook.js`. A assinatura do webhook é validada antes da confirmação e eventos repetidos são ignorados de forma segura.
+O backend Vercel de doações foi atualizado e a rota pública `/api/donations/stripe-webhook` foi consolidada na mesma função serverless do checkout para respeitar o limite do plano Hobby. A assinatura do webhook é validada antes da confirmação e eventos repetidos são ignorados de forma segura.
 
 ## 9. Variáveis e secrets manuais
 

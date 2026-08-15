@@ -2,10 +2,12 @@ import {
   checkPixChargeHandler,
   createPixChargeHandler,
   createStripeCheckoutHandler,
+  stripeWebhookHandler,
 } from '../server/donations/http.js';
 
 const ROUTE_HANDLERS = {
   '/api/donations/stripe-checkout': createStripeCheckoutHandler,
+  '/api/donations/stripe-webhook': stripeWebhookHandler,
   '/api/donations/pix-charge': createPixChargeHandler,
   '/api/donations/pix-status': checkPixChargeHandler,
 };
