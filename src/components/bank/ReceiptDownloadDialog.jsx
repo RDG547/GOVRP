@@ -87,6 +87,7 @@ const ReceiptContent = React.forwardRef(({ receipt }, ref) => {
                     <ReceiptInfoRow label="Tipo:" value={getTransactionTypeName(receipt.type)} />
                     <ReceiptInfoRow label="Data:" value={new Date(receipt.created_at).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'medium' })} />
                     <ReceiptInfoRow label="ID Transação:" value={receipt.id} valueClass="font-mono text-xs break-all" />
+                    {receipt.metadata?.purchase_location && <ReceiptInfoRow label="Local da compra:" value={receipt.metadata.purchase_location} />}
                 </div>
 
                 <div className="border-t border-dashed border-gray-600 my-4"></div>
@@ -109,6 +110,14 @@ const ReceiptContent = React.forwardRef(({ receipt }, ref) => {
                 {receipt.sender_name && receipt.recipient_name && <div className="border-t border-dashed border-gray-600 my-4"></div>}
 
                 {receipt.recipient_name && <ReceiptParticipant title="Destinatário" data={recipientData} />}
+
+                {receipt.metadata?.seller_snapshot && (
+                    <div className="mt-4 space-y-2 rounded-lg border border-white/10 p-3">
+                        <h3 className="font-semibold">Vendedor no momento da compra</h3>
+                        <ReceiptInfoRow label="Nome/Razão social:" value={receipt.metadata.seller_snapshot.trade_name || receipt.metadata.seller_snapshot.legal_name} />
+                        {receipt.metadata.seller_snapshot.cnpj && <ReceiptInfoRow label="CNPJ:" value={receipt.metadata.seller_snapshot.cnpj} />}
+                    </div>
+                )}
 
                 <div className="border-t border-dashed border-gray-600 my-4"></div>
 

@@ -6,7 +6,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader2, Edit, Trash2, Search, Wallet, Crown, KeyRound, Filter, CreditCard, User, Shield, Scale, Gavel, Briefcase, GraduationCap, Building, ChevronLeft, ChevronRight, Landmark } from 'lucide-react';
+import { Loader2, Edit, Trash2, Search, Wallet, Crown, KeyRound, Filter, CreditCard, User, Shield, Scale, Gavel, Briefcase, GraduationCap, Building, ChevronLeft, ChevronRight, Landmark, RotateCcw } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -714,6 +714,14 @@ const UserManagement = () => {
 
 const UserActionButtons = ({ user, adminUser, setModifyingBalanceUser, setChangingPasswordUser, setEditingUser, handleDeleteUser, setManagingCardLimitUser, deletingUserId }) => {
     const isDeleting = deletingUserId === user.id;
+    const { toast } = useToast();
+    const [resettingOnboarding, setResettingOnboarding] = useState(false);
+    const resetOnboarding = async () => {
+        setResettingOnboarding(true);
+        const { error } = await supabase.rpc('admin_reset_citizen_onboarding', { p_user_id: user.id });
+        setResettingOnboarding(false);
+        toast(error ? { title: 'Falha ao reiniciar primeiro acesso', description: error.message, variant: 'destructive' } : { title: 'Primeiro acesso reiniciado', description: `${user.full_name} refará residência e documentos no próximo acesso.` });
+    };
     return (
         <>
             {user.has_bank_account && (
@@ -731,6 +739,9 @@ const UserActionButtons = ({ user, adminUser, setModifyingBalanceUser, setChangi
             </Button>
             <Button variant="ghost" size="icon" onClick={() => setEditingUser({...user})} title="Editar Usuário">
                 <Edit className="w-4 h-4 text-blue-400" />
+            </Button>
+            <Button variant="ghost" size="icon" onClick={resetOnboarding} disabled={resettingOnboarding || user.id === adminUser.id} title="Reiniciar primeiro acesso">
+                {resettingOnboarding ? <Loader2 className="h-4 w-4 animate-spin" /> : <RotateCcw className="h-4 w-4 text-cyan-400" />}
             </Button>
             <Dialog>
                 <DialogTrigger asChild>

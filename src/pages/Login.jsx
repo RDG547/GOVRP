@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Helmet } from 'react-helmet-async';
@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { FaGoogle, FaFacebook, FaDiscord } from 'react-icons/fa';
 import { isAuthPopupClosedError, signInWithOAuthPopup } from '@/lib/oauthPopup';
+import HCaptchaChallenge from '@/components/auth/HCaptchaChallenge';
 
 
 const Login = () => {
@@ -17,6 +18,10 @@ const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [socialLoadingProvider, setSocialLoadingProvider] = useState(null);
+  const [captchaToken, setCaptchaToken] = useState('');
+  const [captchaResetKey, setCaptchaResetKey] = useState(0);
+  const captchaEnabled = Boolean(import.meta.env.VITE_HCAPTCHA_SITE_KEY?.trim());
+  const handleCaptcha = useCallback((token) => setCaptchaToken(token), []);
   
   const { login } = useAuth();
   const { toast } = useToast();
@@ -34,10 +39,15 @@ const Login = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (captchaEnabled && !captchaToken) {
+      toast({ title: 'Verificação necessária', description: 'Conclua o hCaptcha para entrar.', variant: 'destructive' });
+      return;
+    }
     
     setLoading(true);
     try {
-      const { user } = await login({ identifier: formData.identifier, password: formData.password });
+      const { user } = await login({ identifier: formData.identifier, password: formData.password, captchaToken });
       toast({
         title: "Login realizado com sucesso!",
         description: `Bem-vindo de volta, ${user.full_name || user.username}!`,
@@ -48,6 +58,7 @@ const Login = () => {
         navigate('/');
       }
     } catch (error) {
+      setCaptchaResetKey((value) => value + 1);
       toast({
         title: "Erro no Login",
         description: error.message || "Credenciais inválidas. Por favor, verifique seu identificador e senha.",
@@ -154,11 +165,12 @@ const Login = () => {
                 </button>
               </div>
             </div>
-            
+
+            <HCaptchaChallenge onVerify={handleCaptcha} resetKey={captchaResetKey} />
 
             <Button
               type="submit"
-              disabled={loading || Boolean(socialLoadingProvider)}
+              disabled={loading || Boolean(socialLoadingProvider) || (captchaEnabled && !captchaToken)}
               className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 py-3 text-lg font-medium"
             >
               {loading ? <Loader2 className="animate-spin" /> : <><LogIn className="mr-2 h-5 w-5" /> Entrar</>}

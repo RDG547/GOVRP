@@ -248,59 +248,16 @@ const countVotes = (votes = []) =>
   );
 
 const finalizeSuggestionVoting = async (supabase, voting, approved) => {
-  const { data: suggestion, error: suggestionError } = await supabase
-    .from('bill_suggestions')
-    .select('*')
-    .eq('id', voting.related_id)
-    .single();
-
-  if (suggestionError) {
-    throw suggestionError;
-  }
-
-  if (!approved) {
-    const { error: suggestionUpdateError } = await supabase
-      .from('bill_suggestions')
-      .update({ status: 'rejeitada' })
-      .eq('id', suggestion.id);
-
-    if (suggestionUpdateError) {
-      throw suggestionUpdateError;
-    }
-
-    return {
-      approved: false,
-      message: 'Sugestão rejeitada pela votação da casa legislativa.',
-    };
-  }
-
-  const { error: billInsertError } = await supabase.from('bills').insert({
-    title: suggestion.title,
-    summary: suggestion.suggestion,
-    full_text: suggestion.suggestion,
-    author_id: suggestion.author_id,
-    house_id: voting.house_id,
-    author_role: 'Cidadão',
-    status: 'Em tramitação',
-    type: inferBillTypeFromTitle(suggestion.title),
+  const { data, error } = await supabase.rpc('finalize_bill_suggestion_voting', {
+    p_voting_id: voting.id,
   });
 
-  if (billInsertError) {
-    throw billInsertError;
-  }
-
-  const { error: suggestionApprovalError } = await supabase
-    .from('bill_suggestions')
-    .update({ status: 'aprovada' })
-    .eq('id', suggestion.id);
-
-  if (suggestionApprovalError) {
-    throw suggestionApprovalError;
-  }
-
-  return {
-    approved: true,
-    message: 'Sugestão aprovada e convertida em projeto em tramitação.',
+  if (error) throw error;
+  return data || {
+    approved,
+    message: approved
+      ? 'Sugestão aprovada e convertida em projeto em tramitação.'
+      : 'Sugestão rejeitada pela Casa legislativa.',
   };
 };
 
@@ -591,7 +548,14 @@ export const finalizeParliamentVotingIfReady = async (
     const votesDecisive = voteTotals.approve + voteTotals.reject;
     const threshold = votesDecisive > 0 ? Math.floor(votesDecisive / 2) + 1 : 1;
     const approved = voteTotals.approve >= threshold;
-    await finalizeSuggestionVoting(supabase, voting, approved);
+    const result = await finalizeSuggestionVoting(supabase, voting, approved);
+    return {
+      finalized: result?.finalized ?? true,
+      approved: result?.approved ?? approved,
+      message: result?.message || (approved
+        ? 'Sugestão aprovada e convertida em projeto.'
+        : 'Sugestão rejeitada pela Casa.'),
+    };
   }
 
   const { error: closeVotingError } = await supabase.rpc('close_parliament_voting', { p_voting_id: voting.id });

@@ -10,7 +10,7 @@ import ExchangeTab from './ExchangeTab';
 import BankManagementPanel, { canManageNationalBank } from './BankManagementPanel';
 import { useAuth } from '@/contexts/AuthContext';
 
-const BankDashboard = ({ account, transactions, cards, investmentOptions, userInvestments, loanApplications, onUpdate, onTransferClick, onPayClick, activeTab, setActiveTab }) => {
+const BankDashboard = ({ account, transactions, cards, investmentOptions, userInvestments, investmentOperations, portfolioSnapshots, loanApplications, onUpdate, onTransferClick, onPayClick, activeTab, setActiveTab }) => {
   const { user } = useAuth();
   const showManagement = canManageNationalBank(user);
 
@@ -36,6 +36,8 @@ const BankDashboard = ({ account, transactions, cards, investmentOptions, userIn
           <InvestmentsTab 
             investmentOptions={investmentOptions} 
             userInvestments={userInvestments}
+            investmentOperations={investmentOperations}
+            portfolioSnapshots={portfolioSnapshots}
             onUpdate={onUpdate}
           />
         </TabsContent>

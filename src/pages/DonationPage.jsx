@@ -128,8 +128,10 @@ const getPixStatusStyles = (status) => {
 
 const isFinishedPixStatus = (status) => ['PAID', 'EXPIRED', 'CANCELLED', 'REFUNDED'].includes(status);
 
-const fetchPixStatus = async (chargeId) => {
-  const response = await fetch(`/api/donations/pix-status?id=${encodeURIComponent(chargeId)}`);
+const fetchPixStatus = async (chargeId, accessToken) => {
+  const response = await fetch(`/api/donations/pix-status?id=${encodeURIComponent(chargeId)}`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
   const payload = await response.json();
 
   if (!response.ok) {
@@ -141,7 +143,7 @@ const fetchPixStatus = async (chargeId) => {
 
 const DonationPage = () => {
   const { toast } = useToast();
-  const { session, user } = useAuth();
+  const { session } = useAuth();
   const [selectedAmount, setSelectedAmount] = useState(10);
   const [customAmount, setCustomAmount] = useState('');
   const [isCustom, setIsCustom] = useState(false);
@@ -218,11 +220,11 @@ const DonationPage = () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+          'Idempotency-Key': crypto.randomUUID(),
         },
         body: JSON.stringify({
           amount: selectedAmount,
-          userEmail: user?.email,
-          userId: user?.id,
           successUrl: `${window.location.origin}/support-us?donation=success`,
           cancelUrl: `${window.location.origin}/donation`,
         }),
@@ -263,11 +265,11 @@ const DonationPage = () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+          'Idempotency-Key': crypto.randomUUID(),
         },
         body: JSON.stringify({
           amount: selectedAmount,
-          userEmail: user?.email,
-          userId: user?.id,
         }),
       });
 
@@ -305,7 +307,7 @@ const DonationPage = () => {
     }
 
     try {
-      const status = await fetchPixStatus(pixCharge.id);
+      const status = await fetchPixStatus(pixCharge.id, session.access_token);
 
       setPixCharge((currentCharge) => {
         if (!currentCharge) {
@@ -367,7 +369,7 @@ const DonationPage = () => {
     }
 
     const intervalId = window.setInterval(() => {
-      fetchPixStatus(pixCharge.id)
+      fetchPixStatus(pixCharge.id, session?.access_token)
         .then((status) => {
           setPixCharge((currentCharge) => {
             if (!currentCharge) {
@@ -388,7 +390,7 @@ const DonationPage = () => {
     return () => {
       window.clearInterval(intervalId);
     };
-  }, [pixCharge?.id, pixCharge?.status]);
+  }, [pixCharge?.id, pixCharge?.status, session?.access_token]);
 
   return (
     <>

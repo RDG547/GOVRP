@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Helmet } from 'react-helmet-async';
@@ -13,6 +13,7 @@ import PhoneNumberInput, { parsePhoneNumber } from 'react-phone-number-input';
 import pt from 'react-phone-number-input/locale/pt.json';
 import { FaGoogle, FaFacebook, FaDiscord } from 'react-icons/fa';
 import { isAuthPopupClosedError, signInWithOAuthPopup } from '@/lib/oauthPopup';
+import HCaptchaChallenge from '@/components/auth/HCaptchaChallenge';
 
 const PasswordStrengthIndicator = ({ score }) => {
   const levels = [
@@ -49,6 +50,10 @@ const Register = () => {
   const [loading, setLoading] = useState(false);
   const [passwordScore, setPasswordScore] = useState(0);
   const [socialLoadingProvider, setSocialLoadingProvider] = useState(null);
+  const [captchaToken, setCaptchaToken] = useState('');
+  const [captchaResetKey, setCaptchaResetKey] = useState(0);
+  const captchaEnabled = Boolean(import.meta.env.VITE_HCAPTCHA_SITE_KEY?.trim());
+  const handleCaptcha = useCallback((token) => setCaptchaToken(token), []);
 
   const { register } = useAuth();
   const { toast } = useToast();
@@ -95,6 +100,11 @@ const Register = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    if (captchaEnabled && !captchaToken) {
+      toast({ title: 'Verificação necessária', description: 'Conclua o hCaptcha para criar sua conta.', variant: 'destructive' });
+      return;
+    }
+
     const usernameError = validateUsername(formData.username);
     if (usernameError) {
       toast({ title: "Erro no cadastro", description: usernameError, variant: "destructive" });
@@ -132,6 +142,7 @@ const Register = () => {
         dateOfBirth: formData.dateOfBirth,
         rg: formData.rg.replace(/\D/g, ''),
         cpf: formData.cpf.replace(/\D/g, ''),
+        captchaToken,
       });
       toast({
         title: "Cadastro realizado com sucesso!",
@@ -139,6 +150,7 @@ const Register = () => {
       });
       navigate('/');
     } catch (error) {
+      setCaptchaResetKey((value) => value + 1);
       toast({
         title: "Erro no cadastro",
         description: error.message || "Não foi possível realizar o cadastro. Verifique os dados e tente novamente.",
@@ -266,8 +278,9 @@ const Register = () => {
               <div><Label htmlFor="password">Senha</Label><div className="relative"><Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5 z-10" /><Input id="password" name="password" type={showPassword ? 'text' : 'password'} required value={formData.password} onChange={handlePasswordChange} className={`${inputClass} pr-12`} placeholder="Mínimo 8 caracteres" /><button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"><span className="sr-only">Mostrar/Ocultar</span>{showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}</button></div><PasswordStrengthIndicator score={passwordScore} /></div>
               <div><Label htmlFor="confirmPassword">Confirmar Senha</Label><div className="relative"><Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5 z-10" /><Input id="confirmPassword" name="confirmPassword" type={showConfirmPassword ? 'text' : 'password'} required value={formData.confirmPassword} onChange={handleChange} className={`${inputClass} pr-12`} placeholder="Confirme sua senha" /><button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"><span className="sr-only">Mostrar/Ocultar</span>{showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}</button></div></div>
               <div className="flex items-start space-x-3"><button type="button" name="terms" onClick={() => setFormData({ ...formData, terms: !formData.terms })} className={`mt-1 flex-shrink-0 w-5 h-5 rounded border-2 transition-all duration-200 ${formData.terms ? 'bg-blue-600 border-blue-600' : 'bg-transparent border-gray-400'}`}>{formData.terms && <Check className="w-4 h-4 text-white" />}</button><Label htmlFor="terms" className="text-sm text-gray-300">Eu concordo com os <Link to="/terms" className="text-blue-400 hover:underline">Termos de Serviço</Link> e a <Link to="/privacy" className="text-blue-400 hover:underline">Política de Privacidade</Link>.</Label></div>
+              <HCaptchaChallenge onVerify={handleCaptcha} resetKey={captchaResetKey} />
             </div>
-            <Button type="submit" disabled={loading || Boolean(socialLoadingProvider)} className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 py-3 text-lg font-medium">{loading ? <Loader2 className="animate-spin" /> : <><UserPlus className="mr-2 h-5 w-5" />Criar Conta</>}</Button>
+            <Button type="submit" disabled={loading || Boolean(socialLoadingProvider) || (captchaEnabled && !captchaToken)} className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 py-3 text-lg font-medium">{loading ? <Loader2 className="animate-spin" /> : <><UserPlus className="mr-2 h-5 w-5" />Criar Conta</>}</Button>
           </form>
           <div className="relative my-6"><div className="absolute inset-0 flex items-center"><div className="w-full border-t border-white/20"></div></div><div className="relative flex justify-center text-sm"><span className="px-2 bg-background text-gray-400">Ou cadastre-se com</span></div></div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">

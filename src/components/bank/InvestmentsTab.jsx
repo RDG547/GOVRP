@@ -10,6 +10,7 @@ import { supabase } from '@/lib/supabaseClient';
 import { formatCurrency, parseCurrency } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { motion } from 'framer-motion';
+import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 
 const InvestmentActionModal = ({ isOpen, setIsOpen, action, investment, onActionSuccess }) => {
     const [amount, setAmount] = useState('');
@@ -18,9 +19,11 @@ const InvestmentActionModal = ({ isOpen, setIsOpen, action, investment, onAction
 
     const title = action === 'invest' ? 'Investir' : 'Sacar';
     const investmentName = investment?.investment_option?.name || investment?.name;
+    const currentPrice = Number(investment?.investment_option?.current_unit_price || investment?.current_unit_price || 1);
+    const availableValue = Number(investment?.quantity || 0) * currentPrice;
     const description = action === 'invest'
         ? `Quanto você gostaria de investir em ${investmentName}?`
-        : `Você tem ${formatCurrency(investment?.amount_invested)} investido. Quanto gostaria de sacar?`;
+        : `Você possui ${Number(investment?.quantity || 0).toLocaleString('pt-BR', { maximumFractionDigits: 8 })} unidades, atualmente avaliadas em ${formatCurrency(availableValue)}.`;
     const minimumAmount = Number(investment?.minimum_amount || 0);
 
     const handleAction = async (e) => {
@@ -40,19 +43,20 @@ const InvestmentActionModal = ({ isOpen, setIsOpen, action, investment, onAction
             return;
         }
 
-        if (action === 'withdraw' && numericAmount > Number(investment?.amount_invested || 0)) {
+        if (action === 'withdraw' && numericAmount > availableValue) {
             toast({ title: "Valor indisponível", description: "Você não pode sacar mais do que possui aplicado.", variant: "destructive" });
             setIsLoading(false);
             return;
         }
 
         try {
-            const rpcName = action === 'invest' ? 'invest' : 'withdraw';
-            const params = action === 'invest'
-                ? { p_investment_id: investment.id, p_amount: numericAmount }
-                : { p_user_investment_id: investment.id, p_amount: numericAmount };
-
-            const { data, error } = await supabase.rpc(rpcName, params);
+            const optionId = action === 'invest' ? investment.id : investment.investment_id;
+            const { data, error } = await supabase.rpc('trade_investment', {
+                p_investment_id: optionId,
+                p_operation_type: action === 'invest' ? 'buy' : 'sell',
+                p_quantity: numericAmount / currentPrice,
+                p_idempotency_key: crypto.randomUUID(),
+            });
 
             if (error || !data?.success) {
                 throw new Error(data?.message || error?.message || "Ocorreu um erro.");
@@ -114,7 +118,7 @@ const getAnnualReturnPercent = (value) => Number(value || 0) * 100;
 const getInvestmentProjectedReturn = (amount, rate) =>
     Number(amount || 0) * Number(rate || 0);
 
-const InvestmentsTab = ({ investmentOptions, userInvestments, onUpdate }) => {
+const InvestmentsTab = ({ investmentOptions, userInvestments, investmentOperations = [], portfolioSnapshots = [], onUpdate }) => {
     const [modalState, setModalState] = useState({ isOpen: false, action: '', investment: null });
     const [activeTab, setActiveTab] = useState('portfolio');
     const [riskFilter, setRiskFilter] = useState('all');
@@ -138,6 +142,7 @@ const InvestmentsTab = ({ investmentOptions, userInvestments, onUpdate }) => {
 
     const portfolioStats = useMemo(() => {
         const totalInvested = (userInvestments || []).reduce((sum, inv) => sum + Number(inv.amount_invested || 0), 0);
+        const marketValue = (userInvestments || []).reduce((sum, inv) => sum + Number(inv.quantity || 0) * Number(inv.investment_option?.current_unit_price || 1), 0);
         const projectedAnnualReturn = (userInvestments || []).reduce(
             (sum, inv) => sum + getInvestmentProjectedReturn(inv.amount_invested, inv.investment_option?.annual_return_rate),
             0
@@ -146,6 +151,8 @@ const InvestmentsTab = ({ investmentOptions, userInvestments, onUpdate }) => {
 
         return {
             totalInvested,
+            marketValue,
+            result: marketValue - totalInvested,
             projectedAnnualReturn,
             weightedAnnualRate,
             activePositions: (userInvestments || []).length,
@@ -168,19 +175,19 @@ const InvestmentsTab = ({ investmentOptions, userInvestments, onUpdate }) => {
                     <Card className="glass-effect border-sky-500/20">
                         <CardContent className="p-4">
                             <div className="flex items-center justify-between">
-                                <p className="text-sm text-muted-foreground">Retorno projetado</p>
+                                <p className="text-sm text-muted-foreground">Valor de mercado</p>
                                 <TrendingUp className="h-4 w-4 text-sky-300" />
                             </div>
-                            <p className="mt-2 text-2xl font-bold text-foreground">{formatCurrency(portfolioStats.projectedAnnualReturn)}/ano</p>
+                            <p className="mt-2 text-2xl font-bold text-foreground">{formatCurrency(portfolioStats.marketValue)}</p>
                         </CardContent>
                     </Card>
                     <Card className="glass-effect border-violet-500/20">
                         <CardContent className="p-4">
                             <div className="flex items-center justify-between">
-                                <p className="text-sm text-muted-foreground">Taxa média</p>
+                                <p className="text-sm text-muted-foreground">Resultado atual</p>
                                 <BarChart3 className="h-4 w-4 text-violet-300" />
                             </div>
-                            <p className="mt-2 text-2xl font-bold text-foreground">{(portfolioStats.weightedAnnualRate * 100).toFixed(2)}% a.a.</p>
+                            <p className={`mt-2 text-2xl font-bold ${portfolioStats.result >= 0 ? 'text-emerald-300' : 'text-red-300'}`}>{formatCurrency(portfolioStats.result)}</p>
                         </CardContent>
                     </Card>
                     <Card className="glass-effect border-amber-500/20">
@@ -195,9 +202,10 @@ const InvestmentsTab = ({ investmentOptions, userInvestments, onUpdate }) => {
                 </div>
 
                 <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                    <TabsList className="grid w-full grid-cols-2">
+                    <TabsList className="grid w-full grid-cols-3">
                         <TabsTrigger value="portfolio"><PiggyBank className="mr-2 h-4 w-4" />Meu Portfólio</TabsTrigger>
                         <TabsTrigger value="opportunities"><Briefcase className="mr-2 h-4 w-4" />Oportunidades</TabsTrigger>
+                        <TabsTrigger value="history"><BarChart3 className="mr-2 h-4 w-4" />Histórico</TabsTrigger>
                     </TabsList>
                     <TabsContent value="portfolio" className="mt-4">
                         <Card className="glass-effect">
@@ -217,12 +225,14 @@ const InvestmentsTab = ({ investmentOptions, userInvestments, onUpdate }) => {
                                         </div>
                                         <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
                                             <div className="rounded-lg bg-white/5 p-3">
-                                                <p className="text-muted-foreground">Aplicado</p>
-                                                <p className="text-lg font-bold text-green-400">{formatCurrency(inv.amount_invested)}</p>
+                                                <p className="text-muted-foreground">Quantidade · preço médio</p>
+                                                <p className="text-lg font-bold text-green-400">{Number(inv.quantity || 0).toLocaleString('pt-BR', { maximumFractionDigits: 8 })}</p>
+                                                <p className="text-xs text-muted-foreground">{formatCurrency(inv.average_unit_price || 0)} por unidade</p>
                                             </div>
                                             <div className="rounded-lg bg-white/5 p-3">
-                                                <p className="text-muted-foreground">Projeção anual</p>
-                                                <p className="text-lg font-bold text-sky-300">{formatCurrency(getInvestmentProjectedReturn(inv.amount_invested, inv.investment_option?.annual_return_rate))}</p>
+                                                <p className="text-muted-foreground">Valor atual · resultado</p>
+                                                <p className="text-lg font-bold text-sky-300">{formatCurrency(Number(inv.quantity || 0) * Number(inv.investment_option?.current_unit_price || 1))}</p>
+                                                <p className="text-xs text-muted-foreground">{formatCurrency((Number(inv.quantity || 0) * Number(inv.investment_option?.current_unit_price || 1)) - Number(inv.amount_invested || 0))}</p>
                                             </div>
                                         </div>
                                         <div className="mt-4 flex flex-wrap gap-2">
@@ -295,6 +305,10 @@ const InvestmentsTab = ({ investmentOptions, userInvestments, onUpdate }) => {
                                 )}
                              </CardContent>
                          </Card>
+                    </TabsContent>
+                    <TabsContent value="history" className="mt-4 space-y-4">
+                        <Card className="glass-effect"><CardHeader><CardTitle>Evolução do portfólio</CardTitle><CardDescription>Snapshots gerados pelo servidor após cada compra ou venda.</CardDescription></CardHeader><CardContent>{portfolioSnapshots.length ? <div className="h-64 w-full"><ResponsiveContainer width="100%" height="100%"><LineChart data={portfolioSnapshots.map((item) => ({ ...item, label: new Date(item.captured_at).toLocaleDateString('pt-BR'), value: Number(item.market_value) }))}><CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,.15)" /><XAxis dataKey="label" stroke="#94a3b8" /><YAxis stroke="#94a3b8" /><Tooltip formatter={(value) => formatCurrency(value)} contentStyle={{ background: '#0f172a', border: '1px solid rgba(148,163,184,.25)', borderRadius: 8 }} /><Line type="monotone" dataKey="value" stroke="#38bdf8" strokeWidth={2} dot={false} /></LineChart></ResponsiveContainer></div> : <p className="py-8 text-center text-muted-foreground">O gráfico surgirá após a primeira operação.</p>}</CardContent></Card>
+                        <Card className="glass-effect"><CardHeader><CardTitle>Compras e vendas</CardTitle></CardHeader><CardContent className="space-y-3">{investmentOperations.length ? investmentOperations.map((operation) => <div key={operation.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-white/10 p-3"><div><p className="font-medium">{operation.operation_type === 'buy' ? 'Compra' : 'Venda'} · {operation.investment_option?.asset_symbol || operation.investment_option?.name}</p><p className="text-xs text-muted-foreground">{new Date(operation.executed_at).toLocaleString('pt-BR')} · {Number(operation.quantity).toLocaleString('pt-BR', { maximumFractionDigits: 8 })} unidades a {formatCurrency(operation.unit_price)}</p></div><p className="font-bold">{formatCurrency(operation.gross_amount)}</p></div>) : <p className="py-6 text-center text-muted-foreground">Nenhuma operação registrada.</p>}</CardContent></Card>
                     </TabsContent>
                 </Tabs>
             </div>

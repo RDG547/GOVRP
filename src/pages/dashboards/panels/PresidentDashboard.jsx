@@ -11,7 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger, DialogClose } from '@/components/ui/dialog';
 import { Slider } from '@/components/ui/slider';
-import { Loader2, Landmark, Users, Briefcase, FileSignature, Edit, Plus, Save, Trash2, Megaphone, TrendingUp, TrendingDown, CreditCard, School as University, PiggyBank, HeartHandshake as Handshake, BrainCircuit, HeartPulse, Shield, Anchor, BookOpen, Microscope, Recycle, TramFront as Tram, Globe, Palette, Cpu, Building, Coins, Percent, Wifi, Smartphone, Droplet, Flame, Zap, Package, Package2, PackageCheck, UserPlus, FilePlus, UserX, LogOut, AlertTriangle, Clock3, LayoutDashboard, Settings, Ban, CircleSlash, Power, PowerOff, Lock, ChevronLeft, FileText, Store, Gavel, DollarSign, Wrench, Banknote, Scale, HardHat, Leaf, Car, Contact, FileCheck, Receipt, Building2 } from 'lucide-react';
+import { Loader2, Landmark, Users, Activity, Briefcase, FileSignature, Edit, Plus, Save, Trash2, Megaphone, TrendingUp, TrendingDown, CreditCard, School as University, PiggyBank, HeartHandshake as Handshake, BrainCircuit, HeartPulse, Shield, Anchor, BookOpen, Microscope, Recycle, TramFront as Tram, Globe, Palette, Cpu, Building, Coins, Percent, Wifi, Smartphone, Droplet, Flame, Zap, Package, Package2, PackageCheck, UserPlus, FilePlus, UserX, LogOut, AlertTriangle, Clock3, LayoutDashboard, Settings, Ban, CircleSlash, Power, PowerOff, Lock, ChevronLeft, FileText, Store, Gavel, DollarSign, Wrench, Banknote, Scale, HardHat, Leaf, Car, Contact, FileCheck, Receipt, Building2 } from 'lucide-react';
 import { formatCurrency, parseCurrency } from '@/lib/utils';
 import PageHeader from '@/components/layout/PageHeader';
 import { BANK_POLICY_SETTINGS_KEY, DEFAULT_BANK_POLICY } from '@/components/bank/BankManagementPanel';
@@ -36,6 +36,7 @@ import {
     normalizeEconomicPolicy,
 } from '@/lib/economicPolicy';
 import { publishOfficialGazetteEntry } from '@/lib/officialGazette';
+import GovernmentDynamicsPanel from '@/components/government/GovernmentDynamicsPanel';
 import {
     EXECUTIVE_SPECIAL_OFFICES,
     appointExecutiveSpecialOffice,
@@ -61,7 +62,7 @@ const MINISTRY_INFO = {
     'Ministério da Tecnologia': { icon: Cpu, color: 'text-cyan-400', bgColor: 'bg-cyan-500/20' },
 };
 
-const MinisterManager = ({ ministers, onUpdate }) => {
+const MinisterManager = ({ ministers, ministries, onUpdate }) => {
     const { toast } = useToast();
     const [allUsers, setAllUsers] = useState([]);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -70,7 +71,9 @@ const MinisterManager = ({ ministers, onUpdate }) => {
     const [isSaving, setIsSaving] = useState(false);
     const [changingMinistry, setChangingMinistry] = useState(null);
 
-    const allMinistries = Object.keys(MINISTRY_INFO);
+    const allMinistries = ministries?.length
+        ? ministries.filter((ministry) => ministry.is_active).map((ministry) => ministry.name)
+        : Object.keys(MINISTRY_INFO);
 
     const availableMinistries = allMinistries.filter(
         (ministry) => !ministers.some((minister) => minister.ministry === ministry)
@@ -214,7 +217,7 @@ const MinisterManager = ({ ministers, onUpdate }) => {
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {allMinistries.map(ministry => {
-                    const info = MINISTRY_INFO[ministry];
+                    const info = MINISTRY_INFO[ministry] || { icon: Building2, color: 'text-cyan-400', bgColor: 'bg-cyan-500/20' };
                     const MinIcon = info.icon;
                     const minister = ministers.find(m => m.ministry === ministry);
                     return (
@@ -227,7 +230,7 @@ const MinisterManager = ({ ministers, onUpdate }) => {
                                     <div className="flex-1 min-w-0">
                                         <CardTitle className="text-sm font-semibold truncate">{ministry.replace('Ministério ', 'Min. ')}</CardTitle>
                                         {minister ? (
-                                            <CardDescription className="truncate">{minister.profile.full_name}</CardDescription>
+                                            <CardDescription className="truncate">{minister.profile.full_name} · reputação {Number(minister.reputation_score ?? 50).toFixed(0)}%</CardDescription>
                                         ) : (
                                             <CardDescription className="text-muted-foreground/50 italic">Vago</CardDescription>
                                         )}
@@ -310,7 +313,7 @@ const DecreeManager = ({ decrees, onUpdate }) => {
     const handlePublish = async (decreeId, isPublished) => {
         const { error } = await supabase
             .from('decrees')
-            .update({ is_published: !isPublished, published_at: new Date().toISOString() })
+            .update({ is_published: !isPublished })
             .eq('id', decreeId);
          if (error) {
             toast({ title: 'Erro ao publicar', variant: 'destructive' });
@@ -2304,6 +2307,7 @@ const PresidentDashboard = () => {
     const { user } = useAuth();
     const [loading, setLoading] = useState(true);
     const [ministers, setMinisters] = useState([]);
+    const [ministries, setMinistries] = useState([]);
     const [decrees, setDecrees] = useState([]);
     const [budget, setBudget] = useState(null);
     const [taxes, setTaxes] = useState(null);
@@ -2319,8 +2323,9 @@ const PresidentDashboard = () => {
     const fetchData = useCallback(async (showLoading = true) => {
         if (showLoading) setLoading(true);
         try {
-            const [ministersRes, decreesRes, settingsRes, financesRes, economicStateRes, executiveStateRes] = await Promise.all([
-                supabase.from('ministers').select('*, profile:profiles(id, full_name)'),
+            const [ministersRes, ministriesRes, decreesRes, settingsRes, financesRes, economicStateRes, executiveStateRes] = await Promise.all([
+                supabase.from('ministers').select('*, profile:profiles(id, full_name)').eq('status', 'active'),
+                supabase.from('government_ministries').select('*').order('name'),
                 supabase.from('decrees').select('*').order('created_at', { ascending: false }),
                 supabase.from('system_settings').select('key, value'),
                 supabase.from('government_finances').select('*').single(),
@@ -2329,12 +2334,14 @@ const PresidentDashboard = () => {
             ]);
 
             if (ministersRes.error) throw ministersRes.error;
+            if (ministriesRes.error) throw ministriesRes.error;
             if (decreesRes.error) throw decreesRes.error;
             if (settingsRes.error) throw settingsRes.error;
             if (financesRes.error) throw financesRes.error;
             if (economicStateRes.error) throw economicStateRes.error;
 
             setMinisters(ministersRes.data || []);
+            setMinistries(ministriesRes.data || []);
             setDecrees(decreesRes.data || []);
             setGovFinances(financesRes.data);
             setExecutiveState(executiveStateRes);
@@ -2414,6 +2421,10 @@ const PresidentDashboard = () => {
             'elections',
             'candidates',
             'party_members',
+            'government_ministries',
+            'government_popularity_state',
+            'government_popularity_events',
+            'national_indicator_points',
         ].forEach((table) => {
             channel = channel.on('postgres_changes', {
                 event: '*', schema: 'public', table,
@@ -2717,6 +2728,7 @@ const PresidentDashboard = () => {
                             <div className="overflow-x-auto custom-scrollbar -mx-4 px-4 pb-2 mb-6 flex justify-center">
                                 <TabsList className="inline-flex min-w-max w-max gap-2 border-b border-border/40 bg-transparent p-0">
                                     <TabsTrigger value="constitutional" className="min-w-[12rem] shrink-0 data-[state=active]:bg-card data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-t-lg px-6"><Shield className="mr-2 h-4 w-4" />Estado Executivo</TabsTrigger>
+                                    <TabsTrigger value="dynamics" className="min-w-[14rem] shrink-0 data-[state=active]:bg-card data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-t-lg px-6"><Activity className="mr-2 h-4 w-4" />Indicadores e Governo</TabsTrigger>
                                     <TabsTrigger value="ministers" className="min-w-[13rem] shrink-0 data-[state=active]:bg-card data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-t-lg px-6"><UserPlus className="mr-2 h-4 w-4" />Ministros e Nomeações</TabsTrigger>
                                     <TabsTrigger value="decrees" className="min-w-[13rem] shrink-0 data-[state=active]:bg-card data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-t-lg px-6"><FileCheck className="mr-2 h-4 w-4" />Atos Presidenciais</TabsTrigger>
                                     <TabsTrigger value="enterprises" className="min-w-[8rem] shrink-0 data-[state=active]:bg-card data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-t-lg px-6"><Building2 className="mr-2 h-4 w-4" />Estatais</TabsTrigger>
@@ -2731,9 +2743,13 @@ const PresidentDashboard = () => {
                                     </div>
                                 </TabsContent>
 
+                                <TabsContent value="dynamics" className="mt-0">
+                                    <div className="space-y-6 max-w-6xl mx-auto"><GovernmentDynamicsPanel /></div>
+                                </TabsContent>
+
                                 <TabsContent value="ministers" className="mt-0">
                                     <div className="space-y-6 max-w-5xl mx-auto">
-                                        <MinisterManager ministers={ministers} onUpdate={fetchData} />
+                                        <MinisterManager ministers={ministers} ministries={ministries} onUpdate={fetchData} />
                                         <SpecialAppointmentsManager executiveState={executiveState} onUpdate={fetchData} actorId={user?.id} />
                                     </div>
                                 </TabsContent>

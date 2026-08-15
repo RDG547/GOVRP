@@ -4,7 +4,9 @@ import { formatCPF, formatRG } from '@/lib/utils';
 import { Fingerprint, FileText, Car, Globe, Building, Briefcase, Vote, ShieldCheck, Heart, Award, RefreshCw, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
-const SEAL_IMAGE = 'https://horizons-cdn.hostinger.com/1921e16b-eda9-4d20-a26b-e282c5e34dc7/4a2eff68aee7768164d8f132c8123573.png';
+// O selo oficial precisa funcionar offline no PWA e nas versões nativas.
+// Ele reutiliza a mesma identidade visual do favicon/ícone do aplicativo.
+const SEAL_IMAGE = '/icon-512x512.png';
 
 const docInfo = {
     CPF: { name: 'Cadastro de Pessoa Física', icon: Fingerprint, color: 'text-purple-400' },
@@ -84,10 +86,10 @@ const getPassportNames = (fullName = '') => {
 
 const PassportField = ({ label, value, className = '' }) => (
     <div className={className}>
-        <p className="block font-semibold text-slate-500 uppercase tracking-[0.14em] text-[0.42rem] sm:text-[0.48rem] leading-tight">
+        <p className="block py-px font-semibold text-slate-500 uppercase tracking-[0.14em] text-[0.42rem] sm:text-[0.48rem] leading-[1.3]">
             {label}
         </p>
-        <p className="font-bold text-slate-950 text-[0.56rem] sm:text-[0.66rem] leading-snug break-words">
+        <p className="py-px font-bold text-slate-950 text-[0.56rem] sm:text-[0.66rem] leading-[1.35] break-words">
             {value || 'N/A'}
         </p>
     </div>
@@ -103,8 +105,8 @@ const DocumentField = ({ label, value, className = '' }) => {
 
     return (
         <div className={className}>
-            <p className={`block font-semibold uppercase tracking-wider text-[0.5rem] sm:text-[9px] leading-tight ${inheritTextColor ? 'opacity-70' : 'text-gray-500'}`}>{label}</p>
-            <p className={`font-bold text-[0.6rem] sm:text-[12px] leading-snug break-words ${inheritTextColor ? '' : 'text-black'}`}>{value || 'N/A'}</p>
+            <p className={`block py-px font-semibold uppercase tracking-wider text-[0.5rem] sm:text-[9px] leading-[1.3] ${inheritTextColor ? 'opacity-70' : 'text-gray-500'}`}>{label}</p>
+            <p className={`py-px font-bold text-[0.6rem] sm:text-[12px] leading-[1.35] break-words ${inheritTextColor ? '' : 'text-black'}`}>{value || 'N/A'}</p>
         </div>
     );
 };

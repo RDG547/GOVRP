@@ -37,6 +37,40 @@ const docInfo = {
     'Registro Profissional': { name: 'Registro Profissional', icon: Award, color: 'text-cyan-400' },
 };
 
+const captureDocument = async (element) => {
+    if (document.fonts?.ready) {
+        await document.fonts.ready;
+    }
+
+    return html2canvas(element, {
+        backgroundColor: null,
+        scale: 3,
+        useCORS: true,
+        logging: false,
+        imageTimeout: 15000,
+    });
+};
+
+const addDocumentPage = (pdf, canvas, title, isFirstPage) => {
+    if (!isFirstPage) pdf.addPage('a4', 'landscape');
+
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    const horizontalPadding = 34;
+    const top = 42;
+    const bottomPadding = 28;
+    const availableWidth = pageWidth - horizontalPadding * 2;
+    const availableHeight = pageHeight - top - bottomPadding;
+    const scale = Math.min(availableWidth / canvas.width, availableHeight / canvas.height);
+    const imageWidth = canvas.width * scale;
+    const imageHeight = canvas.height * scale;
+    const imageX = (pageWidth - imageWidth) / 2;
+
+    pdf.setFontSize(13);
+    pdf.text(title, horizontalPadding, 24);
+    pdf.addImage(canvas.toDataURL('image/png'), 'PNG', imageX, top, imageWidth, imageHeight, undefined, 'FAST');
+};
+
 const DocumentCard = ({ doc, onVisualize, onGenerate, onDelete }) => {
     const info = docInfo[doc.type];
     if (!info) return null;
@@ -228,10 +262,10 @@ const DIC = () => {
         }
 
         try {
-            const frontCanvas = await html2canvas(frontElement, { backgroundColor: null, scale: 3, useCORS: true });
+            const frontCanvas = await captureDocument(frontElement);
             let backCanvas;
             if (backElement) {
-                backCanvas = await html2canvas(backElement, { backgroundColor: null, scale: 3, useCORS: true });
+                backCanvas = await captureDocument(backElement);
             }
 
             if (format === 'png') {
@@ -276,60 +310,21 @@ const DIC = () => {
         toast({ title: "Gerando PDF...", description: "Isso pode levar alguns segundos. O download começará em breve." });
 
         try {
-            const pdf = new jsPDF({ orientation: 'p', unit: 'px' });
+            const pdf = new jsPDF({ orientation: 'landscape', unit: 'px', format: 'a4' });
             let isFirstPage = true;
-            const pagePadding = 40;
-            const docSpacing = 20;
 
             for (const doc of validDocs) {
                 const frontElement = docRefs.current[`${doc.id}-front`];
                 const backElement = docRefs.current[`${doc.id}-back`];
 
                 if (frontElement) {
-                    if (!isFirstPage) {
-                        pdf.addPage();
-                    }
+                    const frontCanvas = await captureDocument(frontElement);
+                    addDocumentPage(pdf, frontCanvas, `${docInfo[doc.type]?.name || 'Documento'} — Frente`, isFirstPage);
                     isFirstPage = false;
 
-                    const frontCanvas = await html2canvas(frontElement, { scale: 2, backgroundColor: null, useCORS: true });
-                    const pageWidth = pdf.internal.pageSize.getWidth();
-                    const pageHeight = pdf.internal.pageSize.getHeight();
-
-                    const availableWidth = pageWidth - (pagePadding * 2);
-
-                    let yPos = pagePadding;
-
-                    pdf.setFontSize(16);
-                    pdf.text(`${docInfo[doc.type]?.name || 'Documento'} - Frente`, pagePadding, yPos);
-                    yPos += 10;
-
-                    const frontScale = availableWidth / frontCanvas.width;
-                    const frontImgWidth = frontCanvas.width * frontScale;
-                    const frontImgHeight = frontCanvas.height * frontScale;
-
-                    pdf.addImage(frontCanvas.toDataURL('image/png'), 'PNG', pagePadding, yPos, frontImgWidth, frontImgHeight);
-                    yPos += frontImgHeight + docSpacing;
-
                     if (backElement) {
-                        const backCanvas = await html2canvas(backElement, { scale: 2, backgroundColor: null, useCORS: true });
-
-                        pdf.setFontSize(16);
-                        pdf.text(`${docInfo[doc.type]?.name || 'Documento'} - Verso`, pagePadding, yPos);
-                        yPos += 10;
-
-                        const backScale = availableWidth / backCanvas.width;
-                        const backImgWidth = backCanvas.width * backScale;
-                        const backImgHeight = backCanvas.height * backScale;
-
-                        if (yPos + backImgHeight > pageHeight - pagePadding) {
-                            pdf.addPage();
-                            yPos = pagePadding;
-                            pdf.setFontSize(16);
-                            pdf.text(`${docInfo[doc.type]?.name || 'Documento'} - Verso`, pagePadding, yPos);
-                            yPos += 10;
-                        }
-
-                        pdf.addImage(backCanvas.toDataURL('image/png'), 'PNG', pagePadding, yPos, backImgWidth, backImgHeight);
+                        const backCanvas = await captureDocument(backElement);
+                        addDocumentPage(pdf, backCanvas, `${docInfo[doc.type]?.name || 'Documento'} — Verso`, false);
                     }
                 }
             }

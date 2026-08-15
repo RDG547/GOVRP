@@ -1,6 +1,6 @@
 import React from 'react';
 import { Crown, FolderKanban, User } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -14,10 +14,21 @@ import {
 const DashboardSelectorDialog = ({
   open,
   onOpenChange,
+  onSelect,
   hasPresidentAccess = false,
   isAdmin = false,
 }) => {
-  const close = () => onOpenChange?.(false);
+  const navigate = useNavigate();
+
+  const selectDashboard = (path) => {
+    if (onSelect) {
+      onSelect(path);
+      return;
+    }
+
+    onOpenChange?.(false);
+    navigate(path);
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -29,34 +40,34 @@ const DashboardSelectorDialog = ({
           </DialogDescription>
         </DialogHeader>
         <DialogFooter className="flex-col gap-2 sm:flex-col sm:space-x-0">
-          <Button asChild className="w-full justify-center gap-3 bg-blue-600 hover:bg-blue-700">
-            <Link to="/dashboard/citizen" onClick={close}>
-              <User className="h-5 w-5" />
-              <span>Central do Cidadão</span>
-            </Link>
+          <Button
+            type="button"
+            onClick={() => selectDashboard('/dashboard/citizen')}
+            className="w-full justify-center gap-3 bg-blue-600 hover:bg-blue-700"
+          >
+            <User className="h-5 w-5" />
+            <span>Central do Cidadão</span>
           </Button>
           {(hasPresidentAccess || isAdmin) && (
             <Button
-              asChild
+              type="button"
+              onClick={() => selectDashboard('/dashboard/president')}
               variant="secondary"
               className="w-full justify-center gap-3 bg-yellow-500 text-black hover:bg-yellow-600"
             >
-              <Link to="/dashboard/president" onClick={close}>
-                <FolderKanban className="h-5 w-5" />
-                <span>Painel Presidencial</span>
-              </Link>
+              <FolderKanban className="h-5 w-5" />
+              <span>Painel Presidencial</span>
             </Button>
           )}
           {isAdmin && (
             <Button
-              asChild
+              type="button"
+              onClick={() => selectDashboard('/admin-dashboard/systems')}
               variant="secondary"
               className="w-full justify-center gap-3 bg-slate-700 text-white hover:bg-slate-800"
             >
-              <Link to="/admin-dashboard/systems" onClick={close}>
-                <Crown className="h-5 w-5" />
-                <span>Administração dos Sistemas</span>
-              </Link>
+              <Crown className="h-5 w-5" />
+              <span>Administração dos Sistemas</span>
             </Button>
           )}
         </DialogFooter>

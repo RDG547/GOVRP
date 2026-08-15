@@ -129,11 +129,11 @@ const PartyManagement = () => {
       return;
     }
 
-    const leaderIds = [formData.owner_id, formData.president_id, formData.vice_president_id].filter(Boolean);
-    if (new Set(leaderIds).size !== leaderIds.length) {
+    const viceDuplicatesCoreRole = formData.vice_president_id && [formData.owner_id, formData.president_id].includes(formData.vice_president_id);
+    if (viceDuplicatesCoreRole) {
       toast({
         title: 'Liderança inválida',
-        description: 'A mesma pessoa não pode ocupar mais de um cargo de liderança no partido.',
+        description: 'O vice-presidente deve ser diferente do dono e do presidente.',
         variant: 'destructive',
       });
       return;

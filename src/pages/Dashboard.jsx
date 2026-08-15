@@ -28,6 +28,7 @@ const Dashboard = () => {
         open
         hasPresidentAccess={hasPresidentAccess}
         isAdmin={isAdmin}
+        onSelect={(path) => navigate(path, { replace: true })}
         onOpenChange={(nextOpen) => {
           if (!nextOpen) navigate(window.history.length > 1 ? -1 : '/', { replace: true });
         }}

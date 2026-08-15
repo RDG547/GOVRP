@@ -339,16 +339,16 @@ const AdminDashboard = () => {
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div className="flex justify-between">
-                      <span className="text-gray-300">Usuários Ativos</span>
-                      <span className="text-green-400 font-bold">+{Math.floor(Math.random() * 50) + 10}</span>
+                      <span className="text-gray-300">Usuários cadastrados</span>
+                      <span className="text-green-400 font-bold">{stats.total_users || 0}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-gray-300">Posts Hoje</span>
-                      <span className="text-blue-400 font-bold">+{Math.floor(Math.random() * 20) + 5}</span>
+                      <span className="text-gray-300">Publicações registradas</span>
+                      <span className="text-blue-400 font-bold">{stats.total_posts || 0}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-gray-300">Transações Hoje</span>
-                      <span className="text-yellow-400 font-bold">+{Math.floor(Math.random() * 15) + 3}</span>
+                      <span className="text-gray-300">Transações registradas</span>
+                      <span className="text-yellow-400 font-bold">{stats.total_transactions || 0}</span>
                     </div>
                   </CardContent>
                 </Card>

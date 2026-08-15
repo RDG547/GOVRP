@@ -190,9 +190,18 @@ export const formatOfficialGazettePublicationDate = (
   };
 
   if (includeTime) {
-    options.hour = '2-digit';
-    options.minute = '2-digit';
-    options.second = '2-digit';
+    const parts = new Intl.DateTimeFormat('pt-BR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hourCycle: 'h23',
+      timeZone,
+    }).formatToParts(formattedDate);
+    const part = (type) => parts.find((entry) => entry.type === type)?.value || '';
+    return `${part('day')}/${part('month')}/${part('year')} às ${part('hour')}:${part('minute')}:${part('second')}`;
   }
 
   return new Intl.DateTimeFormat('pt-BR', options).format(formattedDate);
@@ -294,7 +303,6 @@ export const publishOfficialGazetteEntry = async (
     content,
     type,
     source_id: resolvedSourceId,
-    published_at: new Date().toISOString(),
   });
 
   if (error) {

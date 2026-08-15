@@ -54,7 +54,6 @@ import { publishBillProposedNews } from '@/lib/newsPublisher';
 import {
   filterCompatibleParliamentMembers,
   resolvePrimaryRole,
-  resolvePrimaryRoleFromPool,
   resolveParliamentHouseIdFromRole,
 } from '@/lib/roleResolution';
 import {
@@ -263,7 +262,6 @@ const ParliamentPanel = () => {
   const rolePool = Array.isArray(user?.effective_roles)
     ? user.effective_roles
     : [user?.role].filter(Boolean);
-  const primaryUserRole = resolvePrimaryRoleFromPool(rolePool, user?.role || 'Usuário');
   const isAdministrativeViewer =
     rolePool.includes('Admin') || rolePool.includes('Presidente');
   const canStartVote = rolePool.some((role) => canManageParliamentVoting(role));
@@ -458,7 +456,7 @@ const ParliamentPanel = () => {
           .order('created_at', { ascending: false }),
         supabase
           .from('bill_suggestions')
-          .select('id, title, suggestion, status, author_id, target_type, target_id, created_at, author:profiles(id, full_name, avatar_url, role)')
+          .select('id, title, suggestion, status, bill_type, adopted_by, adopted_bill_id, author_id, target_type, target_id, created_at, author:profiles!bill_suggestions_author_id_fkey(id, full_name, avatar_url, role)')
           .eq('target_type', 'house')
           .eq('target_id', selectedHouseId)
           .order('created_at', { ascending: false }),
@@ -598,15 +596,13 @@ const ParliamentPanel = () => {
 
     setProposingBill(true);
     try {
-      const billData = {
-        ...newBill,
-        author_id: user.id,
-        house_id: house.id,
-        author_role: primaryUserRole,
-        status: 'Em tramitação',
-      };
-
-      const { error } = await supabase.from('bills').insert(billData).select('*').single();
+      const { data: createdBill, error } = await supabase.rpc('propose_parliament_bill', {
+        p_title: newBill.title,
+        p_summary: newBill.summary,
+        p_full_text: newBill.full_text,
+        p_type: newBill.type,
+        p_house_id: house.id,
+      });
       if (error) {
         throw error;
       }
@@ -614,7 +610,7 @@ const ParliamentPanel = () => {
       try {
         await publishBillProposedNews(supabase, {
           bill: {
-            ...billData,
+            ...createdBill,
             title: newBill.title,
             summary: newBill.summary,
             type: newBill.type,
@@ -657,10 +653,11 @@ const ParliamentPanel = () => {
         });
         setActiveMainTab('votes');
       } else {
-        const { error } = await supabase
-          .from('bill_suggestions')
-          .update({ status })
-          .eq('id', suggestionId);
+        const { error } = await supabase.rpc('reject_bill_suggestion', {
+          p_suggestion_id: suggestionId,
+          p_house_id: house.id,
+          p_reason: 'Sugestão rejeitada e arquivada pela presidência da Casa.',
+        });
         if (error) {
           throw error;
         }
@@ -1229,6 +1226,7 @@ const ParliamentPanel = () => {
                               <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                                 <div>
                                   <CardTitle>{suggestion.title}</CardTitle>
+                                  <Badge variant="secondary" className="mt-2">{suggestion.bill_type || 'PL'}</Badge>
                                   <div className="mt-2 flex items-center gap-2">
                                     <Avatar className="h-6 w-6">
                                       <AvatarImage src={suggestion.author?.avatar_url} />

@@ -9,6 +9,7 @@
     "preview": "vite preview --host :: --port 3000",
     "tunnel": "npx --yes cloudflared tunnel --url http://127.0.0.1:3000",
     "lint": "eslint . --quiet",
+    "test:functional": "node tools/verify-master-implementation.mjs",
     "mobile:sync": "npm run build && cap sync",
     "mobile:sync:android": "npm run build && cap sync android",
     "mobile:sync:ios": "npm run build && cap sync ios",

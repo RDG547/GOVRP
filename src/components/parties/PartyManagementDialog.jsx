@@ -228,7 +228,7 @@ const PartyManagementDialog = ({ party, onAction, isFromDetailsPage = false }) =
                 if (error) throw error;
                 setRequests(data || []);
             } else if (tab === 'suggestions') {
-                const { data, error } = await supabase.from('bill_suggestions').select('*, author:profiles(full_name)').eq('target_id', party.id).eq('target_type', 'party').order('created_at', { ascending: false });
+                const { data, error } = await supabase.from('bill_suggestions').select('*, author:profiles!bill_suggestions_author_id_fkey(full_name)').eq('target_id', party.id).eq('target_type', 'party').order('created_at', { ascending: false });
                 if (error) throw error;
                 setSuggestions(data || []);
             } else if (tab === 'members' || tab === 'edit') {

@@ -2,14 +2,17 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   AlertTriangle,
+  BadgeCheck,
+  Banknote,
   CalendarClock,
+  ClipboardList,
   FileSearch,
   FileText,
   Gavel,
   Loader2,
   LockKeyhole,
   Plus,
-  RefreshCw,
+  Search,
   Scale,
   ShieldCheck,
 } from 'lucide-react';
@@ -25,7 +28,12 @@ import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import {
   createOccurrence,
+  appealCitizenFine,
+  createCitizenJusticeRequest,
   fetchCitizenJusticeData,
+  issueClearanceCertificate,
+  payCitizenFine,
+  requestFineHearing,
   subscribeToJusticeChanges,
 } from '@/lib/justice/api';
 import {
@@ -50,7 +58,15 @@ const emptyForm = {
   occurredAt: '',
   anonymous: false,
   priority: 'normal',
+  involvedPeople: '',
+  witnesses: '',
+  evidence: '',
 };
+
+const emptyRequestForm = { requestType: 'formal_investigation', subject: '', description: '', relatedOccurrenceId: '', evidence: '' };
+const lines = (value) => String(value || '').split('\n').map((item) => item.trim()).filter(Boolean);
+
+const money = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(value || 0));
 
 const CitizenJusticeDashboard = () => {
   const { user } = useAuth();
@@ -61,16 +77,31 @@ const CitizenJusticeDashboard = () => {
     deadlines: [],
     requests: [],
     custody: null,
+    fines: [],
+    fineAppeals: [],
+    fineHearings: [],
+    citizenRequests: [],
+    campaigns: [],
+    security: { warrants: [], investigations: [] },
+    wanted: [],
+    policeMetrics: {},
+    serverNow: null,
   });
   const [form, setForm] = useState(emptyForm);
+  const [requestForm, setRequestForm] = useState(emptyRequestForm);
+  const [fineAction, setFineAction] = useState({ fineId: '', type: '', reason: '' });
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [actionLoading, setActionLoading] = useState('');
   const [now, setNow] = useState(Date.now());
+  const [serverOffset, setServerOffset] = useState(0);
 
   const loadData = useCallback(async ({ quiet = false } = {}) => {
     if (!quiet) setLoading(true);
     try {
-      setData(await fetchCitizenJusticeData());
+      const nextData = await fetchCitizenJusticeData();
+      setData(nextData);
+      if (nextData.serverNow) setServerOffset(new Date(nextData.serverNow).getTime() - Date.now());
     } catch (error) {
       toast({
         title: 'Não foi possível carregar sua área de justiça',
@@ -92,9 +123,9 @@ const CitizenJusticeDashboard = () => {
   }, [loadData, user?.id]);
 
   useEffect(() => {
-    const interval = window.setInterval(() => setNow(Date.now()), 1000);
+    const interval = window.setInterval(() => setNow(Date.now() + serverOffset), 1000);
     return () => window.clearInterval(interval);
-  }, []);
+  }, [serverOffset]);
 
   const stats = useMemo(() => ({
     activeOccurrences: data.occurrences.filter(
@@ -111,7 +142,12 @@ const CitizenJusticeDashboard = () => {
     event.preventDefault();
     setSubmitting(true);
     try {
-      const occurrence = await createOccurrence(form);
+      const occurrence = await createOccurrence({
+        ...form,
+        involvedPeople: lines(form.involvedPeople),
+        witnesses: lines(form.witnesses),
+        evidence: lines(form.evidence),
+      });
       setForm(emptyForm);
       toast({
         title: 'Ocorrência registrada',
@@ -127,6 +163,58 @@ const CitizenJusticeDashboard = () => {
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handleCitizenRequest = async (event) => {
+    event.preventDefault();
+    setActionLoading('request');
+    try {
+      const result = await createCitizenJusticeRequest({ ...requestForm, evidence: lines(requestForm.evidence) });
+      setRequestForm(emptyRequestForm);
+      toast({ title: 'Pedido protocolado', description: `Protocolo ${result.protocol_number}.` });
+      await loadData({ quiet: true });
+    } catch (error) {
+      toast({ title: 'Não foi possível protocolar', description: error.message, variant: 'destructive' });
+    } finally { setActionLoading(''); }
+  };
+
+  const handlePayFine = async (fineId) => {
+    setActionLoading(`pay:${fineId}`);
+    try {
+      const result = await payCitizenFine(fineId);
+      if (!result?.success) throw new Error(result?.message || 'Pagamento recusado.');
+      toast({ title: 'Pagamento confirmado', description: result.message });
+      await loadData({ quiet: true });
+    } catch (error) {
+      toast({ title: 'Não foi possível pagar', description: error.message, variant: 'destructive' });
+    } finally { setActionLoading(''); }
+  };
+
+  const handleFineRequest = async (event) => {
+    event.preventDefault();
+    const { fineId, type, reason } = fineAction;
+    setActionLoading(`${type}:${fineId}`);
+    try {
+      const result = type === 'appeal'
+        ? await appealCitizenFine(fineId, reason)
+        : await requestFineHearing(fineId, reason);
+      if (result?.success === false) throw new Error(result.message);
+      setFineAction({ fineId: '', type: '', reason: '' });
+      toast({ title: type === 'appeal' ? 'Recurso protocolado' : 'Audiência solicitada' });
+      await loadData({ quiet: true });
+    } catch (error) {
+      toast({ title: 'Solicitação não concluída', description: error.message, variant: 'destructive' });
+    } finally { setActionLoading(''); }
+  };
+
+  const handleCertificate = async () => {
+    setActionLoading('certificate');
+    try {
+      const document = await issueClearanceCertificate();
+      toast({ title: 'Atestado emitido', description: `${document.document_number} disponível no DIC.` });
+    } catch (error) {
+      toast({ title: 'Não foi possível emitir', description: error.message, variant: 'destructive' });
+    } finally { setActionLoading(''); }
   };
 
   if (loading) {
@@ -172,11 +260,13 @@ const CitizenJusticeDashboard = () => {
       </div>
 
       <Tabs defaultValue="occurrences" className="space-y-6">
-        <TabsList className="grid h-auto w-full grid-cols-2 gap-2 bg-muted/50 p-2 lg:grid-cols-4">
+        <TabsList className="grid h-auto w-full grid-cols-2 gap-2 bg-muted/50 p-2 md:grid-cols-3 xl:grid-cols-6">
           <TabsTrigger value="occurrences">Ocorrências</TabsTrigger>
           <TabsTrigger value="cases">Processos</TabsTrigger>
           <TabsTrigger value="deadlines">Prazos e intimações</TabsTrigger>
           <TabsTrigger value="requests">Pedidos e decisões</TabsTrigger>
+          <TabsTrigger value="fines">Multas</TabsTrigger>
+          <TabsTrigger value="security">Segurança pública</TabsTrigger>
         </TabsList>
 
         <TabsContent value="occurrences" className="space-y-6">
@@ -291,6 +381,12 @@ const CitizenJusticeDashboard = () => {
                       </SelectContent>
                     </Select>
                   </div>
+                </div>
+
+                <div className="grid gap-5 md:grid-cols-3">
+                  <div className="space-y-2"><Label htmlFor="occurrence-involved">Envolvidos ou suspeitos</Label><Textarea id="occurrence-involved" rows={3} value={form.involvedPeople} onChange={(event) => setForm((current) => ({ ...current, involvedPeople: event.target.value }))} placeholder="Um nome ou descrição por linha" /></div>
+                  <div className="space-y-2"><Label htmlFor="occurrence-witnesses">Testemunhas</Label><Textarea id="occurrence-witnesses" rows={3} value={form.witnesses} onChange={(event) => setForm((current) => ({ ...current, witnesses: event.target.value }))} placeholder="Uma testemunha por linha" /></div>
+                  <div className="space-y-2"><Label htmlFor="occurrence-evidence">Evidências ou anexos</Label><Textarea id="occurrence-evidence" rows={3} value={form.evidence} onChange={(event) => setForm((current) => ({ ...current, evidence: event.target.value }))} placeholder="Links, documentos ou protocolos, um por linha" /></div>
                 </div>
 
                 <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-border/70 p-4">
@@ -410,6 +506,29 @@ const CitizenJusticeDashboard = () => {
         </TabsContent>
 
         <TabsContent value="requests" className="space-y-4">
+          <Card className="glass-effect">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2"><ClipboardList className="h-5 w-5 text-cyan-300" />Novo pedido administrativo</CardTitle>
+              <CardDescription>Solicite abertura formal de investigação ou liberação de bem apreendido, com protocolo e acompanhamento.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleCitizenRequest} className="grid gap-4">
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-2"><Label>Tipo</Label><Select value={requestForm.requestType} onValueChange={(value) => setRequestForm((current) => ({ ...current, requestType: value }))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="formal_investigation">Pedido de investigação formal</SelectItem><SelectItem value="asset_release">Liberação de bem apreendido</SelectItem></SelectContent></Select></div>
+                  <div className="space-y-2"><Label htmlFor="justice-request-subject">Assunto</Label><Input id="justice-request-subject" required minLength={5} value={requestForm.subject} onChange={(event) => setRequestForm((current) => ({ ...current, subject: event.target.value }))} /></div>
+                </div>
+                <div className="space-y-2"><Label>Ocorrência relacionada</Label><Select value={requestForm.relatedOccurrenceId || 'none'} onValueChange={(value) => setRequestForm((current) => ({ ...current, relatedOccurrenceId: value === 'none' ? '' : value }))}><SelectTrigger><SelectValue placeholder="Opcional" /></SelectTrigger><SelectContent><SelectItem value="none">Nenhuma</SelectItem>{data.occurrences.map((item) => <SelectItem key={item.id} value={item.id}>{item.protocol_number} — {item.title}</SelectItem>)}</SelectContent></Select></div>
+                <div className="space-y-2"><Label htmlFor="justice-request-description">Fundamentação e provas</Label><Textarea id="justice-request-description" required minLength={20} rows={5} value={requestForm.description} onChange={(event) => setRequestForm((current) => ({ ...current, description: event.target.value }))} /></div>
+                <div className="space-y-2"><Label htmlFor="justice-request-evidence">Referências e evidências</Label><Textarea id="justice-request-evidence" rows={3} value={requestForm.evidence} onChange={(event) => setRequestForm((current) => ({ ...current, evidence: event.target.value }))} placeholder="Uma referência ou link por linha" /></div>
+                <Button type="submit" disabled={actionLoading === 'request'}>{actionLoading === 'request' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileText className="mr-2 h-4 w-4" />}Protocolar pedido</Button>
+              </form>
+            </CardContent>
+          </Card>
+
+          {data.citizenRequests.map((request) => (
+            <Card key={request.id} className="border-cyan-500/20 bg-cyan-500/5"><CardHeader><div className="flex items-start justify-between gap-3"><div><CardTitle className="text-lg">{request.subject}</CardTitle><CardDescription>{request.protocol_number} · {request.request_type === 'formal_investigation' ? 'Investigação formal' : 'Liberação de bem'}</CardDescription></div><Badge variant="outline">{request.status}</Badge></div></CardHeader>{request.decision_notes ? <CardContent><p className="text-sm text-muted-foreground">{request.decision_notes}</p></CardContent> : null}</Card>
+          ))}
+
           {data.requests.length ? data.requests.map((request) => (
             <Card key={request.id} className="glass-effect">
               <CardHeader>
@@ -429,7 +548,7 @@ const CitizenJusticeDashboard = () => {
               <CardContent>
                 {request.decision_reason ? (
                   <p className="text-sm text-muted-foreground">{request.decision_reason}</p>
-                ) : (
+          ) : (
                   <p className="flex items-center gap-2 text-sm text-muted-foreground">
                     <AlertTriangle className="h-4 w-4" />
                     Aguardando decisão fundamentada.
@@ -444,17 +563,41 @@ const CitizenJusticeDashboard = () => {
             />
           )}
         </TabsContent>
-      </Tabs>
 
-      <div className="flex justify-end">
-        <Button variant="outline" onClick={() => loadData()}>
-          <RefreshCw className="mr-2 h-4 w-4" />
-          Atualizar área
-        </Button>
-      </div>
+        <TabsContent value="fines" className="space-y-4">
+          {data.fines.length ? data.fines.map((fine) => {
+            const canAct = ['Pendente', 'Vencida'].includes(fine.status);
+            const appeal = data.fineAppeals.find((item) => item.fine_id === fine.id);
+            const hearing = data.fineHearings.find((item) => item.fine_id === fine.id);
+            const actionOpen = fineAction.fineId === fine.id;
+            return (
+              <Card key={fine.id} className="glass-effect">
+                <CardHeader><div className="flex flex-wrap items-start justify-between gap-3"><div><CardTitle className="flex items-center gap-2"><Banknote className="h-5 w-5 text-amber-300" />{fine.fine_code}</CardTitle><CardDescription>Emitida em {formatJusticeDate(fine.created_at)}{fine.due_date ? ` · vence em ${formatJusticeDate(fine.due_date)}` : ''}</CardDescription></div><Badge variant="outline">{fine.status}</Badge></div></CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid gap-3 sm:grid-cols-3"><div><p className="text-xs uppercase text-muted-foreground">Valor</p><p className="text-xl font-bold">{money(fine.amount)}</p></div><div><p className="text-xs uppercase text-muted-foreground">Pontos</p><p className="text-xl font-bold">{fine.points || 0}</p></div><div><p className="text-xs uppercase text-muted-foreground">Motivo</p><p className="text-sm">{fine.reason}</p></div></div>
+                  {fine.status === 'Paga' && fine.payment_snapshot ? <div className="rounded-lg border border-emerald-500/25 bg-emerald-500/10 p-3 text-sm text-emerald-100">Pagamento confirmado · total {money(fine.payment_snapshot.totalAmount)} · comprovante {fine.payment_snapshot.transactionId}</div> : null}
+                  {appeal ? <p className="text-sm text-cyan-200">Recurso: {appeal.status}</p> : null}{hearing ? <p className="text-sm text-violet-200">Audiência: {hearing.status}</p> : null}
+                  {canAct ? <div className="flex flex-wrap gap-2"><Button onClick={() => handlePayFine(fine.id)} disabled={Boolean(actionLoading)}>{actionLoading === `pay:${fine.id}` ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}Pagar</Button>{!appeal ? <Button variant="outline" onClick={() => setFineAction({ fineId: fine.id, type: 'appeal', reason: '' })}>Recorrer</Button> : null}{!hearing ? <Button variant="outline" onClick={() => setFineAction({ fineId: fine.id, type: 'hearing', reason: '' })}>Pedir audiência</Button> : null}</div> : null}
+                  {actionOpen ? <form onSubmit={handleFineRequest} className="space-y-3 rounded-xl border border-white/10 bg-white/5 p-4"><Label htmlFor={`fine-reason-${fine.id}`}>{fineAction.type === 'appeal' ? 'Fundamentação do recurso' : 'Motivo do pedido de audiência'}</Label><Textarea id={`fine-reason-${fine.id}`} minLength={20} required value={fineAction.reason} onChange={(event) => setFineAction((current) => ({ ...current, reason: event.target.value }))} /><div className="flex gap-2"><Button type="submit" disabled={Boolean(actionLoading)}>Enviar</Button><Button type="button" variant="ghost" onClick={() => setFineAction({ fineId: '', type: '', reason: '' })}>Cancelar</Button></div></form> : null}
+                </CardContent>
+              </Card>
+            );
+          }) : <JusticeEmptyState title="Nenhuma multa recebida" description="Multas oficiais aparecerão aqui com número único, pagamento, recurso e audiência." />}
+        </TabsContent>
+
+        <TabsContent value="security" className="space-y-6">
+          <div className="grid gap-4 md:grid-cols-2">
+            <Card className="glass-effect"><CardHeader><CardTitle className="flex items-center gap-2"><Search className="h-5 w-5 text-red-300" />Mandados em seu nome</CardTitle></CardHeader><CardContent>{data.security.warrants?.length ? data.security.warrants.map((item) => <div key={item.id} className="mb-3 rounded-lg border border-red-500/20 bg-red-500/5 p-3"><p className="font-medium">{item.number}</p><p className="text-sm text-muted-foreground">{item.type} · {item.status}</p></div>) : <p className="text-sm text-muted-foreground">Nenhum mandado ativo localizado.</p>}</CardContent></Card>
+            <Card className="glass-effect"><CardHeader><CardTitle className="flex items-center gap-2"><FileSearch className="h-5 w-5 text-violet-300" />Investigações relacionadas</CardTitle></CardHeader><CardContent>{data.security.investigations?.length ? data.security.investigations.map((item) => <div key={item.number} className="mb-3 rounded-lg border border-violet-500/20 bg-violet-500/5 p-3"><p className="font-medium">{item.number}</p><p className="text-sm text-muted-foreground">{item.status}</p></div>) : <p className="text-sm text-muted-foreground">Seu perfil não consta como investigado.</p>}</CardContent></Card>
+          </div>
+          <Card className="border-emerald-500/25 bg-emerald-500/5"><CardHeader className="sm:flex-row sm:items-center sm:justify-between"><div><CardTitle className="flex items-center gap-2"><BadgeCheck className="h-5 w-5 text-emerald-300" />Atestado de antecedentes</CardTitle><CardDescription>O resultado é calculado no servidor e o documento verificável fica salvo no DIC por 90 dias.</CardDescription></div><Button className="mt-4 sm:mt-0" onClick={handleCertificate} disabled={actionLoading === 'certificate'}>{actionLoading === 'certificate' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ShieldCheck className="mr-2 h-4 w-4" />}Emitir atestado</Button></CardHeader></Card>
+          <Card className="glass-effect"><CardHeader><CardTitle>Indicadores de eficiência policial</CardTitle></CardHeader><CardContent className="grid gap-3 sm:grid-cols-4"><div><p className="text-sm text-muted-foreground">Ocorrências</p><p className="text-2xl font-bold">{data.policeMetrics.reported || 0}</p></div><div><p className="text-sm text-muted-foreground">Em investigação</p><p className="text-2xl font-bold">{data.policeMetrics.inInvestigation || 0}</p></div><div><p className="text-sm text-muted-foreground">Resolvidas</p><p className="text-2xl font-bold">{data.policeMetrics.resolved || 0}</p></div><div><p className="text-sm text-muted-foreground">Taxa de resolução</p><p className="text-2xl font-bold">{data.policeMetrics.resolutionRate || 0}%</p></div></CardContent></Card>
+          {data.campaigns.length ? <div className="grid gap-4 md:grid-cols-2">{data.campaigns.map((campaign) => <Card key={campaign.id} className="glass-effect"><CardHeader><Badge className="mb-2 w-fit" variant="outline">{campaign.category}</Badge><CardTitle>{campaign.title}</CardTitle><CardDescription>{campaign.summary}</CardDescription></CardHeader><CardContent><p className="whitespace-pre-wrap text-sm text-muted-foreground">{campaign.content}</p></CardContent></Card>)}</div> : null}
+          {data.wanted.length ? <Card className="border-red-500/25 bg-red-500/5"><CardHeader><CardTitle>Lista pública de procurados</CardTitle><CardDescription>Somente mandados de prisão oficiais, ativos e não expirados.</CardDescription></CardHeader><CardContent className="grid gap-3 sm:grid-cols-2">{data.wanted.map((item) => <div key={item.warrant_number} className="rounded-lg border border-red-500/20 p-3"><p className="font-semibold">{item.full_name}</p><p className="text-sm text-muted-foreground">{item.warrant_number}</p></div>)}</CardContent></Card> : null}
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };
 
 export default CitizenJusticeDashboard;
-

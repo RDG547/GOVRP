@@ -186,7 +186,7 @@ const PartyPage = () => {
 
             const { data: suggestionsData, error: suggestionsError } = await supabase
                 .from('bill_suggestions')
-                .select('*, author:profiles(full_name)')
+                .select('*, author:profiles!bill_suggestions_author_id_fkey(full_name)')
                 .eq('target_id', partyId)
                 .eq('target_type', 'party')
                 .order('created_at', { ascending: false });

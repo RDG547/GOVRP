@@ -124,6 +124,12 @@ const MainLayout = ({ children }) => {
         {children}
       </main>
       {!isXPage && <Footer disableTopSpacing={location.pathname === '/'} />}
+      {!isXPage && (
+        <div
+          aria-hidden="true"
+          className="h-[calc(4.75rem+env(safe-area-inset-bottom))] md:hidden"
+        />
+      )}
       <ScrollToTop />
     </>
   );

@@ -24,6 +24,7 @@ import {
   Zap,
   Home,
   LineChart,
+  Newspaper,
 } from 'lucide-react';
 
 export const SERVICE_AVAILABILITY_SETTINGS_KEY = 'service_availability';
@@ -90,6 +91,7 @@ export const SERVICE_CATEGORIES = [
       { key: '/services/x', name: 'X', path: '/services/x', icon: MessageSquare, color: 'text-sky-400', description: 'Conecte-se, compartilhe ideias e debata na rede social oficial.' },
       { key: '/services/library', name: 'Biblioteca Nacional', path: '/services/library', icon: Library, color: 'text-orange-400', description: 'Acesse um vasto acervo de livros, artigos e documentos históricos.' },
       { key: '/services/digital-archive', name: 'Acervo Digital', path: '/services/digital-archive', icon: Archive, color: 'text-rose-400', description: 'Explore o arquivo digital de eventos e documentos importantes.' },
+      { key: '/news', name: 'Notícias e Diário Oficial', path: '/news', icon: Newspaper, color: 'text-cyan-300', description: 'Acompanhe imprensa, acontecimentos nacionais e publicações oficiais.' },
     ],
   },
   {

@@ -275,10 +275,11 @@ const CitizenActions = ({ onPlebAction }) => {
     setLoading(true);
 
     const { data, error } = await supabase.rpc('submit_bill_suggestion', {
-      p_title: `${suggestionData.bill_type}: ${suggestionData.title}`,
+      p_title: suggestionData.title,
       p_suggestion: suggestionData.suggestion,
       p_target_type: suggestionData.target_type,
       p_target_id: suggestionData.target_id,
+      p_bill_type: suggestionData.bill_type,
     });
 
     if (error || (data && !data.success)) {
@@ -1324,7 +1325,7 @@ const Parliament = () => {
             <div className="mb-8 flex flex-col items-center justify-between gap-4 md:flex-row">
               <TabsList className="grid w-full grid-cols-5 md:w-auto">
                 <TabsTrigger value="members">Membros</TabsTrigger>
-                <TabsTrigger value="bills">Projetos</TabsTrigger>
+                <TabsTrigger value="bills">Histórico de Projetos</TabsTrigger>
                 <TabsTrigger value="commissions">Comissões</TabsTrigger>
                 <TabsTrigger value="leadership">Mesa Diretora</TabsTrigger>
                 <TabsTrigger value="plebiscites">Plebiscitos</TabsTrigger>
@@ -1358,6 +1359,7 @@ const Parliament = () => {
             </TabsContent>
 
             <TabsContent value="bills">
+              <h2 className="mb-4 text-2xl font-bold">Histórico de Projetos</h2>
               <BillList bills={filteredBills} />
             </TabsContent>
 

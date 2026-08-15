@@ -42,14 +42,23 @@ const BRAZILIAN_STATES = [
 
 const BrazilFlag = () => (
   <svg
-    viewBox="0 0 72 52"
-    className="w-full h-full rounded-md shadow-sm"
+    viewBox="0 0 240 230"
+    className="w-full h-full drop-shadow-[0_0_12px_rgba(34,197,94,0.35)]"
     role="img"
-    aria-label="Bandeira do Brasil"
+    aria-label="Mapa do Brasil preenchido com a bandeira nacional"
   >
-    <rect width="72" height="52" fill="#168148" rx="3" />
-    <path d="M36 5 L66 26 L36 47 L6 26 Z" fill="#F0C943" />
-    <circle cx="36" cy="26" r="11" fill="#174A8B" />
+    <defs>
+      <clipPath id="brazil-onboarding-shape">
+        <path d="M87 7l30 10 20-5 18 15 28 7 4 20 25 16-10 25 8 18-18 15-4 29-19 6-11 27-21 11-8 24-17-5-11-24-18-9-4-27-18-15 5-24-17-23 13-18-5-28 23-13 14-25 22 4z" />
+      </clipPath>
+    </defs>
+    <g clipPath="url(#brazil-onboarding-shape)">
+      <rect width="240" height="230" fill="#168148" />
+      <path d="M120 31L211 115 120 199 29 115z" fill="#F4D03F" />
+      <circle cx="120" cy="115" r="42" fill="#174A8B" />
+      <path d="M77 106c28-8 57-2 86 18" fill="none" stroke="#fff" strokeWidth="7" />
+    </g>
+    <path d="M87 7l30 10 20-5 18 15 28 7 4 20 25 16-10 25 8 18-18 15-4 29-19 6-11 27-21 11-8 24-17-5-11-24-18-9-4-27-18-15 5-24-17-23 13-18-5-28 23-13 14-25 22 4z" fill="none" stroke="#86efac" strokeWidth="4" />
   </svg>
 );
 
@@ -64,6 +73,40 @@ const ResidencyOnboarding = () => {
   const [issuedDocuments, setIssuedDocuments] = useState({});
   const [previewDocument, setPreviewDocument] = useState(null);
   const [onboardingFinished, setOnboardingFinished] = useState(false);
+  const [isRestoring, setIsRestoring] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+
+    const restoreProgress = async () => {
+      if (!user?.id || user.onboarding_completed !== false) {
+        if (active) setIsRestoring(false);
+        return;
+      }
+
+      setIsRestoring(true);
+      const [profileResult, documentsResult] = await Promise.all([
+        supabase.from('profiles').select('country_code, state_code').eq('id', user.id).single(),
+        supabase.from('documents').select('*').eq('user_id', user.id).eq('is_valid', true).in('type', ['CTD', 'Título de Eleitor']),
+      ]);
+
+      if (!active) return;
+
+      if (profileResult.data?.country_code === 'BR' && profileResult.data?.state_code) {
+        setSelectedState(profileResult.data.state_code);
+        setPhase('documents');
+      } else {
+        setPhase('residency');
+      }
+
+      const restoredDocuments = Object.fromEntries((documentsResult.data || []).map((document) => [document.type, document]));
+      setIssuedDocuments(restoredDocuments);
+      setIsRestoring(false);
+    };
+
+    restoreProgress();
+    return () => { active = false; };
+  }, [user?.id, user?.onboarding_completed]);
 
   useEffect(() => {
     if (user?.onboarding_completed === false && !onboardingFinished) {
@@ -184,12 +227,24 @@ const ResidencyOnboarding = () => {
             </DialogHeader>
 
             <div className="p-6 space-y-6">
-              {phase === 'residency' ? (
+              <div className="space-y-2" aria-label="Progresso do primeiro acesso">
+                <div className="flex items-center justify-between text-xs font-medium text-gray-300">
+                  <span>{phase === 'residency' ? 'Etapa 1 de 3' : allDocumentsIssued ? 'Etapa 3 de 3' : 'Etapa 2 de 3'}</span>
+                  <span>{phase === 'residency' ? 'Residência' : allDocumentsIssued ? 'Conclusão' : 'Documentos'}</span>
+                </div>
+                <div className="h-1.5 overflow-hidden rounded-full bg-white/10">
+                  <div className="h-full rounded-full bg-gradient-to-r from-green-500 to-cyan-400 transition-all" style={{ width: phase === 'residency' ? '33.33%' : allDocumentsIssued ? '100%' : '66.66%' }} />
+                </div>
+              </div>
+
+              {isRestoring ? (
+                <div className="flex min-h-56 items-center justify-center gap-3 text-gray-300"><Loader2 className="h-5 w-5 animate-spin" />Recuperando seu progresso...</div>
+              ) : phase === 'residency' ? (
                 <>
                   <div className="space-y-3">
                     <Label className="text-white">País de residência (Natalidade)</Label>
                     <div className="relative flex items-center gap-4 p-4 rounded-xl border border-green-500/30 bg-green-500/10">
-                      <div className="w-20 h-14 flex-shrink-0">
+                      <div className="w-24 h-24 flex-shrink-0">
                         <BrazilFlag />
                       </div>
                       <div className="flex-1">

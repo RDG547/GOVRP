@@ -1,13 +1,6 @@
 export const isPrisonSentenceActive = (profile) => {
-  if (!profile?.is_imprisoned) {
-    return false;
-  }
-
-  if (!profile.release_date) {
-    return true;
-  }
-
-  return new Date(profile.release_date).getTime() > Date.now();
+  // A liberação é decidida pelas rotinas do banco, nunca pelo relógio do aparelho.
+  return Boolean(profile?.is_imprisoned);
 };
 
 export const getPrisonRemainingMs = (releaseDate) => {

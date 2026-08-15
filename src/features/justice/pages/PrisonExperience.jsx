@@ -57,10 +57,12 @@ const PrisonExperience = () => {
     runs: [],
     events: [],
     inmates: [],
+    serverNow: null,
   });
   const [loading, setLoading] = useState(true);
   const [actingId, setActingId] = useState(null);
   const [now, setNow] = useState(Date.now());
+  const [serverOffset, setServerOffset] = useState(0);
   const isPrisonStaff = hasAnyJusticeRole(user, [
     'Admin',
     'Agente Penitenciário',
@@ -71,7 +73,13 @@ const PrisonExperience = () => {
     if (!user?.id) return;
     if (!quiet) setLoading(true);
     try {
-      setData(await fetchPrisonExperience(user.id));
+      const nextData = await fetchPrisonExperience(user.id);
+      setData(nextData);
+      if (nextData.serverNow) {
+        const nextOffset = new Date(nextData.serverNow).getTime() - Date.now();
+        setServerOffset(nextOffset);
+        setNow(Date.now() + nextOffset);
+      }
     } catch (error) {
       toast({
         title: 'Falha ao carregar a área prisional',
@@ -93,9 +101,9 @@ const PrisonExperience = () => {
   }, [loadData, user?.id]);
 
   useEffect(() => {
-    const interval = window.setInterval(() => setNow(Date.now()), 1000);
+    const interval = window.setInterval(() => setNow(Date.now() + serverOffset), 1000);
     return () => window.clearInterval(interval);
-  }, []);
+  }, [serverOffset]);
 
   const currentRun = useMemo(
     () => data.runs.find((run) => run.status === 'in_progress') || null,
@@ -448,4 +456,3 @@ const PrisonExperience = () => {
 };
 
 export default PrisonExperience;
-

@@ -39,6 +39,7 @@ const Navbar = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [servicesOpen, setServicesOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
+  const [mobileServicesOpen, setMobileServicesOpen] = useState(false);
   const [isDashboardAlertOpen, setIsDashboardAlertOpen] = useState(false);
   
   const { user, logout, session } = useAuth();
@@ -49,6 +50,7 @@ const Navbar = () => {
   const servicesTimeoutRef = useRef(null);
   const helpTimeoutRef = useRef(null);
   const navRef = useRef(null);
+  const mobileNavRef = useRef(null);
 
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 10);
@@ -59,14 +61,18 @@ const Navbar = () => {
   
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (navRef.current && !navRef.current.contains(event.target)) {
+      const clickedTopNavigation = navRef.current?.contains(event.target);
+      const clickedMobileNavigation = mobileNavRef.current?.contains(event.target);
+
+      if (!clickedTopNavigation && !clickedMobileNavigation) {
         setServicesOpen(false);
         setHelpOpen(false);
+        setMobileServicesOpen(false);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [navRef]);
+  }, []);
 
   useEffect(() => {
     if (isOpen) {
@@ -81,7 +87,8 @@ const Navbar = () => {
     setIsOpen(false);
     setServicesOpen(false);
     setHelpOpen(false);
-  }, [location]);
+    setMobileServicesOpen(false);
+  }, [location.pathname]);
 
   const navLinks = [
       { name: 'Início', path: '/', icon: HomeIcon },
@@ -108,13 +115,22 @@ const Navbar = () => {
   const handleHelpLeave = () => { helpTimeoutRef.current = setTimeout(() => setHelpOpen(false), 200); };
   const handleHelpClick = (e) => { e.preventDefault(); setHelpOpen(prev => !prev); };
 
-  const handleDashboardClick = (e) => {
-    e.preventDefault();
+  const openDashboard = () => {
+    if (!session) {
+      navigate('/login');
+      return;
+    }
+
     if (isAdmin || hasPresidentAccess) {
       setIsDashboardAlertOpen(true);
     } else {
       navigate('/dashboard/citizen');
     }
+  };
+
+  const handleDashboardClick = (event) => {
+    event?.preventDefault();
+    openDashboard();
   };
 
   const NavLink = ({ to, children, className, icon: Icon }) => (
@@ -235,19 +251,188 @@ const Navbar = () => {
             
             <div className="flex items-center md:hidden">
               {user && <NotificationBell />}
-              <button onClick={() => setIsOpen(!isOpen)} className="text-foreground hover:text-primary transition-colors z-[101] relative ml-2">{isOpen ? <X className="w-7 h-7" /> : <Menu className="w-7 h-7" />}</button>
+              <button
+                type="button"
+                aria-label={isOpen ? 'Fechar menu' : 'Abrir menu'}
+                onClick={() => {
+                  setMobileServicesOpen(false);
+                  setIsOpen(!isOpen);
+                }}
+                className="text-foreground hover:text-primary transition-colors z-[101] relative ml-2"
+              >
+                {isOpen ? <X className="w-7 h-7" /> : <Menu className="w-7 h-7" />}
+              </button>
             </div>
           </div>
         </div>
       </motion.nav>
       <MobileMenu isOpen={isOpen} setIsOpen={setIsOpen} />
+      {!location.pathname.startsWith('/services/x') && (
+        <MobileBottomNav
+          containerRef={mobileNavRef}
+          servicesOpen={mobileServicesOpen}
+          setServicesOpen={setMobileServicesOpen}
+          onDashboard={openDashboard}
+        />
+      )}
       <DashboardSelectorDialog
         open={isDashboardAlertOpen}
         onOpenChange={setIsDashboardAlertOpen}
+        onSelect={(path) => {
+          setIsDashboardAlertOpen(false);
+          navigate(path);
+        }}
         hasPresidentAccess={hasPresidentAccess}
         isAdmin={isAdmin}
       />
     </>
+  );
+};
+
+const MobileBottomNav = ({
+  containerRef,
+  servicesOpen,
+  setServicesOpen,
+  onDashboard,
+}) => {
+  const location = useLocation();
+  const isServicesRoute = location.pathname === '/services' || location.pathname.startsWith('/services/');
+  const isDashboardRoute =
+    location.pathname === '/dashboard' ||
+    location.pathname.startsWith('/dashboard/') ||
+    location.pathname.startsWith('/admin-dashboard/');
+
+  const itemClass = (active) =>
+    `relative flex min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-1 py-2 text-[0.68rem] font-medium transition-colors ${
+      active
+        ? 'text-primary'
+        : 'text-muted-foreground hover:bg-accent/60 hover:text-foreground'
+    }`;
+
+  return (
+    <div ref={containerRef} className="md:hidden">
+      <AnimatePresence>
+        {servicesOpen && (
+          <>
+            <motion.button
+              type="button"
+              aria-label="Fechar menu de serviços"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setServicesOpen(false)}
+              className="fixed inset-0 z-[55] cursor-default bg-background/45 backdrop-blur-[2px]"
+            />
+            <motion.section
+              id="mobile-services-menu"
+              aria-label="Serviços"
+              initial={{ opacity: 0, y: 18, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 18, scale: 0.98 }}
+              transition={{ duration: 0.2, ease: 'easeOut' }}
+              className="custom-scrollbar fixed inset-x-3 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-[70] mx-auto max-h-[calc(100dvh-10rem)] max-w-lg overflow-y-auto rounded-2xl border border-border/90 bg-popover/95 p-3 text-popover-foreground shadow-2xl backdrop-blur-xl"
+            >
+              <div className="sticky -top-3 z-10 mb-2 flex items-center justify-between border-b border-border bg-popover/95 px-2 py-3 backdrop-blur-xl">
+                <div>
+                  <p className="text-sm font-semibold">Serviços GOV.RP</p>
+                  <p className="text-xs text-muted-foreground">Escolha uma área da plataforma</p>
+                </div>
+                <Link
+                  to="/services"
+                  onClick={() => setServicesOpen(false)}
+                  className="flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-xs font-semibold text-primary hover:bg-accent"
+                >
+                  <Grid className="h-4 w-4" />
+                  Ver todos
+                </Link>
+              </div>
+
+              <div className="space-y-3">
+                {serviceCategories.map((category) => (
+                  <div key={category.name}>
+                    <h3 className="px-2 pb-1.5 text-[0.68rem] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                      {category.name}
+                    </h3>
+                    <div className="grid grid-cols-1 gap-1 min-[430px]:grid-cols-2">
+                      {category.services.map((service) => (
+                        <Link
+                          key={service.path}
+                          to={service.path}
+                          onClick={() => setServicesOpen(false)}
+                          className="flex min-w-0 items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-colors hover:bg-accent"
+                        >
+                          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-background/70">
+                            <service.icon className={`h-4 w-4 ${service.color}`} />
+                          </span>
+                          <span className="min-w-0 truncate">{formatServiceMenuLabel(service.name)}</span>
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </motion.section>
+          </>
+        )}
+      </AnimatePresence>
+
+      <nav
+        aria-label="Navegação principal móvel"
+        className="fixed inset-x-0 bottom-0 z-[70] border-t border-border/90 bg-background/95 px-2 pt-1 shadow-[0_-12px_35px_rgba(0,0,0,0.32)] backdrop-blur-xl"
+        style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 0.25rem)' }}
+      >
+        <div className="mx-auto grid h-[4.5rem] max-w-lg grid-cols-4 gap-1">
+          <Link
+            to="/"
+            aria-current={location.pathname === '/' ? 'page' : undefined}
+            className={itemClass(location.pathname === '/')}
+          >
+            <HomeIcon className="h-5 w-5" />
+            <span className="truncate">Início</span>
+          </Link>
+
+          <button
+            type="button"
+            aria-expanded={servicesOpen}
+            aria-controls="mobile-services-menu"
+            onClick={() => setServicesOpen((open) => !open)}
+            className={itemClass(servicesOpen || isServicesRoute)}
+          >
+            <span className="relative">
+              <LayoutDashboard className="h-5 w-5" />
+              <ChevronDown
+                className={`absolute -right-3 -top-1 h-3 w-3 transition-transform ${
+                  servicesOpen ? '' : 'rotate-180'
+                }`}
+              />
+            </span>
+            <span className="truncate">Serviços</span>
+          </button>
+
+          <button
+            type="button"
+            aria-current={isDashboardRoute ? 'page' : undefined}
+            onClick={() => {
+              setServicesOpen(false);
+              onDashboard();
+            }}
+            className={itemClass(isDashboardRoute)}
+          >
+            <LayoutDashboard className="h-5 w-5" />
+            <span className="truncate">Dashboard</span>
+          </button>
+
+          <Link
+            to="/country-info"
+            aria-current={location.pathname === '/country-info' ? 'page' : undefined}
+            className={itemClass(location.pathname === '/country-info')}
+          >
+            <Map className="h-5 w-5" />
+            <span className="truncate">Sobre o país</span>
+          </Link>
+        </div>
+      </nav>
+    </div>
   );
 };
 
@@ -263,8 +448,6 @@ const MobileMenu = ({ isOpen, setIsOpen }) => {
   };
 
   const mainLinks = [
-    { name: 'Início', path: '/', icon: HomeIcon },
-    { name: 'Sobre o País', path: '/country-info', icon: Map },
     { name: 'Comunidade', path: '/community', icon: Users },
     { name: 'Apoie o Projeto', path: '/support-us', icon: Heart },
   ];
@@ -278,11 +461,6 @@ const MobileMenu = ({ isOpen, setIsOpen }) => {
 
   const toggleSubmenu = (name) => {
     setOpenSubmenu(openSubmenu === name ? null : name);
-  };
-
-  const handleDashboardClick = () => {
-    setIsOpen(false);
-    navigate('/dashboard');
   };
 
   return (
@@ -321,29 +499,6 @@ const MobileMenu = ({ isOpen, setIsOpen }) => {
                 ))}
 
                 <div>
-                  <button onClick={() => toggleSubmenu('services')} className="text-xl p-4 rounded-lg hover:bg-accent flex items-center justify-between w-full text-foreground gap-4">
-                    <div className="flex items-center gap-4"><LayoutDashboard className="w-6 h-6"/>Serviços</div>
-                    <ChevronDown className={`w-5 h-5 transition-transform ${openSubmenu === 'services' ? 'rotate-180' : ''}`} />
-                  </button>
-                  <AnimatePresence>
-                    {openSubmenu === 'services' && (
-                      <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden pl-8">
-                        <div className="pt-2 pb-2 space-y-1 border-l-2 border-border">
-                          {serviceCategories.map(category => (
-                            <div key={category.name} className="py-2">
-                              <h3 className="font-semibold text-sm text-muted-foreground px-3 mb-2">{category.name}</h3>
-                              {category.services.map(s => <Link key={s.path} to={s.path} onClick={() => setIsOpen(false)} className="text-lg p-3 rounded-md hover:bg-accent flex items-center w-full text-foreground gap-3"><s.icon className={`w-5 h-5 ${s.color}`}/>{formatServiceMenuLabel(s.name)}</Link>)}
-                            </div>
-                          ))}
-                          <div className="border-t border-border my-2 mx-3"></div>
-                          <Link to="/services" onClick={() => setIsOpen(false)} className="text-lg p-3 rounded-md hover:bg-accent flex items-center w-full font-semibold text-primary gap-3"><Grid className="w-5 h-5"/>Ver Todos</Link>
-                        </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
-                
-                <div>
                   <button onClick={() => toggleSubmenu('help')} className="text-xl p-4 rounded-lg hover:bg-accent flex items-center justify-between w-full text-foreground gap-4">
                     <div className="flex items-center gap-4"><HelpCircle className="w-6 h-6"/>Ajuda</div>
                     <ChevronDown className={`w-5 h-5 transition-transform ${openSubmenu === 'help' ? 'rotate-180' : ''}`} />
@@ -371,7 +526,12 @@ const MobileMenu = ({ isOpen, setIsOpen }) => {
                        <p className="text-sm text-muted-foreground">@{user?.username}</p>
                      </div>
                   </div>
-                  <Button variant="outline" onClick={handleDashboardClick} className="w-full justify-start gap-4"><LayoutDashboard/>Dashboard</Button>
+                  <Button asChild variant="outline" className="w-full justify-start gap-4">
+                    <Link to="/settings" onClick={() => setIsOpen(false)}>
+                      <Settings />
+                      Configurações
+                    </Link>
+                  </Button>
                   <Button variant="destructive" onClick={handleLogout} className="w-full justify-start gap-4"><LogOut/>Sair</Button>
                 </div>
               ) : (

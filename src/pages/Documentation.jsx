@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { BookOpen, Siren, Shield, Users, Code, Server, Landmark, Store, FileText, MessageSquare, Library, Archive, ArrowRight, GitBranch, HelpCircle, Scale, Gavel, Vote, Eye, ShieldCheck, Headphones, Crown, Banknote, Home, Wifi, Zap, Droplet, Smartphone, Wrench, Flame } from 'lucide-react';
+import { BookOpen, Siren, Shield, Users, Code, Server, Landmark, Store, FileText, MessageSquare, Library, Archive, ArrowRight, GitBranch, HelpCircle, Scale, Gavel, Vote, Eye, ShieldCheck, Headphones, Crown, Banknote, Home, Wifi, Zap, Droplet, Smartphone, Wrench, Flame, LineChart, Newspaper, Tally5, Building2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
@@ -92,6 +92,13 @@ const SectionContent = ({ id }) => {
               <li>Investir em fundos de rendimento para fazer seu dinheiro crescer.</li>
             </ul>
           </ServiceCard>
+          <ServiceCard icon={LineChart} title="Economia Nacional" description="Acompanhe a economia que nasce dos dados atuais e evolui com o RP." color="text-cyan-300">
+            <p>O painel reúne PIB, crescimento, inflação, desemprego, câmbio, setores produtivos e séries históricas. Quando um país entra no RP, os dados reais formam o ponto inicial; a partir desse momento, decisões de jogadores e o motor de simulação passam a determinar os valores seguintes.</p>
+            <ul><li>Indicadores e histórico nacional.</li><li>Política fiscal e monetária com efeitos graduais.</li><li>Portfólio de investimentos com compras, vendas e resultado.</li></ul>
+          </ServiceCard>
+          <ServiceCard icon={Building2} title="Portal do Empreendedor" description="Abra, administre e desenvolva empresas no país." color="text-cyan-400">
+            <p>O portal concentra criação empresarial, equipes, projetos, indicadores, balanços e acesso ao mercado. Empresas com CNPJ aparecem pelo nome fantasia e CNPJ nas vendas.</p>
+          </ServiceCard>
           <ServiceCard icon={Store} title="Negócios Livres" description="Crie e administre sua empresa, e participe da economia." color="text-blue-400">
             <p>O serviço de Negócios Livres é o marketplace do GOV.RP. Aqui, o empreendedorismo ganha vida. Você pode:</p>
             <ul>
@@ -175,8 +182,14 @@ const SectionContent = ({ id }) => {
             </ul>
             <p>Compete privativamente ao Presidente nomear e exonerar ministros, dirigir a administração federal, sancionar, promulgar, publicar leis, vetar projetos e editar medidas provisórias com validade máxima de 1 semana.</p>
           </ServiceCard>
-          <ServiceCard icon={Siren} title="Polícia" description="Acesse os serviços do departamento de polícia e registre ocorrências." color="text-indigo-400">
-            <p>O Departamento de Polícia é responsável pela segurança e ordem. Cidadãos podem registrar ocorrências, enquanto o painel restrito a membros da corporação permite:</p>
+          <ServiceCard icon={Newspaper} title="Notícias e Diário Oficial" description="Imprensa plural, acontecimentos e atos oficiais." color="text-cyan-300">
+            <p>Notícias podem apresentar enquadramentos editoriais governista, de oposição, neutro ou sensacionalista. O Diário Oficial registra leis e decretos; decretos presidenciais exibem a data e o horário exatos fornecidos pelo servidor.</p>
+          </ServiceCard>
+          <ServiceCard icon={Tally5} title="Sistema Prisional" description="Execução penal, custódia e ressocialização." color="text-slate-400">
+            <p>A área prisional acompanha estabelecimento, regime, tempo restante, eventos da pena e atividades de trabalho, estudo, saúde e convivência. O servidor decide admissão, progressão e liberação; alterar o relógio do aparelho não muda a pena.</p>
+          </ServiceCard>
+          <ServiceCard icon={Siren} title="Central de Segurança e Justiça" description="Ocorrências, processos, multas, mandados e serviços civis." color="text-indigo-400">
+            <p>A central unifica Polícia, Ministério Público, Judiciário e execução penal. Cidadãos podem registrar ocorrências identificadas ou anônimas, consultar protocolos, multas, mandados e investigações permitidas, pedir investigação ou liberação de bens e emitir atestado de antecedentes. Autoridades atuam conforme o cargo:</p>
             <ul>
               <li>Gerenciar ocorrências e investigações.</li>
               <li>Acessar o banco de dados de cidadãos para fins de segurança.</li>
