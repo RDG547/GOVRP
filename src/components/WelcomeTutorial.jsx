@@ -4,7 +4,7 @@ import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabaseClient';
-import { ArrowRight, ArrowLeft, Check, Sparkles, LayoutDashboard, Landmark, Users, MessageSquare, Scale, BriefcaseBusiness, Newspaper, Shield, Vote, GraduationCap, FileText } from 'lucide-react';
+import { ArrowRight, ArrowLeft, Check, Sparkles, LayoutDashboard, Landmark, Users, MessageSquare, Scale, Briefcase, Newspaper, Shield, Vote, GraduationCap, FileText } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 
@@ -30,8 +30,8 @@ const tutorialPaths = {
   entrepreneurship: [
     step(LayoutDashboard, 'Dashboard', 'Acompanhe sua evolução econômica e os primeiros objetivos.'),
     step(Landmark, 'Banco Nacional', 'Use sua conta, transferências e produtos financeiros.', 'from-green-500 to-emerald-600'),
-    step(BriefcaseBusiness, 'Negócios Livres', 'Conheça o comércio e as oportunidades entre cidadãos.'),
-    step(BriefcaseBusiness, 'Portal do Empreendedor', 'Estruture empresas e acompanhe sua atividade econômica.'),
+    step(Briefcase, 'Negócios Livres', 'Conheça o comércio e as oportunidades entre cidadãos.'),
+    step(Briefcase, 'Portal do Empreendedor', 'Estruture empresas e acompanhe sua atividade econômica.'),
     step(Sparkles, 'Economia e investimentos', 'Observe indicadores e tome decisões com base no cenário do país.'),
   ],
   justice: [
@@ -58,7 +58,7 @@ const tutorialPaths = {
   knowledge: [
     step(LayoutDashboard, 'Dashboard', 'Organize seus próximos passos e acompanhe seu progresso.'),
     step(GraduationCap, 'Educação', 'Desenvolva formação e qualificação dentro do sistema.'),
-    step(BriefcaseBusiness, 'Carreira', 'Construa experiência profissional por meio do gameplay.'),
+    step(Briefcase, 'Carreira', 'Construa experiência profissional por meio do gameplay.'),
     step(Landmark, 'Serviços públicos', 'Explore os recursos disponíveis para todos os cidadãos.'),
     step(Users, 'Comunidade', 'Crie relações e descubra novas possibilidades.'),
   ],

@@ -1,4 +1,4 @@
-import { BriefcaseBusiness, GraduationCap, Landmark, Newspaper, Scale, Shield, UserRound } from 'lucide-react';
+import { Briefcase, GraduationCap, Landmark, Newspaper, Scale, Shield, UserRound } from 'lucide-react';
 
 export const CITIZEN_ONBOARDING_VERSION = 2;
 
@@ -19,7 +19,7 @@ export const PROGRESS_STEPS = [
 
 export const ASPIRATIONS = [
   { key: 'politics', title: 'Política', icon: Landmark, description: 'Partidos, eleições, Parlamento e vida pública.' },
-  { key: 'entrepreneurship', title: 'Empreendedorismo', icon: BriefcaseBusiness, description: 'Empresas, investimentos, economia e patrimônio.' },
+  { key: 'entrepreneurship', title: 'Empreendedorismo', icon: Briefcase, description: 'Empresas, investimentos, economia e patrimônio.' },
   { key: 'justice', title: 'Justiça', icon: Scale, description: 'Direito, leis, tribunais e carreiras jurídicas.' },
   { key: 'security', title: 'Segurança Pública', icon: Shield, description: 'Proteção da sociedade, denúncias e carreira policial.' },
   { key: 'communication', title: 'Comunicação', icon: Newspaper, description: 'Imprensa, debate público, reputação e influência.' },
@@ -35,4 +35,3 @@ export const getProgressIndex = (step) => {
 
 export const getDocument = (documents, type) =>
   documents?.find((document) => document.type === type && document.is_valid !== false) || null;
-
