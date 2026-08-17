@@ -1,4 +1,4 @@
-import { formatDateBR, formatDateTimeBR, GOVRP_TIME_ZONE } from '@/lib/dateTime';
+import { formatDateBR, formatDateTimeBR, GOVRP_TIME_ZONE } from './dateTime.js';
 
 const OFFICIAL_GAZETTE_TYPE_ORDER = [
   'Lei',
