@@ -1,5 +1,33 @@
 # Changelog do GOV.RP
 
+## 17 de agosto de 2026
+
+### Conta, personagem e cidadania
+
+- Conta real (OOC), personagem (IC) e cidadania institucional agora possuem responsabilidades e dados separados.
+- Nome, nascimento, e-mail e telefone reais foram isolados em estrutura privada e deixaram de ser publicados no perfil do cidadão.
+- Cadastro passou a criar somente a conta; CPF, RG e username público são definidos no Registro Nacional de Cidadania.
+- Nova rota imersiva `/registro-cidadania`, com sete etapas persistentes, retomada após reload e cerimônia de concessão.
+- Google, Facebook e Discord também seguem o onboarding e precisam completar dados privados mínimos.
+- Origem e residência usam UF, município e código IBGE separados.
+- CPF, RG, Título de Eleitor e CTD são emitidos no backend, de forma única e idempotente, usando o DIC existente.
+- Conta bancária é criada ou preservada sem duplicidade; o saldo inicial vem da configuração econômica e gera transação de origem.
+- Conclusão do onboarding passou a ser validada exclusivamente no backend.
+- Tutorial, Dashboard, Configurações e Admin foram adaptados à aspiração e à separação OOC/IC.
+- Migração legada preserva documentos, saldo, partido, cargos, Rede X, Justiça e histórico.
+- RLS, grants e triggers foram reforçados para proteger dados reais e campos oficiais do cidadão.
+
+### Interface, estabilidade e experiência
+
+- Corrigidas notificações duplicadas e a tela escura que podia permanecer após login ou restauração de sessão.
+- Textos visíveis foram revisados para PT-BR e atos oficiais passaram a exibir data e hora completas.
+- Parlamento ganhou histórico cronológico da tramitação e abas adaptadas para celulares.
+- PDFs do DIC receberam correções para nomes, datas e caracteres acentuados que apareciam cortados.
+- Modais e tabs do Painel de Administração foram refinados para telas pequenas, com nomes completos e cabeçalho estável.
+- Câmbio ganhou gráfico histórico e a Home passou a exibir as três notícias mais recentes em carrossel.
+- Gestão Bancária foi separada entre cartões e empréstimos, com paginação, atualizações dinâmicas e preservação do scroll.
+- Changelog completo para jogadores: `docs/CHANGELOG_JOGADORES_2026-08-17.md`.
+
 ## 15 de agosto de 2026
 
 ### Governo e simulação nacional

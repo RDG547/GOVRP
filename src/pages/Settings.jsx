@@ -1,223 +1,150 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
+import { ArrowRight, Calendar, FileText, ImagePlus, Loader2, LockKeyhole, Mail, Phone, Save, ShieldCheck, User } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabaseClient';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { User, Mail, Phone, Save, Image as ImageIcon, Loader2, Calendar, FileText, Trash2, ArrowRight } from 'lucide-react';
-import { formatCPF, formatRG, formatPhone } from '@/lib/utils';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { formatCPF, formatPhone, formatRG } from '@/lib/utils';
 import {
-  ACCEPTED_IMAGE_EXTENSIONS,
-  ACCEPTED_IMAGE_MIME_TYPES,
-  IMAGE_ACCEPT_ATTRIBUTE,
-  MAX_STANDARD_IMAGE_UPLOAD_BYTES,
-  buildStoragePath,
-  extractStoragePathFromUrl,
-  validateSelectedFile,
+  ACCEPTED_IMAGE_EXTENSIONS, ACCEPTED_IMAGE_MIME_TYPES, IMAGE_ACCEPT_ATTRIBUTE,
+  MAX_STANDARD_IMAGE_UPLOAD_BYTES, buildStoragePath, extractStoragePathFromUrl, validateSelectedFile,
 } from '@/lib/security';
+
+const ReadOnlyField = ({ label, value, icon: Icon = LockKeyhole, hint }) => (
+  <div>
+    <Label>{label}</Label>
+    {hint && <p className="mt-1 text-xs text-slate-400">{hint}</p>}
+    <div className="relative mt-2"><Icon className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-500" /><Input value={value || 'Não informado'} readOnly className="cursor-not-allowed bg-white/5 pl-10 text-slate-300" /></div>
+  </div>
+);
 
 const Settings = () => {
   const { user, session, refreshUser } = useAuth();
   const { toast } = useToast();
-  const [formData, setFormData] = useState({
-    full_name: '',
-    username: '',
-    phone: '',
-  });
-  const [avatarFile, setAvatarFile] = useState(null);
-  const [avatarPreview, setAvatarPreview] = useState('');
-  const [avatarAction, setAvatarAction] = useState('none');
-  const [loading, setLoading] = useState(false);
   const avatarInputRef = useRef(null);
+  const [account, setAccount] = useState({ realFullName: '', realDateOfBirth: '', phone: '' });
+  const [citizen, setCitizen] = useState({ bio: '', avatarUrl: '' });
+  const [avatarFile, setAvatarFile] = useState(null);
+  const [accountLoading, setAccountLoading] = useState(false);
+  const [citizenLoading, setCitizenLoading] = useState(false);
 
   useEffect(() => {
-    if (user) {
-      setFormData({
-        full_name: user.full_name || '',
-        username: user.username || '',
-        phone: user.phone ? formatPhone(user.phone) : '',
-      });
-      setAvatarPreview(user.avatar_url || '');
-    }
+    setAccount({
+      realFullName: user?.real_full_name || '',
+      realDateOfBirth: user?.real_date_of_birth || '',
+      phone: user?.phone ? formatPhone(user.phone) : '',
+    });
+    setCitizen({ bio: user?.character_bio || '', avatarUrl: user?.avatar_url || '' });
   }, [user]);
 
-  const handleChange = (e) => {
-    let value = e.target.value;
-    if (e.target.name === 'phone') {
-        value = formatPhone(value);
-    }
-    setFormData({ ...formData, [e.target.name]: value });
-  };
-  
-  const handleAvatarChange = (e) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      const validation = validateSelectedFile(file, {
-        allowedMimeTypes: ACCEPTED_IMAGE_MIME_TYPES,
-        allowedExtensions: ACCEPTED_IMAGE_EXTENSIONS,
-        maxBytes: MAX_STANDARD_IMAGE_UPLOAD_BYTES,
-        label: 'avatar',
-      });
-
-      if (!validation.ok) {
-        toast({ title: 'Arquivo inválido', description: validation.error, variant: 'destructive' });
-        if (avatarInputRef.current) {
-          avatarInputRef.current.value = '';
-        }
-        return;
-      }
-
-      setAvatarFile(file);
-      setAvatarPreview(URL.createObjectURL(file));
-      setAvatarAction('upload');
-    }
-  };
-  
-  const handleRemoveAvatar = () => {
-    setAvatarFile(null);
-    setAvatarPreview('');
-    setAvatarAction('remove');
-  };
-  
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-
+  const saveAccount = async (event) => {
+    event.preventDefault();
+    setAccountLoading(true);
     try {
-        const updates = {
-            full_name: formData.full_name,
-            username: formData.username,
-            phone: formData.phone.replace(/\D/g, '')
-        };
-
-        if (avatarAction === 'upload' && avatarFile) {
-            const oldFilePath = extractStoragePathFromUrl(user.avatar_url, 'avatars');
-            const newFilePath = buildStoragePath({ prefix: '', entityId: user.id, fileName: avatarFile.name });
-            const { error: uploadError } = await supabase.storage.from('avatars').upload(newFilePath, avatarFile, { upsert: false });
-            if (uploadError) throw uploadError;
-            if (oldFilePath) await supabase.storage.from('avatars').remove([oldFilePath]);
-            const { data } = supabase.storage.from('avatars').getPublicUrl(newFilePath);
-            updates.avatar_url = data.publicUrl;
-        } else if (avatarAction === 'remove') {
-            if (user.avatar_url) {
-                const filePath = extractStoragePathFromUrl(user.avatar_url, 'avatars');
-                if (filePath) await supabase.storage.from('avatars').remove([filePath]);
-            }
-            updates.avatar_url = null;
-        }
-
-        const { error: updateError } = await supabase.from('profiles').update(updates).eq('id', user.id);
-        if (updateError) throw updateError;
-      
-        if (user.phone !== formData.phone.replace(/\D/g, '')) {
-            await supabase.auth.updateUser({ phone: formData.phone.replace(/\D/g, '') });
-        }
-
-        await refreshUser();
-        toast({ title: "Sucesso!", description: "Seu perfil foi atualizado." });
-        setAvatarAction('none');
+      const normalizedPhone = account.phone.replace(/\D/g, '');
+      const { error } = await supabase.rpc('update_my_account_identity', {
+        p_real_full_name: account.realFullName,
+        p_real_date_of_birth: account.realDateOfBirth || null,
+        p_phone: normalizedPhone || null,
+        p_phone_country_code: '+55',
+      });
+      if (error) throw error;
+      await refreshUser();
+      toast({ title: 'Dados da conta atualizados', description: 'Essas informações permanecem privadas.' });
     } catch (error) {
-      console.error("Error updating profile:", error);
-      toast({ title: "Erro ao atualizar perfil", description: error.message, variant: "destructive" });
-    } finally {
-      setLoading(false);
+      toast({ title: 'Erro ao atualizar a conta', description: error.message, variant: 'destructive' });
+    } finally { setAccountLoading(false); }
+  };
+
+  const chooseAvatar = (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const validation = validateSelectedFile(file, { allowedMimeTypes: ACCEPTED_IMAGE_MIME_TYPES, allowedExtensions: ACCEPTED_IMAGE_EXTENSIONS, maxBytes: MAX_STANDARD_IMAGE_UPLOAD_BYTES, label: 'avatar' });
+    if (!validation.ok) {
+      toast({ title: 'Avatar inválido', description: validation.error, variant: 'destructive' });
+      return;
     }
+    setAvatarFile(file);
+    setCitizen((current) => ({ ...current, avatarUrl: URL.createObjectURL(file) }));
+  };
+
+  const saveCitizen = async (event) => {
+    event.preventDefault();
+    setCitizenLoading(true);
+    let uploadedPath = null;
+    try {
+      let avatarUrl = citizen.avatarUrl;
+      let oldPath = null;
+      if (avatarFile) {
+        oldPath = extractStoragePathFromUrl(user.avatar_url, 'avatars');
+        const newPath = buildStoragePath({ prefix: '', entityId: user.id, fileName: avatarFile.name });
+        const { error: uploadError } = await supabase.storage.from('avatars').upload(newPath, avatarFile, { upsert: false });
+        if (uploadError) throw uploadError;
+        uploadedPath = newPath;
+        avatarUrl = supabase.storage.from('avatars').getPublicUrl(newPath).data.publicUrl;
+      }
+      const { error } = await supabase.rpc('update_my_citizen_profile', { p_character_bio: citizen.bio || null, p_avatar_url: avatarUrl || null });
+      if (error) throw error;
+      if (oldPath) await supabase.storage.from('avatars').remove([oldPath]);
+      await refreshUser();
+      setAvatarFile(null);
+      toast({ title: 'Perfil do cidadão atualizado' });
+    } catch (error) {
+      if (uploadedPath) await supabase.storage.from('avatars').remove([uploadedPath]);
+      toast({ title: 'Erro ao atualizar o cidadão', description: error.message, variant: 'destructive' });
+    } finally { setCitizenLoading(false); }
   };
 
   return (
     <>
-      <Helmet>
-        <title>Configurações - GOV.RP</title>
-        <meta name="description" content="Gerencie as configurações do seu perfil no GOV.RP." />
-      </Helmet>
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-          <div className="text-center">
-            <h1 className="text-4xl md:text-5xl font-bold text-white mb-8">
-              Configurações do <span className="gradient-text">Perfil</span>
-            </h1>
-          </div>
+      <Helmet><title>Configurações - GOV.RP</title><meta name="description" content="Gerencie separadamente sua conta privada e seu cidadão GOVRP." /></Helmet>
+      <div className="mx-auto max-w-5xl px-4 py-12 sm:px-6">
+        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>
+          <div className="mb-8 text-center"><h1 className="text-4xl font-bold text-white">Configurações</h1><p className="mt-3 text-slate-400">Conta real e cidadão do RP são identidades distintas.</p></div>
+          <Tabs defaultValue="account" className="w-full">
+            <TabsList className="mx-auto grid w-full max-w-lg grid-cols-2"><TabsTrigger value="account">Dados da Conta</TabsTrigger><TabsTrigger value="citizen">Dados do Cidadão</TabsTrigger></TabsList>
 
-          <form onSubmit={handleSubmit} className="glass-effect rounded-2xl p-8 space-y-8">
-            <div className="flex items-center gap-6">
-              <div className="relative">
-                <img src={avatarPreview || `https://api.dicebear.com/7.x/micah/svg?seed=${user?.username}`} alt="Avatar" className="w-24 h-24 rounded-full object-cover border-2 border-blue-400" />
-                <div className="absolute -bottom-1 -right-1 flex gap-1">
-                    <Button type="button" size="icon" className="h-8 w-8 bg-blue-500 hover:bg-blue-600" onClick={() => avatarInputRef.current?.click()}><ImageIcon className="w-4 h-4 text-white" /></Button>
-                    {avatarPreview && <Button type="button" size="icon" variant="destructive" className="h-8 w-8" onClick={handleRemoveAvatar}><Trash2 className="w-4 h-4" /></Button>}
+            <TabsContent value="account" className="mt-6">
+              <form onSubmit={saveAccount} className="glass-effect rounded-2xl border border-white/10 p-6 sm:p-8">
+                <div className="mb-7 rounded-xl border border-blue-400/20 bg-blue-500/10 p-4"><div className="flex gap-3"><ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-blue-300" /><div><h2 className="font-semibold text-blue-100">Informações privadas · OOC</h2><p className="mt-1 text-sm text-blue-100/75">Usadas para login, segurança e administração. Não aparecem em perfis, eleições, Banco, Rede X ou documentos do personagem.</p></div></div></div>
+                <div className="grid gap-6 md:grid-cols-2">
+                  <div><Label htmlFor="real-name">Nome completo real</Label><div className="relative mt-2"><User className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" /><Input id="real-name" required value={account.realFullName} onChange={(event) => setAccount((current) => ({ ...current, realFullName: event.target.value }))} className="pl-10" /></div></div>
+                  <div><Label htmlFor="real-birth">Data de nascimento real</Label><div className="relative mt-2"><Calendar className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" /><Input id="real-birth" type="date" required value={account.realDateOfBirth} onChange={(event) => setAccount((current) => ({ ...current, realDateOfBirth: event.target.value }))} className="pl-10" /></div></div>
+                  <div><Label htmlFor="account-phone">Telefone</Label><div className="relative mt-2"><Phone className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" /><Input id="account-phone" inputMode="tel" required value={account.phone} onChange={(event) => setAccount((current) => ({ ...current, phone: formatPhone(event.target.value) }))} className="pl-10" /></div></div>
+                  <ReadOnlyField label="E-mail" value={session?.user?.email} icon={Mail} hint="Alterações de e-mail usam o fluxo seguro de autenticação." />
                 </div>
-                <input id="avatar" type="file" accept={IMAGE_ACCEPT_ATTRIBUTE} onChange={handleAvatarChange} ref={avatarInputRef} className="hidden" />
-              </div>
-              <div>
-                <h2 className="text-2xl font-bold text-white">{user?.full_name}</h2>
-                <p className="text-gray-400">@{user?.username}</p>
-              </div>
-            </div>
+                <div className="mt-7 flex justify-end"><Button type="submit" disabled={accountLoading}>{accountLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}Salvar dados da conta</Button></div>
+              </form>
+            </TabsContent>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <Label htmlFor="full_name">Nome Completo</Label>
-                <div className="relative mt-2"><User className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" /><Input id="full_name" name="full_name" value={formData.full_name} onChange={handleChange} className="pl-10" /></div>
-              </div>
-              <div>
-                <Label htmlFor="username">Nome de Usuário</Label>
-                <div className="relative mt-2"><User className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" /><Input id="username" name="username" value={formData.username} onChange={handleChange} className="pl-10" /></div>
-              </div>
-              <div>
-                <Label htmlFor="phone">Telefone</Label>
-                <div className="relative mt-2"><Phone className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" /><Input id="phone" name="phone" value={formData.phone} onChange={handleChange} className="pl-10" /></div>
-              </div>
-              <div>
-                <Label htmlFor="email">Email</Label>
-                <div className="relative mt-2"><Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" /><Input id="email" name="email" value={session?.user?.email || ''} disabled className="pl-10 bg-white/5 cursor-not-allowed" /></div>
-              </div>
-              <div>
-                <Label htmlFor="date_of_birth">Data de Nascimento</Label>
-                <div className="relative mt-2"><Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" /><Input id="date_of_birth" value={user?.date_of_birth ? new Date(user.date_of_birth).toLocaleDateString('pt-BR', { timeZone: 'UTC' }) : ''} disabled className="pl-10 bg-white/5 cursor-not-allowed" /></div>
-              </div>
-              <div>
-                <Label>Cargo</Label>
-                <div className="relative mt-2"><User className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" /><Input value={user?.role || 'Cidadão'} disabled className="pl-10 bg-white/5 cursor-not-allowed" /></div>
-              </div>
-              <div>
-                <Label htmlFor="cpf">CPF</Label>
-                <div className="relative mt-2"><FileText className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" /><Input id="cpf" value={user?.cpf ? formatCPF(user.cpf) : ''} disabled className="pl-10 bg-white/5 cursor-not-allowed" /></div>
-              </div>
-              <div>
-                <Label htmlFor="rg">RG</Label>
-                <div className="relative mt-2"><FileText className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" /><Input id="rg" value={user?.rg ? formatRG(user.rg) : ''} disabled className="pl-10 bg-white/5 cursor-not-allowed" /></div>
-              </div>
-            </div>
-
-            <div className="flex justify-end">
-              <Button type="submit" disabled={loading}>
-                {loading ? <Loader2 className="w-5 h-5 mr-2 animate-spin" /> : <Save className="w-5 h-5 mr-2" />}
-                Salvar Alterações
-              </Button>
-            </div>
-
-            <div className="border-t border-white/10 pt-6">
-              <div className="rounded-2xl border border-red-500/20 bg-red-500/10 p-5 md:flex md:items-center md:justify-between md:gap-6">
-                <div>
-                  <h2 className="text-xl font-semibold text-white">Solicitar exclusão de conta</h2>
-                  <p className="text-sm text-red-100/90 mt-2">
-                    Caso deseje encerrar sua conta, envie uma solicitação formal. O formulário também pode ser acessado sem login.
-                  </p>
+            <TabsContent value="citizen" className="mt-6">
+              <form onSubmit={saveCitizen} className="glass-effect rounded-2xl border border-white/10 p-6 sm:p-8">
+                <div className="mb-7 rounded-xl border border-emerald-400/20 bg-emerald-500/10 p-4"><h2 className="font-semibold text-emerald-100">Informações do universo GOVRP · IC</h2><p className="mt-1 text-sm text-emerald-100/75">Estes dados representam o personagem. Documentos oficiais e nascimento não podem ser alterados livremente.</p></div>
+                <div className="mb-8 flex flex-col items-center gap-5 sm:flex-row">
+                  <div className="relative"><img src={citizen.avatarUrl || `https://api.dicebear.com/7.x/micah/svg?seed=${user?.username}`} alt="Avatar do cidadão" className="h-28 w-28 rounded-full border-2 border-emerald-400 object-cover" /><Button type="button" size="icon" onClick={() => avatarInputRef.current?.click()} className="absolute -bottom-1 -right-1 rounded-full"><ImagePlus className="h-4 w-4" /></Button><input ref={avatarInputRef} type="file" accept={IMAGE_ACCEPT_ATTRIBUTE} onChange={chooseAvatar} className="hidden" /></div>
+                  <div className="text-center sm:text-left"><h2 className="text-2xl font-bold">{user?.full_name || 'Cidadão em registro'}</h2><p className="text-slate-400">@{user?.username}</p><p className="mt-2 text-sm text-slate-500">ID interno: {user?.citizen_id || 'emitido após migration'}</p></div>
                 </div>
+                <div className="grid gap-6 md:grid-cols-2">
+                  <ReadOnlyField label="Nome civil do cidadão" value={user?.full_name} icon={User} hint="Mudanças civis exigem procedimento próprio." />
+                  <ReadOnlyField label="Nascimento do cidadão" value={user?.date_of_birth ? new Date(`${user.date_of_birth}T00:00:00`).toLocaleDateString('pt-BR') : null} icon={Calendar} />
+                  <ReadOnlyField label="CPF do cidadão" value={user?.cpf ? formatCPF(user.cpf) : null} icon={FileText} />
+                  <ReadOnlyField label="RG do cidadão" value={user?.rg ? formatRG(user.rg) : null} icon={FileText} />
+                  <ReadOnlyField label="Residência" value={user?.residence_city_name ? `${user.residence_city_name}/${user.residence_state_code}` : user?.state_name} icon={User} />
+                  <ReadOnlyField label="Cargo" value={user?.role || 'Cidadão'} icon={User} />
+                </div>
+                <div className="mt-6"><Label htmlFor="citizen-bio">Biografia pública</Label><textarea id="citizen-bio" maxLength={300} value={citizen.bio} onChange={(event) => setCitizen((current) => ({ ...current, bio: event.target.value }))} className="mt-2 min-h-28 w-full rounded-md border border-white/10 bg-slate-950/70 p-3 text-sm outline-none focus:ring-2 focus:ring-blue-500" /><p className="text-right text-xs text-slate-500">{citizen.bio.length}/300</p></div>
+                <div className="mt-7 flex justify-end"><Button type="submit" disabled={citizenLoading}>{citizenLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}Salvar perfil público</Button></div>
+              </form>
+            </TabsContent>
+          </Tabs>
 
-                <Button asChild variant="destructive" className="mt-4 md:mt-0">
-                  <Link to="/account-deletion">
-                    Solicitar Exclusão
-                    <ArrowRight className="w-4 h-4 ml-2" />
-                  </Link>
-                </Button>
-              </div>
-            </div>
-          </form>
+          <div className="mt-8 rounded-2xl border border-red-500/20 bg-red-500/10 p-5 sm:flex sm:items-center sm:justify-between sm:gap-5"><div><h2 className="text-lg font-semibold">Solicitar exclusão da conta</h2><p className="mt-1 text-sm text-red-100/80">Use o procedimento formal para encerrar conta e dados associados.</p></div><Button asChild variant="destructive" className="mt-4 sm:mt-0"><Link to="/account-deletion">Solicitar exclusão <ArrowRight className="ml-2 h-4 w-4" /></Link></Button></div>
         </motion.div>
       </div>
     </>

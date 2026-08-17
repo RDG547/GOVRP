@@ -6,6 +6,7 @@ import { isPrisonSentenceActive } from '@/lib/prison';
 const ALLOWED_PRISON_PATHS = new Set([
   '/services/prison',
   '/services/justice',
+  '/registro-cidadania',
   '/auth/callback',
 ]);
 
@@ -30,4 +31,3 @@ const PrisonRouteGuard = ({ children }) => {
 };
 
 export default PrisonRouteGuard;
-

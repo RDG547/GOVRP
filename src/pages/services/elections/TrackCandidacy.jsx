@@ -109,7 +109,7 @@ const TrackCandidacy = () => {
       const payload = await response.json().catch(() => ({}));
 
       if (!response.ok) {
-        throw new Error(payload?.error || 'Nao foi possivel retirar a candidatura.');
+        throw new Error(payload?.error || 'Não foi possível retirar a candidatura.');
       }
 
       toast({ title: "Candidatura cancelada", description: payload.message || "Sua candidatura foi removida com sucesso." });
@@ -229,7 +229,7 @@ const TrackCandidacy = () => {
           <AlertDialogHeader>
             <AlertDialogTitle>Cancelar Candidatura</AlertDialogTitle>
             <AlertDialogDescription>
-              Tem certeza que deseja cancelar esta candidatura? Esta acao e irreversivel e voce precisara registrar uma nova candidatura se desejar concorrer.
+              Tem certeza de que deseja cancelar esta candidatura? Esta ação é irreversível e você precisará registrar uma nova candidatura se desejar concorrer.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

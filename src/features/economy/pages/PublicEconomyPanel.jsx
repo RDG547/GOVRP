@@ -111,6 +111,17 @@ const PublicEconomyPanel = ({ data }) => {
       desemprego: asNumber(item.indicators?.unemployment_rate),
     })), [data]);
 
+  const exchangeHistory = useMemo(() => (data?.history || [])
+    .filter((item) => (
+      item.indicators?.exchange_usd != null
+      || item.indicators?.exchange_eur != null
+    ))
+    .map((item) => ({
+      label: periodLabel(item),
+      usd: asNumber(item.indicators?.exchange_usd),
+      eur: asNumber(item.indicators?.exchange_eur),
+    })), [data]);
+
   return (
     <div className="space-y-6">
       <EconomyStateBanner state={state} />
@@ -201,6 +212,16 @@ const PublicEconomyPanel = ({ data }) => {
             { key: 'inflacao', name: 'Inflação anual', color: '#f59e0b' },
             { key: 'desemprego', name: 'Desemprego', color: '#fb7185' },
           ]}
+        />
+        <EconomyChart
+          title="Evolução do câmbio"
+          description="Valores oficiais persistidos em cada atualização do estado econômico."
+          data={exchangeHistory}
+          series={[
+            { key: 'usd', name: 'USD/BRL', color: '#22c55e' },
+            { key: 'eur', name: 'EUR/BRL', color: '#60a5fa' },
+          ]}
+          type="area"
         />
       </div>
 

@@ -19,16 +19,17 @@ if (import.meta.env.PROD && !Capacitor.isNativePlatform()) {
 }
 
 ReactDOM.createRoot(document.getElementById('root')).render(
-  // Removido React.StrictMode para evitar renderizações duplas em desenvolvimento que causam toasts duplicados.
-  <HelmetProvider>
-    <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-      <ThemeProvider>
-          <Toaster />
-          <CartProvider>
-              <App />
-              <ConsentAwareAnalytics />
-          </CartProvider>
-      </ThemeProvider>
-    </BrowserRouter>
-  </HelmetProvider>
+  <React.StrictMode>
+    <HelmetProvider>
+      <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+        <ThemeProvider>
+            <Toaster />
+            <CartProvider>
+                <App />
+                <ConsentAwareAnalytics />
+            </CartProvider>
+        </ThemeProvider>
+      </BrowserRouter>
+    </HelmetProvider>
+  </React.StrictMode>
 );

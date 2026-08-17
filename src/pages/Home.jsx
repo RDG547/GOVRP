@@ -56,7 +56,7 @@ const Home = () => {
         <meta name="description" content="O ecossistema mais completo para roleplay político. Conecte-se, governe e construa o futuro do seu país virtual com nossos serviços integrados." />
       </Helmet>
 
-      <div className="w-full overflow-x-hidden">
+      <div className="w-full">
         <HeroSection session={session} />
         <FeaturesSection />
         <ServicesSection />

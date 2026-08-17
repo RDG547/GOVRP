@@ -907,7 +907,7 @@ const EntrepreneurPortal = () => {
       const payload = await response.json().catch(() => ({}));
 
       if (!response.ok || !payload?.success) {
-        throw new Error(payload?.error || payload?.message || 'Nao foi possivel registrar a empresa.');
+        throw new Error(payload?.error || payload?.message || 'Não foi possível registrar a empresa.');
       }
 
       const newBiz = payload.business;

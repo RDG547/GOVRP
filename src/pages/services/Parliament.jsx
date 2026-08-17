@@ -57,6 +57,7 @@ import {
   refreshParliamentGovernanceState,
 } from '@/lib/parliamentGovernance';
 import { filterCompatibleParliamentMembers, resolveLegislativeRoleForHouse } from '@/lib/roleResolution';
+import { formatDateTimeBR } from '@/lib/dateTime';
 
 const PARLIAMENT_RULE_ICON_MAP = {
   commissions: Users,
@@ -676,6 +677,9 @@ const BillList = ({ bills = [] }) => {
                   </CardHeader>
                   <CardContent className="flex-grow">
                     <p className="line-clamp-3 text-sm text-muted-foreground">{bill.summary}</p>
+                    <p className="mt-3 text-xs text-muted-foreground">
+                      Proposto em <span className="font-medium text-foreground">{formatDateTimeBR(bill.created_at)}</span>
+                    </p>
                     <div className="mt-4 flex flex-wrap items-center gap-2">
                       <span className={`rounded-full px-2 py-1 text-xs ${statusMeta.className}`}>{statusMeta.label}</span>
                       <span className="rounded-full bg-muted px-2 py-1 text-xs text-muted-foreground">{bill.type}</span>
@@ -708,6 +712,29 @@ const BillList = ({ bills = [] }) => {
                       </>
                     ) : bill.status?.startsWith('Em votação') ? (
                       <p className="mt-4 text-center text-xs text-muted-foreground">Nenhum voto registrado ainda.</p>
+                    ) : null}
+                    {bill.status_history?.length ? (
+                      <div className="mt-5 border-t border-white/10 pt-4">
+                        <p className="mb-3 text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                          Histórico de tramitação
+                        </p>
+                        <ol className="space-y-0">
+                          {bill.status_history.map((event, index) => (
+                            <li key={event.id} className="relative flex gap-3 pb-4 last:pb-0">
+                              {index < bill.status_history.length - 1 ? (
+                                <span aria-hidden="true" className="absolute left-[5px] top-3 h-full w-px bg-white/10" />
+                              ) : null}
+                              <span aria-hidden="true" className="relative mt-1.5 h-3 w-3 shrink-0 rounded-full border-2 border-blue-300 bg-slate-950" />
+                              <div>
+                                <p className="text-sm font-medium text-foreground">{event.event_label}</p>
+                                <time dateTime={event.occurred_at} className="text-xs text-muted-foreground">
+                                  {formatDateTimeBR(event.occurred_at)}
+                                </time>
+                              </div>
+                            </li>
+                          ))}
+                        </ol>
+                      </div>
                     ) : null}
                   </CardContent>
                 </Card>
@@ -1188,12 +1215,22 @@ const Parliament = () => {
 
       const billIds = (billsData || []).map((bill) => bill.id);
       let votingsMap = {};
+      let historyMap = {};
       if (billIds.length) {
-        const { data: votingsData, error: votingsError } = await supabase
-          .from('parliament_votings')
-          .select('id, status, end_date, house_id, related_id, votes:parliament_voting_votes(vote, member_id)')
-          .eq('type', 'bill')
-          .in('related_id', billIds);
+        const [votingsResponse, historyResponse] = await Promise.all([
+          supabase
+            .from('parliament_votings')
+            .select('id, status, end_date, house_id, related_id, votes:parliament_voting_votes(vote, member_id)')
+            .eq('type', 'bill')
+            .in('related_id', billIds),
+          supabase
+            .from('bill_status_history')
+            .select('id, bill_id, status, event_label, occurred_at')
+            .in('bill_id', billIds)
+            .order('occurred_at', { ascending: true }),
+        ]);
+
+        const { data: votingsData, error: votingsError } = votingsResponse;
 
         if (votingsError) {
           throw votingsError;
@@ -1205,12 +1242,22 @@ const Parliament = () => {
           }
           votingsMap[voting.related_id].push(voting);
         });
+
+        if (historyResponse.error) {
+          console.warn('Histórico de tramitação ainda não está disponível:', historyResponse.error);
+        } else {
+          (historyResponse.data || []).forEach((event) => {
+            if (!historyMap[event.bill_id]) historyMap[event.bill_id] = [];
+            historyMap[event.bill_id].push(event);
+          });
+        }
       }
 
       setBills(
         (billsData || []).map((bill) => ({
           ...bill,
           votings: votingsMap[bill.id] || [],
+          status_history: historyMap[bill.id] || [],
         }))
       );
 
@@ -1323,13 +1370,15 @@ const Parliament = () => {
         <div className="mt-12">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <div className="mb-8 flex flex-col items-center justify-between gap-4 md:flex-row">
-              <TabsList className="grid w-full grid-cols-5 md:w-auto">
-                <TabsTrigger value="members">Membros</TabsTrigger>
-                <TabsTrigger value="bills">Histórico de Projetos</TabsTrigger>
-                <TabsTrigger value="commissions">Comissões</TabsTrigger>
-                <TabsTrigger value="leadership">Mesa Diretora</TabsTrigger>
-                <TabsTrigger value="plebiscites">Plebiscitos</TabsTrigger>
-              </TabsList>
+              <div className="w-full overflow-x-auto scroll-smooth pb-2 custom-scrollbar md:w-auto" role="region" aria-label="Seções do Parlamento" tabIndex={0}>
+                <TabsList className="flex h-auto min-w-max flex-nowrap justify-start">
+                  <TabsTrigger className="shrink-0" value="members">Membros</TabsTrigger>
+                  <TabsTrigger className="shrink-0" value="bills">Histórico de Projetos</TabsTrigger>
+                  <TabsTrigger className="shrink-0" value="commissions">Comissões</TabsTrigger>
+                  <TabsTrigger className="shrink-0" value="leadership">Mesa Diretora</TabsTrigger>
+                  <TabsTrigger className="shrink-0" value="plebiscites">Plebiscitos</TabsTrigger>
+                </TabsList>
+              </div>
 
               <Select onValueChange={setSelectedHouse} value={selectedHouse}>
                 <SelectTrigger className="w-full md:w-[260px]">

@@ -18,7 +18,6 @@ import {
     fetchOfficialGazetteEntries,
     formatOfficialGazettePublicationDate,
     getOfficialGazetteTypeMeta,
-    isOfficialGazetteDecreeType,
 } from '@/lib/officialGazette';
 
 const normalizeSearchValue = (value = '') =>
@@ -56,7 +55,7 @@ const GazetteEntryDialog = ({ entry, children }) => {
                         </Badge>
                         <span className="text-xs text-muted-foreground">
                             Publicado em {formatOfficialGazettePublicationDate(entry.published_at, {
-                                includeTime: isOfficialGazetteDecreeType(entry.type),
+                                includeTime: true,
                             })}
                         </span>
                     </div>
@@ -92,7 +91,7 @@ const NewsCard = ({ item, type }) => {
     const publishedAtLabel = isArticle
         ? format(new Date(publishedAt), "dd 'de' MMMM, yyyy", { locale: ptBR })
         : formatOfficialGazettePublicationDate(publishedAt, {
-            includeTime: isOfficialGazetteDecreeType(item.type),
+            includeTime: true,
         });
 
     return (
@@ -206,7 +205,7 @@ const News = () => {
     const appointmentsCount = douEntries.filter((entry) => entry.type === 'Nomeacao e Exoneracao').length;
     const latestGazettePublication = douEntries[0]?.published_at
         ? formatOfficialGazettePublicationDate(douEntries[0].published_at, {
-            includeTime: isOfficialGazetteDecreeType(douEntries[0].type),
+            includeTime: true,
         })
         : 'Sem publicações';
 
@@ -317,7 +316,7 @@ const News = () => {
                                             <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Publicação</p>
                                             <p className="mt-3 text-lg font-semibold text-foreground">
                                                 {formatOfficialGazettePublicationDate(featuredGazetteEntry.published_at, {
-                                                    includeTime: isOfficialGazetteDecreeType(featuredGazetteEntry.type),
+                                                    includeTime: true,
                                                 })}
                                             </p>
                                             <p className="mt-4 text-sm text-muted-foreground">Clique para abrir a íntegra e consultar o texto oficial completo.</p>
@@ -341,7 +340,7 @@ const News = () => {
                                                             <Badge variant="outline" className="border-primary/20 bg-primary/10 text-primary">{typeMeta.label}</Badge>
                                                             <span className="text-xs text-muted-foreground">
                                                                 {formatOfficialGazettePublicationDate(entry.published_at, {
-                                                                    includeTime: isOfficialGazetteDecreeType(entry.type),
+                                                                    includeTime: true,
                                                                 })}
                                                             </span>
                                                         </div>

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { BookOpen, Siren, Shield, Users, Code, Server, Landmark, Store, FileText, MessageSquare, Library, Archive, ArrowRight, GitBranch, HelpCircle, Scale, Gavel, Vote, Eye, ShieldCheck, Headphones, Crown, Banknote, Home, Wifi, Zap, Droplet, Smartphone, Wrench, Flame, LineChart, Newspaper, Tally5, Building2 } from 'lucide-react';
+import { BookOpen, Siren, Shield, Users, Code, Server, Landmark, Store, FileText, MessageSquare, Library, Archive, ArrowRight, GitBranch, HelpCircle, Scale, Gavel, Vote, Eye, ShieldCheck, Headphones, Banknote, Home, Wifi, Zap, Droplet, Smartphone, Wrench, Flame, LineChart, Newspaper, Tally5, Building2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
@@ -11,9 +11,9 @@ import PageHeader from '@/components/layout/PageHeader';
 
 const sections = [
   { id: 'introducao', title: 'Introdução', icon: BookOpen },
+  { id: 'identidade', title: 'Sistema de Identidade', icon: ShieldCheck },
   { id: 'tutorial', title: 'Tutorial Guiado', icon: HelpCircle },
   { id: 'servicos', title: 'Serviços', icon: Server },
-  { id: 'admin', title: 'Painel Admin', icon: Crown },
   { id: 'seguranca', title: 'Segurança', icon: Shield },
   { id: 'regras', title: 'Regras', icon: Users },
   { id: 'desenvolvedores', title: 'Desenvolvedores', icon: Code },
@@ -57,11 +57,23 @@ const SectionContent = ({ id }) => {
         <p className="mb-4">GOV.RP é um ecossistema de Roleplay Político onde você pode criar sua própria história, governar, legislar e interagir em uma sociedade virtual complexa. Nossa plataforma foi projetada para oferecer uma experiência imersiva e realista.</p>
         <h4 className="text-xl font-semibold text-foreground mb-3">Primeiros Passos:</h4>
         <ol className="list-decimal list-inside space-y-3">
-          <li><strong>Crie sua Conta:</strong> O primeiro passo é <Link to="/register" className="text-primary hover:underline">se cadastrar</Link> e criar seu cidadão virtual.</li>
-          <li><strong>Faça o Tutorial:</strong> Ao entrar pela primeira vez, um tutorial guiado irá apresentar as principais funcionalidades. Recomendamos fortemente que você o siga.</li>
-          <li><strong>Explore os Serviços:</strong> Familiarize-se com os <Link to="/services" className="text-primary hover:underline">serviços disponíveis</Link>. Abra sua conta bancária, solicite seus documentos e prepare-se para a vida política.</li>
+          <li><strong>Crie sua Conta:</strong> O <Link to="/register" className="text-primary hover:underline">cadastro</Link> registra apenas os dados privados da pessoa real.</li>
+          <li><strong>Registre seu Cidadão:</strong> Em seguida, crie separadamente o personagem e conclua o Registro Nacional de Cidadania.</li>
+          <li><strong>Faça o Tutorial:</strong> Após a cidadania, um tutorial personalizado pela sua aspiração apresenta os caminhos iniciais.</li>
+          <li><strong>Explore os Serviços:</strong> Familiarize-se com os <Link to="/services" className="text-primary hover:underline">serviços disponíveis</Link>.</li>
           <li><strong>Defina seu Caminho:</strong> Você será um político influente, um empresário de sucesso, um jornalista investigativo ou um cidadão comum? As escolhas são suas!</li>
         </ol>
+      </div>
+    ),
+    identidade: (
+      <div>
+        <h3 className="text-2xl font-bold text-foreground mb-4">Sistema de Identidade</h3>
+        <div className="space-y-5">
+          <div><h4 className="font-semibold text-blue-300">1. Conta · OOC</h4><p>Nome real, e-mail, telefone, senha e provedores OAuth identificam a pessoa real. Esses dados ficam privados e não aparecem em perfis, documentos, Banco, eleições, partidos, Justiça ou Rede X.</p></div>
+          <div><h4 className="font-semibold text-emerald-300">2. Personagem · IC</h4><p>Nome civil, nascimento, avatar, biografia, origem, residência e aspiração pertencem à pessoa fictícia interpretada. O nome real nunca é copiado automaticamente.</p></div>
+          <div><h4 className="font-semibold text-amber-300">3. Cidadania institucional</h4><p>CPF, RG, Título de Eleitor, Carteira de Trabalho, conta bancária, patrimônio, cargos e históricos pertencem ao cidadão do RP. A emissão é protegida e seu progresso pode ser retomado quando quiser.</p></div>
+          <p className="rounded-lg border border-white/10 bg-white/5 p-4 text-sm">Contas antigas passam por uma confirmação abreviada. Documentos, saldo, filiação, cargos e histórico existentes são preservados.</p>
+        </div>
       </div>
     ),
     tutorial: (
@@ -110,7 +122,7 @@ const SectionContent = ({ id }) => {
           </ServiceCard>
           <ServiceCard icon={FileText} title="DIC" description="Emita seus documentos oficiais, essenciais para a vida civil." color="text-purple-400">
             <p>O Departamento de Identificação Civil (DIC) é onde você gerencia sua identidade como cidadão. É essencial manter seus documentos em dia para participar plenamente da vida política e econômica.</p>
-            <p>Documentos como CPF e RG são gerados no cadastro. Você também pode solicitar:</p>
+            <p>CPF e RG são emitidos durante o Registro Nacional de Cidadania. Título de Eleitor e CTD completam as etapas obrigatórias. Depois, você também pode solicitar:</p>
             <ul>
               <li>Carteira Nacional de Habilitação (CNH).</li>
               <li>Passaporte para viagens internacionais.</li>
@@ -293,21 +305,6 @@ const SectionContent = ({ id }) => {
             </ul>
           </ServiceCard>
         </div>
-      </div>
-    ),
-    admin: (
-      <div>
-        <h3 className="text-2xl font-bold text-foreground mb-4">Painel de Administração</h3>
-        <p className="mb-4">O Painel de Administração é uma ferramenta poderosa e de acesso restrito, disponível apenas para usuários com o cargo de 'Admin'. Ele permite o gerenciamento completo da plataforma.</p>
-        <h4 className="text-xl font-semibold text-foreground mb-3">Funcionalidades Principais:</h4>
-        <ul className="list-disc list-inside space-y-2 mb-4">
-          <li><strong>Gerenciamento de Usuários:</strong> Admins podem visualizar, editar e gerenciar todos os usuários da plataforma. Isso inclui alterar nomes, cargos e até mesmo remover usuários, se necessário.</li>
-          <li><strong>Moderação de Conteúdo:</strong> Ferramentas para moderar posts, comentários e outros conteúdos gerados pelos usuários, garantindo um ambiente seguro e em conformidade com as regras.</li>
-          <li><strong>Controle Financeiro:</strong> Admins têm a capacidade de adicionar ou remover fundos das contas bancárias dos usuários, uma ferramenta essencial para corrigir erros, aplicar multas ou distribuir recompensas.</li>
-          <li><strong>Configurações do Sistema:</strong> Ajuste de parâmetros globais da plataforma, como o valor e a frequência da Renda Cidadã, taxas de serviços, entre outros.</li>
-          <li><strong>Análises e Estatísticas:</strong> Visualização de dados e métricas sobre o uso da plataforma, como número de usuários, transações e atividades gerais.</li>
-        </ul>
-        <p>O acesso a este painel é um privilégio que vem com grande responsabilidade. Todas as ações são registradas para garantir a transparência e a segurança.</p>
       </div>
     ),
     seguranca: (

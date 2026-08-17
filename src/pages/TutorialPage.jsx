@@ -1,18 +1,26 @@
 import React from 'react';
 import { Helmet } from 'react-helmet-async';
 import { motion } from 'framer-motion';
-import { BookOpen, LayoutDashboard, Landmark, FileText, MessageSquare, Scale, Users, Shield, UserPlus, Briefcase, Info, AlertTriangle } from 'lucide-react';
+import { BookOpen, Landmark, FileText, MessageSquare, Scale, Shield, UserPlus, Briefcase, Info, AlertTriangle, UserRound } from 'lucide-react';
 import PageHeader from '@/components/layout/PageHeader';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 
 const tutorialSections = [
   {
     icon: UserPlus,
-    title: '1. Primeiros Passos: Criando seu Cidadão',
+    title: '1. Conta, Personagem e Cidadania',
     content: [
       {
-        subTitle: 'Cadastro e Perfil',
-        description: 'Seu primeiro ato como cidadão é o registro. Preencha seus dados para criar sua identidade virtual. Após o cadastro, você pode personalizar seu perfil, adicionar uma foto e uma biografia nas configurações. Sua identidade é a base de toda a sua jornada.',
+        subTitle: 'Conta privada (OOC)',
+        description: 'O cadastro cria a conta da pessoa real: nome real, e-mail, telefone, senha e autenticação. Esses dados são privados e nunca se tornam automaticamente o nome público do personagem.',
+      },
+      {
+        subTitle: 'Personagem (IC)',
+        description: 'No Registro Nacional de Cidadania você escolhe separadamente nome civil, nascimento, avatar, biografia, origem, residência e aspiração do personagem que irá interpretar.',
+      },
+      {
+        subTitle: 'Cidadão institucional',
+        description: 'Depois da identidade do personagem, o GOVRP emite CPF, RG, Título de Eleitor e Carteira de Trabalho, preserva ou abre a conta bancária e concede oficialmente a cidadania.',
       },
       {
         subTitle: 'O Dashboard: Seu Centro de Comando',
@@ -26,7 +34,7 @@ const tutorialSections = [
     content: [
       {
         subTitle: 'Abrindo sua Conta',
-        description: 'Para participar da economia, você precisa de uma conta no Banco Nacional. A abertura é automática e você recebe um saldo inicial para começar. Este é o seu primeiro passo para a independência financeira.',
+        description: 'A conta é preservada para cidadãos antigos e aberta de forma idempotente para novos cidadãos durante o registro. Quando houver saldo inicial, o valor vem da configuração econômica e gera uma transação de origem.',
       },
       {
         subTitle: 'Transferências e Cartões',
@@ -44,7 +52,7 @@ const tutorialSections = [
     content: [
       {
         subTitle: 'Documentos Essenciais',
-        description: 'O Departamento de Identificação Civil (DIC) é onde você gerencia seus documentos. CPF e RG são emitidos no cadastro. Outros documentos, como CNH (Carteira Nacional de Habilitação) e Passaporte, podem ser solicitados. Eles são essenciais para várias atividades no RP.',
+        description: 'O Departamento de Identificação Civil (DIC) é a fonte de verdade dos documentos. CPF e RG são emitidos pelo backend durante o Registro Nacional; Título e Carteira de Trabalho completam a cidadania. CNH, Passaporte e outros documentos continuam como progressão posterior.',
       },
     ],
   },
@@ -126,6 +134,18 @@ const TutorialPage = () => {
           transition={{ duration: 0.5 }}
           className="space-y-8"
         >
+          <div className="grid gap-4 sm:grid-cols-3">
+            {[
+              [Shield, 'Conta', 'Dados reais e privados · OOC'],
+              [UserRound, 'Personagem', 'Identidade interpretada · IC'],
+              [FileText, 'Cidadania', 'Documentos e situação institucional'],
+            ].map(([Icon, title, description], index) => (
+              <div key={title} className="glass-effect rounded-xl border border-white/10 p-5">
+                <div className="flex items-center gap-3"><span className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-500/15 text-sm font-bold text-blue-300">{index + 1}</span><Icon className="h-5 w-5 text-emerald-400" /></div>
+                <h2 className="mt-4 font-semibold">{title}</h2><p className="mt-1 text-sm text-muted-foreground">{description}</p>
+              </div>
+            ))}
+          </div>
           <div className="glass-effect p-6 rounded-lg border border-yellow-500/30 bg-yellow-500/10">
               <div className="flex items-center gap-3">
                   <AlertTriangle className="w-8 h-8 text-yellow-400 flex-shrink-0" />

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { isPrisonSentenceActive } from '@/lib/prison';
 import { fetchExecutiveConstitutionalState } from '@/lib/executiveGovernance';
@@ -27,6 +27,16 @@ const EFFECTIVE_ROLE_TITLES = new Set([
   'Presidente do Banco Nacional',
 ]);
 const TERM_BOUND_OFFICE_ROLES = new Set(['Presidente', 'Vice-Presidente', 'Deputado', 'Senador']);
+const AUTH_HYDRATION_TIMEOUT_MS = 15000;
+
+const withTimeout = (promise, timeoutMs, message) => {
+  let timeoutId;
+  const timeout = new Promise((_, reject) => {
+    timeoutId = window.setTimeout(() => reject(new Error(message)), timeoutMs);
+  });
+
+  return Promise.race([promise, timeout]).finally(() => window.clearTimeout(timeoutId));
+};
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
@@ -40,7 +50,30 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [authError, setAuthError] = useState('');
   const [triggerTutorial, setTriggerTutorial] = useState(false);
+  const hydrationRequestRef = useRef(0);
+
+  const attachPrivateAccountIdentity = useCallback(async (profile, currentSession) => {
+    if (!profile) return profile;
+
+    const { data, error } = await supabase.rpc('get_my_account_identity');
+    if (error) {
+      console.error('Error fetching private account identity:', error);
+    }
+
+    const accountIdentity = Array.isArray(data) ? data[0] : data;
+    return {
+      ...profile,
+      // These aliases only exist in the authenticated user's in-memory object.
+      // They are never persisted in the public profiles table.
+      account_identity: accountIdentity || null,
+      real_full_name: accountIdentity?.real_full_name || null,
+      real_date_of_birth: accountIdentity?.real_date_of_birth || null,
+      phone: accountIdentity?.phone || null,
+      email: currentSession?.user?.email || accountIdentity?.email || null,
+    };
+  }, []);
 
   const decorateProfileWithEffectiveRoles = useCallback(async (profile) => {
     if (!profile?.id) {
@@ -173,9 +206,7 @@ export const AuthProvider = ({ children }) => {
         if (error?.code === 'PGRST116' || !profile) {
           const { error: creationError } = await supabase.rpc('ensure_profile_exists');
           if (creationError) {
-            console.error("Failed to create profile, logging out.", creationError);
-            await logout();
-            return null;
+            throw creationError;
           }
           const { data: newProfile, error: newProfileError } = await supabase
             .from('profiles')
@@ -184,27 +215,58 @@ export const AuthProvider = ({ children }) => {
             .single();
 
           if (newProfileError || !newProfile) {
-            console.error("Failed to fetch profile even after creation attempt, logging out.", newProfileError);
-            await logout();
-            return null;
+            throw newProfileError || new Error('Não foi possível preparar o perfil desta conta.');
           } else {
-            return decorateProfileWithEffectiveRoles(newProfile);
+            const privateProfile = await attachPrivateAccountIdentity(newProfile, currentSession);
+            return decorateProfileWithEffectiveRoles(privateProfile);
           }
         } else if (error) {
-          console.error("Error fetching profile, logging out.", error);
-          await logout();
-          return null;
+          throw error;
         } else {
-          return decorateProfileWithEffectiveRoles(profile);
+          const privateProfile = await attachPrivateAccountIdentity(profile, currentSession);
+          return decorateProfileWithEffectiveRoles(privateProfile);
         }
       } catch (e) {
-        console.error("Exception fetching profile, logging out.", e);
-        await logout();
-        return null;
+        console.error('Erro ao carregar o perfil autenticado:', e);
+        throw e;
       }
     }
     return null;
-  }, [decorateProfileWithEffectiveRoles, logout]);
+  }, [attachPrivateAccountIdentity, decorateProfileWithEffectiveRoles]);
+
+  const hydrateSession = useCallback(async (currentSession, { showLoading = true } = {}) => {
+    const requestId = ++hydrationRequestRef.current;
+    setSession(currentSession || null);
+    setAuthError('');
+
+    if (!currentSession?.user) {
+      setUser(null);
+      setLoading(false);
+      return null;
+    }
+
+    if (showLoading) setLoading(true);
+
+    try {
+      const profile = await withTimeout(
+        fetchUserProfile(currentSession),
+        AUTH_HYDRATION_TIMEOUT_MS,
+        'O GOV.RP demorou para carregar sua conta. Verifique a conexão e tente novamente.'
+      );
+
+      if (requestId !== hydrationRequestRef.current) return profile;
+      setUser(profile);
+      setLoading(false);
+      return profile;
+    } catch (error) {
+      if (requestId !== hydrationRequestRef.current) return null;
+      console.error('Falha na hidratação da sessão:', error);
+      setUser(null);
+      setAuthError(error?.message || 'Não foi possível carregar sua conta.');
+      setLoading(false);
+      return null;
+    }
+  }, [fetchUserProfile]);
 
   const refreshUser = useCallback(async ({ skipSync = false } = {}) => {
     if (session?.user?.id) {
@@ -221,14 +283,15 @@ export const AuthProvider = ({ children }) => {
           .eq('id', session.user.id)
           .single();
         if (profile && !error) {
-            const decoratedProfile = await decorateProfileWithEffectiveRoles(profile);
+            const privateProfile = await attachPrivateAccountIdentity(profile, session);
+            const decoratedProfile = await decorateProfileWithEffectiveRoles(privateProfile);
             setUser(decoratedProfile);
         }
       } catch (error) {
         console.error('Error refreshing user profile:', error);
       }
     }
-  }, [decorateProfileWithEffectiveRoles, session?.user?.id]);
+  }, [attachPrivateAccountIdentity, decorateProfileWithEffectiveRoles, session]);
 
   const syncOfficeStateForSessionUser = useCallback(async () => {
     if (!session?.user?.id) {
@@ -284,129 +347,66 @@ export const AuthProvider = ({ children }) => {
   }, [session?.user?.id, syncOfficeStateForSessionUser]);
 
 
+  const restoreSession = useCallback(async () => {
+    setLoading(true);
+    setAuthError('');
+
+    try {
+      const { data, error } = await withTimeout(
+        supabase.auth.getSession(),
+        AUTH_HYDRATION_TIMEOUT_MS,
+        'A sessão demorou para responder. Verifique a conexão e tente novamente.'
+      );
+
+      if (error) throw error;
+      await hydrateSession(data.session, { showLoading: true });
+    } catch (error) {
+      console.error('Erro ao restaurar sessão:', error);
+      setUser(null);
+      setSession(null);
+      setAuthError(error?.message || 'Não foi possível restaurar sua sessão.');
+      setLoading(false);
+    }
+  }, [hydrateSession]);
+
   useEffect(() => {
     let isMounted = true;
 
-    const getSession = async () => {
-      try {
-        const { data: { session: currentSession }, error: sessionError } = await supabase.auth.getSession();
+    const { data: authListener } = supabase.auth.onAuthStateChange((event, newSession) => {
+      if (!isMounted || event === 'INITIAL_SESSION') return;
 
-        if (!isMounted) return;
+      // Consultas Supabase dentro do callback assíncrono do Auth podem bloquear o
+      // cliente. O callback apenas captura o evento; a hidratação roda no próximo turno.
+      window.setTimeout(() => {
+        if (isMounted) void hydrateSession(newSession, { showLoading: event === 'SIGNED_IN' });
+      }, 0);
+    });
 
-        if(sessionError && (sessionError.message === 'Invalid Refresh Token: Refresh Token Not Found' || sessionError.message === 'NetworkError when attempting to fetch resource.')) {
-          await logout();
-          return;
-        }
-
-        setSession(currentSession);
-        const profile = await fetchUserProfile(currentSession);
-        if (isMounted) setUser(profile);
-      } catch (e) {
-        console.error("Critical error during initial session load:", e);
-        if (isMounted) {
-          setUser(null);
-          setSession(null);
-        }
-      } finally {
-        if (isMounted) setLoading(false);
-        if (safetyTimeout) clearTimeout(safetyTimeout);
-      }
-    };
-
-    let safetyTimeout = setTimeout(() => {
-      if (isMounted) {
-        console.warn("Safety timeout triggered: forcing loading to false.");
-
-        // If we timeout but have a session, ensure user isn't blindly null causing UI issues.
-        // Try fallback to session metadata so TopNavbar and Dashboard don't crash.
-        setSession((currentValidSession) => {
-          if (currentValidSession?.user) {
-            setUser((currentUserState) => {
-              if (!currentUserState) {
-                console.warn("Falling back to session metadata for user profile after timeout");
-                return {
-                  id: currentValidSession.user.id,
-                  email: currentValidSession.user.email,
-                  full_name: currentValidSession.user.user_metadata?.full_name || 'Usuário Desconectado',
-                  username: currentValidSession.user.user_metadata?.username || 'user',
-                  role: currentValidSession.user.app_metadata?.role || 'Cidadão',
-                };
-              }
-              return currentUserState;
-            });
-          }
-          return currentValidSession;
-        });
-
-        setLoading(false);
-      }
-    }, 10000);
-
-    getSession();
-
-    const { data: authListener } = supabase.auth.onAuthStateChange(
-      async (_event, newSession) => {
-        if (!isMounted) return;
-        setSession(newSession);
-        const profile = await fetchUserProfile(newSession);
-        if (isMounted) {
-          setUser(profile);
-          setLoading(false);
-        }
-      }
-    );
+    void restoreSession();
 
     return () => {
       isMounted = false;
-      clearTimeout(safetyTimeout);
+      hydrationRequestRef.current += 1;
       authListener?.subscription.unsubscribe();
     };
-  }, [fetchUserProfile, logout]);
+  }, [hydrateSession, restoreSession]);
 
   const login = async ({ identifier, password, captchaToken }) => {
-    const normalizedIdentifier = identifier.trim();
-    const normalizedPhone = normalizedIdentifier.replace(/\D/g, '');
-    let email = normalizedIdentifier.toLowerCase();
-
-    if (!email.includes('@')) {
-      let profile = null;
-      let error = null;
-
-      if (normalizedPhone) {
-        const response = await supabase
-          .from('profiles')
-          .select('email')
-          .eq('phone', normalizedPhone)
-          .maybeSingle();
-
-        profile = response.data;
-        error = response.error;
-      }
-
-      if (!profile) {
-        const response = await supabase
-          .from('profiles')
-          .select('email')
-          .eq('username', normalizedIdentifier)
-          .maybeSingle();
-
-        profile = response.data;
-        error = response.error;
-      }
-
-      if (error || !profile) {
-        throw new Error(AUTH_FAILURE_MESSAGE);
-      }
-      email = profile.email;
-    }
+    const email = identifier.trim().toLowerCase();
+    // O username pertence ao cidadão e é público. A conta OOC autentica apenas
+    // pelo e-mail para que nenhuma RPC anônima precise revelar e-mails privados.
+    if (!email.includes('@')) throw new Error('Entre com o e-mail privado da sua conta.');
 
     const { data, error } = await supabase.auth.signInWithPassword({ email, password, options: { captchaToken } });
     if (error) {
       throw new Error(AUTH_FAILURE_MESSAGE);
     }
 
-    const profileData = await fetchUserProfile(data.session);
-    setUser(profileData);
+    const profileData = await hydrateSession(data.session, { showLoading: true });
+
+    if (!profileData) {
+      throw new Error('A autenticação foi concluída, mas o perfil não pôde ser carregado. Tente novamente.');
+    }
 
     return { ...data, user: profileData };
   };
@@ -418,13 +418,10 @@ export const AuthProvider = ({ children }) => {
       options: {
         captchaToken,
         data: {
-          full_name: meta.fullName,
-          username: meta.username,
+          real_full_name: meta.realFullName,
           phone: meta.phone,
-          country_code: meta.countryCode,
-          date_of_birth: meta.dateOfBirth,
-          rg: meta.rg,
-          cpf: meta.cpf,
+          phone_country_code: meta.phoneCountryCode || '+55',
+          real_date_of_birth: meta.realDateOfBirth,
         }
       }
     });
@@ -480,6 +477,8 @@ export const AuthProvider = ({ children }) => {
     sendPasswordResetEmail,
     updatePassword,
     loading,
+    authError,
+    retryAuth: restoreSession,
     refreshUser,
     triggerTutorial,
     setTriggerTutorial,
@@ -487,7 +486,25 @@ export const AuthProvider = ({ children }) => {
 
   return (
     <AuthContext.Provider value={value}>
-      {!loading && children}
+      {loading ? (
+        <div className="flex min-h-screen items-center justify-center bg-slate-950 px-4 text-white" role="status" aria-live="polite">
+          <div className="text-center">
+            <div className="mx-auto h-10 w-10 animate-spin rounded-full border-4 border-blue-400/30 border-t-blue-400" />
+            <p className="mt-4 font-medium">Carregando sua sessão GOV.RP...</p>
+            <p className="mt-1 text-sm text-slate-400">Estamos sincronizando sua conta e seu cidadão.</p>
+          </div>
+        </div>
+      ) : authError ? (
+        <div className="flex min-h-screen items-center justify-center bg-slate-950 px-4 text-white">
+          <div className="w-full max-w-md rounded-2xl border border-red-400/20 bg-white/5 p-6 text-center shadow-2xl">
+            <h1 className="text-xl font-semibold">Não foi possível carregar o GOV.RP</h1>
+            <p className="mt-3 text-sm leading-6 text-slate-300">{authError}</p>
+            <button type="button" onClick={restoreSession} className="mt-6 rounded-lg bg-blue-600 px-4 py-2 font-medium text-white hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-300">
+              Tentar novamente
+            </button>
+          </div>
+        </div>
+      ) : children}
     </AuthContext.Provider>
   );
 };

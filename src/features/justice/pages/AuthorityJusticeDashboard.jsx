@@ -256,15 +256,15 @@ const AuthorityJusticeDashboard = () => {
 
       <Tabs defaultValue={isPolice ? 'missions' : isJudge ? 'requests' : 'cases'} className="space-y-6">
         <TabsList className="grid h-auto w-full grid-cols-2 gap-2 bg-muted/50 p-2 md:grid-cols-3 xl:grid-cols-9">
-          <TabsTrigger value="missions">Missões policiais</TabsTrigger>
-          <TabsTrigger value="investigations">Investigações</TabsTrigger>
-          <TabsTrigger value="requests">Pedidos judiciais</TabsTrigger>
-          <TabsTrigger value="cases">Processos</TabsTrigger>
-          <TabsTrigger value="custody">Custódia</TabsTrigger>
-          <TabsTrigger value="sanctions">Multas</TabsTrigger>
-          <TabsTrigger value="citizen">Pedidos cidadãos</TabsTrigger>
-          <TabsTrigger value="campaigns">Campanhas</TabsTrigger>
-          <TabsTrigger value="integrity">Integridade</TabsTrigger>
+          <TabsTrigger value="missions"><Siren className="mr-2 h-4 w-4" />Missões policiais</TabsTrigger>
+          <TabsTrigger value="investigations"><Search className="mr-2 h-4 w-4" />Investigações</TabsTrigger>
+          <TabsTrigger value="requests"><Gavel className="mr-2 h-4 w-4" />Pedidos judiciais</TabsTrigger>
+          <TabsTrigger value="cases"><Scale className="mr-2 h-4 w-4" />Processos</TabsTrigger>
+          <TabsTrigger value="custody"><LockKeyhole className="mr-2 h-4 w-4" />Custódia</TabsTrigger>
+          <TabsTrigger value="sanctions"><Banknote className="mr-2 h-4 w-4" />Multas</TabsTrigger>
+          <TabsTrigger value="citizen"><Users className="mr-2 h-4 w-4" />Pedidos cidadãos</TabsTrigger>
+          <TabsTrigger value="campaigns"><Megaphone className="mr-2 h-4 w-4" />Campanhas</TabsTrigger>
+          <TabsTrigger value="integrity"><BadgeCheck className="mr-2 h-4 w-4" />Integridade</TabsTrigger>
         </TabsList>
 
         <TabsContent value="missions" className="space-y-4">

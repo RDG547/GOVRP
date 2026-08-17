@@ -635,7 +635,7 @@ const ServiceAvailabilityManager = ({ serviceAvailability, onModeChange, onSave,
                             <div>
                                 <p className="font-semibold text-white">Modo global do portal</p>
                                 <p className="text-sm text-muted-foreground">
-                                    Defina se o GOV.RP inteiro fica ativo, em breve ou em manutencao.
+                                    Defina se o GOV.RP inteiro fica ativo, em breve ou em manutenção.
                                 </p>
                                 <div className="mt-2 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-muted-foreground">
                                     <GlobalModeIcon className="h-3.5 w-3.5" />

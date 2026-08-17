@@ -33,10 +33,9 @@ const formatDateTime = (value) => {
 const getActivityName = (session) =>
   session.profile?.full_name ||
   session.profile?.username ||
-  session.profile?.email ||
   'Usuario';
 
-const getPageLabel = (view) => view?.page_title || view?.service_key || view?.path || 'Pagina';
+const getPageLabel = (view) => view?.page_title || view?.service_key || view?.path || 'Página';
 
 const buildPageRanking = (views = []) => {
   const rankingMap = new Map();
@@ -87,7 +86,7 @@ const SiteAnalytics = ({ stats, growthStats, loading }) => {
             duration_seconds,
             entry_path,
             exit_path,
-            profile:profiles!user_activity_sessions_user_id_fkey(full_name, username, email, avatar_url)
+            profile:profiles!user_activity_sessions_user_id_fkey(full_name, username, avatar_url)
           `)
           .order('started_at', { ascending: false })
           .limit(80);
@@ -144,7 +143,7 @@ const SiteAnalytics = ({ stats, growthStats, loading }) => {
         if (ACTIVITY_ERROR_CODES.has(error.code) || /user_activity_sessions|user_page_views/i.test(error.message || '')) {
           setActivityError('Aplique o SQL de telemetria no Supabase para liberar atividades e ranking de paginas.');
         } else {
-          setActivityError(error.message || 'Nao foi possivel carregar as atividades.');
+          setActivityError(error.message || 'Não foi possível carregar as atividades.');
         }
       } finally {
         if (isMounted) {
@@ -256,14 +255,14 @@ const SiteAnalytics = ({ stats, growthStats, loading }) => {
                         </div>
                       </div>
                       <div className="mt-3">
-                        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Paginas no ultimo login</p>
+                        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Páginas no último login</p>
                         <div className="mt-2 flex flex-wrap gap-2">
                           {pages.length ? pages.slice(0, 6).map((page, index) => (
                             <span key={`${session.id}-${page.path}-${index}`} className="rounded-full border border-white/10 bg-background/60 px-2 py-1 text-xs text-muted-foreground">
                               {getPageLabel(page)}
                             </span>
                           )) : (
-                            <span className="text-xs text-muted-foreground">Nenhuma pagina registrada.</span>
+                            <span className="text-xs text-muted-foreground">Nenhuma página registrada.</span>
                           )}
                         </div>
                       </div>

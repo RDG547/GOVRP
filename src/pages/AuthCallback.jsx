@@ -103,8 +103,8 @@ const persistPopupResult = (payload) => {
 const AuthCallback = () => {
   const [status, setStatus] = useState({
     state: 'loading',
-    title: 'Concluindo autenticacao',
-    description: 'Estamos confirmando sua sessao com o GOV.RP.',
+    title: 'Concluindo autenticação',
+    description: 'Estamos confirmando sua sessão com o GOV.RP.',
   });
 
   useEffect(() => {
@@ -152,7 +152,7 @@ const AuthCallback = () => {
         }
 
         if (!session) {
-          throw new Error('Nao foi possivel confirmar sua sessao. Tente novamente.');
+          throw new Error('Não foi possível confirmar sua sessão. Tente novamente.');
         }
 
         if (!isMounted) {
@@ -161,8 +161,8 @@ const AuthCallback = () => {
 
         setStatus({
           state: 'success',
-          title: 'Autenticacao concluida',
-          description: 'Voce ja pode voltar para o GOV.RP.',
+          title: 'Autenticação concluída',
+          description: 'Você já pode voltar para o GOV.RP.',
         });
 
         const payload = { type: 'success' };
@@ -177,11 +177,11 @@ const AuthCallback = () => {
         const message =
           error instanceof Error
             ? error.message
-            : 'Nao foi possivel concluir a autenticacao social.';
+            : 'Não foi possível concluir a autenticação social.';
 
         setStatus({
           state: 'error',
-          title: 'Falha na autenticacao',
+          title: 'Falha na autenticação',
           description: message,
         });
 
@@ -211,7 +211,7 @@ const AuthCallback = () => {
   return (
     <>
       <Helmet>
-        <title>Autenticacao - GOV.RP</title>
+        <title>Autenticação - GOV.RP</title>
         <meta
           name="robots"
           content="noindex,nofollow"
@@ -228,7 +228,7 @@ const AuthCallback = () => {
             <CardDescription>{status.description}</CardDescription>
           </CardHeader>
           <CardContent className="text-center text-sm text-muted-foreground">
-            Esta janela pode ser fechada automaticamente quando a autenticacao terminar.
+            Esta janela pode ser fechada automaticamente quando a autenticação terminar.
           </CardContent>
         </Card>
       </div>

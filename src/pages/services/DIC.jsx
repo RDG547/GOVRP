@@ -5,8 +5,8 @@ import { Button } from '@/components/ui/button';
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabaseClient';
-import { FileText, Car, Globe, Briefcase as BriefcaseIcon, Building, Download, Image as ImageIcon, Eye, History, FilePlus, Files, Loader2, Flag, School, Star, Award, Vote, Heart, ShieldCheck, Fingerprint, X, Trash2, AtSign, Phone, Mail, Landmark } from 'lucide-react';
-import { formatCPF, formatRG, formatCNPJ, formatPhone } from '@/lib/utils';
+import { FileText, Car, Globe, Briefcase as BriefcaseIcon, Building, Download, Image as ImageIcon, Eye, History, FilePlus, Files, Loader2, Flag, School, Star, Award, Vote, Heart, ShieldCheck, Fingerprint, X, Trash2, AtSign, Landmark, MapPin, CalendarDays } from 'lucide-react';
+import { formatCPF, formatRG, formatCNPJ } from '@/lib/utils';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import PageHeader from '@/components/layout/PageHeader';
 import { Input } from '@/components/ui/input';
@@ -42,13 +42,50 @@ const captureDocument = async (element) => {
         await document.fonts.ready;
     }
 
-    return html2canvas(element, {
-        backgroundColor: null,
-        scale: 3,
-        useCORS: true,
-        logging: false,
-        imageTimeout: 15000,
-    });
+    const target = element.querySelector('[data-official-document]') || element;
+    const images = [...target.querySelectorAll('img')];
+    await Promise.all(images.map(async (image) => {
+        if (image.complete) {
+            await image.decode?.().catch(() => undefined);
+            return;
+        }
+        await new Promise((resolve) => {
+            image.addEventListener('load', resolve, { once: true });
+            image.addEventListener('error', resolve, { once: true });
+        });
+    }));
+
+    target.dataset.html2canvasActive = 'true';
+    try {
+        return await html2canvas(target, {
+            backgroundColor: null,
+            scale: 3,
+            useCORS: true,
+            logging: false,
+            imageTimeout: 15000,
+            width: target.scrollWidth,
+            height: target.scrollHeight,
+            windowWidth: 1024,
+            onclone: (clonedDocument) => {
+                const clonedTarget = clonedDocument.querySelector('[data-html2canvas-active="true"]');
+                if (!clonedTarget) return;
+
+                clonedTarget.style.transform = 'none';
+                clonedTarget.style.overflow = 'hidden';
+                clonedTarget.querySelectorAll('p, span, strong, time').forEach((node) => {
+                    const computed = clonedDocument.defaultView?.getComputedStyle(node);
+                    const fontSize = Number.parseFloat(computed?.fontSize || '0');
+                    const lineHeight = Number.parseFloat(computed?.lineHeight || '0');
+                    if (fontSize > 0 && (!lineHeight || lineHeight < fontSize * 1.25)) {
+                        node.style.lineHeight = `${fontSize * 1.3}px`;
+                    }
+                    node.style.textRendering = 'geometricPrecision';
+                });
+            },
+        });
+    } finally {
+        delete target.dataset.html2canvasActive;
+    }
 };
 
 const addDocumentPage = (pdf, canvas, title, isFirstPage) => {
@@ -172,7 +209,6 @@ const DIC = () => {
             setCitizenProfile({
                 ...user,
                 ...(profileResponse.data || {}),
-                email: profileResponse.data?.email || user?.email || '',
             });
             setDocuments(documentsResponse.data || []);
 
@@ -421,19 +457,19 @@ const DIC = () => {
                                                 <Card className="glass-effect">
                                                     <CardHeader className="pb-4">
                                                         <CardTitle className="flex items-center gap-2 text-lg">
-                                                            <div className="p-2 rounded-lg bg-purple-500/20"><Mail className="w-4 h-4 text-purple-400" /></div>
-                                                            Informações Pessoais
+                                                            <div className="p-2 rounded-lg bg-purple-500/20"><Landmark className="w-4 h-4 text-purple-400" /></div>
+                                                            Dados do Cidadão
                                                         </CardTitle>
                                                     </CardHeader>
                                                     <CardContent className="space-y-4">
                                                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                                             <div className="p-3 rounded-xl bg-white/5 border border-white/10">
-                                                                <div className="flex items-center gap-2 mb-1"><Mail className="w-3.5 h-3.5 text-purple-400" /><p className="text-xs text-muted-foreground">E-mail</p></div>
-                                                                <p className="text-sm font-medium text-foreground truncate">{displayProfile.email || 'Não informado'}</p>
+                                                                <div className="flex items-center gap-2 mb-1"><CalendarDays className="w-3.5 h-3.5 text-purple-400" /><p className="text-xs text-muted-foreground">Nascimento do cidadão</p></div>
+                                                                <p className="text-sm font-medium text-foreground truncate">{displayProfile.date_of_birth ? new Date(`${displayProfile.date_of_birth}T00:00:00`).toLocaleDateString('pt-BR') : 'Não informado'}</p>
                                                             </div>
                                                             <div className="p-3 rounded-xl bg-white/5 border border-white/10">
-                                                                <div className="flex items-center gap-2 mb-1"><Phone className="w-3.5 h-3.5 text-green-400" /><p className="text-xs text-muted-foreground">Telefone</p></div>
-                                                                <p className="text-sm font-medium text-foreground">{formatPhone(displayProfile.phone) || 'Não informado'}</p>
+                                                                <div className="flex items-center gap-2 mb-1"><MapPin className="w-3.5 h-3.5 text-green-400" /><p className="text-xs text-muted-foreground">Residência</p></div>
+                                                                <p className="text-sm font-medium text-foreground">{displayProfile.residence_city_name ? `${displayProfile.residence_city_name}/${displayProfile.residence_state_code}` : displayProfile.state_name || 'Não informado'}</p>
                                                             </div>
                                                             <div className="p-3 rounded-xl bg-white/5 border border-white/10">
                                                                 <div className="flex items-center gap-2 mb-1"><AtSign className="w-3.5 h-3.5 text-sky-400" /><p className="text-xs text-muted-foreground">@ do X</p></div>
@@ -567,7 +603,18 @@ const DIC = () => {
                         )}
                     </motion.div>}
             </div>
-            <div style={{ position: 'fixed', left: '-9999px', top: '0px', pointerEvents: 'none', opacity: 0 }}>
+            <div
+                aria-hidden="true"
+                style={{
+                    position: 'fixed',
+                    left: 0,
+                    top: 0,
+                    width: '520px',
+                    pointerEvents: 'none',
+                    transform: 'translateX(-200vw)',
+                    zIndex: -1,
+                }}
+            >
                 {documents.map(doc => {
                     const docUser = doc.user || displayProfile;
                     if (!docUser) return null;

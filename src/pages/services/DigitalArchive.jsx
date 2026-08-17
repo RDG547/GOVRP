@@ -22,7 +22,6 @@ import {
     formatOfficialGazettePublicationDate,
     getOfficialGazetteTypeMeta,
     getOfficialGazetteTypes,
-    isOfficialGazetteDecreeType,
 } from '@/lib/officialGazette';
 
 const normalizeSearchValue = (value = '') =>
@@ -60,7 +59,7 @@ const GazetteEntryDialog = ({ entry, children }) => {
                         </Badge>
                         <span className="text-xs text-muted-foreground">
                             Publicado em {formatOfficialGazettePublicationDate(entry.published_at, {
-                                includeTime: isOfficialGazetteDecreeType(entry.type),
+                                includeTime: true,
                             })}
                         </span>
                     </div>
@@ -137,7 +136,7 @@ const DigitalArchive = () => {
     const appointmentsCount = entries.filter((entry) => entry.type === 'Nomeacao e Exoneracao').length;
     const latestPublication = entries[0]?.published_at
         ? formatOfficialGazettePublicationDate(entries[0].published_at, {
-            includeTime: isOfficialGazetteDecreeType(entries[0].type),
+            includeTime: true,
         })
         : 'Sem publicações';
 
@@ -152,7 +151,7 @@ const DigitalArchive = () => {
                     icon={Newspaper}
                     title="Diário Oficial da União"
                     gradientText="(DOU)"
-                    description="Acompanhe leis, decretos, medidas provisorias, nomeacoes, contratos e demais atos oficiais do GOV.RP."
+                    description="Acompanhe leis, decretos, medidas provisórias, nomeações, contratos e demais atos oficiais do GOV.RP."
                     iconColor="text-blue-400"
                     centered={true}
                 />
@@ -240,7 +239,7 @@ const DigitalArchive = () => {
                                                 <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Publicação</p>
                                                 <p className="mt-3 text-lg font-semibold text-foreground">
                                                     {formatOfficialGazettePublicationDate(featuredEntry.published_at, {
-                                                        includeTime: isOfficialGazetteDecreeType(featuredEntry.type),
+                                                        includeTime: true,
                                                     })}
                                                 </p>
                                                 <p className="mt-4 text-sm text-muted-foreground">Clique para abrir a íntegra e consultar o texto oficial completo.</p>
@@ -264,7 +263,7 @@ const DigitalArchive = () => {
                                                                 <Badge variant="outline" className="border-primary/20 bg-primary/10 text-primary">{typeMeta.label}</Badge>
                                                                 <span className="text-xs text-muted-foreground">
                                                                     {formatOfficialGazettePublicationDate(entry.published_at, {
-                                                                        includeTime: isOfficialGazetteDecreeType(entry.type),
+                                                                        includeTime: true,
                                                                     })}
                                                                 </span>
                                                             </div>

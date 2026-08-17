@@ -29,7 +29,7 @@ export async function processWeeklySalaries() {
     const payload = await response.json().catch(() => ({}));
 
     if (!response.ok) {
-      throw new Error(payload?.error || 'Nao foi possivel processar os salarios.');
+      throw new Error(payload?.error || 'Não foi possível processar os salários.');
     }
 
     return payload;

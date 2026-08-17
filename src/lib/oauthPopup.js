@@ -171,7 +171,7 @@ const renderPopupShell = (popupWindow, provider) => {
           <div class="card">
             <div class="spinner" aria-hidden="true"></div>
             <h1>Conectando ao ${provider}</h1>
-            <p>Voce sera redirecionado para concluir a autenticacao com seguranca.</p>
+            <p>Você será redirecionado para concluir a autenticação com segurança.</p>
           </div>
         </body>
       </html>
@@ -233,7 +233,7 @@ const waitForPopupMessage = (popupWindow, attemptId) =>
       if (payload.type === 'closed') {
         reject(
           createPopupError(
-            payload.error || 'A janela de autenticacao foi fechada antes da conclusao.',
+            payload.error || 'A janela de autenticação foi fechada antes da conclusão.',
             AUTH_POPUP_CLOSED_CODE
           )
         );
@@ -242,7 +242,7 @@ const waitForPopupMessage = (popupWindow, attemptId) =>
 
       reject(
         createPopupError(
-          payload.error || 'Nao foi possivel concluir a autenticacao social.',
+          payload.error || 'Não foi possível concluir a autenticação social.',
           payload.code
         )
       );
@@ -298,7 +298,7 @@ const waitForPopupMessage = (popupWindow, attemptId) =>
         if (Date.now() - popupClosedAt >= POPUP_CLOSE_GRACE_PERIOD_MS) {
           settle({
             type: 'closed',
-            error: 'A janela de autenticacao foi fechada antes da conclusao.',
+            error: 'A janela de autenticação foi fechada antes da conclusão.',
           });
         }
       }
@@ -308,7 +308,7 @@ const waitForPopupMessage = (popupWindow, attemptId) =>
       settle({
         type: 'error',
         code: AUTH_POPUP_TIMEOUT_CODE,
-        error: 'A autenticacao demorou mais do que o esperado. Tente novamente.',
+        error: 'A autenticação demorou mais do que o esperado. Tente novamente.',
       });
     }, AUTH_POPUP_TIMEOUT_MS);
 
@@ -444,7 +444,7 @@ export const signInWithOAuthPopup = async (provider) => {
   const { client, flowType } = getOAuthClient(provider);
 
   if (!popupWindow) {
-    throw new Error('Nao foi possivel abrir a janela de autenticacao. Verifique o bloqueador de pop-up.');
+    throw new Error('Não foi possível abrir a janela de autenticação. Verifique o bloqueador de pop-up.');
   }
 
   clearStoredPopupResult(attemptId);
@@ -464,7 +464,7 @@ export const signInWithOAuthPopup = async (provider) => {
 
   if (!data?.url) {
     popupWindow.close();
-    throw new Error('Nao foi possivel iniciar a autenticacao social.');
+    throw new Error('Não foi possível iniciar a autenticação social.');
   }
 
   popupWindow.location.replace(data.url);
@@ -475,8 +475,8 @@ export const signInWithOAuthPopup = async (provider) => {
   if (!session) {
     throw new Error(
       flowType === 'implicit'
-        ? 'A autenticacao foi concluida, mas a sessao nao sincronizou a tempo no modo alternativo.'
-        : 'A autenticacao foi concluida, mas a sessao nao sincronizou a tempo.'
+        ? 'A autenticação foi concluída, mas a sessão não sincronizou a tempo no modo alternativo.'
+        : 'A autenticação foi concluída, mas a sessão não sincronizou a tempo.'
     );
   }
 

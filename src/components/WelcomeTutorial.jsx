@@ -1,57 +1,75 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabaseClient';
-import { ArrowRight, ArrowLeft, Check, Sparkles, LayoutDashboard, Landmark, Users, MessageSquare, Scale } from 'lucide-react';
+import { ArrowRight, ArrowLeft, Check, Sparkles, LayoutDashboard, Landmark, Users, MessageSquare, Scale, BriefcaseBusiness, Newspaper, Shield, Vote, GraduationCap, FileText } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 
-const steps = [
+const introductionStep =
   {
     icon: Sparkles,
-    title: 'Bem-vindo(a) ao GOV.RP!',
-    description: 'Vamos fazer um tour rápido para você conhecer os cantos mais importantes da nossa nação digital. Preparado?',
+    title: 'Sua jornada começa agora',
+    description: 'Sua cidadania foi reconhecida. Este tour foi preparado a partir da aspiração escolhida, sem limitar nenhum caminho futuro.',
     target: null,
     gradient: 'from-purple-500 to-indigo-600',
-  },
-  {
-    icon: LayoutDashboard,
-    title: 'Seu Dashboard',
-    description: 'Este é o seu centro de comando. Aqui você acessa todos os serviços e acompanha suas informações principais.',
-    target: '#dashboard-link',
-    gradient: 'from-blue-500 to-cyan-600',
-  },
-  {
-    icon: Landmark,
-    title: 'Banco Nacional',
-    description: 'Gerencie suas finanças aqui. Faça transferências, solicite cartões e veja seu extrato. O poder econômico começa aqui!',
-    target: '#bank-service-link',
-    gradient: 'from-green-500 to-emerald-600',
-  },
-  {
-    icon: MessageSquare,
-    title: 'Rede Social X',
-    description: 'Conecte-se com outros cidadãos, compartilhe suas ideias e fique por dentro de tudo que acontece na nossa rede social exclusiva.',
-    target: '#x-service-link',
-    gradient: 'from-sky-500 to-blue-600',
-  },
-  {
-    icon: Scale,
-    title: 'Vida Política',
-    description: 'Participe da política! Acompanhe o parlamento, filie-se a um partido e vote nas eleições. O futuro da nação está em suas mãos.',
-    target: '#parliament-service-link',
-    gradient: 'from-yellow-500 to-amber-600',
-  },
-  {
-    icon: Users,
-    title: 'Sua Jornada Começa Agora',
-    description: 'Explore, interaja e construa sua história. As possibilidades são infinitas. Divirta-se!',
-    target: null,
-    gradient: 'from-rose-500 to-red-600',
-  },
-];
+  };
+
+const step = (icon, title, description, gradient = 'from-blue-500 to-cyan-600') => ({ icon, title, description, target: null, gradient });
+
+const tutorialPaths = {
+  politics: [
+    step(LayoutDashboard, 'Dashboard', 'Acompanhe sua situação e os próximos passos recomendados.'),
+    step(Users, 'Partidos', 'Conheça as legendas e escolha se deseja construir uma filiação.'),
+    step(Landmark, 'Parlamento', 'Acompanhe propostas, debates e decisões legislativas.', 'from-yellow-500 to-amber-600'),
+    step(Vote, 'Eleições', 'Veja o calendário eleitoral e prepare uma futura candidatura.', 'from-emerald-500 to-green-600'),
+    step(MessageSquare, 'Rede X', 'Construa influência e participe do debate público.', 'from-sky-500 to-blue-600'),
+  ],
+  entrepreneurship: [
+    step(LayoutDashboard, 'Dashboard', 'Acompanhe sua evolução econômica e os primeiros objetivos.'),
+    step(Landmark, 'Banco Nacional', 'Use sua conta, transferências e produtos financeiros.', 'from-green-500 to-emerald-600'),
+    step(BriefcaseBusiness, 'Negócios Livres', 'Conheça o comércio e as oportunidades entre cidadãos.'),
+    step(BriefcaseBusiness, 'Portal do Empreendedor', 'Estruture empresas e acompanhe sua atividade econômica.'),
+    step(Sparkles, 'Economia e investimentos', 'Observe indicadores e tome decisões com base no cenário do país.'),
+  ],
+  justice: [
+    step(LayoutDashboard, 'Dashboard', 'Acompanhe sua situação civil e jurídica.'),
+    step(Scale, 'Sistema de Justiça', 'Conheça processos, serviços e instituições jurídicas.', 'from-violet-500 to-purple-600'),
+    step(Landmark, 'Leis e Parlamento', 'Acompanhe como as normas são propostas e aprovadas.'),
+    step(Shield, 'Antecedentes', 'Seu histórico é construído por fatos do gameplay, nunca escolhido no cadastro.'),
+    step(GraduationCap, 'Carreiras jurídicas', 'Busque formação e oportunidades quando estiverem disponíveis.'),
+  ],
+  security: [
+    step(LayoutDashboard, 'Dashboard', 'Acompanhe sua situação e serviços recomendados.'),
+    step(Shield, 'Segurança e Justiça', 'Conheça as instituições que protegem a sociedade.', 'from-slate-500 to-slate-700'),
+    step(FileText, 'Boletins e denúncias', 'Use os canais oficiais quando precisar registrar uma ocorrência.'),
+    step(Scale, 'Responsabilidade legal', 'Ações de segurança também produzem histórico e auditoria.'),
+    step(Users, 'Carreira policial', 'Acompanhe requisitos e processos seletivos quando disponíveis.'),
+  ],
+  communication: [
+    step(LayoutDashboard, 'Dashboard', 'Veja sua situação e as recomendações iniciais.'),
+    step(MessageSquare, 'Rede X', 'Publique, converse e construa sua presença pública.', 'from-sky-500 to-blue-600'),
+    step(Newspaper, 'Notícias e imprensa', 'Acompanhe acontecimentos e participe do ecossistema de informação.'),
+    step(Landmark, 'Política', 'Entenda as pautas que movimentam o debate nacional.'),
+    step(Sparkles, 'Reputação e influência', 'Esses valores nascem das suas ações e relações no GOVRP.'),
+  ],
+  knowledge: [
+    step(LayoutDashboard, 'Dashboard', 'Organize seus próximos passos e acompanhe seu progresso.'),
+    step(GraduationCap, 'Educação', 'Desenvolva formação e qualificação dentro do sistema.'),
+    step(BriefcaseBusiness, 'Carreira', 'Construa experiência profissional por meio do gameplay.'),
+    step(Landmark, 'Serviços públicos', 'Explore os recursos disponíveis para todos os cidadãos.'),
+    step(Users, 'Comunidade', 'Crie relações e descubra novas possibilidades.'),
+  ],
+  civil_life: [
+    step(LayoutDashboard, 'Dashboard', 'Este é o centro da sua vida no GOVRP.'),
+    step(Landmark, 'Banco Nacional', 'Conheça sua conta e organize sua vida financeira.', 'from-green-500 to-emerald-600'),
+    step(MessageSquare, 'Rede X', 'Converse com outros cidadãos e acompanhe a comunidade.', 'from-sky-500 to-blue-600'),
+    step(Scale, 'Serviços e Justiça', 'Use os serviços públicos disponíveis quando precisar.'),
+    step(Users, 'Explore livremente', 'Você pode mudar de objetivo e seguir qualquer trajetória.'),
+  ],
+};
 
 const WelcomeTutorial = () => {
   const { user, session, refreshUser, triggerTutorial, setTriggerTutorial } = useAuth();
@@ -60,6 +78,10 @@ const WelcomeTutorial = () => {
   const [dontShowAgain, setDontShowAgain] = useState(false);
   const [highlightedElement, setHighlightedElement] = useState(null);
   const [hasFinishedInitialTutorial, setHasFinishedInitialTutorial] = useState(false);
+  const steps = useMemo(
+    () => [introductionStep, ...(tutorialPaths[user?.initial_aspiration] || tutorialPaths.civil_life)],
+    [user?.initial_aspiration]
+  );
 
   const startTutorial = useCallback((manual = false) => {
     setIsOpen(true);

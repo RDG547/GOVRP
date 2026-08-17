@@ -92,7 +92,7 @@ const ViceCandidacyDecisionPopup = () => {
       const payload = await response.json().catch(() => ({}));
 
       if (!response.ok) {
-        throw new Error(payload?.error || 'Nao foi possivel responder ao convite da chapa.');
+        throw new Error(payload?.error || 'Não foi possível responder ao convite da chapa.');
       }
 
       toast({

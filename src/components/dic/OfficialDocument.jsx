@@ -112,7 +112,7 @@ const DocumentField = ({ label, value, className = '' }) => {
 };
 
 const DocumentContainer = ({ children, className = '' }) => (
-    <div className={`relative aspect-[1.42/1] w-full max-w-[470px] flex flex-col overflow-hidden shadow-lg border rounded-lg p-2.5 sm:p-3 ${className}`}>
+    <div data-official-document className={`relative aspect-[1.42/1] w-full max-w-[470px] flex flex-col overflow-hidden shadow-lg border rounded-lg p-2.5 sm:p-3 ${className}`}>
         <div className="relative z-10 flex h-full flex-col">
             {children}
         </div>
@@ -221,7 +221,7 @@ const CPFDocument = ({ user, doc, side }) => {
                     <p className="text-[0.6rem] sm:text-sm">NÚMERO DE INSCRIÇÃO</p>
                     <p className="font-mono font-bold text-2xl sm:text-4xl tracking-wider">{formatCPF(doc.document_number)}</p>
                     <p className="text-[0.6rem] sm:text-sm mt-1 sm:mt-2">NOME</p>
-                    <p className="font-semibold text-lg sm:text-2xl truncate">{user.full_name?.toUpperCase()}</p>
+                    <p className="break-words text-base font-semibold leading-tight sm:text-xl">{user.full_name?.toUpperCase()}</p>
                     <p className="text-[0.6rem] sm:text-sm mt-1 sm:mt-2">DATA DE NASCIMENTO</p>
                     <p className="font-semibold text-base sm:text-xl">{dateOfBirth}</p>
                 </main>
@@ -457,7 +457,7 @@ const PassportDocument = ({ user, doc, side }) => {
 const MarriageCertificateDocument = ({ user, doc }) => {
     const dateOfBirth = new Date(user.date_of_birth.replace(/-/g, '\/')).toLocaleDateString('pt-BR');
     return (
-        <div className="p-6 bg-white rounded-lg text-black font-serif max-w-2xl mx-auto border-4 border-pink-300">
+        <div data-official-document className="p-6 bg-white rounded-lg text-black font-serif max-w-2xl mx-auto border-4 border-pink-300">
             <header className="text-center mb-6">
                 <img src={SEAL_IMAGE} alt="Brasão da República" className="w-20 h-20 mx-auto mb-2 object-contain" />
                 <h1 className="text-sm font-bold">REPÚBLICA FEDERATIVA DE GOV.RP</h1>

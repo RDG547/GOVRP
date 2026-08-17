@@ -2,7 +2,7 @@ import React, { useCallback, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Helmet } from 'react-helmet-async';
-import { Eye, EyeOff, Lock, User, Loader2, LogIn } from 'lucide-react';
+import { Eye, EyeOff, Lock, Mail, Loader2, LogIn } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/components/ui/use-toast';
@@ -54,6 +54,8 @@ const Login = () => {
       });
       if (user.role === 'Admin') {
         navigate('/admin-dashboard');
+      } else if (user.onboarding_completed === false) {
+        navigate('/registro-cidadania');
       } else {
         navigate('/');
       }
@@ -78,10 +80,10 @@ const Login = () => {
     try {
       await signInWithOAuthPopup(provider);
       toast({
-        title: 'Autenticacao realizada!',
-        description: `Sua sessao com ${providerLabel} foi iniciada com sucesso.`,
+        title: 'Autenticação realizada!',
+        description: `Sua sessão com ${providerLabel} foi iniciada com sucesso.`,
       });
-      navigate('/');
+      navigate('/registro-cidadania');
     } catch (error) {
       if (isAuthPopupClosedError(error)) {
         return;
@@ -123,18 +125,19 @@ const Login = () => {
 
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
-              <Label htmlFor="identifier" className="text-gray-300 mb-2 block">Email, Usuário ou Telefone</Label>
+              <Label htmlFor="identifier" className="text-gray-300 mb-2 block">E-mail da conta</Label>
               <div className="relative">
-                <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
                 <Input
                   id="identifier"
                   name="identifier"
-                  type="text"
+                  type="email"
+                  autoComplete="email"
                   required
                   value={formData.identifier}
                   onChange={handleChange}
                   className="w-full pl-10 pr-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                  placeholder="Seu identificador"
+                  placeholder="seu@email.com"
                 />
               </div>
             </div>

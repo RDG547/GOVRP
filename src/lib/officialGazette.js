@@ -1,3 +1,5 @@
+import { formatDateBR, formatDateTimeBR, GOVRP_TIME_ZONE } from '@/lib/dateTime';
+
 const OFFICIAL_GAZETTE_TYPE_ORDER = [
   'Lei',
   'Lei Complementar',
@@ -17,35 +19,35 @@ const OFFICIAL_GAZETTE_TYPE_META = {
   },
   'Lei Complementar': {
     label: 'Leis Complementares',
-    description: 'Normas complementares com rito legislativo proprio.',
+    description: 'Normas complementares com rito legislativo próprio.',
   },
   'Emenda Constitucional': {
     label: 'Emendas Constitucionais',
-    description: 'Alteracoes formais no texto constitucional.',
+    description: 'Alterações formais no texto constitucional.',
   },
   Decreto: {
     label: 'Decretos',
-    description: 'Atos do Poder Executivo para regulamentacao e administracao.',
+    description: 'Atos do Poder Executivo para regulamentação e administração.',
   },
   'Medida Provisoria': {
-    label: 'Medidas Provisorias',
-    description: 'Normas com forca de lei em situacoes urgentes.',
+    label: 'Medidas Provisórias',
+    description: 'Normas com força de lei em situações urgentes.',
   },
   'Veto Presidencial': {
     label: 'Vetos Presidenciais',
     description: 'Atos presidenciais de veto total ou parcial a projetos aprovados.',
   },
   'Nomeacao e Exoneracao': {
-    label: 'Nomeacoes e Exoneracoes',
-    description: 'Atos de pessoal, posse, nomeacao e desligamento.',
+    label: 'Nomeações e Exonerações',
+    description: 'Atos de pessoal, posse, nomeação e desligamento.',
   },
   'Licitacao e Contrato': {
-    label: 'Licitacoes e Contratos',
-    description: 'Editais, compras publicas e contratos administrativos.',
+    label: 'Licitações e Contratos',
+    description: 'Editais, compras públicas e contratos administrativos.',
   },
   'Ato Judicial': {
     label: 'Atos Judiciais',
-    description: 'Intimacoes, despachos e sentencas oficiais.',
+    description: 'Intimações, despachos e sentenças oficiais.',
   },
 };
 
@@ -89,7 +91,7 @@ export const normalizeOfficialGazetteSourceId = (value) => {
       return crypto.randomUUID();
     }
 
-    throw new Error('Nao foi possivel gerar um identificador para o Diario Oficial.');
+    throw new Error('Não foi possível gerar um identificador para o Diário Oficial.');
   }
 
   if (isUuid(value)) {
@@ -170,41 +172,11 @@ export const isOfficialGazetteDecreeType = (rawType = '') =>
 
 export const formatOfficialGazettePublicationDate = (
   dateString,
-  { includeTime = false, timeZone = 'America/Sao_Paulo' } = {}
+  { includeTime = false, timeZone = GOVRP_TIME_ZONE } = {}
 ) => {
-  if (!dateString) {
-    return 'Data não disponível';
-  }
-
-  const formattedDate = new Date(dateString);
-
-  if (Number.isNaN(formattedDate.getTime())) {
-    return 'Data não disponível';
-  }
-
-  const options = {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-    timeZone,
-  };
-
-  if (includeTime) {
-    const parts = new Intl.DateTimeFormat('pt-BR', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      hourCycle: 'h23',
-      timeZone,
-    }).formatToParts(formattedDate);
-    const part = (type) => parts.find((entry) => entry.type === type)?.value || '';
-    return `${part('day')}/${part('month')}/${part('year')} às ${part('hour')}:${part('minute')}:${part('second')}`;
-  }
-
-  return new Intl.DateTimeFormat('pt-BR', options).format(formattedDate);
+  return includeTime
+    ? formatDateTimeBR(dateString, { timeZone })
+    : formatDateBR(dateString, { timeZone, long: true });
 };
 
 export const mapBillTypeToGazetteType = (billType = '') => {
@@ -385,7 +357,7 @@ export const fetchOfficialGazetteEntries = async (supabase) => {
 export const getOfficialGazetteTypeMeta = (type) =>
   OFFICIAL_GAZETTE_TYPE_META[type] || {
     label: type,
-    description: 'Publicacao oficial do GOV.RP.',
+    description: 'Publicação oficial do GOV.RP.',
   };
 
 export const getOfficialGazetteTypes = (entries = []) => {

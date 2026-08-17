@@ -231,7 +231,7 @@ const CountryInfo = () => {
                     </div>
                     <h2 className="text-3xl font-bold text-foreground">Constituição Federal</h2>
                     <p className="text-muted-foreground">
-                      Consulte os principais pontos constitucionais e acesse o PDF oficial diretamente nesta pagina.
+                      Consulte os principais pontos constitucionais e acesse o PDF oficial diretamente nesta página.
                     </p>
                   </div>
 

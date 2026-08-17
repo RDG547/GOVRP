@@ -3,13 +3,13 @@ import { Helmet } from 'react-helmet-async';
 import { motion } from 'framer-motion';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Settings, Shield, User, Banknote, Bell, ArrowRight, Mail, Phone, TrendingUp, Activity, PiggyBank, Users, LayoutDashboard, Calendar, Briefcase, AtSign, Fingerprint, Flag, Star, BookOpen, Car, Globe, Building, HelpCircle, Contact, Package, Repeat, FileText as DocIcon, UserPlus, MessageSquare, Gavel, Award, Loader2, Landmark } from 'lucide-react';
+import { Settings, Shield, User, Banknote, Bell, ArrowRight, Mail, TrendingUp, Activity, PiggyBank, Users, LayoutDashboard, Calendar, Briefcase, AtSign, Fingerprint, Flag, Star, BookOpen, Car, Globe, Building, HelpCircle, Contact, Repeat, FileText as DocIcon, UserPlus, MessageSquare, Gavel, Award, Loader2, Landmark, MapPin, CheckCircle2, Circle } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/lib/supabaseClient';
 import { formatDistanceToNow, subDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { formatPhone, formatCurrency, formatCPF, formatRG, formatCNPJ } from '@/lib/utils';
+import { formatCurrency, formatCPF, formatRG, formatCNPJ } from '@/lib/utils';
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip as RechartsTooltip } from 'recharts';
 import PageHeader from '@/components/layout/PageHeader';
 import { Switch } from '@/components/ui/switch';
@@ -85,6 +85,37 @@ const ActivityIcon = ({ type }) => {
             <Icon className={`w-4 h-4 ${color}`} />
         </div>
     );
+};
+
+const journeyCardsByAspiration = {
+  politics: [
+    ['Conheça os partidos', '/services/political-parties', Flag], ['Acompanhe o Parlamento', '/services/parliament/citizen', Landmark],
+    ['Veja próximas eleições', '/services/elections', Calendar], ['Construa presença na Rede X', '/services/x/feed', MessageSquare],
+  ],
+  entrepreneurship: [
+    ['Acesse o Banco', '/services/bank', Banknote], ['Explore Negócios Livres', '/services/business', Briefcase],
+    ['Portal do Empreendedor', '/services/entrepreneur-portal', Building], ['Acompanhe a economia', '/services/economy', TrendingUp],
+  ],
+  justice: [
+    ['Conheça a Justiça', '/services/justice', Gavel], ['Acompanhe o Parlamento', '/services/parliament/citizen', Landmark],
+    ['Consulte seus documentos', '/services/dic', DocIcon], ['Desenvolva sua formação', '/services/education', BookOpen],
+  ],
+  security: [
+    ['Segurança e Justiça', '/services/justice', Shield], ['Documentos oficiais', '/services/dic', DocIcon],
+    ['Serviços ao cidadão', '/services', Landmark], ['Conheça a comunidade', '/community', Users],
+  ],
+  communication: [
+    ['Publique na Rede X', '/services/x/feed', MessageSquare], ['Acompanhe as notícias', '/news', Mail],
+    ['Observe a política', '/services/parliament/citizen', Landmark], ['Complete seu perfil', '/settings', User],
+  ],
+  knowledge: [
+    ['Explore a Educação', '/services/education', BookOpen], ['Conheça os serviços', '/services', Landmark],
+    ['Veja oportunidades', '/services/business', Briefcase], ['Participe da comunidade', '/community', Users],
+  ],
+  civil_life: [
+    ['Conheça os serviços', '/services', Landmark], ['Acesse o Banco', '/services/bank', Banknote],
+    ['Entre na Rede X', '/services/x/feed', MessageSquare], ['Complete seu perfil', '/settings', User],
+  ],
 };
 
 const CitizenDashboard = () => {
@@ -241,7 +272,7 @@ const CitizenDashboard = () => {
       console.error("Dashboard Error:", error);
       toast({
         title: "Erro ao carregar dashboard",
-        description: "Nao foi possivel carregar todos os dados do seu painel.",
+        description: "Não foi possível carregar todos os dados do seu painel.",
         variant: "destructive",
       });
       setDailyCheckIn((currentState) => ({
@@ -294,7 +325,7 @@ const CitizenDashboard = () => {
 
       if (!claimResult?.success) {
         toast({
-          title: claimResult?.already_claimed ? "Check-in ja registrado" : "Nao foi possivel registrar o check-in",
+          title: claimResult?.already_claimed ? "Check-in já registrado" : "Não foi possível registrar o check-in",
           description: claimResult?.message || "Tente novamente em instantes.",
           variant: claimResult?.already_claimed ? "default" : "destructive",
         });
@@ -302,7 +333,7 @@ const CitizenDashboard = () => {
       }
 
       toast({
-        title: "Check-in diario realizado!",
+        title: "Check-in diário realizado!",
         description: claimResult.message,
       });
 
@@ -310,7 +341,7 @@ const CitizenDashboard = () => {
     } catch (error) {
       toast({
         title: "Erro ao registrar check-in",
-        description: error.message || "Nao foi possivel registrar sua recompensa diaria.",
+        description: error.message || "Não foi possível registrar sua recompensa diária.",
         variant: "destructive",
       });
     } finally {
@@ -335,6 +366,14 @@ const CitizenDashboard = () => {
   const hasRolePanel = ['Presidente', 'Presidente do Banco Nacional', 'Ministro', 'Parlamentar', 'Juiz', 'Presidente do STF', 'Deputado', 'Senador', 'Presidente da Câmara', 'Presidente da Câmara dos Deputados', 'Presidente do Senado', 'Vice-Presidente da Câmara dos Deputados', 'Vice-Presidente do Senado', 'Vice-Presidente do Senado Federal', 'Police', 'AGIES', 'Forças Armadas'].some(role => rolePool.includes(role));
   
   const getDoc = (type) => data.documents.find(d => d.type === type);
+  const journeyCards = journeyCardsByAspiration[user?.initial_aspiration] || journeyCardsByAspiration.civil_life;
+  const firstSteps = [
+    ['Criar cidadania', Boolean(user?.citizenship_created_at), '/settings'],
+    ['Emitir documentos obrigatórios', ['CPF', 'RG', 'Título de Eleitor', 'CTD'].every((type) => Boolean(getDoc(type))), '/services/dic'],
+    ['Abrir conta bancária', data.hasBankAccount, '/services/bank'],
+    ['Personalizar avatar', Boolean(user?.avatar_url), '/settings'],
+    ['Criar perfil na Rede X', Boolean(user?.x_handle), '/services/x/feed'],
+  ];
 
   return (
     <>
@@ -352,6 +391,22 @@ const CitizenDashboard = () => {
             centered={true}
           />
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+          <Card className="glass-effect mb-6 overflow-hidden border-emerald-500/25">
+            <CardHeader className="bg-gradient-to-r from-emerald-500/10 to-blue-500/10">
+              <CardTitle>Comece sua jornada</CardTitle>
+              <CardDescription>Recomendações baseadas na sua aspiração inicial. Você continua livre para seguir qualquer caminho.</CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-3 p-5 sm:grid-cols-2 lg:grid-cols-4">
+              {journeyCards.map(([title, path, Icon]) => (
+                <Link key={title} to={path} className="group rounded-xl border border-white/10 bg-white/5 p-4 transition hover:border-emerald-400/40 hover:bg-emerald-500/5">
+                  <Icon className="h-6 w-6 text-emerald-400" />
+                  <p className="mt-3 text-sm font-semibold">{title}</p>
+                  <ArrowRight className="mt-3 h-4 w-4 text-muted-foreground transition group-hover:translate-x-1" />
+                </Link>
+              ))}
+            </CardContent>
+          </Card>
+
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-6">
             <StatCard title="Saldo em Conta" value={formatCurrency(data.balance)} icon={Banknote} color="text-green-400" description="Disponível para uso imediato." />
             <StatCard title="Total Investido" value={formatCurrency(data.investments)} icon={PiggyBank} color="text-blue-400" description="Seu patrimônio em crescimento." />
@@ -402,9 +457,14 @@ const CitizenDashboard = () => {
             </div>
             
             <div className="lg:col-span-2 space-y-6">
+              <Card className="glass-effect border-blue-500/20">
+                <CardHeader><CardTitle>Primeiros passos</CardTitle><CardDescription>Checklist opcional para conhecer o GOVRP.</CardDescription></CardHeader>
+                <CardContent><ul className="space-y-3">{firstSteps.map(([label, completed, path]) => <li key={label}><Link to={path} className="flex items-center gap-3 rounded-lg p-2 hover:bg-white/5">{completed ? <CheckCircle2 className="h-5 w-5 text-emerald-400" /> : <Circle className="h-5 w-5 text-slate-500" />}<span className={completed ? 'text-slate-400 line-through' : 'text-foreground'}>{label}</span></Link></li>)}</ul></CardContent>
+              </Card>
+
               <Card className="glass-effect border-emerald-500/20">
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2"><Calendar className="text-emerald-400" /> Check-in Diario</CardTitle>
+                  <CardTitle className="flex items-center gap-2"><Calendar className="text-emerald-400" /> Check-in Diário</CardTitle>
                   <CardDescription>Entre todos os dias para garantir saldo, reputacao e manter sua sequencia ativa.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -415,7 +475,7 @@ const CitizenDashboard = () => {
                     </div>
                   ) : !dailyCheckIn.featureAvailable ? (
                     <p className="text-sm text-muted-foreground">
-                      O check-in diario sera exibido automaticamente assim que a atualizacao do banco for aplicada no Supabase.
+                      O check-in diário será exibido automaticamente assim que a atualização do serviço for concluída.
                     </p>
                   ) : !dailyCheckIn.status?.has_bank_account ? (
                     <>
@@ -448,19 +508,19 @@ const CitizenDashboard = () => {
                       <div className="rounded-xl border border-white/10 bg-white/5 p-4 text-sm text-muted-foreground space-y-2">
                         <p>
                           {dailyCheckIn.status?.has_checked_in_today
-                            ? 'Seu check-in de hoje ja foi registrado. Volte amanha para continuar sua sequencia.'
+                            ? 'Seu check-in de hoje já foi registrado. Volte amanhã para continuar sua sequência.'
                             : dailyCheckIn.status?.current_streak > 0
                               ? `Seu proximo check-in sera o dia ${dailyCheckIn.status?.next_streak} da sequencia.`
                               : 'Faca o primeiro check-in para iniciar sua sequencia diaria.'}
                         </p>
                         {dailyCheckIn.status?.weekly_bonus_amount > 0 && (
                           <p className="text-amber-300">
-                            Esse resgate inclui bonus semanal de {formatCurrency(dailyCheckIn.status.weekly_bonus_amount)}.
+                            Esse resgate inclui bônus semanal de {formatCurrency(dailyCheckIn.status.weekly_bonus_amount)}.
                           </p>
                         )}
                         {dailyCheckIn.status?.last_checked_in_at && (
                           <p className="text-xs">
-                            Ultimo registro {formatDistanceToNow(new Date(dailyCheckIn.status.last_checked_in_at), { addSuffix: true, locale: ptBR })}.
+                            Último registro {formatDistanceToNow(new Date(dailyCheckIn.status.last_checked_in_at), { addSuffix: true, locale: ptBR })}.
                           </p>
                         )}
                       </div>
@@ -476,9 +536,9 @@ const CitizenDashboard = () => {
                             Registrando check-in...
                           </>
                         ) : dailyCheckIn.status?.has_checked_in_today ? (
-                          'Check-in ja realizado hoje'
+                          'Check-in já realizado hoje'
                         ) : (
-                          'Fazer Check-in Diario'
+                          'Fazer Check-in Diário'
                         )}
                       </Button>
                     </>
@@ -523,8 +583,8 @@ const CitizenDashboard = () => {
                           </div>
                       </div>
                       <div className="grid grid-cols-2 gap-x-4 gap-y-4 pt-4">
-                          <ProfileInfoRow icon={Mail} label="E-mail" value={user?.email} colorClass="text-purple-400" />
-                          <ProfileInfoRow icon={Phone} label="Telefone" value={formatPhone(user?.phone)} colorClass="text-green-400" />
+                          <ProfileInfoRow icon={MapPin} label="Residência" value={user?.residence_city_name ? `${user.residence_city_name}/${user.residence_state_code}` : user?.state_name} colorClass="text-green-400" />
+                          <ProfileInfoRow icon={User} label="Nascimento do cidadão" value={user?.date_of_birth ? new Date(`${user.date_of_birth}T00:00:00`).toLocaleDateString('pt-BR') : null} colorClass="text-purple-400" />
                           <ProfileInfoRow icon={Fingerprint} label="CPF" value={formatCPF(getDoc('CPF')?.document_number)} colorClass="text-sky-400" />
                           <ProfileInfoRow icon={Contact} label="RG" value={formatRG(getDoc('RG')?.document_number)} colorClass="text-sky-400" />
                           <ProfileInfoRow icon={Car} label="CNH" value={getDoc('CNH')?.document_number} colorClass="text-blue-400" />
@@ -532,7 +592,7 @@ const CitizenDashboard = () => {
                           <ProfileInfoRow icon={Building} label="CNPJ" value={formatCNPJ(getDoc('CNPJ')?.document_number)} colorClass="text-yellow-400" />
                           <ProfileInfoRow icon={Briefcase} label="CTD" value={getDoc('CTD')?.document_number} colorClass="text-indigo-400" />
                           <ProfileInfoRow icon={Briefcase} label="Cargo(s)" value={Array.isArray(user?.role) ? user.role.join(', ') : user?.role} colorClass="text-yellow-400" />
-                          <ProfileInfoRow icon={Calendar} label="Membro desde" value={new Date(user?.created_at).toLocaleDateString('pt-BR')} colorClass="text-red-400" />
+                          <ProfileInfoRow icon={Calendar} label="Cidadão desde" value={user?.citizenship_created_at ? new Date(user.citizenship_created_at).toLocaleDateString('pt-BR') : null} colorClass="text-red-400" />
                           {data.party ? (
                             <ProfileInfoRow icon={Flag} label="Filiação Partidária" value={`${data.party.name} (${data.party.acronym})`} colorClass="text-orange-400" />
                           ) : (

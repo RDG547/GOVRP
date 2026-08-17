@@ -13,6 +13,7 @@ const BYPASS_PATHS = new Set([
   '/login',
   '/register',
   '/auth/callback',
+  '/registro-cidadania',
   '/forgot-password',
   '/update-password',
   '/coming-soon',
@@ -86,7 +87,7 @@ const GlobalSiteAvailabilityGate = ({ pathname = '/', isAdmin = false, children 
     return (
       <MaintenanceMode
         serviceName="GOV.RP"
-        serviceDescription="O portal inteiro esta temporariamente em manutencao para ajustes tecnicos."
+        serviceDescription="O portal inteiro está temporariamente em manutenção para ajustes técnicos."
       />
     );
   }

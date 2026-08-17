@@ -63,6 +63,8 @@ const normalizeSnapshotHistory = (snapshots, currentState) => {
       gdp_growth_year_over_year: asFiniteNumber(economic.growth),
       inflation_annual: asFiniteNumber(economic.inflation),
       unemployment_rate: asFiniteNumber(economic.unemployment),
+      exchange_usd: asFiniteNumber(economic.exchangeUsd),
+      exchange_eur: asFiniteNumber(economic.exchangeEur),
     }),
   }));
 };

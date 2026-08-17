@@ -124,7 +124,8 @@ const AdminDashboard = () => {
         <div className="mt-8">
           <nav
             ref={navRef}
-            className="-mx-2 mb-6 flex flex-row justify-start gap-1 overflow-x-auto px-2 pb-2 custom-scrollbar sm:-mx-4 sm:mb-8 sm:gap-2 sm:px-4 md:mx-0 md:justify-center md:px-0 md:pb-0"
+            aria-label="Seções do Painel de Administração"
+            className="-mx-2 mb-6 flex flex-nowrap justify-start gap-2 overflow-x-auto scroll-smooth px-2 pb-2 custom-scrollbar sm:-mx-4 sm:mb-8 sm:px-4 md:mx-0 md:px-0"
           >
             {tabs.map((tab) => (
               <button
@@ -132,17 +133,14 @@ const AdminDashboard = () => {
                 type="button"
                 data-tab-id={tab.id}
                 onClick={() => handleTabChange(tab.id)}
-                className={`flex items-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-2 text-xs font-medium sm:gap-3 sm:px-4 sm:py-3 sm:text-sm ${
+                className={`flex shrink-0 items-center gap-2 whitespace-nowrap rounded-lg px-3 py-2 text-xs font-medium sm:gap-3 sm:px-4 sm:py-3 sm:text-sm ${
                   activeTab === tab.id
                     ? 'bg-primary text-primary-foreground'
                     : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
                 }`}
-              >
+                >
                 <tab.icon className="h-4 w-4 sm:h-5 sm:w-5" />
-                <span className="hidden sm:inline">{tab.label}</span>
-                <span className="sm:hidden">
-                  {tab.label.length > 8 ? `${tab.label.substring(0, 6)}…` : tab.label}
-                </span>
+                <span>{tab.label}</span>
               </button>
             ))}
           </nav>

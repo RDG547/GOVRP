@@ -174,7 +174,7 @@ const ElectionOfficeAwardPopup = () => {
 
   const officeRole = notification.metadata?.office_role;
   const officeLabel = notification.metadata?.office_label || OFFICE_LABELS[officeRole] || officeRole;
-  const electionName = notification.metadata?.election_name || 'Eleicao encerrada';
+  const electionName = notification.metadata?.election_name || 'Eleição encerrada';
   const OfficeIcon = resolveOfficeIcon(officeRole);
 
   return (

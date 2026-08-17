@@ -2304,7 +2304,7 @@ const StateEnterpriseManager = ({ onUpdate }) => {
 const PresidentDashboard = () => {
     const { toast } = useToast();
     const navigate = useNavigate();
-    const { user } = useAuth();
+    const { user, refreshUser } = useAuth();
     const [loading, setLoading] = useState(true);
     const [ministers, setMinisters] = useState([]);
     const [ministries, setMinistries] = useState([]);
@@ -2450,8 +2450,8 @@ const PresidentDashboard = () => {
             }
 
             toast({ title: 'Renúncia Aceita', description: payload.message });
+            await refreshUser();
             navigate('/');
-            window.location.reload();
         } catch (error) {
             toast({ title: 'Erro ao renunciar', description: error.message, variant: 'destructive' });
         }

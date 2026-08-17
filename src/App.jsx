@@ -1,6 +1,5 @@
 import React from 'react';
 import { Routes, Route, useLocation, Navigate } from 'react-router-dom';
-import { Toaster } from '@/components/ui/toaster';
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 import Navbar from '@/components/layout/Navbar';
 import Home from '@/pages/Home';
@@ -41,7 +40,8 @@ import ServiceProtectedRoute from '@/components/ServiceProtectedRoute';
 import AdminDashboardPage from '@/pages/admin/AdminDashboard';
 import AdminProtectedRoute from '@/components/admin/AdminProtectedRoute';
 import WelcomeTutorial from '@/components/WelcomeTutorial';
-import ResidencyOnboarding from '@/components/ResidencyOnboarding';
+import CitizenOnboardingGate from '@/components/CitizenOnboardingGate';
+import CitizenOnboarding from '@/pages/CitizenOnboarding';
 import CookieConsent from '@/components/CookieConsent';
 import TutorialPage from '@/pages/TutorialPage';
 import DonationPage from '@/pages/DonationPage';
@@ -110,10 +110,11 @@ const MainLayout = ({ children }) => {
   const { user } = useAuth();
   const isXPage = location.pathname.startsWith('/services/x');
   const isAuthCallback = location.pathname === '/auth/callback';
+  const isCitizenOnboarding = location.pathname === '/registro-cidadania';
   const isLockedPrisonPage =
     isPrisonSentenceActive(user) && location.pathname === '/services/prison';
 
-  if (isAuthCallback || isLockedPrisonPage) {
+  if (isAuthCallback || isCitizenOnboarding || isLockedPrisonPage) {
     return <>{children}</>;
   }
 
@@ -161,6 +162,13 @@ const AppShell = ({ location, theme, isAuthCallback }) => {
     ? user.effective_roles
     : [user?.role].filter(Boolean);
   const isAdmin = rolePool.includes('Admin') || user?.role === 'Admin';
+  const isCitizenOnboarding = location.pathname === '/registro-cidadania';
+  const onboardingRequired = Boolean(user && user.onboarding_completed === false && !isAdmin);
+  const routeTransitionKey = location.pathname.startsWith('/services/x')
+    ? '/services/x'
+    : location.pathname.startsWith('/admin-dashboard')
+      ? '/admin-dashboard'
+      : location.pathname;
 
   return (
     <GlobalSiteAvailabilityGate pathname={location.pathname} isAdmin={isAdmin}>
@@ -170,16 +178,17 @@ const AppShell = ({ location, theme, isAuthCallback }) => {
         <div className="relative z-10">
           <PrisonRouteGuard>
             <InternetSpeedProvider>
+            <CitizenOnboardingGate>
             <MainLayout>
               <ScrollRestoration />
-              {!isAuthCallback && <ResidencyOnboarding />}
-              {!isAuthCallback && <WelcomeTutorial />}
+              {!isAuthCallback && !isCitizenOnboarding && user?.onboarding_completed && <WelcomeTutorial />}
               <AnimatePresence mode="wait">
-                <Routes location={location} key={location.pathname.startsWith('/services/x') ? '/services/x' : location.pathname}>
+                <Routes location={location} key={routeTransitionKey}>
                 <Route path="/" element={<Home />} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/register" element={<Register />} />
                 <Route path="/auth/callback" element={<AuthCallback />} />
+                <Route path="/registro-cidadania" element={<ProtectedRoute><CitizenOnboarding /></ProtectedRoute>} />
                 <Route path="/forgot-password" element={<ForgotPassword />} />
                 <Route path="/update-password" element={<UpdatePassword />} />
                 <Route path="/about" element={<About />} />
@@ -269,17 +278,17 @@ const AppShell = ({ location, theme, isAuthCallback }) => {
                 </Routes>
               </AnimatePresence>
             </MainLayout>
+            </CitizenOnboardingGate>
             </InternetSpeedProvider>
           </PrisonRouteGuard>
-          <Toaster />
-          {!isAuthCallback && <UserActivityTracker />}
+          {!isAuthCallback && !isCitizenOnboarding && !onboardingRequired && <UserActivityTracker />}
           {!isAuthCallback && <CookieConsent />}
-          {!isAuthCallback && <PwaInstallPrompt />}
-          {!isAuthCallback && <DailyCheckInPopup />}
-          {!isAuthCallback && <SalaryPaymentPopup />}
-          {!isAuthCallback && <BusinessBalancePopup />}
-          {!isAuthCallback && <ViceCandidacyDecisionPopup />}
-          {!isAuthCallback && <ElectionOfficeAwardPopup />}
+          {!isAuthCallback && !isCitizenOnboarding && !onboardingRequired && <PwaInstallPrompt />}
+          {!isAuthCallback && !isCitizenOnboarding && !onboardingRequired && <DailyCheckInPopup />}
+          {!isAuthCallback && !isCitizenOnboarding && !onboardingRequired && <SalaryPaymentPopup />}
+          {!isAuthCallback && !isCitizenOnboarding && !onboardingRequired && <BusinessBalancePopup />}
+          {!isAuthCallback && !isCitizenOnboarding && !onboardingRequired && <ViceCandidacyDecisionPopup />}
+          {!isAuthCallback && !isCitizenOnboarding && !onboardingRequired && <ElectionOfficeAwardPopup />}
         </div>
       </div>
     </GlobalSiteAvailabilityGate>

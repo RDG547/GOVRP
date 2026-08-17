@@ -11,7 +11,7 @@ export const getSessionAccessToken = async () => {
   }
 
   if (!session?.access_token) {
-    throw new Error('Sessao autenticada nao encontrada.');
+    throw new Error('Sessão autenticada não encontrada.');
   }
 
   return session.access_token;

@@ -261,12 +261,12 @@ const CitizenJusticeDashboard = () => {
 
       <Tabs defaultValue="occurrences" className="space-y-6">
         <TabsList className="grid h-auto w-full grid-cols-2 gap-2 bg-muted/50 p-2 md:grid-cols-3 xl:grid-cols-6">
-          <TabsTrigger value="occurrences">Ocorrências</TabsTrigger>
-          <TabsTrigger value="cases">Processos</TabsTrigger>
-          <TabsTrigger value="deadlines">Prazos e intimações</TabsTrigger>
-          <TabsTrigger value="requests">Pedidos e decisões</TabsTrigger>
-          <TabsTrigger value="fines">Multas</TabsTrigger>
-          <TabsTrigger value="security">Segurança pública</TabsTrigger>
+          <TabsTrigger value="occurrences"><FileSearch className="mr-2 h-4 w-4" />Ocorrências</TabsTrigger>
+          <TabsTrigger value="cases"><Scale className="mr-2 h-4 w-4" />Processos</TabsTrigger>
+          <TabsTrigger value="deadlines"><CalendarClock className="mr-2 h-4 w-4" />Prazos e intimações</TabsTrigger>
+          <TabsTrigger value="requests"><Gavel className="mr-2 h-4 w-4" />Pedidos e decisões</TabsTrigger>
+          <TabsTrigger value="fines"><Banknote className="mr-2 h-4 w-4" />Multas</TabsTrigger>
+          <TabsTrigger value="security"><ShieldCheck className="mr-2 h-4 w-4" />Segurança pública</TabsTrigger>
         </TabsList>
 
         <TabsContent value="occurrences" className="space-y-6">

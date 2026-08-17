@@ -12,7 +12,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { ArrowRightLeft, CheckCircle2, CreditCard, Landmark, Loader2, Percent, Save, WalletCards, XCircle } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ArrowRightLeft, CheckCircle2, ChevronLeft, ChevronRight, CreditCard, Landmark, Loader2, Percent, Save, WalletCards, XCircle } from 'lucide-react';
 import { formatAccount, formatCurrency, parseCurrency } from '@/lib/utils';
 import {
   annualPercentToMonthlyPercent,
@@ -28,6 +29,7 @@ export const CREDIT_CARD_BRANDS = [
   { value: 'visa', label: 'Visa' },
   { value: 'mastercard', label: 'Mastercard' },
 ];
+const REQUESTS_PAGE_SIZE = 10;
 
 const DEFAULT_CREDIT_CARD_BRAND_LIMITS = {
   visa: 5000,
@@ -254,6 +256,27 @@ const CardLimitControl = ({ card, brand, draft, onDraftChange, onSave, saving, p
   );
 };
 
+const RequestPagination = ({ page, total, onPageChange }) => {
+  const totalPages = Math.max(1, Math.ceil(total / REQUESTS_PAGE_SIZE));
+  const first = total ? (page - 1) * REQUESTS_PAGE_SIZE + 1 : 0;
+  const last = Math.min(page * REQUESTS_PAGE_SIZE, total);
+
+  return (
+    <div className="mt-4 flex flex-col items-center justify-between gap-3 border-t border-white/10 pt-4 sm:flex-row">
+      <p className="text-sm text-muted-foreground">{first}–{last} de {total}</p>
+      <div className="flex items-center gap-2" aria-label="Paginação das solicitações">
+        <Button type="button" size="sm" variant="outline" onClick={() => onPageChange(page - 1)} disabled={page <= 1}>
+          <ChevronLeft className="mr-1 h-4 w-4" />Anterior
+        </Button>
+        <span className="min-w-16 text-center text-sm">{page} / {totalPages}</span>
+        <Button type="button" size="sm" variant="outline" onClick={() => onPageChange(page + 1)} disabled={page >= totalPages}>
+          Próxima<ChevronRight className="ml-1 h-4 w-4" />
+        </Button>
+      </div>
+    </div>
+  );
+};
+
 const BankManagementPanel = () => {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -273,13 +296,18 @@ const BankManagementPanel = () => {
   const [loanInstallments, setLoanInstallments] = useState({});
   const [feedbackById, setFeedbackById] = useState({});
   const [savingIssuedCardId, setSavingIssuedCardId] = useState(null);
+  const [activeRequestTab, setActiveRequestTab] = useState('cards');
+  const [cardPage, setCardPage] = useState(1);
+  const [loanPage, setLoanPage] = useState(1);
+  const [cardCount, setCardCount] = useState(0);
+  const [loanCount, setLoanCount] = useState(0);
+  const [requestsLoading, setRequestsLoading] = useState(false);
 
   const canManage = canManageNationalBank(user);
 
   const fetchProfiles = useCallback(async (userIds = []) => {
     const ids = [...new Set(userIds.filter(Boolean))];
     if (!ids.length) {
-      setProfilesById({});
       return;
     }
 
@@ -292,12 +320,13 @@ const BankManagementPanel = () => {
       throw error;
     }
 
-    setProfilesById(
-      (data || []).reduce((accumulator, profile) => {
+    setProfilesById((current) => ({
+      ...current,
+      ...(data || []).reduce((accumulator, profile) => {
         accumulator[profile.id] = profile;
         return accumulator;
-      }, {})
-    );
+      }, {}),
+    }));
   }, []);
 
   const fetchData = useCallback(async (showLoading = true) => {
@@ -308,12 +337,10 @@ const BankManagementPanel = () => {
 
     if (showLoading) setLoading(true);
     try {
-      const [policyResponse, economicPolicyResponse, economicStateResponse, cardsResponse, loansResponse, accountsResponse, issuedCardsResponse] = await Promise.all([
+      const [policyResponse, economicPolicyResponse, economicStateResponse, accountsResponse, issuedCardsResponse] = await Promise.all([
         supabase.from('system_settings').select('value').eq('key', BANK_POLICY_SETTINGS_KEY).maybeSingle(),
         supabase.from('system_settings').select('value').eq('key', ECONOMIC_POLICY_SETTINGS_KEY).maybeSingle(),
         supabase.from('economic_state').select('current_selic').eq('id', true).single(),
-        supabase.from('credit_card_applications').select('*').order('created_at', { ascending: false }).limit(50),
-        supabase.from('loan_applications').select('*').order('created_at', { ascending: false }).limit(50),
         supabase.from('accounts').select('id, user_id, account_number, agency_number, balance').order('created_at', { ascending: false }).limit(200),
         supabase.from('cards').select('*').order('created_at', { ascending: false }).limit(300),
       ]);
@@ -328,14 +355,6 @@ const BankManagementPanel = () => {
 
       if (economicStateResponse.error) {
         throw economicStateResponse.error;
-      }
-
-      if (cardsResponse.error) {
-        throw cardsResponse.error;
-      }
-
-      if (loansResponse.error) {
-        throw loansResponse.error;
       }
 
       if (accountsResponse.error) {
@@ -357,54 +376,20 @@ const BankManagementPanel = () => {
           DEFAULT_BANK_POLICY
         )
       );
-      const cardRows = cardsResponse.data || [];
-      const loanRows = loansResponse.data || [];
       const accountRows = accountsResponse.data || [];
       const issuedCardRows = issuedCardsResponse.data || [];
 
       setEconomicPolicy(normalizedEconomicPolicy);
       setPolicy(normalizedPolicy);
-      setCreditApplications(cardRows);
-      setLoanApplications(loanRows);
       setAccounts(accountRows);
       setIssuedCards(issuedCardRows);
-      setCardBrands((current) => ({
-        ...cardRows.reduce((accumulator, application) => {
-          accumulator[application.id] = normalizeCardBrand(application.approved_brand || application.brand);
-          return accumulator;
-        }, {}),
-        ...current,
-      }));
-      setCardLimits((current) =>
-        cardRows.reduce((accumulator, application) => {
-          const brand = normalizeCardBrand(application.approved_brand || application.brand);
-          accumulator[application.id] = formatCurrency(
-            Number(application.requested_limit || getCardBrandDefaultLimit(normalizedPolicy, brand) || 0),
-            true
-          );
-          if (current[application.id]) {
-            accumulator[application.id] = current[application.id];
-          }
-          return accumulator;
-        }, {})
-      );
       setIssuedCardLimits(
         issuedCardRows.reduce((accumulator, card) => {
           accumulator[card.id] = formatCurrency(Number(card.card_limit || 0), true);
           return accumulator;
         }, {})
       );
-      setLoanInstallments((current) => ({
-        ...loanRows.reduce((accumulator, application) => {
-          accumulator[application.id] = String(application.installments || 12);
-          return accumulator;
-        }, {}),
-        ...current,
-      }));
-
       await fetchProfiles([
-        ...cardRows.map((application) => application.user_id),
-        ...loanRows.map((application) => application.user_id),
         ...accountRows.map((account) => account.user_id),
         ...issuedCardRows.map((card) => card.user_id),
       ]);
@@ -415,9 +400,84 @@ const BankManagementPanel = () => {
     }
   }, [canManage, fetchProfiles, toast]);
 
+  const fetchRequests = useCallback(async (type, showLoading = true) => {
+    if (!canManage) return;
+    const isCards = type === 'cards';
+    const page = isCards ? cardPage : loanPage;
+    const from = (page - 1) * REQUESTS_PAGE_SIZE;
+    const to = from + REQUESTS_PAGE_SIZE - 1;
+
+    if (showLoading) setRequestsLoading(true);
+    try {
+      const { data, error, count } = await supabase
+        .from(isCards ? 'credit_card_applications' : 'loan_applications')
+        .select('*', { count: 'exact' })
+        .order('created_at', { ascending: false })
+        .range(from, to);
+
+      if (error) throw error;
+      const rows = data || [];
+      const total = count || 0;
+      const maximumPage = Math.max(1, Math.ceil(total / REQUESTS_PAGE_SIZE));
+
+      if (page > maximumPage) {
+        if (isCards) setCardPage(maximumPage);
+        else setLoanPage(maximumPage);
+        return;
+      }
+
+      if (isCards) {
+        setCreditApplications(rows);
+        setCardCount(total);
+        setCardBrands((current) => ({
+          ...rows.reduce((accumulator, application) => {
+            accumulator[application.id] = current[application.id]
+              || normalizeCardBrand(application.approved_brand || application.brand);
+            return accumulator;
+          }, {}),
+        }));
+        setCardLimits((current) => ({
+          ...current,
+          ...rows.reduce((accumulator, application) => {
+            const brand = normalizeCardBrand(application.approved_brand || application.brand);
+            accumulator[application.id] = current[application.id] || formatCurrency(
+              Number(application.requested_limit || getCardBrandDefaultLimit(policy, brand) || 0),
+              true
+            );
+            return accumulator;
+          }, {}),
+        }));
+      } else {
+        setLoanApplications(rows);
+        setLoanCount(total);
+        setLoanInstallments((current) => ({
+          ...current,
+          ...rows.reduce((accumulator, application) => {
+            accumulator[application.id] = current[application.id] || String(application.installments || 12);
+            return accumulator;
+          }, {}),
+        }));
+      }
+
+      await fetchProfiles(rows.map((application) => application.user_id));
+    } catch (error) {
+      toast({
+        title: `Erro ao carregar solicitações de ${isCards ? 'cartão' : 'empréstimo'}`,
+        description: error.message,
+        variant: 'destructive',
+      });
+    } finally {
+      if (showLoading) setRequestsLoading(false);
+    }
+  }, [canManage, cardPage, fetchProfiles, loanPage, policy, toast]);
+
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  useEffect(() => {
+    void fetchRequests(activeRequestTab);
+  }, [activeRequestTab, fetchRequests]);
 
   useEffect(() => {
     if (!canManage) return undefined;
@@ -427,14 +487,12 @@ const BankManagementPanel = () => {
       window.clearTimeout(refreshTimer);
       refreshTimer = window.setTimeout(() => fetchData(false), 250);
     };
-    let channel = supabase.channel('bank-management-live');
+    let channel = supabase.channel('bank-management-core-live');
 
     [
       'economic_state',
       'system_settings',
       'investment_options',
-      'credit_card_applications',
-      'loan_applications',
       'accounts',
       'cards',
     ].forEach((table) => {
@@ -449,6 +507,30 @@ const BankManagementPanel = () => {
       supabase.removeChannel(channel);
     };
   }, [canManage, fetchData]);
+
+  useEffect(() => {
+    if (!canManage) return undefined;
+
+    let refreshTimer;
+    const scheduleRefresh = () => {
+      window.clearTimeout(refreshTimer);
+      refreshTimer = window.setTimeout(() => {
+        void fetchRequests(activeRequestTab, false);
+      }, 250);
+    };
+    let channel = supabase.channel('bank-management-requests-live');
+    ['credit_card_applications', 'loan_applications'].forEach((table) => {
+      channel = channel.on('postgres_changes', {
+        event: '*', schema: 'public', table,
+      }, scheduleRefresh);
+    });
+    channel.subscribe();
+
+    return () => {
+      window.clearTimeout(refreshTimer);
+      void supabase.removeChannel(channel);
+    };
+  }, [activeRequestTab, canManage, fetchRequests]);
 
   const pendingCreditApplications = useMemo(
     () => creditApplications.filter((application) => isPendingStatus(application.status)),
@@ -554,7 +636,7 @@ const BankManagementPanel = () => {
       toast({ title: 'Erro ao salvar taxas', description: error.message, variant: 'destructive' });
     } else {
       toast({ title: 'Política do Banco Nacional atualizada' });
-      fetchData();
+      void fetchData(false);
     }
     setSavingPolicy(false);
   };
@@ -578,7 +660,15 @@ const BankManagementPanel = () => {
       }
 
       toast({ title: isApproval ? 'Cartão aprovado' : 'Cartão rejeitado', description: data?.message });
-      fetchData();
+      setCreditApplications((current) => current.map((item) => (
+        item.id === application.id
+          ? { ...item, status: isApproval ? 'Aprovado' : 'Rejeitado' }
+          : item
+      )));
+      await Promise.all([
+        fetchRequests('cards', false),
+        fetchData(false),
+      ]);
     } catch (error) {
       toast({ title: 'Erro na revisão do cartão', description: error.message, variant: 'destructive' });
     } finally {
@@ -605,7 +695,12 @@ const BankManagementPanel = () => {
       }
 
       toast({ title: isApproval ? 'Empréstimo aprovado' : 'Empréstimo rejeitado', description: data?.message });
-      fetchData();
+      setLoanApplications((current) => current.map((item) => (
+        item.id === application.id
+          ? { ...item, status: isApproval ? 'Aprovado' : 'Rejeitado' }
+          : item
+      )));
+      await fetchRequests('loans', false);
     } catch (error) {
       toast({ title: 'Erro na revisão do empréstimo', description: error.message, variant: 'destructive' });
     } finally {
@@ -638,7 +733,7 @@ const BankManagementPanel = () => {
       }
 
       toast({ title: 'Limite atualizado', description: data?.message || 'O limite do cartão foi salvo.' });
-      fetchData();
+      void fetchData(false);
     } catch (error) {
       toast({ title: 'Erro ao atualizar limite', description: error.message, variant: 'destructive' });
     } finally {
@@ -860,152 +955,95 @@ const BankManagementPanel = () => {
         </CardContent>
       </Card>
 
-      <Card className="glass-effect">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2"><CreditCard className="h-5 w-5 text-sky-400" /> Solicitações de Cartão</CardTitle>
-          <CardDescription>{pendingCreditApplications.length} solicitação(ões) pendente(s).</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {creditApplications.length ? (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Cidadão</TableHead>
-                  <TableHead>Bandeira</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Limite</TableHead>
-                  <TableHead>Feedback</TableHead>
-                  <TableHead className="text-right">Ações</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {creditApplications.map((application) => {
-                  const pending = isPendingStatus(application.status);
-                  return (
-                    <TableRow key={application.id}>
-                      <TableCell>{getProfileName(application.user_id)}</TableCell>
-                      <TableCell>
-                        {pending ? (
-                          <Select value={cardBrands[application.id] || normalizeCardBrand(application.brand)} onValueChange={(value) => updateApplicationBrand(application, value)}>
-                            <SelectTrigger className="h-8 w-36"><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                              {CREDIT_CARD_BRANDS.map((brand) => (
-                                <SelectItem key={brand.value} value={brand.value}>{brand.label}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        ) : (
-                          <span className="capitalize">{getBrandLabel(application.approved_brand || application.brand)}</span>
-                        )}
-                      </TableCell>
-                      <TableCell><Badge className={`border ${getStatusBadgeClass(application.status)}`}>{application.status}</Badge></TableCell>
-                      <TableCell>
-                        {pending ? (
-                          <Input className="h-8 w-32" value={cardLimits[application.id] || ''} onChange={(event) => setCardLimits((current) => ({ ...current, [application.id]: formatCurrency(event.target.value, true) }))} />
-                        ) : (
-                          formatCurrency(application.approved_limit || application.requested_limit || 0)
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {pending ? (
-                          <Textarea className="min-h-8 w-48" value={feedbackById[application.id] || ''} onChange={(event) => setFeedbackById((current) => ({ ...current, [application.id]: event.target.value }))} placeholder="Motivo opcional" />
-                        ) : (
-                          application.feedback || '-'
-                        )}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {pending ? (
-                          <div className="flex justify-end gap-2">
-                            <Button size="sm" onClick={() => handleCardDecision(application, 'approve')} disabled={processingId === application.id}>
-                              {processingId === application.id ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-1 h-4 w-4" />}
-                              Aprovar
-                            </Button>
-                            <Button size="sm" variant="destructive" onClick={() => handleCardDecision(application, 'reject')} disabled={processingId === application.id}>
-                              <XCircle className="mr-1 h-4 w-4" />
-                              Rejeitar
-                            </Button>
-                          </div>
-                        ) : '-'}
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          ) : (
-            <p className="py-6 text-center text-muted-foreground">Nenhuma solicitação de cartão encontrada.</p>
-          )}
-        </CardContent>
-      </Card>
+      <Tabs value={activeRequestTab} onValueChange={setActiveRequestTab} className="space-y-4">
+        <div className="overflow-x-auto pb-1 custom-scrollbar">
+          <TabsList className="flex h-auto min-w-max justify-start p-1">
+            <TabsTrigger className="shrink-0 px-4 py-2.5" value="cards">
+              <CreditCard className="mr-2 h-4 w-4" />Solicitações de Cartão
+            </TabsTrigger>
+            <TabsTrigger className="shrink-0 px-4 py-2.5" value="loans">
+              <Landmark className="mr-2 h-4 w-4" />Solicitações de Empréstimo
+            </TabsTrigger>
+          </TabsList>
+        </div>
 
-      <Card className="glass-effect">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2"><Landmark className="h-5 w-5 text-amber-400" /> Solicitações de Empréstimo</CardTitle>
-          <CardDescription>{pendingLoanApplications.length} solicitação(ões) pendente(s). Juros atuais: {Number(policy.loan_interest_rate || 0).toFixed(2)}% a.m.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {loanApplications.length ? (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Cidadão</TableHead>
-                  <TableHead>Valor</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Parcelas</TableHead>
-                  <TableHead>Total estimado</TableHead>
-                  <TableHead>Feedback</TableHead>
-                  <TableHead className="text-right">Ações</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {loanApplications.map((application) => {
-                  const pending = isPendingStatus(application.status);
-                  const rate = Number(application.interest_rate ?? policy.loan_interest_rate ?? 0);
-                  const totalDue = Number(application.total_due || application.amount * (1 + rate / 100));
-                  return (
-                    <TableRow key={application.id}>
-                      <TableCell>{getProfileName(application.user_id)}</TableCell>
-                      <TableCell>{formatCurrency(application.amount || 0)}</TableCell>
-                      <TableCell><Badge className={`border ${getStatusBadgeClass(application.status)}`}>{application.status}</Badge></TableCell>
-                      <TableCell>
-                        {pending ? (
-                          <Input type="number" min="1" className="h-8 w-20" value={loanInstallments[application.id] || '12'} onChange={(event) => setLoanInstallments((current) => ({ ...current, [application.id]: event.target.value }))} />
-                        ) : (
-                          application.installments || '-'
-                        )}
-                      </TableCell>
-                      <TableCell>{formatCurrency(totalDue)}</TableCell>
-                      <TableCell>
-                        {pending ? (
-                          <Textarea className="min-h-8 w-48" value={feedbackById[application.id] || ''} onChange={(event) => setFeedbackById((current) => ({ ...current, [application.id]: event.target.value }))} placeholder="Motivo opcional" />
-                        ) : (
-                          application.admin_feedback || application.feedback || '-'
-                        )}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {pending ? (
-                          <div className="flex justify-end gap-2">
-                            <Button size="sm" onClick={() => handleLoanDecision(application, 'approve')} disabled={processingId === application.id}>
-                              {processingId === application.id ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-1 h-4 w-4" />}
-                              Aprovar
-                            </Button>
-                            <Button size="sm" variant="destructive" onClick={() => handleLoanDecision(application, 'reject')} disabled={processingId === application.id}>
-                              <XCircle className="mr-1 h-4 w-4" />
-                              Rejeitar
-                            </Button>
-                          </div>
-                        ) : '-'}
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          ) : (
-            <p className="py-6 text-center text-muted-foreground">Nenhuma solicitação de empréstimo encontrada.</p>
-          )}
-        </CardContent>
-      </Card>
+        <TabsContent value="cards">
+          <Card className="glass-effect">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2"><CreditCard className="h-5 w-5 text-sky-400" /> Solicitações de Cartão</CardTitle>
+              <CardDescription>{pendingCreditApplications.length} pendente(s) nesta página. Mais recentes primeiro.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {requestsLoading ? (
+                <div className="flex min-h-52 items-center justify-center"><Loader2 className="h-7 w-7 animate-spin text-primary" /></div>
+              ) : creditApplications.length ? (
+                <>
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader><TableRow><TableHead>Cidadão</TableHead><TableHead>Bandeira</TableHead><TableHead>Status</TableHead><TableHead>Limite</TableHead><TableHead>Feedback</TableHead><TableHead className="text-right">Ações</TableHead></TableRow></TableHeader>
+                      <TableBody>
+                        {creditApplications.map((application) => {
+                          const pending = isPendingStatus(application.status);
+                          return (
+                            <TableRow key={application.id}>
+                              <TableCell>{getProfileName(application.user_id)}</TableCell>
+                              <TableCell>{pending ? <Select value={cardBrands[application.id] || normalizeCardBrand(application.brand)} onValueChange={(value) => updateApplicationBrand(application, value)}><SelectTrigger className="h-8 w-36"><SelectValue /></SelectTrigger><SelectContent>{CREDIT_CARD_BRANDS.map((brand) => <SelectItem key={brand.value} value={brand.value}>{brand.label}</SelectItem>)}</SelectContent></Select> : <span className="capitalize">{getBrandLabel(application.approved_brand || application.brand)}</span>}</TableCell>
+                              <TableCell><Badge className={`border ${getStatusBadgeClass(application.status)}`}>{application.status}</Badge></TableCell>
+                              <TableCell>{pending ? <Input aria-label={`Limite para ${getProfileName(application.user_id)}`} className="h-8 w-32" value={cardLimits[application.id] || ''} onChange={(event) => setCardLimits((current) => ({ ...current, [application.id]: formatCurrency(event.target.value, true) }))} /> : formatCurrency(application.approved_limit || application.requested_limit || 0)}</TableCell>
+                              <TableCell>{pending ? <Textarea aria-label={`Feedback para ${getProfileName(application.user_id)}`} className="min-h-8 w-48" value={feedbackById[application.id] || ''} onChange={(event) => setFeedbackById((current) => ({ ...current, [application.id]: event.target.value }))} placeholder="Motivo opcional" /> : application.admin_feedback || application.feedback || '-'}</TableCell>
+                              <TableCell className="text-right">{pending ? <div className="flex justify-end gap-2"><Button size="sm" onClick={() => handleCardDecision(application, 'approve')} disabled={processingId === application.id}>{processingId === application.id ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-1 h-4 w-4" />}Aprovar</Button><Button size="sm" variant="destructive" onClick={() => handleCardDecision(application, 'reject')} disabled={processingId === application.id}><XCircle className="mr-1 h-4 w-4" />Rejeitar</Button></div> : '-'}</TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </div>
+                  <RequestPagination page={cardPage} total={cardCount} onPageChange={setCardPage} />
+                </>
+              ) : <p className="py-10 text-center text-muted-foreground">Nenhuma solicitação de cartão encontrada.</p>}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="loans">
+          <Card className="glass-effect">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2"><Landmark className="h-5 w-5 text-amber-400" /> Solicitações de Empréstimo</CardTitle>
+              <CardDescription>{pendingLoanApplications.length} pendente(s) nesta página. Juros atuais: {Number(policy.loan_interest_rate || 0).toFixed(2)}% a.m.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {requestsLoading ? (
+                <div className="flex min-h-52 items-center justify-center"><Loader2 className="h-7 w-7 animate-spin text-primary" /></div>
+              ) : loanApplications.length ? (
+                <>
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader><TableRow><TableHead>Cidadão</TableHead><TableHead>Valor</TableHead><TableHead>Status</TableHead><TableHead>Parcelas</TableHead><TableHead>Total estimado</TableHead><TableHead>Feedback</TableHead><TableHead className="text-right">Ações</TableHead></TableRow></TableHeader>
+                      <TableBody>
+                        {loanApplications.map((application) => {
+                          const pending = isPendingStatus(application.status);
+                          const rate = Number(application.interest_rate ?? policy.loan_interest_rate ?? 0);
+                          const totalDue = Number(application.total_due || application.amount * (1 + rate / 100));
+                          return (
+                            <TableRow key={application.id}>
+                              <TableCell>{getProfileName(application.user_id)}</TableCell><TableCell>{formatCurrency(application.amount || 0)}</TableCell><TableCell><Badge className={`border ${getStatusBadgeClass(application.status)}`}>{application.status}</Badge></TableCell>
+                              <TableCell>{pending ? <Input aria-label={`Parcelas para ${getProfileName(application.user_id)}`} type="number" min="1" className="h-8 w-20" value={loanInstallments[application.id] || '12'} onChange={(event) => setLoanInstallments((current) => ({ ...current, [application.id]: event.target.value }))} /> : application.installments || '-'}</TableCell>
+                              <TableCell>{formatCurrency(totalDue)}</TableCell>
+                              <TableCell>{pending ? <Textarea aria-label={`Feedback para ${getProfileName(application.user_id)}`} className="min-h-8 w-48" value={feedbackById[application.id] || ''} onChange={(event) => setFeedbackById((current) => ({ ...current, [application.id]: event.target.value }))} placeholder="Motivo opcional" /> : application.admin_feedback || application.feedback || '-'}</TableCell>
+                              <TableCell className="text-right">{pending ? <div className="flex justify-end gap-2"><Button size="sm" onClick={() => handleLoanDecision(application, 'approve')} disabled={processingId === application.id}>{processingId === application.id ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-1 h-4 w-4" />}Aprovar</Button><Button size="sm" variant="destructive" onClick={() => handleLoanDecision(application, 'reject')} disabled={processingId === application.id}><XCircle className="mr-1 h-4 w-4" />Rejeitar</Button></div> : '-'}</TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </div>
+                  <RequestPagination page={loanPage} total={loanCount} onPageChange={setLoanPage} />
+                </>
+              ) : <p className="py-10 text-center text-muted-foreground">Nenhuma solicitação de empréstimo encontrada.</p>}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };

@@ -1,6 +1,5 @@
 import { existsSync, readFileSync } from 'node:fs';
 import process from 'node:process';
-import { createClient } from '@supabase/supabase-js';
 
 const rootFile = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
 const checks = [];
@@ -22,6 +21,8 @@ const migrations = [
   'supabase/migrations/20260815133000_party_rpc_hardening.sql',
   'supabase/migrations/20260815134500_government_impact_integrations.sql',
   'supabase/migrations/20260815140000_government_project_impact_statuses.sql',
+  'supabase/migrations/20260817120000_citizen_identity_onboarding_v2.sql',
+  'supabase/migrations/20260817140039_bill_status_history.sql',
 ];
 
 migrations.forEach((file) => verify(`migration presente: ${file.split('/').at(-1)}`, existsSync(new URL(`../${file}`, import.meta.url))));
@@ -39,6 +40,10 @@ const projectImpact = rootFile('supabase/migrations/20260815140000_government_pr
 verify('estados de projetos geram consequências mensuráveis', projectImpact.includes("when 'paused'") && projectImpact.includes("when 'delayed'") && projectImpact.includes("when 'under_investigation'"));
 const partyRpcHardening = rootFile('supabase/migrations/20260815133000_party_rpc_hardening.sql');
 verify('atalhos partidários legados revogados', partyRpcHardening.includes('revoke all on function public.join_party') && partyRpcHardening.includes('Dono') && partyRpcHardening.includes('Presidente'));
+const citizenIdentity = rootFile('supabase/migrations/20260817120000_citizen_identity_onboarding_v2.sql');
+verify('identidade OOC separada do cidadão público', citizenIdentity.includes('private.account_identities') && citizenIdentity.includes('public.public_citizen_profiles'));
+verify('onboarding de cidadania finalizado no backend', citizenIdentity.includes('finalize_citizen_onboarding') && citizenIdentity.includes('v_document_count <> 4'));
+verify('documentos e conta do onboarding são idempotentes', citizenIdentity.includes('pg_advisory_xact_lock') && citizenIdentity.includes('accounts_user_id_key'));
 
 const existingSchema = rootFile('supabase/migrations/20260814162436_remote_schema.sql');
 verify('CPI e CPMI preservadas com rito completo', existingSchema.includes('create_parliament_commission') && existingSchema.includes("v_commission.type in ('cpi', 'cpmi')") && existingSchema.includes('submit_parliament_commission_report'));
@@ -81,6 +86,7 @@ if (existsSync(envPath)) {
   const url = values.VITE_SUPABASE_URL;
   const key = values.VITE_SUPABASE_PUBLISHABLE_KEY || values.VITE_SUPABASE_ANON_KEY;
   if (url && key) {
+    const { createClient } = await import('@supabase/supabase-js');
     const db = createClient(url, key, { auth: { persistSession: false } });
     const results = await Promise.all([
       db.rpc('get_server_now'),

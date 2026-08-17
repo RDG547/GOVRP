@@ -18,7 +18,7 @@ export async function processWeeklyBusinessBalances() {
   const payload = await response.json().catch(() => ({}));
 
   if (!response.ok) {
-    throw new Error(payload?.error || 'Nao foi possivel processar os balancos empresariais.');
+    throw new Error(payload?.error || 'Não foi possível processar os balanços empresariais.');
   }
 
   return payload;
@@ -33,7 +33,7 @@ export async function getLastBusinessBalanceDate() {
     .maybeSingle();
 
   if (error) {
-    console.error('Erro ao buscar ultimo balanco empresarial:', error);
+    console.error('Erro ao buscar último balanço empresarial:', error);
     return null;
   }
 

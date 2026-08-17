@@ -6,7 +6,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader2, Edit, Trash2, Search, Wallet, Crown, KeyRound, Filter, CreditCard, User, Shield, Scale, Gavel, Briefcase, GraduationCap, Building, ChevronLeft, ChevronRight, Landmark, RotateCcw } from 'lucide-react';
+import { Loader2, Edit, Trash2, Search, Wallet, Crown, KeyRound, Filter, CreditCard, User, Shield, Scale, Gavel, Briefcase, ChevronLeft, ChevronRight, Landmark, RotateCcw } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -100,7 +100,7 @@ const ModifyBalanceDialog = ({ user, onFinish }) => {
     };
     
     return (
-        <DialogContent className="glass-effect text-white">
+        <DialogContent className="glass-effect max-h-[90vh] overflow-y-auto text-white">
             <DialogHeader>
                 <DialogTitle>Modificar Saldo de {user.full_name}</DialogTitle>
                 <DialogDescription>
@@ -146,6 +146,10 @@ const EditUserDialog = ({ user, onFinish, onUpdate }) => {
     const [formData, setFormData] = useState({
         full_name: user.full_name || '',
         username: user.username || '',
+        character_birth_date: user.character_birth_date || '',
+        real_full_name: user.real_full_name || '',
+        real_birth_date: user.real_date_of_birth || '',
+        onboarding_step: user.onboarding_step || 'identity',
         role: user.role || 'Cidadão',
         titles: user.titles?.join(', ') || ''
     });
@@ -174,6 +178,17 @@ const EditUserDialog = ({ user, onFinish, onUpdate }) => {
             if (!accessToken) {
                 throw new Error('Sua sessão expirou. Faça login novamente para continuar.');
             }
+
+            const { error: identityError } = await supabase.rpc('admin_update_citizen_identity', {
+                p_user_id: user.id,
+                p_character_full_name: formData.full_name,
+                p_username: formData.username,
+                p_character_birth_date: formData.character_birth_date || null,
+                p_real_full_name: formData.real_full_name || null,
+                p_real_birth_date: formData.real_birth_date || null,
+                p_onboarding_step: formData.onboarding_step || null,
+            });
+            if (identityError) throw identityError;
 
             const response = await fetch('/api/admin/update-user', {
                 method: 'POST',
@@ -209,13 +224,19 @@ const EditUserDialog = ({ user, onFinish, onUpdate }) => {
     const availableRoles = ['Usuário', 'Cidadão', 'Admin', 'Presidente', 'Vice-Presidente', 'Presidente da Câmara', 'Presidente da Câmara dos Deputados', 'Vice-Presidente da Câmara dos Deputados', 'Presidente do Senado', 'Vice-Presidente do Senado', 'Vice-Presidente do Senado Federal', 'Presidente do STF', 'Presidente do Banco Nacional', 'Deputado', 'Senador', 'Juiz', 'Policial', 'Ministro', 'Agente Secreto', 'Militar'];
 
     return (
-        <DialogContent className="glass-effect text-white">
+        <DialogContent className="glass-effect max-h-[90vh] overflow-y-auto text-white">
             <DialogHeader>
                 <DialogTitle>Editar Usuário: {user.full_name}</DialogTitle>
             </DialogHeader>
             <div className="py-4 space-y-4">
-                <div><Label htmlFor="full_name">Nome Completo</Label><Input id="full_name" value={formData.full_name} onChange={handleChange} /></div>
-                <div><Label htmlFor="username">Username</Label><Input id="username" value={formData.username} onChange={handleChange} /></div>
+                <div className="rounded-xl border border-blue-400/20 bg-blue-500/10 p-3"><p className="text-sm font-semibold text-blue-200">Dados da Conta · privados/OOC</p></div>
+                <div><Label htmlFor="real_full_name">Nome real</Label><Input id="real_full_name" value={formData.real_full_name} onChange={handleChange} /></div>
+                <div><Label htmlFor="real_birth_date">Nascimento real</Label><Input id="real_birth_date" type="date" value={formData.real_birth_date} onChange={handleChange} /></div>
+                <div className="rounded-xl border border-emerald-400/20 bg-emerald-500/10 p-3"><p className="text-sm font-semibold text-emerald-200">Dados do Cidadão · públicos/IC</p></div>
+                <div><Label htmlFor="full_name">Nome civil do personagem</Label><Input id="full_name" value={formData.full_name} onChange={handleChange} /></div>
+                <div><Label htmlFor="username">Username público</Label><Input id="username" value={formData.username} onChange={handleChange} /></div>
+                <div><Label htmlFor="character_birth_date">Nascimento do personagem</Label><Input id="character_birth_date" type="date" value={formData.character_birth_date} onChange={handleChange} /></div>
+                <div><Label htmlFor="onboarding_step">Etapa do onboarding</Label><Select value={formData.onboarding_step} onValueChange={(value) => setFormData((current) => ({ ...current, onboarding_step: value }))}><SelectTrigger id="onboarding_step"><SelectValue /></SelectTrigger><SelectContent>{['welcome','identity','origin','profile','civil_documents','mandatory_documents','initial_status','citizenship','completed'].map((value) => <SelectItem key={value} value={value}>{value}</SelectItem>)}</SelectContent></Select></div>
                 <div>
                     <Label htmlFor="role">Cargo</Label>
                     <Select value={formData.role} onValueChange={handleRoleChange}>
@@ -531,6 +552,7 @@ const UserManagement = () => {
         return users
             .filter(user => {
                 const nameMatch = (user.full_name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                  (user.real_full_name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
                                   (user.username || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
                                   (user.email || '').toLowerCase().includes(searchTerm.toLowerCase());
                 const letterMatch = filters.letter === 'all' || (user.full_name || ' ').toLowerCase().startsWith(filters.letter);
@@ -571,7 +593,7 @@ const UserManagement = () => {
             <div className="flex flex-wrap gap-4 items-center">
                 <div className="relative flex-grow max-w-sm">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5"/>
-                    <Input placeholder="Buscar por nome, username ou email..." value={searchTerm} onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }} className="pl-10" />
+                    <Input placeholder="Buscar por nome real, cidadão, username ou email..." value={searchTerm} onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }} className="pl-10" />
                 </div>
                 <Popover>
                     <PopoverTrigger asChild>
@@ -720,7 +742,7 @@ const UserActionButtons = ({ user, adminUser, setModifyingBalanceUser, setChangi
         setResettingOnboarding(true);
         const { error } = await supabase.rpc('admin_reset_citizen_onboarding', { p_user_id: user.id });
         setResettingOnboarding(false);
-        toast(error ? { title: 'Falha ao reiniciar primeiro acesso', description: error.message, variant: 'destructive' } : { title: 'Primeiro acesso reiniciado', description: `${user.full_name} refará residência e documentos no próximo acesso.` });
+        toast(error ? { title: 'Falha ao reiniciar primeiro acesso', description: error.message, variant: 'destructive' } : { title: 'Primeiro acesso reiniciado', description: `${user.full_name} confirmará novamente os dados. Documentos, saldo, partido, cargos e histórico foram preservados.` });
     };
     return (
         <>
@@ -775,6 +797,7 @@ const UserCard = ({ user, adminUser, setModifyingBalanceUser, setChangingPasswor
                 <div className="min-w-0 flex-1">
                     <div className="font-medium text-white truncate">{user.full_name}</div>
                     <div className="text-xs text-gray-400 truncate">@{user.username}</div>
+                    <div className="mt-1 text-xs text-blue-300 truncate">Conta: {user.real_full_name || 'nome real pendente'}</div>
                     <div className="text-xs text-gray-500 truncate mt-0.5">{user.email}</div>
                 </div>
                 <Badge className={`text-white ${config.bg} shrink-0 text-xs`}>
@@ -789,6 +812,10 @@ const UserCard = ({ user, adminUser, setModifyingBalanceUser, setChangingPasswor
                         {user.has_bank_account ? formatCurrency(user.balance ?? 0) : <span className="text-gray-500">N/A</span>}
                     </span>
                 </div>
+            </div>
+            <div className="flex flex-wrap items-center gap-2 text-xs">
+                <Badge variant={user.onboarding_completed ? 'default' : 'secondary'}>{user.onboarding_completed ? 'Cidadania concluída' : `Etapa: ${user.onboarding_step}`}</Badge>
+                <span className="text-gray-500">v{user.onboarding_version || 1} · {user.document_types?.length || 0} docs</span>
             </div>
             <div className="flex flex-wrap gap-1 pt-1 border-t border-slate-700">
                 <UserActionButtons user={user} adminUser={adminUser} setModifyingBalanceUser={setModifyingBalanceUser} setChangingPasswordUser={setChangingPasswordUser} setEditingUser={setEditingUser} handleDeleteUser={handleDeleteUser} setManagingCardLimitUser={setManagingCardLimitUser} deletingUserId={deletingUserId} />
@@ -807,6 +834,8 @@ const UserRow = ({ user, adminUser, setModifyingBalanceUser, setChangingPassword
             <td className="px-6 py-4">
                 <div className="font-medium text-white">{user.full_name}</div>
                 <div className="text-xs text-gray-400">@{user.username}</div>
+                <div className="mt-1 text-xs text-blue-300">Conta: {user.real_full_name || 'pendente'}</div>
+                <div className="mt-1 text-xs text-gray-500">{user.onboarding_completed ? 'Cidadania concluída' : `Onboarding: ${user.onboarding_step}`} · v{user.onboarding_version || 1}</div>
             </td>
             <td className="px-6 py-4 text-gray-400 truncate">{user.email}</td>
             <td className="px-6 py-4 font-mono text-green-400">

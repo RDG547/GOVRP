@@ -236,7 +236,7 @@ const RegisterCandidacy = ({ onFinished }) => {
       const payload = await response.json().catch(() => ({}));
 
       if (!response.ok) {
-        throw new Error(payload?.error || 'Nao foi possivel cancelar a candidatura.');
+        throw new Error(payload?.error || 'Não foi possível cancelar a candidatura.');
       }
 
       toast({
@@ -282,12 +282,12 @@ const RegisterCandidacy = ({ onFinished }) => {
       const payload = await response.json().catch(() => ({}));
 
       if (!response.ok) {
-        throw new Error(payload?.error || 'Nao foi possivel retirar o convite de vice.');
+        throw new Error(payload?.error || 'Não foi possível retirar o convite de vice.');
       }
 
       toast({
         title: 'Candidatura retirada!',
-        description: payload.message || 'Voce pode montar uma nova chapa quando quiser.',
+        description: payload.message || 'Você pode montar uma nova chapa quando quiser.',
       });
       setPendingViceInvitation(null);
     } catch (error) {

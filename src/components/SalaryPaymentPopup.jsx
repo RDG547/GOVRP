@@ -263,11 +263,11 @@ const SalaryPaymentPopup = () => {
   const popupTitle = popupMode === 'failure' ? 'Salário não processado' : 'Salário depositado';
   const popupDescription =
     popupMode === 'failure'
-      ? failureNotification?.content || 'Nao foi possivel pagar o seu salario semanal por falta de verba.'
+      ? failureNotification?.content || 'Não foi possível pagar o seu salário semanal por falta de verba.'
       : 'O pagamento automático do seu cargo já caiu na conta.';
   const popupStatusText =
     popupMode === 'failure'
-      ? 'Nao foi possivel concluir o repasse semanal por falta de verba no governo.'
+      ? 'Não foi possível concluir o repasse semanal por falta de verba no governo.'
       : 'Repasse semanal concluído automaticamente.';
   const Icon = popupMode === 'failure' ? AlertTriangle : Banknote;
   const accentClassName =
