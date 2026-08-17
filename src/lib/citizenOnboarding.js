@@ -1,4 +1,4 @@
-import { Briefcase, GraduationCap, Landmark, Newspaper, Scale, Shield, UserRound } from 'lucide-react';
+import { Briefcase, GraduationCap, Landmark, Newspaper, Scale, Shield, User } from 'lucide-react';
 
 export const CITIZEN_ONBOARDING_VERSION = 2;
 
@@ -24,7 +24,7 @@ export const ASPIRATIONS = [
   { key: 'security', title: 'Segurança Pública', icon: Shield, description: 'Proteção da sociedade, denúncias e carreira policial.' },
   { key: 'communication', title: 'Comunicação', icon: Newspaper, description: 'Imprensa, debate público, reputação e influência.' },
   { key: 'knowledge', title: 'Conhecimento e carreira', icon: GraduationCap, description: 'Formação, profissão e desenvolvimento pessoal.' },
-  { key: 'civil_life', title: 'Vida Civil', icon: UserRound, description: 'Explore o GOVRP sem definir um objetivo agora.' },
+  { key: 'civil_life', title: 'Vida Civil', icon: User, description: 'Explore o GOVRP sem definir um objetivo agora.' },
 ];
 
 export const getProgressIndex = (step) => {

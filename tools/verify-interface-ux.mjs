@@ -27,6 +27,7 @@ const documentation = read('src/pages/Documentation.jsx');
 const digitalArchive = read('src/pages/services/DigitalArchive.jsx');
 const tutorial = read('src/components/WelcomeTutorial.jsx');
 const onboardingLibrary = read('src/lib/citizenOnboarding.js');
+const citizenOnboarding = read('src/pages/CitizenOnboarding.jsx');
 
 verify('existe apenas um renderizador global de Toast', (main.match(/<Toaster\b/g) || []).length === 1 && !app.includes('<Toaster'));
 verify('StrictMode permanece ativo para revelar efeitos sem cleanup', main.includes('<React.StrictMode>'));
@@ -52,6 +53,6 @@ verify('Realtime bancário remove os dois canais', bank.includes("channel('bank-
 verify('helper oficial fixa timezone e segundos em PT-BR', dateTime.includes("America/Sao_Paulo") && dateTime.includes("second: '2-digit'") && dateTime.includes(" às "));
 verify('Diário Oficial exibe horário completo para todos os atos', (digitalArchive.match(/includeTime: true/g) || []).length >= 4 && !digitalArchive.includes('isOfficialGazetteDecreeType'));
 verify('documentação cidadã não expõe Painel Admin', !documentation.includes("id: 'admin'") && !documentation.includes('Painel de Administração'));
-verify('ícones do onboarding são compatíveis com a versão instalada', !tutorial.includes('BriefcaseBusiness') && !onboardingLibrary.includes('BriefcaseBusiness'));
+verify('ícones do onboarding são compatíveis com a versão instalada', !['BriefcaseBusiness', 'UserRound', 'CircleUserRound', 'FileBadge2', 'PartyPopper'].some((icon) => tutorial.includes(icon) || onboardingLibrary.includes(icon) || citizenOnboarding.includes(icon)));
 
 process.stdout.write(`✓ ${checks.length} verificações de interface e UX concluídas.\n`);

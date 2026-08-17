@@ -1,7 +1,7 @@
 import React from 'react';
 import { Helmet } from 'react-helmet-async';
 import { motion } from 'framer-motion';
-import { BookOpen, Landmark, FileText, MessageSquare, Scale, Shield, UserPlus, Briefcase, Info, AlertTriangle, UserRound } from 'lucide-react';
+import { BookOpen, Landmark, FileText, MessageSquare, Scale, Shield, UserPlus, Briefcase, Info, AlertTriangle, User } from 'lucide-react';
 import PageHeader from '@/components/layout/PageHeader';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 
@@ -137,7 +137,7 @@ const TutorialPage = () => {
           <div className="grid gap-4 sm:grid-cols-3">
             {[
               [Shield, 'Conta', 'Dados reais e privados · OOC'],
-              [UserRound, 'Personagem', 'Identidade interpretada · IC'],
+              [User, 'Personagem', 'Identidade interpretada · IC'],
               [FileText, 'Cidadania', 'Documentos e situação institucional'],
             ].map(([Icon, title, description], index) => (
               <div key={title} className="glass-effect rounded-xl border border-white/10 p-5">
