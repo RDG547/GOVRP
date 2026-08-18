@@ -19,6 +19,7 @@ import ImageUploader from '@/components/ImageUploader';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { buildStoragePath } from '@/lib/security';
+import UserSelectOption from '@/components/UserSelectOption';
 
 const politicalOrientations = ['Extrema Esquerda', 'Esquerda', 'Centro-Esquerda', 'Centro', 'Centro-Direita', 'Direita', 'Extrema-Direita'];
 const roleHierarchy = { 'Dono': 4, 'Presidente': 3, 'Vice-Presidente': 2, 'Membro': 1 };
@@ -137,7 +138,7 @@ const EditPartyForm = ({ party, onAction, closeDialog, userRole, members }) => {
                         <Label htmlFor="owner">Dono</Label>
                         <Select onValueChange={(v) => setFormData(p => ({...p, owner_id: v}))} value={formData.owner_id || ''}>
                           <SelectTrigger><SelectValue placeholder="Selecione um novo dono" /></SelectTrigger>
-                          <SelectContent>{members.map(m => <SelectItem key={m.profile.id} value={m.profile.id}>{m.profile.full_name}</SelectItem>)}</SelectContent>
+                          <SelectContent>{members.map((member) => <SelectItem key={member.profile.id} value={member.profile.id}><UserSelectOption user={member.profile} detail={member.party_role_label} /></SelectItem>)}</SelectContent>
                         </Select>
                     </div>
                 )}
@@ -145,14 +146,14 @@ const EditPartyForm = ({ party, onAction, closeDialog, userRole, members }) => {
                     <Label htmlFor="president">Presidente</Label>
                     <Select onValueChange={(v) => setFormData(p => ({...p, president_id: v}))} value={formData.president_id || ''}>
                       <SelectTrigger><SelectValue placeholder="Selecione um presidente" /></SelectTrigger>
-                      <SelectContent>{members.map(m => <SelectItem key={m.profile.id} value={m.profile.id}>{m.profile.full_name}</SelectItem>)}</SelectContent>
+                      <SelectContent>{members.map((member) => <SelectItem key={member.profile.id} value={member.profile.id}><UserSelectOption user={member.profile} detail={member.party_role_label} /></SelectItem>)}</SelectContent>
                     </Select>
                 </div>
                 <div className="space-y-2">
                     <Label htmlFor="vice_president">Vice-Presidente</Label>
                     <Select onValueChange={(v) => setFormData(p => ({...p, vice_president_id: v}))} value={formData.vice_president_id || ''}>
                       <SelectTrigger><SelectValue placeholder="Selecione um vice" /></SelectTrigger>
-                      <SelectContent>{members.map(m => <SelectItem key={m.profile.id} value={m.profile.id}>{m.profile.full_name}</SelectItem>)}</SelectContent>
+                      <SelectContent>{members.map((member) => <SelectItem key={member.profile.id} value={member.profile.id}><UserSelectOption user={member.profile} detail={member.party_role_label} /></SelectItem>)}</SelectContent>
                     </Select>
                 </div>
             </div>

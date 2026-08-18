@@ -38,6 +38,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import UserSelectOption from '@/components/UserSelectOption';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import PageHeader from '@/components/layout/PageHeader';
@@ -2046,7 +2047,7 @@ const ParliamentPanel = () => {
                   <SelectContent>
                     {members.map((member) => (
                       <SelectItem key={member.parliament_member_id} value={member.parliament_member_id}>
-                        {member.full_name}
+                        <UserSelectOption user={member} detail={member.party_acronym || member.role || ''} />
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -2226,7 +2227,7 @@ const ParliamentPanel = () => {
                 <SelectContent>
                   {members.map((member) => (
                     <SelectItem key={member.parliament_member_id} value={member.parliament_member_id}>
-                      {member.full_name}
+                      <UserSelectOption user={member} detail={member.party_acronym || member.role || ''} />
                     </SelectItem>
                   ))}
                 </SelectContent>

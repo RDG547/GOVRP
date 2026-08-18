@@ -66,7 +66,7 @@ export const fetchCitizenJusticeData = async () => {
     supabase.rpc('get_police_efficiency_metrics'),
     supabase.rpc('get_server_now'),
     supabase.from('investigation_subjects').select('*, profile:profiles(id, full_name)').order('created_at', { ascending: false }).limit(200),
-    supabase.from('profiles').select('id, full_name, username').order('full_name').limit(300),
+    supabase.from('profiles').select('id, full_name, username, avatar_url').order('full_name').limit(300),
   ]);
 
   return {

@@ -17,6 +17,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from '
 import { Check, ChevronsUpDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import UserSelectOption from '@/components/UserSelectOption';
 
 const ReportDialog = ({ report, dialogOpen, setDialogOpen }) => {
     return (
@@ -107,7 +108,7 @@ const IssueFineDialog = ({ onFineIssued }) => {
     useEffect(() => {
         if(isOpen) {
             const fetchUsers = async () => {
-                const { data, error } = await supabase.from('profiles').select('id, full_name, username');
+                const { data, error } = await supabase.from('profiles').select('id, full_name, username, avatar_url');
                 if (error) {
                     toast({ title: 'Erro ao buscar usuários', variant: 'destructive' });
                 } else {
@@ -177,7 +178,7 @@ const IssueFineDialog = ({ onFineIssued }) => {
                                                     }}
                                                 >
                                                     <Check className={cn("mr-2 h-4 w-4", selectedUser === user.id ? "opacity-100" : "opacity-0")} />
-                                                    {user.full_name} (@{user.username})
+                                                    <UserSelectOption user={user} detail={user.username ? `@${user.username}` : ''} />
                                                 </CommandItem>
                                             ))}
                                         </CommandGroup>

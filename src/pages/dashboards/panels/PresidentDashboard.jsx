@@ -47,6 +47,7 @@ import {
 } from '@/lib/executiveGovernance';
 import { fetchWithSessionAuth } from '@/lib/apiAuth';
 import { applyPolicy } from '@/lib/economy/api';
+import UserSelectOption from '@/components/UserSelectOption';
 
 const MINISTRY_INFO = {
     'Ministério da Justiça': { icon: Shield, color: 'text-blue-400', bgColor: 'bg-blue-500/20' },
@@ -82,7 +83,7 @@ const MinisterManager = ({ ministers, ministries, onUpdate }) => {
 
     useEffect(() => {
         const fetchUsers = async () => {
-            const { data, error } = await supabase.from('profiles').select('id, full_name, role').eq('role', 'Cidadão');
+            const { data, error } = await supabase.from('profiles').select('id, full_name, username, avatar_url, role').eq('role', 'Cidadão');
             if (error) {
                 toast({ title: 'Erro ao buscar cidadãos', variant: 'destructive' });
             } else {
@@ -187,7 +188,11 @@ const MinisterManager = ({ ministers, ministries, onUpdate }) => {
                                     <SelectTrigger><SelectValue placeholder="Selecione um cidadão" /></SelectTrigger>
                                     <SelectContent>
                                         <ScrollArea className="h-72">
-                                          {allUsers.map(user => <SelectItem key={user.id} value={user.id}>{user.full_name}</SelectItem>)}
+                                          {allUsers.map((currentUser) => (
+                                              <SelectItem key={currentUser.id} value={currentUser.id}>
+                                                  <UserSelectOption user={currentUser} detail={currentUser.username ? `@${currentUser.username}` : ''} />
+                                              </SelectItem>
+                                          ))}
                                         </ScrollArea>
                                     </SelectContent>
                                 </Select>
@@ -1123,7 +1128,7 @@ const SpecialAppointmentsManager = ({ executiveState, onUpdate, actorId }) => {
                     EXECUTIVE_SPECIAL_OFFICES.map(async (office) => {
                         const { data, error } = await supabase
                             .from('profiles')
-                            .select('id, full_name, role')
+                            .select('id, full_name, username, avatar_url, role')
                             .in('role', office.eligibleRoles)
                             .order('full_name', { ascending: true });
 
@@ -1218,7 +1223,7 @@ const SpecialAppointmentsManager = ({ executiveState, onUpdate, actorId }) => {
                                     <SelectContent className="max-h-80 overflow-y-auto">
                                         {(availableProfiles[office.key] || []).map((profile) => (
                                             <SelectItem key={profile.id} value={profile.id}>
-                                                {profile.full_name} ({profile.role})
+                                                <UserSelectOption user={profile} detail={profile.role} />
                                             </SelectItem>
                                         ))}
                                     </SelectContent>

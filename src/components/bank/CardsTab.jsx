@@ -4,7 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
-import { Loader2, Trash2, CreditCard, RefreshCw, CalendarDays, DollarSign, ChevronDown, ChevronUp, Clock, XCircle, CheckCircle } from 'lucide-react';
+import { Loader2, Trash2, CreditCard, RefreshCw, CalendarDays, DollarSign, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Clock, XCircle, CheckCircle } from 'lucide-react';
 import Cards from 'react-credit-cards-2'; // Importando o componente da biblioteca
 import 'react-credit-cards-2/dist/es/styles-compiled.css'; // Importando o estilo da biblioteca
 import {
@@ -28,6 +28,17 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { AnimatePresence, motion } from 'framer-motion';
+
+const INVOICES_PER_PAGE = 5;
+
+const normalizeCardBrand = (brand = '') => brand.trim().toLowerCase();
+
+const getCardBrandLabel = (brand) => {
+  const normalizedBrand = normalizeCardBrand(brand);
+  if (normalizedBrand === 'visa') return 'Visa';
+  if (normalizedBrand === 'mastercard') return 'Mastercard';
+  return brand || 'Cartão';
+};
 
 // Componente para pagar a fatura (inalterado)
 const PayInvoiceDialog = ({ isOpen, setIsOpen, card, onPaymentSuccess }) => {
@@ -190,6 +201,8 @@ const CardsTab = ({ onUpdate }) => {
     const [cardToPay, setCardToPay] = useState(null);
     const [isPayModalOpen, setIsPayModalOpen] = useState(false);
     const [expandedInvoice, setExpandedInvoice] = useState(null);
+    const [invoiceBrand, setInvoiceBrand] = useState('');
+    const [invoicePage, setInvoicePage] = useState(1);
 
     // Funções de busca de dados, solicitação e cancelamento (inalteradas)
     const fetchData = useCallback(async () => {
@@ -249,6 +262,18 @@ const CardsTab = ({ onUpdate }) => {
         closeInvoices();
         fetchData();
     }, [fetchData]);
+
+    useEffect(() => {
+        const availableBrands = [...new Set(cards.map((card) => normalizeCardBrand(card.brand)).filter(Boolean))];
+        setInvoiceBrand((currentBrand) => (
+            availableBrands.includes(currentBrand) ? currentBrand : (availableBrands[0] || '')
+        ));
+    }, [cards]);
+
+    useEffect(() => {
+        setInvoicePage(1);
+        setExpandedInvoice(null);
+    }, [invoiceBrand]);
 
     const handleRequestCard = async (brand) => {
         setIsRequesting(true);
@@ -350,6 +375,23 @@ const CardsTab = ({ onUpdate }) => {
 
     const pendingCardApplications = cardApplications.filter((application) => ['Pendente', 'pending'].includes(application.status));
     const canRequestMoreCards = cards.length + pendingCardApplications.length < 2;
+    const availableInvoiceBrands = [...new Set(cards.map((card) => normalizeCardBrand(card.brand)).filter(Boolean))];
+    const selectedInvoiceCardIds = new Set(
+        cards
+            .filter((card) => normalizeCardBrand(card.brand) === invoiceBrand)
+            .map((card) => card.id)
+    );
+    const selectedCardInvoices = invoices.filter((invoice) => selectedInvoiceCardIds.has(invoice.card_id));
+    const totalInvoicePages = Math.max(1, Math.ceil(selectedCardInvoices.length / INVOICES_PER_PAGE));
+    const safeInvoicePage = Math.min(invoicePage, totalInvoicePages);
+    const paginatedInvoices = selectedCardInvoices.slice(
+        (safeInvoicePage - 1) * INVOICES_PER_PAGE,
+        safeInvoicePage * INVOICES_PER_PAGE
+    );
+
+    useEffect(() => {
+        setInvoicePage((currentPage) => Math.min(currentPage, totalInvoicePages));
+    }, [totalInvoicePages]);
 
     return (
         <div className="space-y-6">
@@ -438,11 +480,35 @@ const CardsTab = ({ onUpdate }) => {
               <Card className="glass-effect">
                 <CardHeader>
                   <CardTitle>Histórico de Faturas</CardTitle>
-                  <CardDescription>Visualize o histórico de faturas dos seus cartões.</CardDescription>
+                  <CardDescription>Visualize até 5 faturas por página para cada cartão.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                   {invoices.length > 0 ? (
-                      <Table>
+                   <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+                       <div className="flex flex-wrap gap-2" role="tablist" aria-label="Alternar bandeira das faturas">
+                           {availableInvoiceBrands.map((brand) => (
+                               <Button
+                                   key={brand}
+                                   type="button"
+                                   size="sm"
+                                   variant={invoiceBrand === brand ? 'default' : 'outline'}
+                                   role="tab"
+                                   aria-selected={invoiceBrand === brand}
+                                   onClick={() => setInvoiceBrand(brand)}
+                               >
+                                   <CreditCard className="mr-2 h-4 w-4" />
+                                   {getCardBrandLabel(brand)}
+                               </Button>
+                           ))}
+                       </div>
+                       {selectedCardInvoices.length > 0 && (
+                           <span className="text-xs text-muted-foreground">
+                               {selectedCardInvoices.length} {selectedCardInvoices.length === 1 ? 'fatura' : 'faturas'} em {getCardBrandLabel(invoiceBrand)}
+                           </span>
+                       )}
+                   </div>
+                   {paginatedInvoices.length > 0 ? (
+                      <>
+                        <Table>
                           <TableHeader>
                               <TableRow>
                                   <TableHead>Cartão</TableHead>
@@ -453,7 +519,7 @@ const CardsTab = ({ onUpdate }) => {
                               </TableRow>
                           </TableHeader>
                           <TableBody>
-                              {invoices.map(invoice => {
+                              {paginatedInvoices.map(invoice => {
                                   const card = cards.find(c => c.id === invoice.card_id);
                                   const isExpanded = expandedInvoice === invoice.id;
                                   return (
@@ -490,9 +556,43 @@ const CardsTab = ({ onUpdate }) => {
                                   )
                               })}
                           </TableBody>
-                      </Table>
+                        </Table>
+                        {totalInvoicePages > 1 && (
+                            <nav className="mt-5 flex items-center justify-center gap-3" aria-label="Paginação do histórico de faturas">
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => {
+                                        setInvoicePage((page) => Math.max(1, page - 1));
+                                        setExpandedInvoice(null);
+                                    }}
+                                    disabled={safeInvoicePage === 1}
+                                >
+                                    <ChevronLeft className="mr-1 h-4 w-4" />Anterior
+                                </Button>
+                                <span className="min-w-24 text-center text-sm text-muted-foreground">
+                                    Página {safeInvoicePage} de {totalInvoicePages}
+                                </span>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => {
+                                        setInvoicePage((page) => Math.min(totalInvoicePages, page + 1));
+                                        setExpandedInvoice(null);
+                                    }}
+                                    disabled={safeInvoicePage === totalInvoicePages}
+                                >
+                                    Próxima<ChevronRight className="ml-1 h-4 w-4" />
+                                </Button>
+                            </nav>
+                        )}
+                      </>
                   ) : (
-                      <p className="text-muted-foreground text-center py-8">Nenhuma fatura encontrada.</p>
+                      <p className="text-muted-foreground text-center py-8">
+                          Nenhuma fatura encontrada para o cartão {getCardBrandLabel(invoiceBrand)}.
+                      </p>
                   )}
                 </CardContent>
               </Card>

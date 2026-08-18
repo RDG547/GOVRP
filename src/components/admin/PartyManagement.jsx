@@ -20,6 +20,7 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { AlertTriangle, CheckCircle2, Edit, Loader2, Search, Trash2, Users } from 'lucide-react';
+import UserSelectOption from '@/components/UserSelectOption';
 
 const politicalOrientations = [
   'Extrema Esquerda',
@@ -77,7 +78,7 @@ const PartyManagement = () => {
       .from('political_parties')
       .select(`
         *,
-        members:party_members(user_id, role, profile:profiles(id, full_name)),
+        members:party_members(user_id, role, profile:profiles(id, full_name, username, avatar_url)),
         owner:profiles!political_parties_owner_id_fkey(full_name),
         president:profiles!political_parties_president_id_fkey(full_name),
         vice_president:profiles!political_parties_vice_president_id_fkey(full_name)
@@ -330,7 +331,7 @@ const PartyManagement = () => {
                   <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                   <SelectContent>
                     {leaderOptions.map((member) => (
-                      <SelectItem key={member.user_id} value={member.user_id}>{member.profile?.full_name}</SelectItem>
+                      <SelectItem key={member.user_id} value={member.user_id}><UserSelectOption user={member.profile} detail={member.role} /></SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -341,7 +342,7 @@ const PartyManagement = () => {
                   <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                   <SelectContent>
                     {leaderOptions.map((member) => (
-                      <SelectItem key={member.user_id} value={member.user_id}>{member.profile?.full_name}</SelectItem>
+                      <SelectItem key={member.user_id} value={member.user_id}><UserSelectOption user={member.profile} detail={member.role} /></SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -352,7 +353,7 @@ const PartyManagement = () => {
                   <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                   <SelectContent>
                     {leaderOptions.map((member) => (
-                      <SelectItem key={member.user_id} value={member.user_id}>{member.profile?.full_name}</SelectItem>
+                      <SelectItem key={member.user_id} value={member.user_id}><UserSelectOption user={member.profile} detail={member.role} /></SelectItem>
                     ))}
                   </SelectContent>
                 </Select>

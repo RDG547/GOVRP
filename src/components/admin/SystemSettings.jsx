@@ -30,6 +30,7 @@ import { formatCurrency, parseCurrency } from '@/lib/utils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger, DialogClose } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import UserSelectOption from '@/components/UserSelectOption';
 import {
     GLOBAL_SERVICE_AVAILABILITY_KEY,
     normalizeServiceAvailabilitySettings,
@@ -330,7 +331,17 @@ const PayUserInvoiceManager = ({ onUpdate }) => {
             if (error) {
                 toast({ title: "Erro ao buscar usuários com faturas", variant: "destructive" });
             } else {
-                setUsersWithInvoices(data);
+                const invoiceUsers = data || [];
+                const userIds = invoiceUsers.map((currentUser) => currentUser.id);
+                const profileResponse = userIds.length
+                    ? await supabase.from('profiles').select('id, username, avatar_url').in('id', userIds)
+                    : { data: [], error: null };
+                const profilesById = new Map((profileResponse.data || []).map((profile) => [profile.id, profile]));
+
+                setUsersWithInvoices(invoiceUsers.map((currentUser) => ({
+                    ...currentUser,
+                    ...(profilesById.get(currentUser.id) || {}),
+                })));
             }
         };
         fetchUsers();
@@ -385,7 +396,11 @@ const PayUserInvoiceManager = ({ onUpdate }) => {
                         <SelectTrigger><SelectValue placeholder="Selecione um usuário..." /></SelectTrigger>
                         <SelectContent>
                              <ScrollArea className="h-72">
-                                {usersWithInvoices.map(u => <SelectItem key={u.id} value={u.id}>{u.full_name}</SelectItem>)}
+                                {usersWithInvoices.map((currentUser) => (
+                                    <SelectItem key={currentUser.id} value={currentUser.id}>
+                                        <UserSelectOption user={currentUser} detail={currentUser.username ? `@${currentUser.username}` : ''} />
+                                    </SelectItem>
+                                ))}
                             </ScrollArea>
                         </SelectContent>
                     </Select>
@@ -446,7 +461,7 @@ const AssetManager = ({ onUpdate, assetType }) => {
 
     useEffect(() => {
         const fetchUsers = async () => {
-            const { data, error } = await supabase.from('profiles').select('id, full_name');
+            const { data, error } = await supabase.from('profiles').select('id, full_name, username, avatar_url');
             if (error) {
                 toast({ title: "Erro ao buscar usuários", variant: "destructive" });
             } else {
@@ -536,7 +551,11 @@ const AssetManager = ({ onUpdate, assetType }) => {
                         <SelectTrigger><SelectValue placeholder="Selecione um usuário..." /></SelectTrigger>
                         <SelectContent>
                              <ScrollArea className="h-72">
-                                {users.map(u => <SelectItem key={u.id} value={u.id}>{u.full_name}</SelectItem>)}
+                                {users.map((currentUser) => (
+                                    <SelectItem key={currentUser.id} value={currentUser.id}>
+                                        <UserSelectOption user={currentUser} detail={currentUser.username ? `@${currentUser.username}` : ''} />
+                                    </SelectItem>
+                                ))}
                             </ScrollArea>
                         </SelectContent>
                     </Select>

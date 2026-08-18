@@ -112,8 +112,8 @@ const DocumentField = ({ label, value, className = '' }) => {
 };
 
 const DocumentContainer = ({ children, className = '' }) => (
-    <div data-official-document className={`relative aspect-[1.42/1] w-full max-w-[470px] flex flex-col overflow-hidden shadow-lg border rounded-lg p-2.5 sm:p-3 ${className}`}>
-        <div className="relative z-10 flex h-full flex-col">
+    <div data-official-document className={`relative box-border aspect-[47/33] w-full max-w-[470px] shrink-0 overflow-hidden rounded-lg border p-2.5 shadow-lg sm:p-3 ${className}`}>
+        <div className="relative z-10 flex h-full min-h-0 flex-col overflow-hidden">
             {children}
         </div>
     </div>
@@ -163,25 +163,25 @@ const RGDocument = ({ user, doc, side }) => {
     <DocumentContainer className="bg-gradient-to-br from-gray-100 to-blue-50 text-black font-sans">
         {side === 'front' ? (
             <>
-                <header className="flex items-center justify-between pb-1 sm:pb-2 border-b-2 border-black">
-                    <h1 className="font-bold text-[0.6rem] sm:text-base">REPÚBLICA FEDERATIVA DE GOV.RP</h1>
-                    <img src={SEAL_IMAGE} alt="Selo" className="w-8 h-8 sm:w-12 sm:h-12 object-contain"/>
+                <header className="flex shrink-0 items-center justify-between border-b-2 border-black pb-1">
+                    <h1 className="font-bold text-[0.6rem] sm:text-sm">REPÚBLICA FEDERATIVA DE GOV.RP</h1>
+                    <img src={SEAL_IMAGE} alt="Selo" className="h-8 w-8 object-contain sm:h-10 sm:w-10"/>
                 </header>
-                <p className="text-center font-semibold text-[0.5rem] sm:text-sm mt-1 sm:mt-2">SECRETARIA DE SEGURANÇA PÚBLICA</p>
-                <p className="text-center font-bold text-[0.8rem] sm:text-xl">CARTEIRA DE IDENTIDADE</p>
-                <main className="flex-grow flex gap-2 sm:gap-3 mt-1 sm:mt-3">
-                    <div className="w-1/4 flex flex-col items-center justify-between">
-                        <img src={user.avatar_url} alt="Foto" className="w-full aspect-[3/4] object-cover border-2 border-gray-400"/>
-                        <div className="w-full aspect-square mt-1 border border-black p-0.5">
+                <p className="mt-1 shrink-0 text-center font-semibold text-[0.5rem] sm:text-[0.68rem]">SECRETARIA DE SEGURANÇA PÚBLICA</p>
+                <p className="shrink-0 text-center font-bold text-[0.8rem] sm:text-base">CARTEIRA DE IDENTIDADE</p>
+                <main className="mt-1 flex min-h-0 flex-grow gap-2 sm:gap-3">
+                    <div className="flex w-1/4 min-h-0 flex-col items-center">
+                        <img src={user.avatar_url} alt="Foto" className="h-[52%] min-h-0 w-full object-cover border-2 border-gray-400"/>
+                        <div className="mt-1 h-[31%] min-h-0 w-full border border-black p-0.5">
                            <FingerprintSVG seed={user.id} />
                         </div>
-                        <p className="text-[0.4rem] sm:text-[9px] mt-1 text-center">POLEGAR DIREITO</p>
+                        <p className="mt-1 shrink-0 text-center text-[0.4rem] sm:text-[8px]">POLEGAR DIREITO</p>
                     </div>
-                    <div className="w-3/4 space-y-1 sm:space-y-1.5 text-[0.5rem] sm:text-[11px] p-1">
+                    <div className="grid min-h-0 w-3/4 grid-cols-2 content-start gap-x-2 gap-y-0.5 p-0.5 text-[0.5rem] sm:text-[11px]">
                         <DocumentField label="REGISTRO GERAL" value={formatRG(doc.document_number)} className="text-red-600 font-mono" />
                         <DocumentField label="DATA DE EXPEDIÇÃO" value={new Date(doc.issued_at).toLocaleDateString('pt-BR')} />
-                        <DocumentField label="NOME" value={user.full_name?.toUpperCase()} />
-                        <DocumentField label="FILIAÇÃO" value="NÃO INFORMADO" />
+                        <DocumentField label="NOME" value={user.full_name?.toUpperCase()} className="col-span-2" />
+                        <DocumentField label="FILIAÇÃO" value="NÃO INFORMADO" className="col-span-2" />
                         <DocumentField label="NATURALIDADE" value="GOV - RP" />
                         <DocumentField label="DATA NASC." value={dateOfBirth} />
                         <DocumentField label="DOC. ORIGEM" value="N/A" />
@@ -416,8 +416,8 @@ const PassportDocument = ({ user, doc, side }) => {
                 <p className="text-xl sm:text-3xl font-bold tracking-wider">PASSAPORTE</p>
             </div>
         ) : (
-            <div className="flex h-full flex-col gap-2 rounded-md bg-white/80 p-2 sm:p-3">
-                 <div className="flex items-start justify-between gap-3 border-b border-slate-200 pb-1.5">
+            <div className="flex h-full min-h-0 flex-col gap-2 overflow-hidden rounded-md bg-white/80 p-2 sm:p-3">
+                 <div className="flex shrink-0 items-start justify-between gap-3 border-b border-slate-200 pb-1.5">
                     <div>
                         <p className="text-[0.56rem] sm:text-[0.72rem] text-slate-500 tracking-[0.24em]">PASSAPORTE</p>
                         <p className="text-[0.44rem] sm:text-[0.54rem] uppercase tracking-[0.18em] text-slate-400">República Federativa de GOV.RP</p>
@@ -427,12 +427,12 @@ const PassportDocument = ({ user, doc, side }) => {
                     </div>
                  </div>
 
-                 <div className="grid min-h-0 flex-1 grid-cols-[90px_1fr] gap-2.5 sm:grid-cols-[108px_1fr] sm:gap-3">
-                    <div className="overflow-hidden rounded-md border border-slate-200 bg-slate-100">
+                 <div className="grid min-h-0 flex-1 grid-cols-[90px_1fr] gap-2.5 overflow-hidden sm:grid-cols-[108px_1fr] sm:gap-3">
+                    <div className="min-h-0 overflow-hidden rounded-md border border-slate-200 bg-slate-100">
                         <img src={user.avatar_url} alt="Foto" className="h-full w-full object-cover"/>
                     </div>
 
-                    <div className="grid grid-cols-2 content-start gap-x-2.5 gap-y-1.5 sm:gap-x-3 sm:gap-y-2">
+                    <div className="grid min-h-0 grid-cols-2 content-start gap-x-2.5 gap-y-1 sm:gap-x-3 sm:gap-y-1.5">
                         <PassportField label="Tipo/Type" value="P" />
                         <PassportField label="País/Country" value="GOV" />
                         <PassportField label="Passaporte Nº" value={doc.document_number} className="col-span-2" />
@@ -445,7 +445,7 @@ const PassportDocument = ({ user, doc, side }) => {
                     </div>
                  </div>
 
-                 <div className="rounded-md border border-slate-200 bg-slate-50 px-2 py-1.5 font-mono text-[0.42rem] leading-none tracking-[0.12em] text-slate-900 sm:px-3 sm:text-[0.5rem]">
+                 <div className="shrink-0 rounded-md border border-slate-200 bg-slate-50 px-2 py-1.5 font-mono text-[0.42rem] leading-none tracking-[0.12em] text-slate-900 sm:px-3 sm:text-[0.5rem]">
                     <p className="overflow-hidden whitespace-nowrap">{mrzLineOne}</p>
                     <p className="mt-1 overflow-hidden whitespace-nowrap">{mrzLineTwo}</p>
                  </div>

@@ -15,6 +15,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { parseCurrency, formatCurrency } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import UserSelectOption from '@/components/UserSelectOption';
 
 const NewConvictionDialog = ({ onConvictionAdded }) => {
     const { user } = useAuth();
@@ -34,7 +35,7 @@ const NewConvictionDialog = ({ onConvictionAdded }) => {
             const fetchUsers = async () => {
                 const { data, error } = await supabase
                   .from('profiles')
-                  .select('id, full_name')
+                  .select('id, full_name, username, avatar_url')
                   .order('full_name', { ascending: true });
                 if (error) {
                     toast({ title: 'Erro ao buscar usuários', variant: 'destructive' });
@@ -105,7 +106,11 @@ const NewConvictionDialog = ({ onConvictionAdded }) => {
                             </SelectTrigger>
                             <SelectContent>
                                 <ScrollArea className="h-72">
-                                    {users.map(u => <SelectItem key={u.id} value={u.id}>{u.full_name}</SelectItem>)}
+                                    {users.map((currentUser) => (
+                                        <SelectItem key={currentUser.id} value={currentUser.id}>
+                                            <UserSelectOption user={currentUser} detail={currentUser.username ? `@${currentUser.username}` : ''} />
+                                        </SelectItem>
+                                    ))}
                                 </ScrollArea>
                             </SelectContent>
                         </Select>
@@ -147,7 +152,7 @@ const NewFineDialog = ({ onFineAdded }) => {
             const fetchUsers = async () => {
                 const { data, error } = await supabase
                   .from('profiles')
-                  .select('id, full_name')
+                  .select('id, full_name, username, avatar_url')
                   .order('full_name', { ascending: true });
                 if (error) {
                     toast({ title: 'Erro ao buscar usuários', variant: 'destructive' });
@@ -206,7 +211,11 @@ const NewFineDialog = ({ onFineAdded }) => {
                             <SelectTrigger id="user_id"><SelectValue placeholder="Selecione um usuário" /></SelectTrigger>
                             <SelectContent>
                                 <ScrollArea className="h-72">
-                                    {users.map(u => <SelectItem key={u.id} value={u.id}>{u.full_name}</SelectItem>)}
+                                    {users.map((currentUser) => (
+                                        <SelectItem key={currentUser.id} value={currentUser.id}>
+                                            <UserSelectOption user={currentUser} detail={currentUser.username ? `@${currentUser.username}` : ''} />
+                                        </SelectItem>
+                                    ))}
                                 </ScrollArea>
                             </SelectContent>
                         </Select>
