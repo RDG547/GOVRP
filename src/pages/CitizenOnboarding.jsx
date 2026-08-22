@@ -78,6 +78,11 @@ const CitizenOnboarding = () => {
       toast({ title: 'Não foi possível carregar o registro', description: error.message, variant: 'destructive' });
       return;
     }
+    if (!data?.profile) {
+      setLoading(false);
+      setLoadError('Não foi possível carregar o Registro Nacional.');
+      return;
+    }
     const profile = data.profile;
     setState(data);
     setAccountCompletion({
@@ -130,7 +135,7 @@ const CitizenOnboarding = () => {
   const currentStep = ceremony ? 'citizenship' : profile?.onboarding_step || 'welcome';
   const progressIndex = getProgressIndex(currentStep);
   const selectedAspiration = ASPIRATIONS.find((item) => item.key === profile?.initial_aspiration);
-  const accountNeedsCompletion = !state.account_identity?.real_full_name || !state.account_identity?.real_date_of_birth || !state.account_identity?.phone;
+  const accountNeedsCompletion = !state?.account_identity?.real_full_name || !state?.account_identity?.real_date_of_birth || !state?.account_identity?.phone;
 
   const run = async (key, callback) => {
     if (working) return;
@@ -276,7 +281,7 @@ const CitizenOnboarding = () => {
       <div className="relative min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top,#12372a_0,#07111f_38%,#020617_100%)] px-4 pb-12 pt-[max(1rem,env(safe-area-inset-top))] text-white sm:px-6">
         <div className="pointer-events-none absolute inset-0 opacity-20 [background-image:linear-gradient(rgba(255,255,255,.04)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.04)_1px,transparent_1px)] [background-size:36px_36px]" />
         <div className="relative mx-auto max-w-6xl">
-          <div className="mb-5 flex items-center justify-between gap-3 border-b border-white/10 pb-4"><div className="flex items-center gap-3"><img src="/icon-192x192.png" alt="GOVRP" className="h-10 w-10 rounded-xl" /><div><p className="font-semibold">Registro Nacional</p><p className="text-xs text-slate-400">Cidadania GOVRP · versão 2</p></div></div><Button variant="ghost" onClick={logout}><LogOut className="mr-2 h-4 w-4" />Sair</Button></div>
+          <div className="mb-5 flex items-center justify-between gap-3 border-b border-white/10 pb-4"><div className="flex items-center gap-3"><img src="/icon-192x192.png" alt="GOVRP" className="h-10 w-10 rounded-xl" /><div><p className="font-semibold">Registro Nacional</p><p className="text-xs text-slate-400">Cidadania GOVRP</p></div></div><Button variant="ghost" onClick={logout}><LogOut className="mr-2 h-4 w-4" />Sair</Button></div>
 
           {currentStep !== 'welcome' && <div className="mb-8 rounded-2xl border border-white/10 bg-slate-950/55 p-4"><div className="mb-3 flex items-center justify-between text-xs text-slate-300"><span>Etapa {progressIndex + 1} de {PROGRESS_STEPS.length}</span><span>{PROGRESS_STEPS[progressIndex]?.label}</span></div><div className="flex gap-1.5" aria-label={`Etapa ${progressIndex + 1} de ${PROGRESS_STEPS.length}`}>{PROGRESS_STEPS.map((item, index) => <div key={item.key} className={`h-2 flex-1 rounded-full ${index <= progressIndex ? 'bg-gradient-to-r from-emerald-500 to-blue-500' : 'bg-white/10'}`} />)}</div></div>}
 
