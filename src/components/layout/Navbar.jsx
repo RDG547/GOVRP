@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Menu, X, ChevronDown, Settings, LayoutDashboard, Tally5, Landmark, Store, FileText, Library, Archive, MessageSquare, Users, Newspaper, Home as HomeIcon, Heart, HelpCircle, Headphones as Headset, Grid, BookOpen, LogOut, Scale, Gavel, Shield, Vote, Eye, ShieldCheck, HeartHandshake as Handcuffs, Map, Siren, Wifi, Zap, Droplet, Smartphone, Wrench, LogIn, UserPlus, Flame, GraduationCap, Briefcase, Building2 } from 'lucide-react';
+import { Menu, X, ChevronDown, Settings, LayoutDashboard, Tally5, Landmark, Store, FileText, Library, Archive, MessageSquare, Users, Newspaper, Home as HomeIcon, Heart, HelpCircle, Headphones as Headset, Grid, LogOut, Scale, Gavel, Shield, Vote, Eye, ShieldCheck, HeartHandshake as Handcuffs, Map, Siren, Wifi, Zap, Droplet, Smartphone, Wrench, LogIn, UserPlus, Flame, GraduationCap, Briefcase, Building2, ScrollText, Info } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
@@ -30,8 +30,8 @@ const formatServiceMenuLabel = (serviceName) => `${serviceName} (${getServiceIni
 const helpLinks = [
     { name: 'Contato e Suporte', path: '/support', icon: Headset, color: "text-blue-400" },
     { name: 'FAQ', path: '/faq', icon: HelpCircle, color: "text-yellow-400" },
-    { name: 'Docs', path: '/docs', icon: BookOpen, color: "text-green-400" },
-    { name: 'Sobre Nós', path: '/about', icon: BookOpen, color: "text-purple-400" },
+    { name: 'Guias', path: '/docs', icon: ScrollText, color: "text-green-400" },
+    { name: 'Sobre Nós', path: '/about', icon: Info, color: "text-purple-400" },
 ];
 
 const Navbar = () => {
@@ -399,7 +399,7 @@ const MobileBottomNav = ({
             className={itemClass(servicesOpen || isServicesRoute)}
           >
             <span className="relative">
-              <LayoutDashboard className="h-5 w-5" />
+              <Grid className="h-5 w-5" />
               <ChevronDown
                 className={`absolute -right-3 -top-1 h-3 w-3 transition-transform ${
                   servicesOpen ? '' : 'rotate-180'

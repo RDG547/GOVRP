@@ -1,5 +1,14 @@
 # Changelog do GOV.RP
 
+## 26 de agosto de 2026
+
+- Nova Central de Suporte com protocolos, acompanhamento e conversa dentro do GOV.RP.
+- Câmbio ampliado para seis moedas, com variação diária, histórico e cotações ligadas à economia do país.
+- Objetivos do cidadão, grupos da população e acontecimentos nacionais passam a integrar a evolução do RP.
+- Página do País renovada, Constituição com leitura completa e histórico parlamentar enriquecido.
+- Notícias, faturas, documentos, ícones, seletores de usuário, contadores públicos e administração receberam correções e melhorias.
+- Changelog completo para jogadores: `docs/CHANGELOG_JOGADORES_2026-08-26.md`.
+
 ## 17 de agosto de 2026
 
 ### Conta, personagem e cidadania

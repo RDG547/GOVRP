@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { BookOpen, Siren, Shield, Users, Code, Server, Landmark, Store, FileText, MessageSquare, Library, Archive, ArrowRight, GitBranch, HelpCircle, Scale, Gavel, Vote, Eye, ShieldCheck, Headphones, Banknote, Home, Wifi, Zap, Droplet, Smartphone, Wrench, Flame, LineChart, Newspaper, Tally5, Building2 } from 'lucide-react';
+import { BookOpen, Siren, Shield, Users, Server, Landmark, Store, FileText, MessageSquare, Library, Archive, ArrowRight, HelpCircle, Scale, Gavel, Vote, Eye, ShieldCheck, Headphones, Banknote, Home, Wifi, Zap, Droplet, Smartphone, Wrench, Flame, LineChart, Newspaper, Tally5, Building2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
@@ -16,7 +16,6 @@ const sections = [
   { id: 'servicos', title: 'Serviços', icon: Server },
   { id: 'seguranca', title: 'Segurança', icon: Shield },
   { id: 'regras', title: 'Regras', icon: Users },
-  { id: 'desenvolvedores', title: 'Desenvolvedores', icon: Code },
   { id: 'suporte', title: 'Suporte', icon: Headphones },
 ];
 
@@ -324,19 +323,6 @@ const SectionContent = ({ id }) => {
           <li><strong>Bugs e Exploits:</strong> Aproveitar-se de bugs é ilegal. Reporte qualquer bug encontrado à equipe.</li>
         </ul>
         <p className="mt-4">Para a lista completa, consulte nossos <Link to="/terms" className="text-primary hover:underline">Termos de Serviço</Link>.</p>
-      </div>
-    ),
-    desenvolvedores: (
-      <div>
-        <h3 className="text-2xl font-bold text-foreground mb-4">Junte-se à Construção do Futuro</h3>
-        <p className="mb-4">GOV.RP é um projeto de código aberto e adoraríamos ter sua ajuda! Se você é desenvolvedor, pode contribuir para o nosso ecossistema.</p>
-        <p className="mb-4">Nosso código está no GitHub. Sinta-se à vontade para clonar o repositório, verificar os `issues` e submeter `pull requests`.</p>
-        <a href="https://github.com/RDG547/GOVRP" target="_blank" rel="noopener noreferrer">
-          <Button variant="outline">
-            <GitBranch className="w-5 h-5 mr-2" />
-            Acessar Repositório no GitHub
-          </Button>
-        </a>
       </div>
     ),
     suporte: (

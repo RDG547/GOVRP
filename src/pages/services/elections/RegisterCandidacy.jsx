@@ -26,6 +26,7 @@ import {
   getConsecutivePresidentialWins,
 } from '@/lib/executiveGovernance';
 import { fetchWithSessionAuth } from '@/lib/apiAuth';
+import UserSelectOption from '@/components/UserSelectOption';
 
 const candidacySchema = z.object({
   election_id: z.string().uuid('Selecione uma eleição válida.'),
@@ -602,7 +603,7 @@ const RegisterCandidacy = ({ onFinished }) => {
                       <SelectContent>
                         {viceCandidates.map((candidate) => (
                           <SelectItem key={candidate.id} value={candidate.id}>
-                            {candidate.full_name || candidate.username}
+                            <UserSelectOption user={candidate} detail={candidate.username ? `@${candidate.username}` : candidate.role} />
                           </SelectItem>
                         ))}
                       </SelectContent>

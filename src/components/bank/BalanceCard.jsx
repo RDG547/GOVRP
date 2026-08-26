@@ -97,7 +97,7 @@ const BalanceCard = ({ account, onUpdate, onTransferClick, onPayClick }) => {
       <div className="relative z-10">
         <div className="flex justify-between items-start mb-4">
           <div className="text-left">
-            <p className="text-sm text-blue-200/80"><span className="text-base">{currencyFlags.BRL}</span> Saldo em Conta</p>
+            <p className="text-sm text-blue-200/80"><span className="text-base">{currencyFlags.BRL}</span> Saldo principal · Real Brasileiro (BRL)</p>
             <div className="flex items-center gap-2">
               <p className="text-4xl font-bold">
                 {isBalanceVisible ? formatCurrency(allBalances.BRL || 0) : 'R$ ••••••'}

@@ -11,6 +11,7 @@ const NewsSection = () => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [interactionVersion, setInteractionVersion] = useState(0);
   const touchStartX = useRef(null);
+  const pointerStartX = useRef(null);
 
   const fetchNews = useCallback(async ({ quiet = false } = {}) => {
     if (!quiet) setLoading(true);
@@ -73,6 +74,21 @@ const NewsSection = () => {
     goTo(delta < 0 ? currentIndex + 1 : currentIndex - 1);
   };
 
+  const handlePointerDown = (event) => {
+    if (event.pointerType !== 'mouse' || event.button !== 0) return;
+    pointerStartX.current = event.clientX;
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+  };
+
+  const handlePointerUp = (event) => {
+    if (pointerStartX.current == null) return;
+    const delta = event.clientX - pointerStartX.current;
+    pointerStartX.current = null;
+    event.currentTarget.releasePointerCapture?.(event.pointerId);
+    if (Math.abs(delta) < 40) return;
+    goTo(delta < 0 ? currentIndex + 1 : currentIndex - 1);
+  };
+
   const iconMap = {
     'Política': Megaphone,
     'Economia': TrendingUp,
@@ -98,7 +114,15 @@ const NewsSection = () => {
           </div>
         ) : news.length ? (
           <div className="mx-auto max-w-3xl" aria-roledescription="carrossel" aria-label="Três notícias mais recentes">
-            <div className="overflow-hidden rounded-2xl" onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
+            <div
+              className="cursor-grab overflow-hidden rounded-2xl active:cursor-grabbing"
+              style={{ touchAction: 'pan-y' }}
+              onTouchStart={handleTouchStart}
+              onTouchEnd={handleTouchEnd}
+              onPointerDown={handlePointerDown}
+              onPointerUp={handlePointerUp}
+              onDragStart={(event) => event.preventDefault()}
+            >
               <div
                 className="flex transition-transform duration-500 ease-out motion-reduce:transition-none"
                 style={{ transform: `translateX(-${currentIndex * 100}%)` }}

@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Github, Mail, Heart, HelpCircle, Headphones as Headset, BookOpen, Newspaper, Landmark, Store, FileText, Users, Scroll, ArrowRight, Home as HomeIcon, Map } from 'lucide-react';
+import { Mail, Heart, HelpCircle, Headphones as Headset, BookOpen, Newspaper, Landmark, Store, FileText, Users, Scroll, ArrowRight, Home as HomeIcon, Map } from 'lucide-react';
 import { FaWhatsapp, FaDiscord, FaTelegram } from 'react-icons/fa';
 import { cn } from '@/lib/utils';
 
@@ -37,9 +37,6 @@ const Footer = ({ disableTopSpacing = false }) => {
               O ecossistema definitivo para roleplay político.
             </p>
             <div className="flex space-x-5 items-center">
-              <motion.a whileHover={{ scale: 1.2, y: -2 }} href="https://github.com/RDG547/GOVRP" target="_blank" rel="noopener noreferrer" className={socialLink}>
-                <Github className="w-5 h-5" />
-              </motion.a>
               <motion.a whileHover={{ scale: 1.2, y: -2 }} href="https://chat.whatsapp.com/KKqiDj1HyxM97NK9YAFNnj" target="_blank" rel="noopener noreferrer" className={socialLink}>
                 <FaWhatsapp size={22} />
               </motion.a>
@@ -85,7 +82,7 @@ const Footer = ({ disableTopSpacing = false }) => {
                 <Link to="/faq" className={footerLink}>
                     <HelpCircle className="w-4 h-4"/> FAQ
                 </Link>
-                <Link to="/docs" className={footerLink}><Scroll className="w-4 h-4"/> Docs</Link>
+                <Link to="/docs" className={footerLink}><Scroll className="w-4 h-4"/> Guias do Cidadão</Link>
             </div>
           </div>
           

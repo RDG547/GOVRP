@@ -6,7 +6,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader2, Edit, Trash2, Search, Wallet, Crown, KeyRound, Filter, CreditCard, User, Shield, Scale, Gavel, Briefcase, ChevronLeft, ChevronRight, Landmark, RotateCcw } from 'lucide-react';
+import { Loader2, Edit, Trash2, Search, Wallet, Crown, KeyRound, Filter, CreditCard, User, Shield, Scale, Gavel, Briefcase, ChevronLeft, ChevronRight, Landmark, AlertTriangle } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -15,7 +15,6 @@ import {
   DialogDescription,
   DialogFooter,
   DialogClose,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import { parseCurrency, formatCurrency } from '@/lib/utils';
 import {
@@ -30,6 +29,31 @@ import { Badge } from '@/components/ui/badge';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Slider } from '@/components/ui/slider';
 import { Separator } from '@/components/ui/separator';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+    AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+
+const CITIZENSHIP_STEP_LABELS = {
+    welcome: 'Boas-vindas',
+    identity: 'Identidade do cidadão',
+    origin: 'Origem e residência',
+    profile: 'Perfil público',
+    civil_documents: 'Documentos civis',
+    mandatory_documents: 'Documentos obrigatórios',
+    initial_status: 'Situação inicial',
+    citizenship: 'Concessão da cidadania',
+    completed: 'Concluída',
+};
+
+const formatCitizenshipStep = (step) => CITIZENSHIP_STEP_LABELS[step] || 'Etapa pendente';
 
 const ModifyBalanceDialog = ({ user, onFinish }) => {
     const [amount, setAmount] = useState('');
@@ -236,7 +260,7 @@ const EditUserDialog = ({ user, onFinish, onUpdate }) => {
                 <div><Label htmlFor="full_name">Nome civil do personagem</Label><Input id="full_name" value={formData.full_name} onChange={handleChange} /></div>
                 <div><Label htmlFor="username">Username público</Label><Input id="username" value={formData.username} onChange={handleChange} /></div>
                 <div><Label htmlFor="character_birth_date">Nascimento do personagem</Label><Input id="character_birth_date" type="date" value={formData.character_birth_date} onChange={handleChange} /></div>
-                <div><Label htmlFor="onboarding_step">Etapa do onboarding</Label><Select value={formData.onboarding_step} onValueChange={(value) => setFormData((current) => ({ ...current, onboarding_step: value }))}><SelectTrigger id="onboarding_step"><SelectValue /></SelectTrigger><SelectContent>{['welcome','identity','origin','profile','civil_documents','mandatory_documents','initial_status','citizenship','completed'].map((value) => <SelectItem key={value} value={value}>{value}</SelectItem>)}</SelectContent></Select></div>
+                <div><Label htmlFor="onboarding_step">Etapa da jornada de cidadania</Label><Select value={formData.onboarding_step} onValueChange={(value) => setFormData((current) => ({ ...current, onboarding_step: value }))}><SelectTrigger id="onboarding_step"><SelectValue /></SelectTrigger><SelectContent>{Object.entries(CITIZENSHIP_STEP_LABELS).map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}</SelectContent></Select></div>
                 <div>
                     <Label htmlFor="role">Cargo</Label>
                     <Select value={formData.role} onValueChange={handleRoleChange}>
@@ -736,14 +760,6 @@ const UserManagement = () => {
 
 const UserActionButtons = ({ user, adminUser, setModifyingBalanceUser, setChangingPasswordUser, setEditingUser, handleDeleteUser, setManagingCardLimitUser, deletingUserId }) => {
     const isDeleting = deletingUserId === user.id;
-    const { toast } = useToast();
-    const [resettingOnboarding, setResettingOnboarding] = useState(false);
-    const resetOnboarding = async () => {
-        setResettingOnboarding(true);
-        const { error } = await supabase.rpc('admin_reset_citizen_onboarding', { p_user_id: user.id });
-        setResettingOnboarding(false);
-        toast(error ? { title: 'Falha ao reiniciar primeiro acesso', description: error.message, variant: 'destructive' } : { title: 'Primeiro acesso reiniciado', description: `${user.full_name} confirmará novamente os dados. Documentos, saldo, partido, cargos e histórico foram preservados.` });
-    };
     return (
         <>
             {user.has_bank_account && (
@@ -762,26 +778,29 @@ const UserActionButtons = ({ user, adminUser, setModifyingBalanceUser, setChangi
             <Button variant="ghost" size="icon" onClick={() => setEditingUser({...user})} title="Editar Usuário">
                 <Edit className="w-4 h-4 text-blue-400" />
             </Button>
-            <Button variant="ghost" size="icon" onClick={resetOnboarding} disabled={resettingOnboarding || user.id === adminUser.id} title="Reiniciar primeiro acesso">
-                {resettingOnboarding ? <Loader2 className="h-4 w-4 animate-spin" /> : <RotateCcw className="h-4 w-4 text-cyan-400" />}
-            </Button>
-            <Dialog>
-                <DialogTrigger asChild>
+            <AlertDialog>
+                <AlertDialogTrigger asChild>
                     <Button variant="ghost" size="icon" disabled={user.id === adminUser.id} title="Excluir Usuário">
                         <Trash2 className="w-4 h-4 text-red-400" />
                     </Button>
-                </DialogTrigger>
-                <DialogContent className="glass-effect text-white">
-                    <DialogHeader><DialogTitle>Confirmar Exclusão</DialogTitle><DialogDescription className="text-gray-300">Tem certeza que deseja excluir o usuário {user.full_name}? Esta ação é irreversível e removerá todos os dados associados.</DialogDescription></DialogHeader>
-                    <DialogFooter>
-                        <DialogClose asChild><Button variant="outline" disabled={isDeleting}>Cancelar</Button></DialogClose>
-                        <Button variant="destructive" disabled={isDeleting} onClick={() => handleDeleteUser(user.id, user.full_name)}>
-                            {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                            Excluir Permanentemente
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
+                </AlertDialogTrigger>
+                <AlertDialogContent className="max-w-md text-center sm:text-left">
+                    <AlertDialogHeader>
+                        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-red-500/15 text-red-300 sm:mx-0"><AlertTriangle className="h-6 w-6" /></div>
+                        <AlertDialogTitle>Remover a conta de {user.full_name}?</AlertDialogTitle>
+                        <AlertDialogDescription className="text-gray-300">
+                            O acesso e os dados pessoais serão apagados. Registros econômicos, legislativos e jurídicos serão anonimizados e preservados para manter a integridade dos históricos.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter className="mt-2 grid grid-cols-1 gap-3 sm:flex sm:gap-2">
+                        <AlertDialogCancel disabled={isDeleting} className="mt-0">Cancelar</AlertDialogCancel>
+                        <AlertDialogAction disabled={isDeleting} onClick={() => handleDeleteUser(user.id, user.full_name)} className="bg-red-600 text-white hover:bg-red-700">
+                            {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
+                            Remover conta
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </>
     );
 };
@@ -814,8 +833,8 @@ const UserCard = ({ user, adminUser, setModifyingBalanceUser, setChangingPasswor
                 </div>
             </div>
             <div className="flex flex-wrap items-center gap-2 text-xs">
-                <Badge variant={user.onboarding_completed ? 'default' : 'secondary'}>{user.onboarding_completed ? 'Cidadania concluída' : `Etapa: ${user.onboarding_step}`}</Badge>
-                <span className="text-gray-500">v{user.onboarding_version || 1} · {user.document_types?.length || 0} docs</span>
+                <Badge variant={user.onboarding_completed ? 'default' : 'secondary'}>{user.onboarding_completed ? 'Cidadania concluída' : formatCitizenshipStep(user.onboarding_step)}</Badge>
+                <span className="text-gray-500">{user.document_types?.length || 0} documentos</span>
             </div>
             <div className="flex flex-wrap gap-1 pt-1 border-t border-slate-700">
                 <UserActionButtons user={user} adminUser={adminUser} setModifyingBalanceUser={setModifyingBalanceUser} setChangingPasswordUser={setChangingPasswordUser} setEditingUser={setEditingUser} handleDeleteUser={handleDeleteUser} setManagingCardLimitUser={setManagingCardLimitUser} deletingUserId={deletingUserId} />
@@ -835,7 +854,7 @@ const UserRow = ({ user, adminUser, setModifyingBalanceUser, setChangingPassword
                 <div className="font-medium text-white">{user.full_name}</div>
                 <div className="text-xs text-gray-400">@{user.username}</div>
                 <div className="mt-1 text-xs text-blue-300">Conta: {user.real_full_name || 'pendente'}</div>
-                <div className="mt-1 text-xs text-gray-500">{user.onboarding_completed ? 'Cidadania concluída' : `Onboarding: ${user.onboarding_step}`} · v{user.onboarding_version || 1}</div>
+                <div className="mt-1 text-xs text-gray-500">{user.onboarding_completed ? 'Cidadania concluída' : `Jornada: ${formatCitizenshipStep(user.onboarding_step)}`}</div>
             </td>
             <td className="px-6 py-4 text-gray-400 truncate">{user.email}</td>
             <td className="px-6 py-4 font-mono text-green-400">

@@ -5,7 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from '@/components/ui/button';
 import { useToast } from "@/components/ui/use-toast";
 import { useNavigate, Link } from 'react-router-dom';
-import { Heart, DollarSign, Users, Code, Share2, Award, Globe, Rocket } from 'lucide-react';
+import { Heart, DollarSign, Users, Share2, Award, Globe, Rocket, Lightbulb } from 'lucide-react';
 import PageHeader from '@/components/layout/PageHeader';
 
 const SupportUs = () => {
@@ -37,14 +37,14 @@ const SupportUs = () => {
 
   const supportWays = [
     { icon: DollarSign, title: 'Doação Financeira', description: 'Contribua diretamente para os custos de desenvolvimento e manutenção.', actionText: 'Ver Opções de Doação', action: () => navigate('/donation'), color: 'text-green-400' },
-    { icon: Code, title: 'Contribuição Técnica', description: 'Ajude no desenvolvimento com código, testes ou documentação em nosso GitHub.', actionText: 'Acessar GitHub', action: () => window.open('https://github.com/RDG547/GOVRP', '_blank'), color: 'text-blue-400' },
+    { icon: Lightbulb, title: 'Ideias para o Futuro', description: 'Compartilhe propostas de experiência, eventos e novos caminhos para a comunidade.', actionText: 'Enviar uma Ideia', action: () => navigate('/support'), color: 'text-blue-400' },
     { icon: Users, title: 'Feedback e Ideias', description: 'Compartilhe sugestões e reporte bugs para melhorar a experiência de todos.', actionText: 'Enviar Feedback', action: () => navigate('/support'), color: 'text-purple-400' },
     { icon: Share2, title: 'Divulgação', description: 'Ajude a espalhar a palavra sobre o GOV.RP em suas redes sociais e comunidades.', actionText: 'Compartilhar Projeto', action: handleShare, color: 'text-sky-400' },
   ];
   
   const impactAreas = [
     { icon: Globe, title: 'Infraestrutura', description: 'Servidores, CDN e ferramentas', color: 'text-green-400' },
-    { icon: Code, title: 'Desenvolvimento', description: 'Novos recursos e melhorias', color: 'text-blue-400' },
+    { icon: Rocket, title: 'Desenvolvimento', description: 'Novos recursos e melhorias', color: 'text-blue-400' },
     { icon: Users, title: 'Comunidade', description: 'Moderação, eventos e suporte', color: 'text-purple-400' },
     { icon: Rocket, title: 'Inovação', description: 'Pesquisa e novas tecnologias', color: 'text-yellow-400' },
   ];

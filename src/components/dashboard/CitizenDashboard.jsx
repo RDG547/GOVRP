@@ -17,6 +17,7 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/components/ui/use-toast';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import Inventory from '@/components/dashboard/Inventory';
+import CitizenObjectives from '@/components/dashboard/CitizenObjectives';
 
 const StatCard = ({ title, value, icon: Icon, color, description }) => (
   <Card className="glass-effect h-full">
@@ -406,6 +407,8 @@ const CitizenDashboard = () => {
               ))}
             </CardContent>
           </Card>
+
+          <CitizenObjectives />
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-6">
             <StatCard title="Saldo em Conta" value={formatCurrency(data.balance)} icon={Banknote} color="text-green-400" description="Disponível para uso imediato." />

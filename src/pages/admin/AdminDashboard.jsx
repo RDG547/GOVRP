@@ -7,6 +7,7 @@ import {
   BarChart3,
   Crown,
   Flag,
+  Headphones,
   Newspaper,
   Settings,
   ShieldCheck,
@@ -24,6 +25,7 @@ import ElectionManagement from '@/components/admin/ElectionManagement';
 import CandidacyManagement from '@/components/admin/CandidacyManagement';
 import PartyManagement from '@/components/admin/PartyManagement';
 import GovernanceSystems from '@/components/admin/GovernanceSystems';
+import SupportManagement from '@/components/admin/SupportManagement';
 
 const tabs = [
   { id: 'analytics', label: 'Análises', icon: BarChart3, component: SiteAnalytics },
@@ -33,6 +35,7 @@ const tabs = [
   { id: 'elections', label: 'Eleições', icon: Vote, component: ElectionManagement },
   { id: 'parties', label: 'Partidos', icon: Flag, component: PartyManagement },
   { id: 'content', label: 'Conteúdo', icon: Newspaper, component: ContentModeration },
+  { id: 'support', label: 'Suporte', icon: Headphones, component: SupportManagement },
   { id: 'settings', label: 'Sistema e Serviços', icon: Settings, component: SystemSettings },
 ];
 
