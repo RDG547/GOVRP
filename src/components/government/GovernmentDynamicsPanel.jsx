@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/use-toast';
 import UserSelectOption from '@/components/UserSelectOption';
+import { fetchActiveMinistersWithProfiles } from '@/lib/ministers';
 
 const emptyMinistry = { id: null, name: '', acronym: '', description: '', responsibilities: '', annual_budget: '0', is_active: true };
 const emptyOutlet = { id: null, name: '', editor_id: '', editorial_profile: 'neutro', credibility_score: '60', is_active: true };
@@ -45,14 +46,17 @@ const GovernmentDynamicsPanel = () => {
       supabase.from('government_popularity_events').select('*').eq('country_code', 'BR').order('created_at', { ascending: false }).limit(30),
       supabase.from('national_indicator_points').select('*').eq('country_code', 'BR').order('recorded_at', { ascending: true }).limit(500),
       supabase.from('government_ministries').select('*').order('name'),
-      supabase.from('ministers').select('*, profile:profiles!ministers_user_id_fkey(id, full_name)').eq('status', 'active').order('appointed_at', { ascending: false }),
+      fetchActiveMinistersWithProfiles(supabase),
       supabase.from('minister_history').select('*').order('created_at', { ascending: false }).limit(60),
       supabase.from('media_outlets').select('*').order('name'),
       supabase.from('government_media_contracts').select('*, outlet:media_outlets(name)').order('created_at', { ascending: false }).limit(40),
       supabase.from('public_integrity_cases').select('*').order('created_at', { ascending: false }).limit(40),
       supabase.from('profiles').select('id, full_name, username, avatar_url').order('full_name').limit(300),
     ]);
-    const error = popularity.error || events.error || indicators.error || ministries.error || ministers.error || ministerHistory.error || outlets.error || contracts.error || integrityCases.error || profiles.error;
+    if (ministers.error || ministers.warning) {
+      console.warn('Não foi possível carregar todos os dados ministeriais:', ministers.error || ministers.warning);
+    }
+    const error = popularity.error || events.error || indicators.error || ministries.error || ministerHistory.error || outlets.error || contracts.error || integrityCases.error || profiles.error;
     if (error) throw error;
     setData({ popularity: popularity.data, events: events.data || [], indicators: indicators.data || [], ministries: ministries.data || [], ministers: ministers.data || [], ministerHistory: ministerHistory.data || [], outlets: outlets.data || [], contracts: contracts.data || [], integrityCases: integrityCases.data || [], profiles: profiles.data || [] });
     setIndicatorCode((current) => current || indicators.data?.at(-1)?.indicator_code || '');

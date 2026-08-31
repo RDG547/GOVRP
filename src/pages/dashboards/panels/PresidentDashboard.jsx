@@ -48,6 +48,7 @@ import {
 import { fetchWithSessionAuth } from '@/lib/apiAuth';
 import { applyPolicy } from '@/lib/economy/api';
 import UserSelectOption from '@/components/UserSelectOption';
+import { fetchActiveMinistersWithProfiles } from '@/lib/ministers';
 
 const MINISTRY_INFO = {
     'Ministério da Justiça': { icon: Shield, color: 'text-blue-400', bgColor: 'bg-blue-500/20' },
@@ -2329,30 +2330,38 @@ const PresidentDashboard = () => {
         if (showLoading) setLoading(true);
         try {
             const [ministersRes, ministriesRes, decreesRes, settingsRes, financesRes, economicStateRes, executiveStateRes] = await Promise.all([
-                supabase
-                    .from('ministers')
-                    .select('*, profile:profiles!ministers_user_id_fkey(id, full_name)')
-                    .eq('status', 'active'),
+                fetchActiveMinistersWithProfiles(supabase),
                 supabase.from('government_ministries').select('*').order('name'),
                 supabase.from('decrees').select('*').order('created_at', { ascending: false }),
                 supabase.from('system_settings').select('key, value'),
                 supabase.from('government_finances').select('*').single(),
                 supabase.from('economic_state').select('current_selic').eq('id', true).single(),
-                fetchExecutiveConstitutionalState(supabase),
+                fetchExecutiveConstitutionalState(supabase)
+                    .then((data) => ({ data, error: null }))
+                    .catch((error) => ({ data: null, error })),
             ]);
 
-            if (ministersRes.error) throw ministersRes.error;
-            if (ministriesRes.error) throw ministriesRes.error;
-            if (decreesRes.error) throw decreesRes.error;
             if (settingsRes.error) throw settingsRes.error;
             if (financesRes.error) throw financesRes.error;
-            if (economicStateRes.error) throw economicStateRes.error;
 
-            setMinisters(ministersRes.data || []);
-            setMinistries(ministriesRes.data || []);
-            setDecrees(decreesRes.data || []);
+            const optionalErrors = [
+                ministersRes.error,
+                ministersRes.warning,
+                ministriesRes.error,
+                decreesRes.error,
+                economicStateRes.error,
+                executiveStateRes.error,
+            ].filter(Boolean);
+
+            if (optionalErrors.length > 0) {
+                console.warn('Alguns dados complementares do painel presidencial não foram carregados:', optionalErrors);
+            }
+
+            if (!ministersRes.error) setMinisters(ministersRes.data || []);
+            if (!ministriesRes.error) setMinistries(ministriesRes.data || []);
+            if (!decreesRes.error) setDecrees(decreesRes.data || []);
             setGovFinances(financesRes.data);
-            setExecutiveState(executiveStateRes);
+            if (!executiveStateRes.error) setExecutiveState(executiveStateRes.data);
 
             const settingsMap = settingsRes.data.reduce((acc, item) => {
                 acc[item.key] = item.value;
@@ -2383,7 +2392,9 @@ const PresidentDashboard = () => {
             setBaseTariffs(settingsMap.base_tariffs || {});
             const normalizedEconomicPolicy = normalizeEconomicPolicy({
                 ...settingsMap[ECONOMIC_POLICY_SETTINGS_KEY],
-                selic_rate: economicStateRes.data.current_selic,
+                selic_rate: economicStateRes.data?.current_selic
+                    ?? settingsMap[ECONOMIC_POLICY_SETTINGS_KEY]?.selic_rate
+                    ?? DEFAULT_ECONOMIC_POLICY.selic_rate,
             });
             setEconomicPolicy(normalizedEconomicPolicy);
             setBankPolicy(
