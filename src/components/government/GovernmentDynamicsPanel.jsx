@@ -45,7 +45,7 @@ const GovernmentDynamicsPanel = () => {
       supabase.from('government_popularity_events').select('*').eq('country_code', 'BR').order('created_at', { ascending: false }).limit(30),
       supabase.from('national_indicator_points').select('*').eq('country_code', 'BR').order('recorded_at', { ascending: true }).limit(500),
       supabase.from('government_ministries').select('*').order('name'),
-      supabase.from('ministers').select('*, profile:profiles(id, full_name)').eq('status', 'active').order('appointed_at', { ascending: false }),
+      supabase.from('ministers').select('*, profile:profiles!ministers_user_id_fkey(id, full_name)').eq('status', 'active').order('appointed_at', { ascending: false }),
       supabase.from('minister_history').select('*').order('created_at', { ascending: false }).limit(60),
       supabase.from('media_outlets').select('*').order('name'),
       supabase.from('government_media_contracts').select('*, outlet:media_outlets(name)').order('created_at', { ascending: false }).limit(40),

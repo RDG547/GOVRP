@@ -80,6 +80,12 @@ const suggestionQueries = [
 ].join('\n');
 verify('autor de sugestões usa relacionamento inequívoco', (suggestionQueries.match(/profiles!bill_suggestions_author_id_fkey/g) || []).length === 3);
 
+const ministerQueries = [
+  rootFile('src/pages/dashboards/panels/PresidentDashboard.jsx'),
+  rootFile('src/components/government/GovernmentDynamicsPanel.jsx'),
+].join('\n');
+verify('titular de ministério usa relacionamento inequívoco', (ministerQueries.match(/profiles!ministers_user_id_fkey/g) || []).length === 2);
+
 const envPath = new URL('../.env', import.meta.url);
 if (existsSync(envPath)) {
   const values = Object.fromEntries(
@@ -103,11 +109,14 @@ if (existsSync(envPath)) {
       db.rpc('get_public_wanted_list'),
       db.rpc('get_police_efficiency_metrics'),
       db.from('bill_suggestions').select('id, author:profiles!bill_suggestions_author_id_fkey(id)').limit(1),
+      db.from('ministers').select('id, profile:profiles!ministers_user_id_fkey(id, full_name)').limit(1),
+      db.from('system_settings').select('key, value').in('key', ['government_budget', 'tax_rates']),
     ]);
     const errors = results.map((result) => result.error).filter(Boolean);
     verify('smoke test do Supabase remoto', errors.length === 0);
     verify('estrutura ministerial inicial disponível', Number(results[1].count) >= 1);
     verify('popularidade nacional inicializada', Boolean(results[2].data));
+    verify('orçamento e impostos disponíveis', results[7].data?.length === 2);
   }
 }
 

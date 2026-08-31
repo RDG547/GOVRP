@@ -2329,7 +2329,10 @@ const PresidentDashboard = () => {
         if (showLoading) setLoading(true);
         try {
             const [ministersRes, ministriesRes, decreesRes, settingsRes, financesRes, economicStateRes, executiveStateRes] = await Promise.all([
-                supabase.from('ministers').select('*, profile:profiles(id, full_name)').eq('status', 'active'),
+                supabase
+                    .from('ministers')
+                    .select('*, profile:profiles!ministers_user_id_fkey(id, full_name)')
+                    .eq('status', 'active'),
                 supabase.from('government_ministries').select('*').order('name'),
                 supabase.from('decrees').select('*').order('created_at', { ascending: false }),
                 supabase.from('system_settings').select('key, value'),
