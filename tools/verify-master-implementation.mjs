@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import process from 'node:process';
 
 const rootFile = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
@@ -7,6 +7,11 @@ const verify = (label, condition) => {
   if (!condition) throw new Error(`Falha: ${label}`);
   checks.push(label);
 };
+
+const countFilesRecursively = (directoryUrl) => readdirSync(directoryUrl, { withFileTypes: true })
+  .reduce((total, entry) => total + (entry.isDirectory()
+    ? countFilesRecursively(new URL(`${entry.name}/`, directoryUrl))
+    : 1), 0);
 
 const migrations = [
   'supabase/migrations/20260815100000_core_identity_parties_and_server_time.sql',
@@ -56,9 +61,12 @@ verify('investimentos atômicos e idempotentes', investments.includes('for updat
 const donationsServer = rootFile('server/donations/http.js');
 const stripeEndpoint = rootFile('api/donations/stripe-checkout.js');
 const vercelConfig = rootFile('vercel.json');
+const electionEndpoint = rootFile('api/elections/[action].js');
 const frontendSource = [rootFile('src/pages/DonationPage.jsx'), rootFile('src/pages/Login.jsx'), rootFile('src/pages/Register.jsx')].join('\n');
 verify('webhook Stripe valida assinatura', donationsServer.includes('constructEvent') && donationsServer.includes('STRIPE_WEBHOOK_SECRET'));
 verify('checkout e webhook Stripe compartilham uma função Vercel', stripeEndpoint.includes("request.headers['stripe-signature']") && vercelConfig.includes('/api/donations/stripe-webhook') && !existsSync(new URL('../api/donations/stripe-webhook.js', import.meta.url)));
+verify('quantidade de Functions respeita o limite Hobby da Vercel', countFilesRecursively(new URL('../api/', import.meta.url)) <= 12);
+verify('rotas eleitorais compartilham uma única Function', ['cancel-candidacy', 'resign-presidency', 'respond-vice-invitation', 'submit-candidacy', 'sync-offices'].every((action) => electionEndpoint.includes(`'${action}'`)));
 verify('chave secreta Stripe ausente do frontend', !/STRIPE_SECRET_KEY|sk_(live|test)_/i.test(frontendSource));
 verify('hCaptcha integrado no login e cadastro', frontendSource.includes('HCaptchaChallenge') && frontendSource.includes('captchaToken'));
 
