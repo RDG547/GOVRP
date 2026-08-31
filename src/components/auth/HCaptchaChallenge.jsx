@@ -1,5 +1,4 @@
 import React, { useEffect, useRef } from 'react';
-import { AlertTriangle } from 'lucide-react';
 
 const HCAPTCHA_SCRIPT_ID = 'govrp-hcaptcha-script';
 let scriptPromise;
@@ -72,12 +71,7 @@ const HCaptchaChallenge = ({ onVerify, resetKey = 0 }) => {
   }, [resetKey, onVerify]);
 
   if (!siteKey) {
-    return (
-      <div className="flex gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-100" role="status">
-        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-        <span>A proteção hCaptcha aguarda a chave pública do ambiente.</span>
-      </div>
-    );
+    return null;
   }
 
   return <div ref={containerRef} className="min-h-[78px] overflow-x-auto" aria-label="Verificação antirrobô" />;

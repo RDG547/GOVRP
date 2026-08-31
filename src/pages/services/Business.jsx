@@ -56,9 +56,9 @@ const ProductCard = ({ product, onAddToCart, onBuy, onEdit, onDelete, isOwner })
   const finalPrice = promotionalPriceWithTax ?? originalPriceWithTax;
 
   const seller = product.seller;
-  const isBusiness = seller.role === 'PJ';
+  const isBusiness = Boolean(seller.business_id) || seller.role === 'PJ';
   const businessDoc = seller.documents?.find(d => d.type === 'CNPJ');
-  const businessName = isBusiness ? businessDoc?.metadata?.company_name : null;
+  const businessName = seller.business_name || (isBusiness ? businessDoc?.metadata?.company_name : null);
   const businessCnpj = isBusiness ? businessDoc?.document_number : null;
 
   const handleCardClick = (e) => {

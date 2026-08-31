@@ -7,7 +7,7 @@ export const ELECTION_OFFICE_SYNC_SETTINGS_KEY = 'election_office_sync';
 
 const dedupe = (values = []) => [...new Set(values.filter(Boolean))];
 
-export const syncElectionOffices = async ({ force = false } = {}) => {
+export const syncElectionOffices = async ({ force = false, accessToken = '' } = {}) => {
   const now = Date.now();
 
   if (!force && inFlightSync) {
@@ -22,6 +22,7 @@ export const syncElectionOffices = async ({ force = false } = {}) => {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
+      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
     },
   })
     .then(async (response) => {

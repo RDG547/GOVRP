@@ -79,7 +79,8 @@ const TransferDialog = ({ isOpen, setIsOpen, onTransferSuccess }) => {
             p_sender_id: user.id,
             p_recipient_id: recipientInfo.user_id,
             p_amount: parseCurrency(amount),
-            p_description: description
+            p_description: description,
+            p_idempotency_key: crypto.randomUUID(),
         });
 
         if (error || !data.success) {

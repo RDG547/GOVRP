@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { runEconomicClose } from '@/lib/economy/api';
+import AdminTransactionHistory from '@/features/economy/components/AdminTransactionHistory';
 import {
   calibrationLabels,
   economicEventLabels,
@@ -136,6 +137,8 @@ const AdminEconomyPanel = ({ data, toast, onRefresh }) => {
           </CardContent>
         </Card>
       </div>
+
+      <AdminTransactionHistory />
     </div>
   );
 };

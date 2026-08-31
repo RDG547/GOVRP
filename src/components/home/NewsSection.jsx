@@ -15,11 +15,10 @@ const NewsSection = () => {
 
   const fetchNews = useCallback(async ({ quiet = false } = {}) => {
     if (!quiet) setLoading(true);
-    const { data, error } = await supabase
-      .from('news_articles')
-      .select('id, title, content, image_url, created_at, category:news_categories(name)')
-      .order('created_at', { ascending: false })
-      .limit(3);
+    const { data, error } = await supabase.rpc('get_national_feed', {
+      p_limit: 3,
+      p_offset: 0,
+    });
 
     if (error) {
       console.error('Erro ao buscar notícias:', error);
@@ -33,14 +32,13 @@ const NewsSection = () => {
   useEffect(() => {
     void fetchNews();
 
-    const channel = supabase
-      .channel('home-latest-news')
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'news_articles',
-      }, () => void fetchNews({ quiet: true }))
-      .subscribe();
+    let channel = supabase.channel('home-national-feed');
+    ['news_articles', 'dou_entries', 'national_media_briefs'].forEach((table) => {
+      channel = channel.on('postgres_changes', {
+        event: '*', schema: 'public', table,
+      }, () => void fetchNews({ quiet: true }));
+    });
+    channel.subscribe();
 
     return () => {
       void supabase.removeChannel(channel);
@@ -90,9 +88,10 @@ const NewsSection = () => {
   };
 
   const iconMap = {
-    'Política': Megaphone,
-    'Economia': TrendingUp,
-    'Geral': Newspaper,
+    politics: Megaphone,
+    Política: Megaphone,
+    economy: TrendingUp,
+    Economia: TrendingUp,
   };
 
   return (
@@ -128,7 +127,10 @@ const NewsSection = () => {
                 style={{ transform: `translateX(-${currentIndex * 100}%)` }}
               >
             {news.map((item) => {
-              const Icon = iconMap[item.category?.name] || Newspaper;
+              const Icon = iconMap[item.category] || Newspaper;
+              const itemLink = item.source_type === 'article' && item.article_id
+                ? `/news/${item.article_id}`
+                : item.source_type === 'official_gazette' ? '/news?tab=dou' : '/news';
               return (
                 <motion.div
                   key={item.id}
@@ -146,15 +148,15 @@ const NewsSection = () => {
                       <Icon className="w-6 h-6 text-white" />
                     </div>
                     <div>
-                      <p className="text-sm font-medium text-blue-400">{item.category?.name || 'Geral'}</p>
+                      <p className="text-sm font-medium text-blue-400">{item.category || 'Geral'}</p>
                       <h3 className="text-xl font-bold text-white leading-tight">{item.title}</h3>
                     </div>
                   </div>
-                  <p className="text-gray-300 mb-4 flex-grow line-clamp-3">{item.content}</p>
+                  <p className="text-gray-300 mb-4 flex-grow line-clamp-3">{item.summary}</p>
                   <div className="flex justify-between items-center mt-auto">
-                    <p className="text-sm text-gray-400">{new Date(item.created_at).toLocaleDateString('pt-BR')}</p>
-                    <Link to={`/news/${item.id}`} className="flex items-center text-blue-400 hover:underline">
-                      Ler mais <ArrowRight className="w-4 h-4 ml-1" />
+                    <p className="text-sm text-gray-400">{new Date(item.published_at).toLocaleDateString('pt-BR')}</p>
+                    <Link to={itemLink} className="flex items-center text-blue-400 hover:underline">
+                      {item.source_type === 'article' ? 'Ler mais' : 'Ver publicação'} <ArrowRight className="w-4 h-4 ml-1" />
                     </Link>
                   </div>
                   </div>
@@ -197,8 +199,9 @@ const NewsSection = () => {
             transition={{ delay: 0.3 }}
         >
             <Link to="/news">
-                <Button size="lg" className="bg-gradient-to-r from-blue-500 to-purple-500 text-white">
+                <Button size="lg" className="bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:from-blue-700 hover:to-purple-700">
                     Ver Todas as Notícias
+                    <ArrowRight className="ml-2 h-5 w-5" />
                 </Button>
             </Link>
         </motion.div>

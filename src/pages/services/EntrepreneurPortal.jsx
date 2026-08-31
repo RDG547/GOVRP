@@ -900,8 +900,7 @@ const EntrepreneurPortal = () => {
           businessTypeId: business.id,
           companyName,
           description: business.description,
-          minEmployees: business.minEmployees,
-          registrationFee: business.registrationFee,
+          idempotencyKey: crypto.randomUUID(),
         }),
       });
       const payload = await response.json().catch(() => ({}));

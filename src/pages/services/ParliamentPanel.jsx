@@ -86,6 +86,15 @@ const COLORS = {
   Abster: '#6b7280',
 };
 
+const LEGAL_EFFECT_OPTIONS = [
+  ['none', 'Sem efeito sistêmico direto'],
+  ['corporate_tax_rate', 'Alíquota sobre empresas'],
+  ['consumption_tax_rate', 'Alíquota sobre consumo'],
+  ['business_license_fee', 'Taxa de abertura de empresa'],
+  ['public_safety_policy_index', 'Índice de política de segurança'],
+  ['social_welfare_policy_index', 'Índice de bem-estar social'],
+];
+
 const resolveHouseDetails = (houseId, availableHouses = []) => {
   const matchedHouse = availableHouses.find((item) => item.id === houseId);
   const houseName = matchedHouse?.name || 'Casa Legislativa';
@@ -229,7 +238,7 @@ const ParliamentPanel = () => {
   const [commissionTypeFilter, setCommissionTypeFilter] = useState('all');
   const [commissionStatusFilter, setCommissionStatusFilter] = useState('all');
   const [isProposeBillOpen, setIsProposeBillOpen] = useState(false);
-  const [newBill, setNewBill] = useState({ title: '', summary: '', full_text: '', type: 'PL' });
+  const [newBill, setNewBill] = useState({ title: '', summary: '', full_text: '', type: 'PL', effect_key: 'none', effect_operation: 'set', effect_value: '', effect_explanation: '' });
   const [proposingBill, setProposingBill] = useState(false);
   const [votingOn, setVotingOn] = useState(null);
   const [commissionActionId, setCommissionActionId] = useState('');
@@ -597,12 +606,16 @@ const ParliamentPanel = () => {
 
     setProposingBill(true);
     try {
-      const { data: createdBill, error } = await supabase.rpc('propose_parliament_bill', {
+      const { data: createdBill, error } = await supabase.rpc('propose_parliament_bill_with_effect', {
         p_title: newBill.title,
         p_summary: newBill.summary,
         p_full_text: newBill.full_text,
         p_type: newBill.type,
         p_house_id: house.id,
+        p_effect_key: newBill.effect_key === 'none' ? null : newBill.effect_key,
+        p_effect_operation: newBill.effect_operation,
+        p_effect_value: newBill.effect_key === 'none' ? null : Number(newBill.effect_value),
+        p_effect_explanation: newBill.effect_explanation || newBill.summary,
       });
       if (error) {
         throw error;
@@ -625,7 +638,7 @@ const ParliamentPanel = () => {
 
       toast({ title: 'Sucesso', description: 'Projeto proposto com sucesso.' });
       setIsProposeBillOpen(false);
-      setNewBill({ title: '', summary: '', full_text: '', type: 'PL' });
+      setNewBill({ title: '', summary: '', full_text: '', type: 'PL', effect_key: 'none', effect_operation: 'set', effect_value: '', effect_explanation: '' });
       fetchPanelData();
     } catch (error) {
       toast({
@@ -1947,12 +1960,21 @@ const ParliamentPanel = () => {
                 onChange={(event) => setNewBill((current) => ({ ...current, full_text: event.target.value }))}
               />
             </div>
+            <div className="rounded-xl border border-cyan-500/20 bg-cyan-500/5 p-4">
+              <Label>Efeito prático da norma</Label>
+              <p className="mb-3 mt-1 text-xs text-muted-foreground">Se aplicável, defina qual regra do país mudará quando a norma entrar em vigor.</p>
+              <Select value={newBill.effect_key} onValueChange={(value) => setNewBill((current) => ({ ...current, effect_key: value }))}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>{LEGAL_EFFECT_OPTIONS.map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}</SelectContent>
+              </Select>
+              {newBill.effect_key !== 'none' ? <div className="mt-4 grid gap-4 sm:grid-cols-2"><div><Label>Forma da alteração</Label><Select value={newBill.effect_operation} onValueChange={(value) => setNewBill((current) => ({ ...current, effect_operation: value }))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="set">Definir valor</SelectItem><SelectItem value="add">Somar ao valor atual</SelectItem><SelectItem value="multiply">Multiplicar o valor atual</SelectItem></SelectContent></Select></div><div><Label htmlFor="bill-effect-value">Valor</Label><Input id="bill-effect-value" type="number" step="0.01" value={newBill.effect_value} onChange={(event) => setNewBill((current) => ({ ...current, effect_value: event.target.value }))} /></div><div className="sm:col-span-2"><Label htmlFor="bill-effect-explanation">Como o efeito será aplicado</Label><Textarea id="bill-effect-explanation" value={newBill.effect_explanation} onChange={(event) => setNewBill((current) => ({ ...current, effect_explanation: event.target.value }))} placeholder="Explique a consequência prática prevista no texto da norma." /></div></div> : null}
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsProposeBillOpen(false)}>
               Cancelar
             </Button>
-            <Button onClick={handleProposeBill} disabled={proposingBill}>
+            <Button onClick={handleProposeBill} disabled={proposingBill || (newBill.effect_key !== 'none' && (!newBill.effect_value || newBill.effect_explanation.trim().length < 20))}>
               {proposingBill ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
               Propor Projeto
             </Button>

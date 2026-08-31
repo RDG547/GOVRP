@@ -38,7 +38,9 @@ const ProductFormDialog = ({ isOpen, setIsOpen, product, onSuccess }) => {
   const [showPromotion, setShowPromotion] = useState(false);
   const [showCustomCategory, setShowCustomCategory] = useState(false);
   const [customCategory, setCustomCategory] = useState('');
+  const [businesses, setBusinesses] = useState([]);
   const [formData, setFormData] = useState({
+    business_id: '',
     name: '',
     description: '',
     price: '',
@@ -90,6 +92,7 @@ const ProductFormDialog = ({ isOpen, setIsOpen, product, onSuccess }) => {
     if (product) {
       const isPredefined = PREDEFINED_CATEGORIES.includes(product.category);
       setFormData({
+        business_id: product.business_id || product.seller?.business_id || '',
         name: product.name || '',
         description: product.description || '',
         price: product.price ? formatCurrency(product.price, true) : '',
@@ -108,6 +111,7 @@ const ProductFormDialog = ({ isOpen, setIsOpen, product, onSuccess }) => {
       }
     } else {
       setFormData({
+        business_id: '',
         name: '',
         description: '',
         price: '',
@@ -125,6 +129,19 @@ const ProductFormDialog = ({ isOpen, setIsOpen, product, onSuccess }) => {
     }
     setImageFile(null);
   }, [product, isOpen]);
+
+  useEffect(() => {
+    if (!isOpen || !user?.id) return;
+    supabase.from('businesses').select('id,name,status').eq('owner_id', user.id).in('status', ['active', 'pending']).order('name')
+      .then(({ data, error }) => {
+        if (error) {
+          toast({ title: 'Não foi possível carregar suas empresas', description: error.message, variant: 'destructive' });
+          return;
+        }
+        setBusinesses(data || []);
+        setFormData((current) => ({ ...current, business_id: current.business_id || data?.[0]?.id || '' }));
+      });
+  }, [isOpen, toast, user?.id]);
 
   const handleChange = (e) => {
     const { id, value } = e.target;
@@ -162,6 +179,10 @@ const ProductFormDialog = ({ isOpen, setIsOpen, product, onSuccess }) => {
 
       if (!formData.name.trim()) {
         throw new Error('Informe o nome do produto.');
+      }
+
+      if (!formData.business_id) {
+        throw new Error('Selecione a empresa responsável pelo produto.');
       }
 
       if (!finalImageUrl && !imageFile) {
@@ -209,30 +230,22 @@ const ProductFormDialog = ({ isOpen, setIsOpen, product, onSuccess }) => {
         }
       }
 
-      const productData = {
-        ...formData,
-        category: finalCategory,
-        seller_id: user.id,
-        price: normalizedPrice,
-        stock: formData.product_type === 'one-time' ? normalizedStock : null,
-        subscription_interval:
-          formData.product_type === 'subscription' ? formData.subscription_interval : null,
-        subscription_price:
-          formData.product_type === 'subscription' ? normalizedPrice : null,
-        image_url: finalImageUrl,
-        promotion_price: showPromotion && normalizedPromotionPrice > 0 ? normalizedPromotionPrice : null,
-        promotion_expires_at:
-          showPromotion && normalizedPromotionPrice > 0 && formData.promotion_expires_at
-            ? new Date(formData.promotion_expires_at).toISOString()
-            : null,
-      };
-
-      delete productData.price_formatted;
-      delete productData.promotion_price_formatted;
-
-      const { error } = product
-        ? await supabase.from('products').update(productData).eq('id', product.id)
-        : await supabase.from('products').insert(productData);
+      const { error } = await supabase.rpc('save_business_product', {
+        p_product_id: product?.id || null,
+        p_business_id: formData.business_id,
+        p_name: formData.name,
+        p_description: formData.description,
+        p_price: normalizedPrice,
+        p_image_url: finalImageUrl,
+        p_product_type: formData.product_type,
+        p_subscription_interval: formData.product_type === 'subscription' ? formData.subscription_interval : null,
+        p_category: finalCategory,
+        p_stock: formData.product_type === 'one-time' ? normalizedStock : null,
+        p_promotion_price: showPromotion && normalizedPromotionPrice > 0 ? normalizedPromotionPrice : null,
+        p_promotion_expires_at: showPromotion && normalizedPromotionPrice > 0 && formData.promotion_expires_at
+          ? new Date(formData.promotion_expires_at).toISOString()
+          : null,
+      });
 
       if (error) throw error;
 
@@ -252,6 +265,7 @@ const ProductFormDialog = ({ isOpen, setIsOpen, product, onSuccess }) => {
           <DialogTitle>{product ? 'Editar Produto' : 'Adicionar Novo Produto'}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="max-h-[calc(90vh-5rem)] space-y-4 overflow-y-auto px-6 pb-6 pt-4 custom-scrollbar">
+          <div className="space-y-2"><Label>Empresa vendedora</Label><Select value={formData.business_id} onValueChange={(value) => handleSelectChange('business_id', value)}><SelectTrigger><SelectValue placeholder="Selecione sua empresa" /></SelectTrigger><SelectContent>{businesses.map((business) => <SelectItem key={business.id} value={business.id}>{business.name}{business.status === 'pending' ? ' (aguardando ativação)' : ''}</SelectItem>)}</SelectContent></Select>{!businesses.length ? <p className="text-xs text-amber-300">Abra uma empresa no Portal do Empreendedor antes de anunciar.</p> : null}</div>
           <ImageUploader
             onUrlChange={(url) => setFormData(p => ({ ...p, image_url: url }))}
             onFileChange={setImageFile}

@@ -4,7 +4,7 @@ import { supabase } from '@/lib/supabaseClient';
 import { useToast } from '@/components/ui/use-toast';
 import { ArrowRight, CalendarDays, FileText, Filter, Loader2, Newspaper, Rss, ScrollText, Search, Sparkles, Users } from 'lucide-react';
 import PageHeader from '@/components/layout/PageHeader';
-import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Link, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Badge } from '@/components/ui/badge';
@@ -79,51 +79,43 @@ const GazetteEntryDialog = ({ entry, children }) => {
     );
 };
 
-const NewsCard = ({ item, type }) => {
-    const isArticle = type === 'article';
-    const title = isArticle ? item.title : item.title;
-    const description = isArticle ? item.content.substring(0, 100) + '...' : item.summary;
-    const link = isArticle ? `/news/${item.id}` : '#';
-    const imageUrl = isArticle ? item.image_url : null;
-    const author = isArticle ? item.author?.full_name : null;
-    const category = isArticle ? item.category?.name : getOfficialGazetteTypeMeta(item.type).label;
-    const publishedAt = item.published_at || item.created_at;
-    const publishedAtLabel = isArticle
-        ? format(new Date(publishedAt), "dd 'de' MMMM, yyyy", { locale: ptBR })
-        : formatOfficialGazettePublicationDate(publishedAt, {
-            includeTime: true,
-        });
+const NationalFeedCard = ({ item }) => {
+    const articleLink = item.source_type === 'article' && item.article_id
+        ? `/news/${item.article_id}`
+        : null;
+    const sourceLabel = item.source_type === 'official_gazette'
+        ? 'Diário Oficial'
+        : item.source_type === 'national_event' ? 'Acontecimento nacional' : 'Notícia';
 
     return (
-        <motion.div
-            layout
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.9 }}
-            transition={{ duration: 0.3 }}
-            className="flex"
-        >
-            <Card className="glass-effect w-full flex flex-col hover:border-primary transition-all duration-300">
-                {imageUrl && (
-                    <div className="aspect-video overflow-hidden rounded-t-lg">
-                        <img src={imageUrl} alt={title} className="w-full h-full object-cover" />
+        <motion.div layout initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="flex">
+            <Card className="glass-effect flex w-full flex-col overflow-hidden border-white/10 transition-colors hover:border-primary/40">
+                {item.image_url ? (
+                    <div className="aspect-video overflow-hidden">
+                        <img src={item.image_url} alt="" className="h-full w-full object-cover" />
                     </div>
-                )}
+                ) : null}
                 <CardHeader>
-                    {category && <Badge variant="secondary" className="mb-2 w-fit">{category}</Badge>}
-                    <CardTitle className="text-xl font-bold leading-tight">{title}</CardTitle>
-                    {author && <CardDescription>Por {author}</CardDescription>}
+                    <div className="mb-2 flex flex-wrap gap-2">
+                        <Badge variant="secondary">{sourceLabel}</Badge>
+                        {item.category ? <Badge variant="outline">{item.category}</Badge> : null}
+                    </div>
+                    <CardTitle className="text-xl leading-tight">{item.title}</CardTitle>
                 </CardHeader>
                 <CardContent className="flex-grow">
-                    <p className="text-sm text-muted-foreground line-clamp-3">{description}</p>
+                    <p className="line-clamp-4 text-sm leading-6 text-muted-foreground">{item.summary}</p>
                 </CardContent>
-                <CardFooter className="flex justify-between items-center text-xs text-muted-foreground">
-                    <span>{publishedAtLabel}</span>
-                    {isArticle && (
-                        <Link to={link} className="flex items-center text-primary hover:underline">
-                            Ler mais <ArrowRight className="w-4 h-4 ml-1" />
+                <CardFooter className="flex items-center justify-between gap-3 text-xs text-muted-foreground">
+                    <span>{format(new Date(item.published_at), "dd 'de' MMMM, yyyy", { locale: ptBR })}</span>
+                    {articleLink ? (
+                        <Link to={articleLink} className="flex items-center text-primary hover:underline">
+                            Ler mais <ArrowRight className="ml-1 h-4 w-4" />
                         </Link>
-                    )}
+                    ) : item.source_type === 'official_gazette' ? (
+                        <Link to="/news?tab=dou" className="flex items-center text-primary hover:underline">
+                            Abrir Diário <ArrowRight className="ml-1 h-4 w-4" />
+                        </Link>
+                    ) : null}
                 </CardFooter>
             </Card>
         </motion.div>
@@ -131,7 +123,7 @@ const NewsCard = ({ item, type }) => {
 };
 
 const News = () => {
-    const [articles, setArticles] = useState([]);
+    const [nationalFeed, setNationalFeed] = useState([]);
     const [douEntries, setDouEntries] = useState([]);
     const [gazetteSearchTerm, setGazetteSearchTerm] = useState('');
     const [selectedGazetteType, setSelectedGazetteType] = useState('Todos');
@@ -143,15 +135,12 @@ const News = () => {
     const fetchData = useCallback(async () => {
         setLoading(true);
         try {
-            const { data: articlesData, error: articlesError } = await supabase
-                .from('news_articles')
-                .select('*, author:profiles(full_name), category:news_categories(name, slug)')
-                .order('created_at', { ascending: false });
-
-            if (articlesError) throw articlesError;
-            setArticles(articlesData || []);
-
-            const douData = await fetchOfficialGazetteEntries(supabase);
+            const [feedResponse, douData] = await Promise.all([
+                supabase.rpc('get_national_feed', { p_limit: 50, p_offset: 0 }),
+                fetchOfficialGazetteEntries(supabase),
+            ]);
+            if (feedResponse.error) throw feedResponse.error;
+            setNationalFeed(feedResponse.data || []);
             setDouEntries(douData || []);
 
         } catch (error) {
@@ -163,6 +152,23 @@ const News = () => {
 
     useEffect(() => {
         fetchData();
+    }, [fetchData]);
+
+    useEffect(() => {
+        let refreshTimer;
+        const refresh = () => {
+            window.clearTimeout(refreshTimer);
+            refreshTimer = window.setTimeout(fetchData, 300);
+        };
+        let channel = supabase.channel('national-news-page');
+        ['news_articles', 'dou_entries', 'national_media_briefs'].forEach((table) => {
+            channel = channel.on('postgres_changes', { event: '*', schema: 'public', table }, refresh);
+        });
+        channel.subscribe();
+        return () => {
+            window.clearTimeout(refreshTimer);
+            supabase.removeChannel(channel);
+        };
     }, [fetchData]);
 
     const handleTabChange = (tab) => {
@@ -210,11 +216,11 @@ const News = () => {
         : 'Sem publicações';
 
     const renderNewsContent = () => {
-        if (!articles.length) {
+        if (!nationalFeed.length) {
             return (
                 <div className="text-center py-20 glass-effect rounded-lg">
                     <h3 className="text-2xl font-bold">Nenhuma notícia encontrada</h3>
-                    <p className="text-muted-foreground mt-2">Volte mais tarde para conferir as novidades.</p>
+                    <p className="text-muted-foreground mt-2">Ainda não há notícias, atos oficiais ou acontecimentos nacionais publicados.</p>
                 </div>
             );
         }
@@ -222,7 +228,7 @@ const News = () => {
         return (
             <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
                 <AnimatePresence>
-                    {articles.map((item) => <NewsCard key={item.id} item={item} type="article" />)}
+                    {nationalFeed.map((item) => <NationalFeedCard key={item.id} item={item} />)}
                 </AnimatePresence>
             </div>
         );

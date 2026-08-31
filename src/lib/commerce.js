@@ -27,11 +27,13 @@ export const executeProductPurchase = async ({
   productId,
   paymentMethod,
   cardId,
+  idempotencyKey = crypto.randomUUID(),
 }) => {
   const { data, error } = await supabase.rpc('buy_product', {
     p_product_id: productId,
     p_payment_method: paymentMethod,
     p_card_id: cardId || null,
+    p_idempotency_key: idempotencyKey,
   });
 
   if (error) {

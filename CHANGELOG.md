@@ -1,5 +1,17 @@
 # Changelog do GOV.RP
 
+## 30 de agosto de 2026
+
+- Eleições, votações parlamentares e posses ficaram mais seguras e passam a respeitar resultados reais.
+- Justiça agora acompanha todo o caso, da ocorrência até sentença, recurso e soltura.
+- Leis sancionadas produzem efeitos reais sobre regras, indicadores, popularidade e Diário Oficial.
+- Empresas, compras, impostos, estoque, Tesouro e histórico financeiro foram integrados.
+- Acontecimentos nacionais, grupos da população, imprensa e câmbio passam a evoluir em conjunto.
+- Cadastro cidadão, avatares, Constituição, objetivos, documentos e seletores de usuário foram aprimorados.
+- Corrigidos os contadores públicos, o total de transações, a busca administrativa de usuários e a exibição de documentos do DIC.
+- Faturas ganharam paginação e alternância entre Visa e Mastercard; decisões bancárias agora aparecem em tempo real.
+- Changelog completo para jogadores: `docs/CHANGELOG_JOGADORES_2026-08-30.md`.
+
 ## 26 de agosto de 2026
 
 - Nova Central de Suporte com protocolos, acompanhamento e conversa dentro do GOV.RP.

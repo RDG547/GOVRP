@@ -192,9 +192,6 @@ export const AuthProvider = ({ children }) => {
   const fetchUserProfile = useCallback(async (currentSession) => {
     if (currentSession?.user) {
       try {
-        await syncElectionOffices().catch((error) => {
-          console.error('Error syncing election offices before profile fetch:', error);
-        });
         await supabase.rpc('check_and_update_prisoner_status');
 
         const { data: profile, error } = await supabase
@@ -223,6 +220,11 @@ export const AuthProvider = ({ children }) => {
         } else if (error) {
           throw error;
         } else {
+          if (profile.role === 'Admin') {
+            await syncElectionOffices({ accessToken: currentSession.access_token }).catch((syncError) => {
+              console.error('Error syncing election offices for administrator:', syncError);
+            });
+          }
           const privateProfile = await attachPrivateAccountIdentity(profile, currentSession);
           return decorateProfileWithEffectiveRoles(privateProfile);
         }
@@ -271,8 +273,8 @@ export const AuthProvider = ({ children }) => {
   const refreshUser = useCallback(async ({ skipSync = false } = {}) => {
     if (session?.user?.id) {
       try {
-        if (!skipSync) {
-          await syncElectionOffices().catch((error) => {
+        if (!skipSync && user?.role === 'Admin') {
+          await syncElectionOffices({ accessToken: session.access_token }).catch((error) => {
             console.error('Error syncing election offices during refresh:', error);
           });
         }
@@ -291,15 +293,15 @@ export const AuthProvider = ({ children }) => {
         console.error('Error refreshing user profile:', error);
       }
     }
-  }, [attachPrivateAccountIdentity, decorateProfileWithEffectiveRoles, session]);
+  }, [attachPrivateAccountIdentity, decorateProfileWithEffectiveRoles, session, user?.role]);
 
   const syncOfficeStateForSessionUser = useCallback(async () => {
-    if (!session?.user?.id) {
+    if (!session?.user?.id || user?.role !== 'Admin') {
       return;
     }
 
     try {
-      const result = await syncElectionOffices();
+      const result = await syncElectionOffices({ accessToken: session.access_token });
       const changedUserIds = Array.isArray(result?.changedUserIds) ? result.changedUserIds : [];
       const grantedUserIds = Array.isArray(result?.grantedUserIds) ? result.grantedUserIds : [];
 
@@ -312,7 +314,7 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       console.error('Error synchronizing election office state for the active session:', error);
     }
-  }, [refreshUser, session?.user?.id]);
+  }, [refreshUser, session?.access_token, session?.user?.id, user?.role]);
 
   useEffect(() => {
     if (!session?.user?.id || !isPrisonSentenceActive(user)) {
@@ -329,7 +331,7 @@ export const AuthProvider = ({ children }) => {
   }, [refreshUser, session?.user?.id, user]);
 
   useEffect(() => {
-    if (!session?.user?.id) {
+    if (!session?.user?.id || user?.role !== 'Admin') {
       return undefined;
     }
 
@@ -344,7 +346,7 @@ export const AuthProvider = ({ children }) => {
       window.clearTimeout(initialTimeout);
       window.clearInterval(intervalId);
     };
-  }, [session?.user?.id, syncOfficeStateForSessionUser]);
+  }, [session?.user?.id, syncOfficeStateForSessionUser, user?.role]);
 
 
   const restoreSession = useCallback(async () => {

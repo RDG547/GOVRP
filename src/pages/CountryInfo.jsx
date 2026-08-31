@@ -37,6 +37,7 @@ import {
   Clock,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from '@/lib/supabaseClient';
 import { useToast } from '@/components/ui/use-toast';
@@ -65,61 +66,6 @@ const toFlagEmoji = (alpha2) => alpha2
   .split('')
   .map((letter) => String.fromCodePoint(letter.charCodeAt(0) + 127397))
   .join('');
-
-const constitutionSections = [
-  {
-    title: 'Preâmbulo',
-    paragraphs: ['Nós, representantes e cidadãos do GOV.RP, estabelecemos esta Constituição para organizar o Estado, proteger direitos, garantir o equilíbrio entre os Poderes e orientar a vida pública.'],
-  },
-  {
-    title: 'Título I — Princípios Fundamentais',
-    paragraphs: [
-      'Art. 1º O GOV.RP constitui-se em uma República presidencialista, democrática e soberana.',
-      'Art. 2º São Poderes da Nação, independentes e harmônicos entre si, o Executivo, o Legislativo e o Judiciário.',
-      'Art. 3º Todo poder emana do povo, que o exerce por representantes eleitos e pelos mecanismos de participação popular.',
-    ],
-  },
-  {
-    title: 'Título II — Direitos e Garantias',
-    paragraphs: [
-      'Art. 4º São assegurados aos cidadãos a dignidade, a liberdade de expressão, o devido processo legal, o acesso aos serviços públicos e a igualdade de tratamento perante as instituições do GOV.RP.',
-      'Art. 5º Nenhum cidadão será privado de seus direitos sem fundamento legal e decisão da autoridade competente.',
-    ],
-  },
-  {
-    title: 'Título III — Organização Política',
-    paragraphs: [
-      'Art. 6º O Presidente da República exerce a chefia de Estado e de Governo, nos termos desta Constituição.',
-      'Art. 7º O Parlamento representa a vontade popular, fiscaliza o Executivo e delibera sobre projetos e plebiscitos.',
-      'Art. 8º O Judiciário assegura a interpretação da lei, a garantia de direitos e a solução dos conflitos.',
-    ],
-  },
-  {
-    title: 'Participação Popular',
-    paragraphs: [
-      'Art. 9º O povo poderá sugerir projetos, participar de consultas públicas e apresentar plebiscitos na forma da lei.',
-      'Art. 10. O voto é instrumento legítimo de escolha dos representantes e de definição do rumo político do GOV.RP.',
-    ],
-  },
-  {
-    title: 'Ordem Econômica e Social',
-    paragraphs: [
-      'Art. 11. A ordem econômica observa a livre iniciativa, a função social e a responsabilidade fiscal do Estado.',
-      'Art. 12. O Estado promoverá educação, saúde, segurança, infraestrutura e acesso digital de forma progressiva.',
-    ],
-  },
-  {
-    title: 'Emendas e Revisão',
-    paragraphs: [
-      'Art. 13. A Constituição poderá ser alterada por emenda, observado o rito legislativo próprio e o interesse nacional.',
-      'Art. 14. Nenhuma emenda poderá abolir o voto popular, a separação dos Poderes e os direitos fundamentais.',
-    ],
-  },
-  {
-    title: 'Disposição Final',
-    paragraphs: ['Art. 15. Esta Constituição entra em vigor na data de sua publicação e orienta todo o funcionamento institucional do GOV.RP.'],
-  },
-];
 
 const DetailedSection = ({ title, icon: Icon, description, children }) => (
   <section className="mt-6 rounded-2xl border border-white/10 bg-slate-950/40 p-6 backdrop-blur-sm">
@@ -158,6 +104,9 @@ const CountryInfo = () => {
   const [realCountryProfile, setRealCountryProfile] = useState(null);
   const [populationSegments, setPopulationSegments] = useState([]);
   const [nationalEvents, setNationalEvents] = useState([]);
+  const [constitution, setConstitution] = useState(null);
+  const [eventDecision, setEventDecision] = useState({ eventId: '', optionId: '', reason: '' });
+  const [respondingEventId, setRespondingEventId] = useState('');
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('constituticao');
   const countryCode = (user?.residence_country_code || user?.country_code || 'BR').toUpperCase();
@@ -187,19 +136,20 @@ const CountryInfo = () => {
   }, [country]);
 
   const fetchCountryGameplay = useCallback(async () => {
-    const [segmentsResponse, eventsResponse] = await Promise.all([
+    const [segmentsResponse, eventsResponse, constitutionResponse] = await Promise.all([
       supabase
         .from('country_population_segments')
-        .select('segment_key, name, description, population_share, population_count, welfare_index')
+        .select('segment_key, name, description, population_share, population_count, welfare_index, government_approval, unemployment_pressure, purchasing_power, social_tension, last_change_reason')
         .eq('country_code', country.info.alpha2)
         .order('population_share', { ascending: false }),
       supabase
         .from('national_game_events')
-        .select('id, title, description, category, severity, status, starts_at, ends_at')
+        .select('id, title, description, category, severity, status, starts_at, ends_at, decision_options:national_event_decision_options(id, label, description, treasury_cost, is_default, authorized_roles, sort_order)')
         .eq('country_code', country.info.alpha2)
         .in('status', ['scheduled', 'active'])
         .order('starts_at', { ascending: false })
         .limit(5),
+      supabase.rpc('get_country_constitution', { p_country_code: country.info.alpha2 }),
     ]);
 
     if (!segmentsResponse.error) setPopulationSegments(segmentsResponse.data || []);
@@ -209,7 +159,36 @@ const CountryInfo = () => {
         new Date(event.starts_at).getTime() <= now && (!event.ends_at || new Date(event.ends_at).getTime() > now)
       )));
     }
+    if (!constitutionResponse.error) setConstitution(constitutionResponse.data || null);
   }, [country]);
+
+  const respondToNationalEvent = async (event) => {
+    if (!eventDecision.optionId || eventDecision.reason.trim().length < 10) {
+      toast({
+        title: 'Explique a decisão',
+        description: 'Escolha uma resposta e registre uma justificativa com pelo menos 10 caracteres.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    setRespondingEventId(event.id);
+    const { error } = await supabase.rpc('respond_national_game_event', {
+      p_event_id: event.id,
+      p_option_id: eventDecision.optionId,
+      p_reason: eventDecision.reason.trim(),
+    });
+    if (error) {
+      toast({ title: 'Decisão não registrada', description: error.message, variant: 'destructive' });
+    } else {
+      toast({
+        title: 'Resposta nacional registrada',
+        description: 'A decisão já atualizou o evento, o Tesouro e os grupos afetados.',
+      });
+      setEventDecision({ eventId: '', optionId: '', reason: '' });
+      await Promise.all([fetchCountryGameplay(), fetchGovFinances(false)]);
+    }
+    setRespondingEventId('');
+  };
 
   const fetchGovFinances = useCallback(async (showLoading = true) => {
     if (showLoading) setLoading(true);
@@ -302,6 +281,12 @@ const CountryInfo = () => {
       .on('postgres_changes', {
         event: '*', schema: 'public', table: 'national_game_events', filter: `country_code=eq.${country.info.alpha2}`,
       }, scheduleRefresh)
+      .on('postgres_changes', {
+        event: '*', schema: 'public', table: 'national_event_decision_options',
+      }, scheduleRefresh)
+      .on('postgres_changes', {
+        event: '*', schema: 'public', table: 'national_event_responses',
+      }, scheduleRefresh)
       .subscribe();
 
     return () => {
@@ -353,6 +338,48 @@ const CountryInfo = () => {
                     <span className="rounded-full bg-amber-400/10 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-amber-200">{event.severity === 'information' ? 'Informativo' : event.severity === 'attention' ? 'Atenção' : event.severity === 'important' ? 'Importante' : 'Crítico'}</span>
                   </div>
                   <p className="mt-2 text-sm text-muted-foreground">{event.description}</p>
+                  {event.ends_at ? (
+                    <p className="mt-3 text-xs text-amber-100/80">
+                      Resposta até {new Date(event.ends_at).toLocaleString('pt-BR')}
+                    </p>
+                  ) : null}
+                  {(event.decision_options || []).length ? (
+                    <div className="mt-4 space-y-2">
+                      {[...(event.decision_options || [])].sort((left, right) => left.sort_order - right.sort_order).map((option) => (
+                        <button
+                          key={option.id}
+                          type="button"
+                          disabled={!['Admin', 'Presidente'].includes(user?.role)}
+                          onClick={() => setEventDecision({ eventId: event.id, optionId: option.id, reason: '' })}
+                          className={`w-full rounded-lg border p-3 text-left transition-colors disabled:cursor-default disabled:opacity-80 ${eventDecision.eventId === event.id && eventDecision.optionId === option.id ? 'border-blue-400 bg-blue-500/10' : 'border-white/10 bg-white/[0.03] hover:bg-white/[0.06]'}`}
+                        >
+                          <span className="flex items-center justify-between gap-3 text-sm font-medium text-foreground">
+                            {option.label}
+                            {Number(option.treasury_cost) > 0 ? <span className="text-xs text-amber-200">{formatCurrency(option.treasury_cost)}</span> : null}
+                          </span>
+                          <span className="mt-1 block text-xs leading-5 text-muted-foreground">{option.description}</span>
+                          {option.is_default ? <span className="mt-2 block text-[10px] uppercase tracking-wide text-slate-400">Aplicada se o prazo encerrar</span> : null}
+                        </button>
+                      ))}
+                    </div>
+                  ) : null}
+                  {['Admin', 'Presidente'].includes(user?.role) && eventDecision.eventId === event.id ? (
+                    <div className="mt-3 space-y-3 rounded-lg border border-blue-400/20 bg-blue-500/5 p-3">
+                      <Textarea
+                        value={eventDecision.reason}
+                        onChange={(changeEvent) => setEventDecision((current) => ({ ...current, reason: changeEvent.target.value }))}
+                        placeholder="Justificativa pública da decisão"
+                        minLength={10}
+                      />
+                      <div className="flex gap-2">
+                        <Button type="button" size="sm" disabled={respondingEventId === event.id} onClick={() => respondToNationalEvent(event)}>
+                          {respondingEventId === event.id ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                          Confirmar resposta
+                        </Button>
+                        <Button type="button" size="sm" variant="ghost" onClick={() => setEventDecision({ eventId: '', optionId: '', reason: '' })}>Cancelar</Button>
+                      </div>
+                    </div>
+                  ) : null}
                 </article>
               ))}
             </div>
@@ -383,14 +410,14 @@ const CountryInfo = () => {
                       <FileText className="h-3.5 w-3.5" />
                       Constituição Federal
                     </div>
-                    <h2 className="text-3xl font-bold text-foreground">Constituição Federal</h2>
+                    <h2 className="text-3xl font-bold text-foreground">{constitution?.title || 'Constituição Federal'}</h2>
                     <p className="text-muted-foreground">
-                      Leia o texto constitucional completo diretamente no GOV.RP ou baixe a versão oficial em PDF.
+                      Versão {constitution?.version || 'vigente'} · consulte o texto persistido e seu histórico no GOV.RP.
                     </p>
                   </div>
 
                   <Button asChild className="shrink-0 border-0 bg-gradient-to-r from-blue-600 to-cyan-500 text-white hover:from-blue-700 hover:to-cyan-600">
-                    <a href={CONSTITUTION_PDF_PATH} download="constituicao-govrp.pdf">
+                    <a href={constitution?.sourceUrl || CONSTITUTION_PDF_PATH} download="constituicao-govrp.pdf">
                       <Download className="mr-2 h-4 w-4" />
                       Baixar PDF
                     </a>
@@ -400,17 +427,24 @@ const CountryInfo = () => {
                 <div className="mx-auto mt-6 max-w-4xl rounded-2xl border border-slate-200 bg-slate-50 px-5 py-8 text-slate-900 shadow-2xl sm:px-10 sm:py-12">
                   <header className="mb-10 border-b-2 border-slate-800 pb-6 text-center">
                     <p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500">República Digital</p>
-                    <h3 className="mt-3 text-2xl font-black uppercase sm:text-3xl">Constituição Federal do GOV.RP</h3>
+                    <h3 className="mt-3 text-2xl font-black uppercase sm:text-3xl">{constitution?.title || 'Constituição Federal do GOV.RP'}</h3>
                   </header>
                   <div className="space-y-9">
-                    {constitutionSections.map((section) => (
+                    {constitution?.preamble ? (
+                      <section>
+                        <h4 className="mb-4 border-l-4 border-blue-600 pl-3 text-sm font-black uppercase tracking-[0.12em] text-slate-800">Preâmbulo</h4>
+                        <p className="text-sm leading-7 text-slate-700 sm:text-base">{constitution.preamble}</p>
+                      </section>
+                    ) : null}
+                    {(constitution?.sections || []).map((section) => (
                       <section key={section.title}>
                         <h4 className="mb-4 border-l-4 border-blue-600 pl-3 text-sm font-black uppercase tracking-[0.12em] text-slate-800">{section.title}</h4>
                         <div className="space-y-3 text-sm leading-7 text-slate-700 sm:text-base">
-                          {section.paragraphs.map((paragraph) => <p key={paragraph}>{paragraph}</p>)}
+                          {(section.articles || []).map((article) => <p key={article.id}><strong>{article.number}</strong> {article.body}</p>)}
                         </div>
                       </section>
                     ))}
+                    {!constitution ? <p className="text-center text-slate-500">Texto constitucional em atualização.</p> : null}
                   </div>
                 </div>
               </section>
@@ -493,7 +527,7 @@ const CountryInfo = () => {
               {populationSegments.length > 0 && (
                 <section className="mt-6 rounded-2xl border border-white/10 bg-slate-950/40 p-6">
                   <h2 className="text-xl font-bold text-foreground">Grupos da sociedade</h2>
-                  <p className="mt-1 text-sm text-muted-foreground">A composição é persistente e poderá reagir a políticas e acontecimentos nacionais.</p>
+                  <p className="mt-1 text-sm text-muted-foreground">Cada grupo reage de forma própria às decisões, leis e acontecimentos nacionais.</p>
                   <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                     {populationSegments.map((segment) => (
                       <article key={segment.segment_key} className="rounded-xl border border-white/10 bg-white/5 p-4">
@@ -502,7 +536,14 @@ const CountryInfo = () => {
                           <span className="text-sm font-bold text-blue-300">{(Number(segment.population_share) * 100).toFixed(0)}%</span>
                         </div>
                         <p className="mt-2 text-xs leading-5 text-muted-foreground">{segment.description}</p>
-                        <p className="mt-3 text-xs text-slate-400">{formatPopulation(segment.population_count)} pessoas · bem-estar {Number(segment.welfare_index).toFixed(0)}/100</p>
+                        <p className="mt-3 text-xs text-slate-400">{formatPopulation(segment.population_count)} pessoas</p>
+                        <div className="mt-3 grid grid-cols-2 gap-2 text-[11px] text-muted-foreground">
+                          <span>Bem-estar <strong className="text-foreground">{Number(segment.welfare_index).toFixed(0)}</strong></span>
+                          <span>Aprovação <strong className="text-foreground">{Number(segment.government_approval).toFixed(0)}</strong></span>
+                          <span>Poder de compra <strong className="text-foreground">{Number(segment.purchasing_power).toFixed(0)}</strong></span>
+                          <span>Tensão <strong className="text-foreground">{Number(segment.social_tension).toFixed(0)}</strong></span>
+                        </div>
+                        {segment.last_change_reason ? <p className="mt-3 line-clamp-2 text-[11px] text-blue-200/80">Última mudança: {segment.last_change_reason}</p> : null}
                       </article>
                     ))}
                   </div>

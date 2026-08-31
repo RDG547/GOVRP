@@ -1,4 +1,5 @@
 import process from 'node:process';
+import { randomUUID } from 'node:crypto';
 import { createClient } from '@supabase/supabase-js';
 import { getWeeklyPayrollWindowStart } from '../../src/lib/salaryRules.js';
 import {
@@ -698,9 +699,6 @@ export const registerBusinessHandler = async (request, response) => {
   }
 
   const supabase = getServerSupabase();
-  let createdBusiness = null;
-  let accountSnapshot = null;
-  let financeSnapshot = null;
 
   try {
     const requester = await ensureAuthenticatedRequester(supabase, request);
@@ -708,151 +706,30 @@ export const registerBusinessHandler = async (request, response) => {
     const businessTypeId = trimString(payload.businessTypeId);
     const companyName = trimString(payload.companyName);
     const description = trimString(payload.description);
-    const minEmployees = Number(payload.minEmployees || 0);
-    const registrationFee = Number(payload.registrationFee || 0);
+    const idempotencyKey = trimString(payload.idempotencyKey) || randomUUID();
 
     if (!businessTypeId || !companyName || !description) {
       throw createHttpError('Dados da empresa incompletos.', 400);
     }
 
-    if (!Number.isFinite(registrationFee) || registrationFee <= 0) {
-      throw createHttpError('Taxa de registro invalida.', 400);
-    }
-
-    const [{ data: account, error: accountError }, { data: finance, error: financeError }] = await Promise.all([
-      supabase.from('accounts').select('id, balance').eq('user_id', requester.id).maybeSingle(),
-      supabase
-        .from('government_finances')
-        .select('id, treasury_balance')
-        .order('updated_at', { ascending: true })
-        .limit(1)
-        .maybeSingle(),
-    ]);
-
-    if (accountError) {
-      throw accountError;
-    }
-
-    if (financeError) {
-      throw financeError;
-    }
-
-    if (!account?.id) {
-      throw createHttpError('Voce precisa possuir conta bancaria para registrar uma empresa.', 400);
-    }
-
-    if (!finance?.id) {
-      throw createHttpError('Nao foi possivel localizar as financas do governo.', 500);
-    }
-
-    if (Number(account.balance || 0) < registrationFee) {
-      throw createHttpError('Saldo insuficiente para pagar a taxa de registro da empresa.', 400);
-    }
-
-    accountSnapshot = account;
-    financeSnapshot = finance;
-
-    const { data: newBusiness, error: insertBusinessError } = await supabase
-      .from('businesses')
-      .insert({
-        owner_id: requester.id,
-        business_type_id: businessTypeId,
-        name: companyName,
-        description,
-        status: 'pending',
-        employees: minEmployees,
-        monthly_revenue: 0,
-      })
-      .select('id, owner_id, business_type_id, name, description, status, employees, monthly_revenue, created_at')
-      .single();
-
-    if (insertBusinessError) {
-      throw insertBusinessError;
-    }
-
-    createdBusiness = newBusiness;
-
-    const { error: debitAccountError } = await supabase
-      .from('accounts')
-      .update({
-        balance: Number(account.balance || 0) - registrationFee,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', account.id);
-
-    if (debitAccountError) {
-      throw debitAccountError;
-    }
-
-    const { error: creditTreasuryError } = await supabase
-      .from('government_finances')
-      .update({
-        treasury_balance: Number(finance.treasury_balance || 0) + registrationFee,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', finance.id);
-
-    if (creditTreasuryError) {
-      throw creditTreasuryError;
-    }
-
-    const [{ error: businessTransactionError }, { error: bankTransactionError }] = await Promise.all([
-      supabase.from('business_transactions').insert({
-        business_id: newBusiness.id,
-        type: 'registration',
-        amount: -registrationFee,
-        description: `Taxa de registro: ${companyName}`,
-      }),
-      supabase.from('transactions').insert({
-        from_account_id: account.id,
-        to_account_id: null,
-        amount: registrationFee,
-        type: 'service_fee',
-        description: `Taxa de registro empresarial: ${companyName}`,
-        created_at: new Date().toISOString(),
-        metadata: {
-          business_id: newBusiness.id,
-          business_type_id: businessTypeId,
-          fee_type: 'business_registration',
-          treasury_credit: true,
-        },
-      }),
-    ]);
-
-    if (businessTransactionError) {
-      throw businessTransactionError;
-    }
-
-    if (bankTransactionError) {
-      throw bankTransactionError;
-    }
+    const { data: newBusiness, error: registrationError } = await supabase.rpc(
+      'register_business_authoritative',
+      {
+        p_owner_id: requester.id,
+        p_business_type_id: businessTypeId,
+        p_company_name: companyName,
+        p_description: description,
+        p_idempotency_key: idempotencyKey,
+      }
+    );
+    if (registrationError) throw registrationError;
 
     json(response, 200, {
       success: true,
-      business: createdBusiness,
+      business: newBusiness,
       message: `${companyName} foi criada e a taxa de registro foi direcionada ao governo.`,
     });
   } catch (error) {
-    if (createdBusiness?.id && accountSnapshot?.id && financeSnapshot?.id) {
-      await Promise.allSettled([
-        supabase.from('businesses').delete().eq('id', createdBusiness.id),
-        supabase
-          .from('accounts')
-          .update({
-            balance: Number(accountSnapshot.balance || 0),
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', accountSnapshot.id),
-        supabase
-          .from('government_finances')
-          .update({
-            treasury_balance: Number(financeSnapshot.treasury_balance || 0),
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', financeSnapshot.id),
-      ]);
-    }
-
     console.error('[businesses:register]', error);
     json(response, error.statusCode || 500, {
       error: error instanceof Error ? error.message : 'Nao foi possivel registrar a empresa.',

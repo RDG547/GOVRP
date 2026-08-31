@@ -4,7 +4,7 @@ import { supabase } from '@/lib/supabaseClient';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Loader2, Eye, Search, PlusCircle, User, ArrowRight, ArrowLeft } from 'lucide-react';
+import { Loader2, Eye, Search, PlusCircle, ArrowRight, ArrowLeft } from 'lucide-react';
 import PageHeader from '@/components/layout/PageHeader';
 import { Input } from '@/components/ui/input';
 import { format } from 'date-fns';
@@ -17,6 +17,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { formatCurrency } from '@/lib/utils';
+import UserSelectOption from '@/components/UserSelectOption';
 
 const normalizeSearchValue = (value = '') =>
     value
@@ -135,8 +136,11 @@ const TransactionViewer = () => {
                                             onClick={() => handleUserSelect(user.id)}
                                             className={`flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm transition-colors ${isSelected ? 'bg-white/10 text-foreground' : 'text-muted-foreground hover:bg-white/5 hover:text-foreground'}`}
                                         >
-                                            <User className="h-4 w-4 shrink-0" />
-                                            <span className="truncate">{userLabel}</span>
+                                            <UserSelectOption
+                                                user={user}
+                                                label={userLabel}
+                                                detail={user.username ? `@${user.username}` : ''}
+                                            />
                                         </button>
                                     );
                                 }) : null}

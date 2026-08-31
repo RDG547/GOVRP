@@ -345,7 +345,10 @@ const ManageCardLimitDialog = ({ user, onFinish, onUpdate }) => {
     useEffect(() => {
         const fetchCards = async () => {
             setLoading(true);
-            const { data, error } = await supabase.from('cards').select('*').eq('user_id', user.id);
+            const { data, error } = await supabase
+                .from('cards')
+                .select('id,brand,card_number,card_limit')
+                .eq('user_id', user.id);
             if (error) {
                 toast({ title: "Erro ao buscar cartões", variant: "destructive" });
             } else {
@@ -369,7 +372,11 @@ const ManageCardLimitDialog = ({ user, onFinish, onUpdate }) => {
     const handleSave = async () => {
         setSaving(true);
         const limit = parseCurrency(newLimit);
-        const { error } = await supabase.from('cards').update({ card_limit: limit }).eq('id', selectedCard.id);
+        const { error } = await supabase.rpc('set_bank_card_limit', {
+            p_card_id: selectedCard.id,
+            p_new_limit: limit,
+            p_reason: `Limite ajustado no gerenciamento de ${user.full_name}.`,
+        });
         if (error) {
             toast({ title: "Erro ao atualizar limite", variant: "destructive" });
         } else {

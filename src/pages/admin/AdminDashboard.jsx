@@ -13,6 +13,7 @@ import {
   ShieldCheck,
   Users,
   Vote,
+  Gavel,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 import { useToast } from '@/components/ui/use-toast';
@@ -24,12 +25,14 @@ import ContentModeration from '@/components/admin/ContentModeration';
 import ElectionManagement from '@/components/admin/ElectionManagement';
 import CandidacyManagement from '@/components/admin/CandidacyManagement';
 import PartyManagement from '@/components/admin/PartyManagement';
-import GovernanceSystems from '@/components/admin/GovernanceSystems';
+import EconomySystems from '@/components/admin/EconomySystems';
+import JusticeSystem from '@/components/admin/JusticeSystem';
 import SupportManagement from '@/components/admin/SupportManagement';
 
 const tabs = [
   { id: 'analytics', label: 'Análises', icon: BarChart3, component: SiteAnalytics },
-  { id: 'systems', label: 'Justiça e Economia', icon: Activity, component: GovernanceSystems },
+  { id: 'economy', label: 'Economia', icon: Activity, component: EconomySystems },
+  { id: 'justice', label: 'Justiça', icon: Gavel, component: JusticeSystem },
   { id: 'users', label: 'Usuários', icon: Users, component: UserManagement },
   { id: 'candidacies', label: 'Candidaturas', icon: ShieldCheck, component: CandidacyManagement },
   { id: 'elections', label: 'Eleições', icon: Vote, component: ElectionManagement },

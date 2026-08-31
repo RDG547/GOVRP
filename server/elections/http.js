@@ -43,8 +43,11 @@ const ROLE_CLEANUP_SELECT_BASE = 'id, role, titles';
 const MISSING_COLUMN_ERROR_CODES = new Set(['42703', 'PGRST204', 'PGRST205']);
 const BASE_CITIZEN_ROLES = ['Usuário', 'Cidadão'];
 const ELECTION_ROLE_PRIORITY = ['Presidente', 'Vice-Presidente', 'Senador', 'Deputado'];
+const SYNC_RATE_LIMIT_WINDOW_MS = 60 * 1000;
+const SYNC_RATE_LIMIT_MAX_REQUESTS = 5;
 
 let serverSupabase;
+const syncRateLimitByUser = new Map();
 
 const json = (response, statusCode, payload) => {
   response.statusCode = statusCode;
@@ -335,6 +338,33 @@ const ensureAuthenticatedRequester = async (supabase, request) => {
     user: authData.user,
     accessToken: token,
   };
+};
+
+const ensureAdminRequester = async (supabase, request) => {
+  const requester = await ensureAuthenticatedRequester(supabase, request);
+  const profile = await fetchProfileById(supabase, requester.user.id);
+
+  if (profile?.role !== 'Admin') {
+    throw createHttpError('Apenas administradores podem sincronizar cargos eleitorais.', 403);
+  }
+
+  return { ...requester, profile };
+};
+
+const enforceElectionSyncRateLimit = (userId) => {
+  const now = Date.now();
+  const current = syncRateLimitByUser.get(userId);
+
+  if (!current || now - current.startedAt >= SYNC_RATE_LIMIT_WINDOW_MS) {
+    syncRateLimitByUser.set(userId, { startedAt: now, count: 1 });
+    return;
+  }
+
+  if (current.count >= SYNC_RATE_LIMIT_MAX_REQUESTS) {
+    throw createHttpError('Muitas sincronizações em pouco tempo. Aguarde um minuto.', 429);
+  }
+
+  current.count += 1;
 };
 
 const fetchProfileById = async (supabase, profileId) => {
@@ -1412,6 +1442,41 @@ const ensureAutomaticRecurringElections = async (supabase) => {
   return createdElectionIds;
 };
 
+const resolveParliamentHouseId = async (supabase, officeRole) => {
+  const configuredHouseId = PARLIAMENT_HOUSE_IDS[officeRole];
+
+  if (configuredHouseId) {
+    const { data: configuredHouse, error: configuredHouseError } = await supabase
+      .from('parliament_houses')
+      .select('id')
+      .eq('id', configuredHouseId)
+      .maybeSingle();
+
+    if (configuredHouseError) {
+      throw configuredHouseError;
+    }
+
+    if (configuredHouse?.id) {
+      return configuredHouse.id;
+    }
+  }
+
+  const namePattern = officeRole === 'Deputado' ? '%câmara%' : '%senado%';
+  const { data: fallbackHouse, error: fallbackHouseError } = await supabase
+    .from('parliament_houses')
+    .select('id')
+    .ilike('name', namePattern)
+    .order('name')
+    .limit(1)
+    .maybeSingle();
+
+  if (fallbackHouseError) {
+    throw fallbackHouseError;
+  }
+
+  return fallbackHouse?.id || null;
+};
+
 const syncParliamentMemberships = async (supabase, { previousState, activeAssignments }) => {
   const legislativeAssignments = activeAssignments.filter((assignment) =>
     ['Deputado', 'Senador'].includes(assignment.officeRole)
@@ -1419,7 +1484,7 @@ const syncParliamentMemberships = async (supabase, { previousState, activeAssign
   const currentKeys = new Set();
 
   for (const assignment of legislativeAssignments) {
-    const houseId = PARLIAMENT_HOUSE_IDS[assignment.officeRole];
+    const houseId = await resolveParliamentHouseId(supabase, assignment.officeRole);
     const termStartDate = toDateOnly(assignment.termStartAt);
     const termEndDate = toDateOnly(assignment.termEndAt);
 
@@ -1477,7 +1542,7 @@ const syncParliamentMemberships = async (supabase, { previousState, activeAssign
     : [];
 
   for (const assignment of previousAssignments) {
-    const houseId = PARLIAMENT_HOUSE_IDS[assignment.office_role];
+    const houseId = await resolveParliamentHouseId(supabase, assignment.office_role);
     const termStartDate = toDateOnly(assignment.term_start_at);
     const membershipKey = `${assignment.user_id}:${houseId}:${termStartDate}`;
 
@@ -1774,16 +1839,26 @@ const clearMinistersWhenExecutiveTermChanges = async (supabase, { previousState,
   return ministerUserIds;
 };
 
-export const syncElectionOfficesState = async () => {
+export const syncElectionOfficesState = async ({ accessToken } = {}) => {
   const supabase = getServerSupabase();
   const automaticElectionIds = await ensureAutomaticRecurringElections(supabase);
   const latestElections = await fetchLatestFinishedElections(supabase);
+  const requesterSupabase = getUserScopedSupabase(accessToken);
   const previousState = await fetchStoredElectionOfficeState(supabase);
   const settlements = [];
   const activeAssignmentsByUser = new Map();
   const impactedProfileIds = new Set();
 
   for (const election of latestElections) {
+    const { data: authoritativeSettlement, error: settlementError } = await requesterSupabase.rpc(
+      'settle_election_offices',
+      { p_election_id: election.id }
+    );
+
+    if (settlementError || authoritativeSettlement?.success === false) {
+      throw settlementError || new Error('A apuração autoritativa da eleição falhou.');
+    }
+
     const settlement = await resolveElectionAssignments(supabase, election);
     settlements.push(settlement);
 
@@ -1901,15 +1976,20 @@ export const syncElectionOfficesHandler = async (request, response) => {
     return;
   }
 
+  const supabase = getServerSupabase();
+
   try {
-    const result = await syncElectionOfficesState();
+    const requester = await ensureAdminRequester(supabase, request);
+    enforceElectionSyncRateLimit(requester.user.id);
+    const result = await syncElectionOfficesState({ accessToken: requester.accessToken });
     json(response, 200, {
       ok: true,
       ...result,
     });
   } catch (error) {
+    const statusCode = error?.statusCode || 500;
     console.error('[elections:sync-offices]', error);
-    json(response, 500, {
+    json(response, statusCode, {
       error: error instanceof Error ? error.message : 'Não foi possível sincronizar os cargos eleitorais.',
     });
   }

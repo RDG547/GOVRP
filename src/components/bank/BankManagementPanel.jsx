@@ -342,7 +342,10 @@ const BankManagementPanel = () => {
         supabase.from('system_settings').select('value').eq('key', ECONOMIC_POLICY_SETTINGS_KEY).maybeSingle(),
         supabase.from('economic_state').select('current_selic').eq('id', true).single(),
         supabase.from('accounts').select('id, user_id, account_number, agency_number, balance').order('created_at', { ascending: false }).limit(200),
-        supabase.from('cards').select('*').order('created_at', { ascending: false }).limit(300),
+        supabase.from('cards')
+          .select('id,user_id,account_id,card_number,brand,type,card_type,card_limit,used_limit,is_active,created_at')
+          .order('created_at', { ascending: false })
+          .limit(300),
       ]);
 
       if (policyResponse.error) {
@@ -487,14 +490,38 @@ const BankManagementPanel = () => {
       window.clearTimeout(refreshTimer);
       refreshTimer = window.setTimeout(() => fetchData(false), 250);
     };
-    let channel = supabase.channel('bank-management-core-live');
+    let channel = supabase
+      .channel('bank-management-core-live')
+      .on('postgres_changes', {
+        event: '*', schema: 'public', table: 'cards',
+      }, (payload) => {
+        const changedCard = payload.new;
+
+        if (payload.eventType === 'DELETE') {
+          setIssuedCards((current) => current.filter((card) => card.id !== payload.old.id));
+          return;
+        }
+
+        if (!changedCard?.id) return;
+        setIssuedCards((current) => {
+          const exists = current.some((card) => card.id === changedCard.id);
+          if (exists) {
+            return current.map((card) => card.id === changedCard.id ? { ...card, ...changedCard } : card);
+          }
+          return [changedCard, ...current].slice(0, 300);
+        });
+        setIssuedCardLimits((current) => ({
+          ...current,
+          [changedCard.id]: formatCurrency(Number(changedCard.card_limit || 0), true),
+        }));
+        void fetchProfiles([changedCard.user_id]);
+      });
 
     [
       'economic_state',
       'system_settings',
       'investment_options',
       'accounts',
-      'cards',
     ].forEach((table) => {
       channel = channel.on('postgres_changes', {
         event: '*', schema: 'public', table,
@@ -506,31 +533,57 @@ const BankManagementPanel = () => {
       window.clearTimeout(refreshTimer);
       supabase.removeChannel(channel);
     };
-  }, [canManage, fetchData]);
+  }, [canManage, fetchData, fetchProfiles]);
 
   useEffect(() => {
     if (!canManage) return undefined;
 
-    let refreshTimer;
-    const scheduleRefresh = () => {
-      window.clearTimeout(refreshTimer);
-      refreshTimer = window.setTimeout(() => {
-        void fetchRequests(activeRequestTab, false);
-      }, 250);
+    const applyChange = (payload, type) => {
+      const isCards = type === 'cards';
+      const currentPage = isCards ? cardPage : loanPage;
+      const setRows = isCards ? setCreditApplications : setLoanApplications;
+      const setCount = isCards ? setCardCount : setLoanCount;
+
+      if (payload.eventType === 'DELETE') {
+        setRows((current) => current.filter((item) => item.id !== payload.old.id));
+        setCount((current) => Math.max(0, current - 1));
+        return;
+      }
+
+      const changedApplication = payload.new;
+      if (!changedApplication?.id) return;
+      void fetchProfiles([changedApplication.user_id]);
+
+      if (payload.eventType === 'INSERT') {
+        setCount((current) => current + 1);
+        if (currentPage === 1) {
+          setRows((current) => [
+            changedApplication,
+            ...current.filter((item) => item.id !== changedApplication.id),
+          ].slice(0, REQUESTS_PAGE_SIZE));
+        }
+        return;
+      }
+
+      setRows((current) => current.map((item) => (
+        item.id === changedApplication.id ? { ...item, ...changedApplication } : item
+      )));
     };
-    let channel = supabase.channel('bank-management-requests-live');
-    ['credit_card_applications', 'loan_applications'].forEach((table) => {
-      channel = channel.on('postgres_changes', {
-        event: '*', schema: 'public', table,
-      }, scheduleRefresh);
-    });
+
+    const channel = supabase
+      .channel('bank-management-requests-live')
+      .on('postgres_changes', {
+        event: '*', schema: 'public', table: 'credit_card_applications',
+      }, (payload) => applyChange(payload, 'cards'))
+      .on('postgres_changes', {
+        event: '*', schema: 'public', table: 'loan_applications',
+      }, (payload) => applyChange(payload, 'loans'));
     channel.subscribe();
 
     return () => {
-      window.clearTimeout(refreshTimer);
       void supabase.removeChannel(channel);
     };
-  }, [activeRequestTab, canManage, fetchRequests]);
+  }, [canManage, cardPage, fetchProfiles, loanPage]);
 
   const pendingCreditApplications = useMemo(
     () => creditApplications.filter((application) => isPendingStatus(application.status)),
@@ -643,8 +696,23 @@ const BankManagementPanel = () => {
 
   const handleCardDecision = async (application, action) => {
     setProcessingId(application.id);
+    const previousApplication = { ...application };
+    const isApproval = action === 'approve';
+    const optimisticApplication = {
+      ...application,
+      status: isApproval ? 'Aprovado' : 'Rejeitado',
+      approved_limit: isApproval ? parseCurrency(cardLimits[application.id]) : application.approved_limit,
+      approved_brand: isApproval
+        ? normalizeCardBrand(cardBrands[application.id] || application.brand)
+        : application.approved_brand,
+      admin_feedback: feedbackById[application.id] || application.admin_feedback,
+      reviewed_by: user.id,
+      reviewed_at: new Date().toISOString(),
+    };
+    setCreditApplications((current) => current.map((item) => (
+      item.id === application.id ? optimisticApplication : item
+    )));
     try {
-      const isApproval = action === 'approve';
       const rpcName = isApproval ? 'approve_credit_card_application' : 'reject_credit_card_application';
       const params = isApproval
         ? {
@@ -660,16 +728,10 @@ const BankManagementPanel = () => {
       }
 
       toast({ title: isApproval ? 'Cartão aprovado' : 'Cartão rejeitado', description: data?.message });
-      setCreditApplications((current) => current.map((item) => (
-        item.id === application.id
-          ? { ...item, status: isApproval ? 'Aprovado' : 'Rejeitado' }
-          : item
-      )));
-      await Promise.all([
-        fetchRequests('cards', false),
-        fetchData(false),
-      ]);
     } catch (error) {
+      setCreditApplications((current) => current.map((item) => (
+        item.id === application.id ? previousApplication : item
+      )));
       toast({ title: 'Erro na revisão do cartão', description: error.message, variant: 'destructive' });
     } finally {
       setProcessingId(null);
@@ -678,8 +740,21 @@ const BankManagementPanel = () => {
 
   const handleLoanDecision = async (application, action) => {
     setProcessingId(application.id);
+    const previousApplication = { ...application };
+    const isApproval = action === 'approve';
+    const optimisticApplication = {
+      ...application,
+      status: isApproval ? 'Aprovado' : 'Rejeitado',
+      installments: isApproval ? Number(loanInstallments[application.id] || 12) : application.installments,
+      feedback: feedbackById[application.id] || application.feedback,
+      admin_feedback: feedbackById[application.id] || application.admin_feedback,
+      reviewed_by: user.id,
+      reviewed_at: new Date().toISOString(),
+    };
+    setLoanApplications((current) => current.map((item) => (
+      item.id === application.id ? optimisticApplication : item
+    )));
     try {
-      const isApproval = action === 'approve';
       const rpcName = isApproval ? 'approve_loan_application' : 'reject_loan_application';
       const params = isApproval
         ? {
@@ -695,13 +770,10 @@ const BankManagementPanel = () => {
       }
 
       toast({ title: isApproval ? 'Empréstimo aprovado' : 'Empréstimo rejeitado', description: data?.message });
-      setLoanApplications((current) => current.map((item) => (
-        item.id === application.id
-          ? { ...item, status: isApproval ? 'Aprovado' : 'Rejeitado' }
-          : item
-      )));
-      await fetchRequests('loans', false);
     } catch (error) {
+      setLoanApplications((current) => current.map((item) => (
+        item.id === application.id ? previousApplication : item
+      )));
       toast({ title: 'Erro na revisão do empréstimo', description: error.message, variant: 'destructive' });
     } finally {
       setProcessingId(null);

@@ -1,11 +1,33 @@
 import React from 'react';
 import { Check, Circle, Clock3 } from 'lucide-react';
+import { formatJusticeDate } from '@/lib/justice/time';
 import {
   CASE_STATUS_LABELS,
   CASE_STATUS_ORDER,
 } from '@/lib/justice/constants';
 
-const CaseTimeline = ({ status }) => {
+const CaseTimeline = ({ status, events = [] }) => {
+  if (events.length) {
+    return (
+      <ol className="space-y-3 border-l border-cyan-400/25 pl-5">
+        {events.map((event) => (
+          <li key={event.id} className="relative rounded-lg border border-border/60 bg-background/35 p-3">
+            <span className="absolute -left-[1.55rem] top-4 h-2.5 w-2.5 rounded-full bg-cyan-300 ring-4 ring-background" />
+            <div className="flex flex-wrap items-start justify-between gap-2">
+              <p className="font-medium">{event.title}</p>
+              <time className="text-xs text-muted-foreground">{formatJusticeDate(event.created_at)}</time>
+            </div>
+            {event.description ? <p className="mt-1 text-sm text-muted-foreground">{event.description}</p> : null}
+            {event.status_from !== event.status_to && event.status_to ? (
+              <p className="mt-2 text-xs text-cyan-200">
+                {CASE_STATUS_LABELS[event.status_from] || event.status_from || 'Início'} → {CASE_STATUS_LABELS[event.status_to] || event.status_to}
+              </p>
+            ) : null}
+          </li>
+        ))}
+      </ol>
+    );
+  }
   const currentIndex = CASE_STATUS_ORDER.indexOf(status);
   const compactSteps = [
     'investigation',
@@ -48,4 +70,3 @@ const CaseTimeline = ({ status }) => {
 };
 
 export default CaseTimeline;
-

@@ -72,15 +72,6 @@ const getFutureDate = (monthsAhead = 1) => {
   return date.toISOString().slice(0, 10);
 };
 
-/**
- * Voting sessions last 24 hours maximum.
- */
-const getVotingEndDate = () => {
-  const date = new Date();
-  date.setHours(date.getHours() + 24);
-  return date.toISOString();
-};
-
 export const inferBillTypeFromTitle = (title = '') => {
   const normalized = title.trim().toUpperCase();
 
@@ -154,50 +145,18 @@ export const startBillVotingSession = async (
   supabase,
   { billId, houseId, title, description }
 ) => {
-  const { data: existingVoting, error: existingVotingError } = await supabase
-    .from('parliament_votings')
-    .select('id, status')
-    .eq('related_id', billId)
-    .eq('house_id', houseId)
-    .eq('type', 'bill')
-    .eq('status', 'active')
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  if (existingVotingError) {
-    throw existingVotingError;
-  }
-
-  if (existingVoting) {
-    return existingVoting;
-  }
-
-  const { data: createdVoting, error: createVotingError } = await supabase
-    .from('parliament_votings')
-    .insert({
-      house_id: houseId,
-      title,
-      description,
-      type: 'bill',
-      related_id: billId,
-      status: 'active',
-      end_date: getVotingEndDate(),
-    })
-    .select('id, status')
-    .single();
+  const { data: createdVoting, error: createVotingError } = await supabase.rpc(
+    'start_parliament_bill_voting',
+    {
+      p_bill_id: billId,
+      p_house_id: houseId,
+      p_title: title,
+      p_description: description || null,
+    }
+  );
 
   if (createVotingError) {
     throw createVotingError;
-  }
-
-  const { error: billStatusError } = await supabase.rpc('update_bill_status', {
-    p_bill_id: billId,
-    p_new_status: 'Em votação',
-  });
-
-  if (billStatusError) {
-    throw billStatusError;
   }
 
   return createdVoting;
@@ -444,12 +403,6 @@ export const finalizeParliamentVotingIfReady = async (
             description: `Votação de PEC proveniente da ${bill.house?.name || 'outra casa'}. Necessário 2/3 para aprovação.`,
           });
 
-          // Override status back since startBillVotingSession sets to "Em votação"
-          await supabase.rpc('update_bill_status', {
-            p_bill_id: bill.id,
-            p_new_status: 'Em votação (2ª Casa)',
-          });
-
           return {
             finalized: true,
             approved: true,
@@ -584,29 +537,6 @@ export const finalizeParliamentVotingIfReady = async (
  */
 export const autoCloseExpiredVotings = async (supabase) => {
   try {
-    // First, fix any legacy votings with end_dates beyond 24h from creation
-    const { data: activeVotings, error: activeError } = await supabase
-      .from('parliament_votings')
-      .select('id, created_at, end_date')
-      .eq('status', 'active');
-
-    if (!activeError && activeVotings) {
-      for (const voting of activeVotings) {
-        const createdAt = new Date(voting.created_at);
-        const endDate = new Date(voting.end_date);
-        const expectedEnd = new Date(createdAt.getTime() + 24 * 60 * 60 * 1000); // 24h after creation
-        
-        // If end_date is more than 25h from creation (1h tolerance), fix it
-        if (endDate.getTime() - createdAt.getTime() > 25 * 60 * 60 * 1000) {
-          await supabase
-            .from('parliament_votings')
-            .update({ end_date: expectedEnd.toISOString() })
-            .eq('id', voting.id);
-        }
-      }
-    }
-
-    // Now close expired votings
     const { data: expiredVotings, error } = await supabase
       .from('parliament_votings')
       .select('id, house_id, end_date, type, related_id, title, description, status')

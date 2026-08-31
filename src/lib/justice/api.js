@@ -27,6 +27,11 @@ export const fetchCitizenJusticeData = async () => {
     serverNowResult,
     subjectsResult,
     profilesResult,
+    timelineResult,
+    documentsResult,
+    hearingsCaseResult,
+    caseAppealsResult,
+    sentencesResult,
   ] = await Promise.all([
     supabase
       .from('police_occurrences')
@@ -67,6 +72,11 @@ export const fetchCitizenJusticeData = async () => {
     supabase.rpc('get_server_now'),
     supabase.from('investigation_subjects').select('*, profile:profiles(id, full_name)').order('created_at', { ascending: false }).limit(200),
     supabase.from('profiles').select('id, full_name, username, avatar_url').order('full_name').limit(300),
+    supabase.from('case_timeline_events').select('*').order('created_at', { ascending: true }).limit(500),
+    supabase.from('case_documents').select('*').order('created_at', { ascending: false }).limit(200),
+    supabase.from('hearings').select('*').order('scheduled_at', { ascending: false }).limit(100),
+    supabase.from('appeals').select('*').order('created_at', { ascending: false }).limit(100),
+    supabase.from('sentences').select('*').order('issued_at', { ascending: false }).limit(100),
   ]);
 
   return {
@@ -86,6 +96,11 @@ export const fetchCitizenJusticeData = async () => {
     serverNow: throwIfError(serverNowResult),
     investigationSubjects: throwIfError(subjectsResult) || [],
     profiles: throwIfError(profilesResult) || [],
+    timeline: throwIfError(timelineResult) || [],
+    caseDocuments: throwIfError(documentsResult) || [],
+    caseHearings: throwIfError(hearingsCaseResult) || [],
+    caseAppeals: throwIfError(caseAppealsResult) || [],
+    sentences: throwIfError(sentencesResult) || [],
   };
 };
 
@@ -104,6 +119,16 @@ export const fetchAuthorityJusticeData = async () => {
     campaignsResult,
     integrityCasesResult,
     serverNowResult,
+    subjectsResult,
+    profilesResult,
+    timelineResult,
+    documentsResult,
+    caseHearingsResult,
+    caseAppealsResult,
+    sentencesResult,
+    partiesResult,
+    casePartiesResult,
+    penalCodesResult,
   ] = await Promise.all([
     supabase
       .from('police_occurrences')
@@ -143,6 +168,16 @@ export const fetchAuthorityJusticeData = async () => {
     supabase.from('public_safety_campaigns').select('*').order('starts_at', { ascending: false }).limit(100),
     supabase.from('public_integrity_cases').select('*').order('created_at', { ascending: false }).limit(100),
     supabase.rpc('get_server_now'),
+    supabase.from('investigation_subjects').select('*, profile:profiles(id, full_name, username, avatar_url)').order('created_at', { ascending: false }).limit(300),
+    supabase.from('profiles').select('id, full_name, username, avatar_url').order('full_name').limit(500),
+    supabase.from('case_timeline_events').select('*').order('created_at', { ascending: true }).limit(1000),
+    supabase.from('case_documents').select('*').order('created_at', { ascending: false }).limit(500),
+    supabase.from('hearings').select('*').order('scheduled_at', { ascending: false }).limit(300),
+    supabase.from('appeals').select('*').order('created_at', { ascending: false }).limit(300),
+    supabase.from('sentences').select('*').order('issued_at', { ascending: false }).limit(300),
+    supabase.from('investigation_parties').select('*').order('created_at', { ascending: false }).limit(500),
+    supabase.from('case_parties').select('*').order('created_at', { ascending: false }).limit(500),
+    supabase.from('penal_code').select('*').eq('is_active', true).order('code').limit(300),
   ]);
 
   return {
@@ -159,6 +194,16 @@ export const fetchAuthorityJusticeData = async () => {
     campaigns: throwIfError(campaignsResult) || [],
     integrityCases: throwIfError(integrityCasesResult) || [],
     serverNow: throwIfError(serverNowResult),
+    investigationSubjects: throwIfError(subjectsResult) || [],
+    profiles: throwIfError(profilesResult) || [],
+    timeline: throwIfError(timelineResult) || [],
+    caseDocuments: throwIfError(documentsResult) || [],
+    caseHearings: throwIfError(caseHearingsResult) || [],
+    caseAppeals: throwIfError(caseAppealsResult) || [],
+    sentences: throwIfError(sentencesResult) || [],
+    investigationParties: throwIfError(partiesResult) || [],
+    caseParties: throwIfError(casePartiesResult) || [],
+    penalCodes: throwIfError(penalCodesResult) || [],
   };
 };
 
@@ -231,6 +276,122 @@ export const openInvestigation = async ({ occurrenceId, summary }) => throwIfErr
     p_occurrence_id: occurrenceId,
     p_summary: summary,
     p_lead_officer_id: null,
+  })
+);
+
+export const recordInvestigationEvidence = async ({ investigationId, title, description, seal = false }) => throwIfError(
+  await supabase.rpc('record_investigation_evidence', {
+    p_investigation_id: investigationId,
+    p_evidence_type: 'document',
+    p_title: title,
+    p_description: description,
+    p_file_url: null,
+    p_evidence_hash: crypto.randomUUID().replaceAll('-', ''),
+    p_seal: seal,
+  })
+);
+
+export const resolveInvestigation = async ({ investigationId, outcome, conclusion }) => throwIfError(
+  await supabase.rpc('resolve_investigation', {
+    p_investigation_id: investigationId,
+    p_outcome: outcome,
+    p_conclusion: conclusion,
+    p_recommended_action: outcome === 'indict' ? 'Oferecimento de denúncia' : null,
+  })
+);
+
+export const requestInvestigationComplement = async ({ investigationId, reason }) => throwIfError(
+  await supabase.rpc('request_investigation_complement', {
+    p_investigation_id: investigationId,
+    p_reason: reason,
+  })
+);
+
+export const fileCriminalCharges = async ({ investigationId, defendantId, penalCodeId, title, facts }) => throwIfError(
+  await supabase.rpc('file_criminal_charges', {
+    p_investigation_id: investigationId,
+    p_defendant_id: defendantId,
+    p_title: title,
+    p_facts: facts,
+    p_charges: [{
+      penal_code_id: penalCodeId,
+      description: facts,
+      requested_sentence: null,
+      attempted: false,
+    }],
+  })
+);
+
+export const decideChargeAdmission = async ({ caseId, admitted, reason }) => throwIfError(
+  await supabase.rpc('decide_charge_admission', {
+    p_case_id: caseId,
+    p_admitted: admitted,
+    p_reason: reason,
+  })
+);
+
+export const submitCaseDocument = async ({ caseId, documentType, title, body }) => throwIfError(
+  await supabase.rpc('submit_case_document', {
+    p_case_id: caseId,
+    p_document_type: documentType,
+    p_title: title,
+    p_body: body,
+    p_file_url: null,
+    p_visibility: 'parties',
+  })
+);
+
+export const scheduleCaseHearing = async ({ caseId, scheduledAt, location }) => throwIfError(
+  await supabase.rpc('schedule_case_hearing', {
+    p_case_id: caseId,
+    p_hearing_type: 'instruction',
+    p_rp_scheduled_at: scheduledAt,
+    p_duration_minutes: 60,
+    p_meeting_location: location || null,
+  })
+);
+
+export const completeCaseHearing = async ({ hearingId, minutes }) => throwIfError(
+  await supabase.rpc('complete_case_hearing', { p_hearing_id: hearingId, p_minutes: minutes })
+);
+
+export const issueCaseAcquittal = async ({ caseId, reason }) => throwIfError(
+  await supabase.rpc('issue_case_acquittal', { p_case_id: caseId, p_legal_reasoning: reason })
+);
+
+export const issueCriminalSentence = async ({ caseId, defendantId, reason, sentenceUnits = 1, fineAmount = 0, prisonRegime = 'closed' }) => throwIfError(
+  await supabase.rpc('issue_criminal_sentence', {
+    p_case_id: caseId,
+    p_defendant_id: defendantId,
+    p_result: 'conviction',
+    p_legal_reasoning: reason,
+    p_final_sentence_units: Number(sentenceUnits),
+    p_fine_amount: Number(fineAmount),
+    p_prison_regime: prisonRegime,
+    p_special_justification: null,
+  })
+);
+
+export const fileCaseAppeal = async ({ caseId, argumentsText }) => throwIfError(
+  await supabase.rpc('file_case_appeal', {
+    p_case_id: caseId,
+    p_appeal_type: 'ordinary',
+    p_arguments: argumentsText,
+  })
+);
+
+export const decideCaseAppeal = async ({ appealId, outcome, decision }) => throwIfError(
+  await supabase.rpc('decide_case_appeal', {
+    p_appeal_id: appealId,
+    p_outcome: outcome,
+    p_decision: decision,
+  })
+);
+
+export const releasePrisonTerm = async ({ prisonTermId, reason }) => throwIfError(
+  await supabase.rpc('release_prison_term', {
+    p_prison_term_id: prisonTermId,
+    p_reason: reason,
   })
 );
 

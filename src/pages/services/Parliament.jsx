@@ -71,6 +71,21 @@ const PLEBISCITE_COLORS = {
   Abstenção: '#6b7280',
 };
 
+const LEGAL_EFFECT_LABELS = {
+  corporate_tax_rate: 'Alíquota sobre empresas',
+  consumption_tax_rate: 'Alíquota sobre consumo',
+  business_license_fee: 'Taxa de abertura de empresa',
+  public_safety_policy_index: 'Política de segurança',
+  social_welfare_policy_index: 'Bem-estar social',
+};
+
+const formatLegalEffectValue = (effect) => {
+  const value = Number(effect.effect_value || 0);
+  if (effect.effect_key.endsWith('_rate')) return `${(value * 100).toLocaleString('pt-BR')}%`;
+  if (effect.effect_key === 'business_license_fee') return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  return value.toLocaleString('pt-BR');
+};
+
 const ParliamentRulesSection = () => (
   <section className="mt-12">
     <div className="mb-6 text-center">
@@ -685,6 +700,7 @@ const BillList = ({ bills = [] }) => {
                       <span className="rounded-full bg-muted px-2 py-1 text-xs text-muted-foreground">{bill.type}</span>
                       {activeVoting?.end_date ? <CountdownTimer endDate={activeVoting.end_date} /> : null}
                     </div>
+                    {bill.legal_effects?.length ? <div className="mt-4 rounded-lg border border-cyan-500/20 bg-cyan-500/5 p-3"><p className="text-xs font-semibold uppercase tracking-wide text-cyan-200">Efeito prático da norma</p>{bill.legal_effects.map((effect) => <p key={effect.id} className="mt-2 text-sm"><span className="font-medium">{LEGAL_EFFECT_LABELS[effect.effect_key] || effect.effect_key}:</span> {effect.operation === 'set' ? 'passa a' : effect.operation === 'add' ? 'varia em' : 'é multiplicado por'} {formatLegalEffectValue(effect)} <Badge variant="outline" className="ml-2">{effect.status === 'active' ? 'Em vigor' : 'Previsto'}</Badge></p>)}</div> : null}
                     {totalVotes ? (
                       <>
                         <div className="mt-4 space-y-2">
@@ -1216,8 +1232,9 @@ const Parliament = () => {
       const billIds = (billsData || []).map((bill) => bill.id);
       let votingsMap = {};
       let historyMap = {};
+      let effectsMap = {};
       if (billIds.length) {
-        const [votingsResponse, historyResponse] = await Promise.all([
+        const [votingsResponse, historyResponse, effectsResponse] = await Promise.all([
           supabase
             .from('parliament_votings')
             .select('id, status, end_date, house_id, related_id, votes:parliament_voting_votes(vote, member_id)')
@@ -1228,6 +1245,11 @@ const Parliament = () => {
             .select('id, bill_id, status, event_label, occurred_at')
             .in('bill_id', billIds)
             .order('occurred_at', { ascending: true }),
+          supabase
+            .from('law_effects')
+            .select('id, source_id, effect_key, operation, effect_value, explanation, status, activated_at')
+            .eq('source_kind', 'bill')
+            .in('source_id', billIds),
         ]);
 
         const { data: votingsData, error: votingsError } = votingsResponse;
@@ -1251,6 +1273,14 @@ const Parliament = () => {
             historyMap[event.bill_id].push(event);
           });
         }
+        if (effectsResponse.error) {
+          console.warn('Efeitos das normas ainda não estão disponíveis:', effectsResponse.error);
+        } else {
+          (effectsResponse.data || []).forEach((effect) => {
+            if (!effectsMap[effect.source_id]) effectsMap[effect.source_id] = [];
+            effectsMap[effect.source_id].push(effect);
+          });
+        }
       }
 
       setBills(
@@ -1258,6 +1288,7 @@ const Parliament = () => {
           ...bill,
           votings: votingsMap[bill.id] || [],
           status_history: historyMap[bill.id] || [],
+          legal_effects: effectsMap[bill.id] || [],
         }))
       );
 

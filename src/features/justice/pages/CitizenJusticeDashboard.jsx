@@ -19,6 +19,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -32,8 +33,10 @@ import {
   createCitizenJusticeRequest,
   fetchCitizenJusticeData,
   issueClearanceCertificate,
+  fileCaseAppeal,
   payCitizenFine,
   requestFineHearing,
+  submitCaseDocument,
   subscribeToJusticeChanges,
 } from '@/lib/justice/api';
 import {
@@ -95,6 +98,8 @@ const CitizenJusticeDashboard = () => {
   const [actionLoading, setActionLoading] = useState('');
   const [now, setNow] = useState(Date.now());
   const [serverOffset, setServerOffset] = useState(0);
+  const [caseAction, setCaseAction] = useState(null);
+  const [caseActionText, setCaseActionText] = useState('');
 
   const loadData = useCallback(async ({ quiet = false } = {}) => {
     if (!quiet) setLoading(true);
@@ -215,6 +220,34 @@ const CitizenJusticeDashboard = () => {
     } catch (error) {
       toast({ title: 'Não foi possível emitir', description: error.message, variant: 'destructive' });
     } finally { setActionLoading(''); }
+  };
+
+  const handleCaseAction = async () => {
+    if (!caseAction) return;
+    setActionLoading(`case:${caseAction.item.id}`);
+    try {
+      if (caseAction.type === 'defense') {
+        await submitCaseDocument({
+          caseId: caseAction.item.id,
+          documentType: 'defense',
+          title: 'Defesa inicial',
+          body: caseActionText,
+        });
+      } else {
+        await fileCaseAppeal({ caseId: caseAction.item.id, argumentsText: caseActionText });
+      }
+      toast({
+        title: caseAction.type === 'defense' ? 'Defesa protocolada' : 'Recurso protocolado',
+        description: 'O documento entrou na linha do tempo oficial do processo.',
+      });
+      setCaseAction(null);
+      setCaseActionText('');
+      await loadData({ quiet: true });
+    } catch (error) {
+      toast({ title: 'Não foi possível protocolar', description: error.message, variant: 'destructive' });
+    } finally {
+      setActionLoading('');
+    }
   };
 
   if (loading) {
@@ -468,7 +501,20 @@ const CitizenJusticeDashboard = () => {
               </CardHeader>
               <CardContent className="space-y-5">
                 <p className="text-sm text-muted-foreground">{criminalCase.summary}</p>
-                <CaseTimeline status={criminalCase.status} />
+                <CaseTimeline
+                  status={criminalCase.status}
+                  events={data.timeline.filter((event) => event.case_id === criminalCase.id)}
+                />
+                {criminalCase.status === 'initial_defense' ? (
+                  <Button onClick={() => setCaseAction({ type: 'defense', item: criminalCase })}>
+                    <FileText className="mr-2 h-4 w-4" />Apresentar defesa
+                  </Button>
+                ) : null}
+                {['convicted', 'acquitted'].includes(criminalCase.status) ? (
+                  <Button variant="outline" onClick={() => setCaseAction({ type: 'appeal', item: criminalCase })}>
+                    <Gavel className="mr-2 h-4 w-4" />Protocolar recurso
+                  </Button>
+                ) : null}
               </CardContent>
             </Card>
           )) : (
@@ -596,6 +642,27 @@ const CitizenJusticeDashboard = () => {
           {data.wanted.length ? <Card className="border-red-500/25 bg-red-500/5"><CardHeader><CardTitle>Lista pública de procurados</CardTitle><CardDescription>Somente mandados de prisão oficiais, ativos e não expirados.</CardDescription></CardHeader><CardContent className="grid gap-3 sm:grid-cols-2">{data.wanted.map((item) => <div key={item.warrant_number} className="rounded-lg border border-red-500/20 p-3"><p className="font-semibold">{item.full_name}</p><p className="text-sm text-muted-foreground">{item.warrant_number}</p></div>)}</CardContent></Card> : null}
         </TabsContent>
       </Tabs>
+
+      <Dialog open={Boolean(caseAction)} onOpenChange={(open) => !open && setCaseAction(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{caseAction?.type === 'defense' ? 'Apresentar defesa inicial' : 'Protocolar recurso'}</DialogTitle>
+            <DialogDescription>
+              O texto será assinado, preservado no processo e exibido na linha do tempo para as partes autorizadas.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="case-action-text">Fundamentação</Label>
+            <Textarea id="case-action-text" rows={8} value={caseActionText} onChange={(event) => setCaseActionText(event.target.value)} />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCaseAction(null)}>Cancelar</Button>
+            <Button onClick={handleCaseAction} disabled={Boolean(actionLoading) || caseActionText.trim().length < (caseAction?.type === 'appeal' ? 40 : 20)}>
+              {actionLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}Protocolar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

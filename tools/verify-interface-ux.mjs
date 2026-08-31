@@ -42,9 +42,9 @@ verify('eventos parlamentares futuros usam hora do servidor', historyMigration.i
 verify('datas históricas não são inventadas', historyMigration.includes('bill.updated_at > bill.created_at') && historyMigration.includes('historical_updated_at'));
 verify('PDF aguarda fontes e captura o documento real', dic.includes('document.fonts.ready') && dic.includes("querySelector('[data-official-document]')") && officialDocument.includes('data-official-document'));
 verify('PDF corrige linha e escala sem esconder o renderizador', dic.includes('fontSize * 1.3') && dic.includes('scale: 3') && !dic.includes("left: '-9999px'"));
-verify('Home consulta exatamente as três notícias recentes', homeNews.includes("order('created_at', { ascending: false })") && homeNews.includes('.limit(3)'));
+verify('Home consulta exatamente as três publicações recentes do feed nacional', homeNews.includes("rpc('get_national_feed'") && homeNews.includes('p_limit: 3'));
 verify('carrossel possui loop de cinco segundos, navegação e swipe', homeNews.includes('5000') && homeNews.includes('% news.length') && homeNews.includes('handleTouchStart') && homeNews.includes('Notícia anterior'));
-verify('notícias acompanham publicações em tempo real com cleanup', homeNews.includes("channel('home-latest-news')") && homeNews.includes('removeChannel(channel)'));
+verify('notícias, Diário Oficial e imprensa acompanham publicações em tempo real com cleanup', homeNews.includes("channel('home-national-feed')") && ['news_articles', 'dou_entries', 'national_media_briefs'].every((table) => homeNews.includes(`'${table}'`)) && homeNews.includes('removeChannel(channel)'));
 verify('câmbio usa histórico persistido dos indicadores', economyLibrary.includes('exchange_usd') && economyLibrary.includes('exchange_eur') && economy.includes('Evolução do câmbio'));
 verify('Banco separa cartões e empréstimos em tabs', bank.includes('Solicitações de Cartão') && bank.includes('Solicitações de Empréstimo') && bank.includes('<TabsContent value="cards">') && bank.includes('<TabsContent value="loans">'));
 verify('paginação bancária consulta no máximo dez registros', bank.includes('REQUESTS_PAGE_SIZE = 10') && bank.includes('.range(from, to)') && bank.includes("count: 'exact'"));

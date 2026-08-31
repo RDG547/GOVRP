@@ -13,8 +13,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { formatCPF, formatPhone, formatRG } from '@/lib/utils';
 import {
   ACCEPTED_IMAGE_EXTENSIONS, ACCEPTED_IMAGE_MIME_TYPES, IMAGE_ACCEPT_ATTRIBUTE,
-  MAX_STANDARD_IMAGE_UPLOAD_BYTES, buildStoragePath, extractStoragePathFromUrl, validateSelectedFile,
+  MAX_AVATAR_UPLOAD_BYTES, extractStoragePathFromUrl, validateSelectedFile,
 } from '@/lib/security';
+import { removeAvatarFile, uploadAvatarFile } from '@/lib/avatarStorage';
 
 const ReadOnlyField = ({ label, value, icon: Icon = LockKeyhole, hint }) => (
   <div>
@@ -65,7 +66,7 @@ const Settings = () => {
   const chooseAvatar = (event) => {
     const file = event.target.files?.[0];
     if (!file) return;
-    const validation = validateSelectedFile(file, { allowedMimeTypes: ACCEPTED_IMAGE_MIME_TYPES, allowedExtensions: ACCEPTED_IMAGE_EXTENSIONS, maxBytes: MAX_STANDARD_IMAGE_UPLOAD_BYTES, label: 'avatar' });
+    const validation = validateSelectedFile(file, { allowedMimeTypes: ACCEPTED_IMAGE_MIME_TYPES, allowedExtensions: ACCEPTED_IMAGE_EXTENSIONS, maxBytes: MAX_AVATAR_UPLOAD_BYTES, label: 'avatar' });
     if (!validation.ok) {
       toast({ title: 'Avatar inválido', description: validation.error, variant: 'destructive' });
       return;
@@ -83,20 +84,18 @@ const Settings = () => {
       let oldPath = null;
       if (avatarFile) {
         oldPath = extractStoragePathFromUrl(user.avatar_url, 'avatars');
-        const newPath = buildStoragePath({ prefix: '', entityId: user.id, fileName: avatarFile.name });
-        const { error: uploadError } = await supabase.storage.from('avatars').upload(newPath, avatarFile, { upsert: false });
-        if (uploadError) throw uploadError;
-        uploadedPath = newPath;
-        avatarUrl = supabase.storage.from('avatars').getPublicUrl(newPath).data.publicUrl;
+        const uploadedAvatar = await uploadAvatarFile(avatarFile);
+        uploadedPath = uploadedAvatar.path;
+        avatarUrl = uploadedAvatar.publicUrl;
       }
       const { error } = await supabase.rpc('update_my_citizen_profile', { p_character_bio: citizen.bio || null, p_avatar_url: avatarUrl || null });
       if (error) throw error;
-      if (oldPath) await supabase.storage.from('avatars').remove([oldPath]);
+      if (oldPath) await removeAvatarFile(oldPath);
       await refreshUser();
       setAvatarFile(null);
       toast({ title: 'Perfil do cidadão atualizado' });
     } catch (error) {
-      if (uploadedPath) await supabase.storage.from('avatars').remove([uploadedPath]);
+      if (uploadedPath) await removeAvatarFile(uploadedPath);
       toast({ title: 'Erro ao atualizar o cidadão', description: error.message, variant: 'destructive' });
     } finally { setCitizenLoading(false); }
   };
