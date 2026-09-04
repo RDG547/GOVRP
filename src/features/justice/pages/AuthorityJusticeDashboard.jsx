@@ -103,6 +103,29 @@ const AuthorityJusticeDashboard = () => {
   const isProsecutor = hasAnyJusticeRole(user, ['Admin', 'Promotor']);
   const isLawyer = hasAnyJusticeRole(user, ['Admin', 'Advogado', 'Defensor Público']);
   const isPrisonStaff = hasAnyJusticeRole(user, ['Admin', 'Agente Penitenciário', 'Diretor Penitenciário']);
+  const hasJudicialAccess = isJudge || isProsecutor || isLawyer || isPrisonStaff;
+  const [panelMode, setPanelMode] = useState(isPolice ? 'police' : 'judicial');
+  const activePanelMode = panelMode === 'police' && !isPolice ? 'judicial'
+    : panelMode === 'judicial' && !hasJudicialAccess ? 'police'
+      : panelMode;
+  const visibleTabs = activePanelMode === 'police'
+    ? [
+      ['missions', Siren, 'Missões policiais'],
+      ['investigations', Search, 'Investigações'],
+      ['requests', Gavel, 'Pedidos da investigação'],
+      ['warrants', ClipboardList, 'Mandados'],
+      ['campaigns', Megaphone, 'Campanhas'],
+      ['integrity', BadgeCheck, 'Integridade'],
+    ]
+    : [
+      ['requests', Gavel, 'Pedidos judiciais'],
+      ['cases', Scale, 'Processos'],
+      ['warrants', ClipboardList, 'Mandados'],
+      ['custody', LockKeyhole, 'Custódia'],
+      ['sanctions', Banknote, 'Multas'],
+      ['citizen', Users, 'Pedidos cidadãos'],
+      ['integrity', BadgeCheck, 'Integridade'],
+    ];
 
   const loadData = useCallback(async ({ quiet = false } = {}) => {
     if (!quiet) setLoading(true);
@@ -316,33 +339,45 @@ const AuthorityJusticeDashboard = () => {
         <CardHeader>
           <div>
             <Badge className="mb-3 bg-cyan-500/15 text-cyan-200">{role}</Badge>
-            <CardTitle>Central operacional de Segurança e Justiça</CardTitle>
+            <CardTitle>{activePanelMode === 'police' ? 'Central operacional da Polícia' : 'Central operacional do Judiciário'}</CardTitle>
             <CardDescription className="mt-2">
-              Cada ação exige competência, estado válido e justificativa. Tudo fica registrado na auditoria.
+              {activePanelMode === 'police'
+                ? 'Ocorrências, investigações, diligências e prevenção reunidas conforme as competências policiais.'
+                : 'Pedidos, processos, custódia e decisões reunidos conforme as competências judiciais.'}
             </CardDescription>
+            {isPolice && hasJudicialAccess ? (
+              <div className="mt-4 inline-flex rounded-lg border border-white/10 bg-slate-950/40 p-1" aria-label="Área de atuação">
+                <Button type="button" size="sm" variant={activePanelMode === 'police' ? 'default' : 'ghost'} onClick={() => setPanelMode('police')}><Siren className="mr-2 h-4 w-4" />Polícia</Button>
+                <Button type="button" size="sm" variant={activePanelMode === 'judicial' ? 'default' : 'ghost'} onClick={() => setPanelMode('judicial')}><Scale className="mr-2 h-4 w-4" />Judiciário</Button>
+              </div>
+            ) : null}
           </div>
         </CardHeader>
       </Card>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-        <JusticeStatCard icon={Siren} label="Ocorrências novas" value={queues.newOccurrences.length} tone="red" />
-        <JusticeStatCard icon={Search} label="Investigações" value={queues.activeInvestigations.length} />
-        <JusticeStatCard icon={Gavel} label="Pedidos urgentes" value={queues.urgentRequests.length} tone="amber" />
-        <JusticeStatCard icon={Scale} label="Fila judicial" value={queues.waitingSentence.length} tone="violet" />
-        <JusticeStatCard icon={LockKeyhole} label="Presos provisórios" value={queues.provisionalCustody.length} tone="red" />
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        {activePanelMode === 'police' ? (
+          <>
+            <JusticeStatCard icon={Siren} label="Ocorrências novas" value={queues.newOccurrences.length} tone="red" />
+            <JusticeStatCard icon={Search} label="Investigações" value={queues.activeInvestigations.length} />
+            <JusticeStatCard icon={Megaphone} label="Campanhas ativas" value={data.campaigns.length} tone="amber" />
+          </>
+        ) : (
+          <>
+            <JusticeStatCard icon={Gavel} label="Pedidos urgentes" value={queues.urgentRequests.length} tone="amber" />
+            <JusticeStatCard icon={Scale} label="Fila judicial" value={queues.waitingSentence.length} tone="violet" />
+            <JusticeStatCard icon={LockKeyhole} label="Presos provisórios" value={queues.provisionalCustody.length} tone="red" />
+          </>
+        )}
       </div>
 
-      <Tabs defaultValue={isPolice ? 'missions' : isJudge ? 'requests' : 'cases'} className="space-y-6">
-        <TabsList className="grid h-auto w-full grid-cols-2 gap-2 bg-muted/50 p-2 md:grid-cols-3 xl:grid-cols-9">
-          <TabsTrigger value="missions"><Siren className="mr-2 h-4 w-4" />Missões policiais</TabsTrigger>
-          <TabsTrigger value="investigations"><Search className="mr-2 h-4 w-4" />Investigações</TabsTrigger>
-          <TabsTrigger value="requests"><Gavel className="mr-2 h-4 w-4" />Pedidos judiciais</TabsTrigger>
-          <TabsTrigger value="cases"><Scale className="mr-2 h-4 w-4" />Processos</TabsTrigger>
-          <TabsTrigger value="custody"><LockKeyhole className="mr-2 h-4 w-4" />Custódia</TabsTrigger>
-          <TabsTrigger value="sanctions"><Banknote className="mr-2 h-4 w-4" />Multas</TabsTrigger>
-          <TabsTrigger value="citizen"><Users className="mr-2 h-4 w-4" />Pedidos cidadãos</TabsTrigger>
-          <TabsTrigger value="campaigns"><Megaphone className="mr-2 h-4 w-4" />Campanhas</TabsTrigger>
-          <TabsTrigger value="integrity"><BadgeCheck className="mr-2 h-4 w-4" />Integridade</TabsTrigger>
+      <Tabs key={activePanelMode} defaultValue={visibleTabs[0]?.[0]} className="space-y-6">
+        <TabsList className="flex h-auto w-full justify-start gap-2 overflow-x-auto bg-muted/50 p-2">
+          {visibleTabs.map(([value, Icon, label]) => (
+            <TabsTrigger key={value} value={value} className="shrink-0">
+              <Icon className="mr-2 h-4 w-4" aria-hidden="true" />{label}
+            </TabsTrigger>
+          ))}
         </TabsList>
 
         <TabsContent value="missions" className="space-y-4">
@@ -490,6 +525,35 @@ const AuthorityJusticeDashboard = () => {
               description="Mandados, liberdade, fiança e outras medidas urgentes aparecerão aqui."
             />
           )}
+        </TabsContent>
+
+        <TabsContent value="warrants" className="space-y-4">
+          {data.warrants.length ? data.warrants.map((warrant) => {
+            const target = data.profiles.find((profile) => profile.id === warrant.target_profile_id);
+            const typeLabel = {
+              arrest: 'Mandado de prisão',
+              search: 'Mandado de busca',
+              seizure: 'Mandado de apreensão',
+              transfer: 'Mandado de transferência',
+            }[warrant.warrant_type] || 'Mandado judicial';
+            return (
+              <Card key={warrant.id} className="glass-effect">
+                <CardHeader>
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <CardTitle className="text-lg">{typeLabel}</CardTitle>
+                      <CardDescription className="mt-1">{warrant.warrant_number} · emitido em {formatJusticeDate(warrant.issued_at)}</CardDescription>
+                    </div>
+                    <Badge variant="outline">{warrant.status}</Badge>
+                  </div>
+                </CardHeader>
+                <CardContent className="grid gap-3 text-sm sm:grid-cols-2">
+                  <div><span className="text-muted-foreground">Pessoa relacionada</span><div className="mt-2"><UserSelectOption user={target} label={target?.full_name || 'Identidade protegida'} detail={target?.username ? `@${target.username}` : ''} /></div></div>
+                  <p><span className="text-muted-foreground">Validade</span><br />{formatJusticeDate(warrant.expires_at)}</p>
+                </CardContent>
+              </Card>
+            );
+          }) : <JusticeEmptyState title="Nenhum mandado disponível" description="Mandados compatíveis com sua competência aparecerão aqui." />}
         </TabsContent>
 
         <TabsContent value="cases" className="space-y-4">

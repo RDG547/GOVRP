@@ -1,5 +1,6 @@
 import { execFileSync } from 'node:child_process';
 import { createClient } from '@supabase/supabase-js';
+import { calculateExchangeVariation, getExchangePair, getExchangeTrend } from '../src/lib/currency.js';
 
 const local = Object.fromEntries(execFileSync('supabase', ['status', '-o', 'env'], { encoding: 'utf8' })
   .split(/\r?\n/).filter((line) => line.includes('='))
@@ -17,6 +18,9 @@ const assert = (condition, label) => {
   if (!condition) throw new Error(`Falha: ${label}`);
   checks.push(label);
 };
+
+assert(getExchangePair('USD', 'BRL') === 'USD/BRL' && getExchangePair('EUR', 'BRL') === 'EUR/BRL', 'cidadão brasileiro recebe pares USD/BRL e EUR/BRL');
+assert(calculateExchangeVariation(5.25, 5) === 5 && getExchangeTrend(5) === 'up' && getExchangeTrend(-1) === 'down' && getExchangeTrend(0) === 'stable', 'variação diária e tendências usam valores persistidos sem percentuais inventados');
 
 const createActor = async (label, role, balance = 0) => {
   const suffix = crypto.randomUUID().replaceAll('-', '').slice(0, 10);
@@ -99,6 +103,7 @@ if (loanApplication.error) throw loanApplication.error;
 
 const adminBEvents = [];
 const citizenNotifications = [];
+const exchangeEvents = [];
 const adminBChannel = adminB.client
   .channel(`bank-admin-b-${crypto.randomUUID()}`)
   .on('postgres_changes', {
@@ -112,7 +117,12 @@ const citizenChannel = citizen.client
   .on('postgres_changes', {
     event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${citizen.id}`,
   }, (payload) => citizenNotifications.push(payload.new));
-await Promise.all([subscribe(adminBChannel), subscribe(citizenChannel)]);
+const exchangeChannel = adminB.client
+  .channel(`bank-exchange-${crypto.randomUUID()}`)
+  .on('postgres_changes', {
+    event: 'UPDATE', schema: 'public', table: 'country_rp_exchange_rates', filter: 'country_code=eq.BR',
+  }, (payload) => exchangeEvents.push(payload.new));
+await Promise.all([subscribe(adminBChannel), subscribe(citizenChannel), subscribe(exchangeChannel)]);
 // O emulador local inicia o slot de replicação sob demanda logo após o
 // primeiro SUBSCRIBED; aguardar esse pequeno intervalo evita perder o primeiro
 // WAL apenas durante a inicialização do ambiente de teste.
@@ -148,6 +158,11 @@ await waitFor(
 );
 assert(true, 'cidadão recebe a decisão bancária em tempo real');
 
+const currencyCycle = await service.rpc('run_currency_market_cycle', { p_cycle_key: `bank-realtime-${crypto.randomUUID()}` });
+if (currencyCycle.error) throw currencyCycle.error;
+await waitFor(() => exchangeEvents.some((event) => ['USD', 'EUR', 'GBP', 'JPY', 'CNY'].includes(event.currency_code)), 'cotação do RP chegar em tempo real');
+assert(true, 'cotação cambial do RP atualiza os cards sem recarregar a página');
+
 const [storedCardApplication, storedLoanApplication, issuedCard, auditRows, notifications] = await Promise.all([
   service.from('credit_card_applications').select('*').eq('id', cardApplication.data.id).single(),
   service.from('loan_applications').select('*').eq('id', loanApplication.data.id).single(),
@@ -181,6 +196,7 @@ const history = await adminA.client.rpc('get_admin_transaction_history', {
   p_search: citizen.username,
   p_type: 'transfer',
   p_status: 'completed',
+  p_currency: 'BRL',
   p_date_from: new Date(Date.now() - 86400000).toISOString().slice(0, 10),
   p_date_to: new Date().toISOString().slice(0, 10),
   p_min_amount: 100,
@@ -191,6 +207,7 @@ const history = await adminA.client.rpc('get_admin_transaction_history', {
 });
 if (history.error) throw history.error;
 assert(history.data.length === 1 && history.data[0].id === transfer.data.transaction_id, 'histórico combina busca, período, pessoas, valor, tipo e situação');
+assert(history.data.every((row) => row.currency === 'BRL'), 'histórico filtra a moeda no servidor');
 assert(history.data[0].sender_account_number && history.data[0].recipient_account_number, 'detalhes mostram as duas contas e seus titulares');
 assert(Number(history.data[0].tax_amount) >= 0 && history.data[0].metadata, 'detalhes retornam imposto, referência e dados complementares');
 
@@ -204,6 +221,7 @@ assert(Boolean(citizenHistory.error), 'cidadão não acessa o histórico finance
 await Promise.all([
   adminB.client.removeChannel(adminBChannel),
   citizen.client.removeChannel(citizenChannel),
+  adminB.client.removeChannel(exchangeChannel),
 ]);
 
 process.stdout.write(`✓ ${checks.length} testes reais de banco, Realtime e rastreio financeiro concluídos.\n`);

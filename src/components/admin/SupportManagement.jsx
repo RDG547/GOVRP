@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { CheckCircle2, ChevronLeft, ChevronRight, Headphones, Loader2, Search } from 'lucide-react';
+import { CheckCircle2, ChevronLeft, ChevronRight, Headphones, Loader2, Search, Trash2 } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/components/ui/use-toast';
@@ -7,6 +7,17 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import SupportConversation, { SUPPORT_PRIORITY, SUPPORT_STATUS } from '@/components/support/SupportConversation';
 
 const PAGE_SIZE = 10;
@@ -25,6 +36,8 @@ const SupportManagement = () => {
   const [loading, setLoading] = useState(true);
   const [threadLoading, setThreadLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteReason, setDeleteReason] = useState('');
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -41,6 +54,7 @@ const SupportManagement = () => {
     let query = supabase
       .from('support_tickets')
       .select('*', { count: 'exact' })
+      .is('deleted_at', null)
       .order('last_message_at', { ascending: false })
       .range(from, to);
 
@@ -58,7 +72,7 @@ const SupportManagement = () => {
       setTicketCount(count || 0);
       setSelectedTicket((current) => {
         if (!current) return data?.[0] || null;
-        return (data || []).find((ticket) => ticket.id === current.id) || current;
+        return (data || []).find((ticket) => ticket.id === current.id) || data?.[0] || null;
       });
     }
     if (!quiet) setLoading(false);
@@ -140,6 +154,26 @@ const SupportManagement = () => {
     return true;
   };
 
+  const archiveTicket = async () => {
+    if (!selectedTicket) return;
+    setSaving(true);
+    const { error } = await supabase.rpc('admin_archive_support_ticket', {
+      p_ticket_id: selectedTicket.id,
+      p_reason: deleteReason.trim() || null,
+    });
+    setSaving(false);
+    if (error) {
+      toast({ title: 'Não foi possível excluir o ticket', description: error.message, variant: 'destructive' });
+      return;
+    }
+    setDeleteOpen(false);
+    setDeleteReason('');
+    setSelectedTicket(null);
+    setMessages([]);
+    toast({ title: 'Ticket excluído', description: 'A solicitação saiu da fila e o histórico administrativo foi preservado.' });
+    await loadTickets({ quiet: true });
+  };
+
   const totalPages = Math.max(1, Math.ceil(ticketCount / PAGE_SIZE));
   const queueSummary = useMemo(() => ({
     open: tickets.filter((ticket) => ticket.status === 'open').length,
@@ -172,12 +206,13 @@ const SupportManagement = () => {
         <aside className="space-y-3">
           {loading ? <div className="flex min-h-56 items-center justify-center"><Loader2 className="h-7 w-7 animate-spin" /></div> : tickets.length ? tickets.map((ticket) => {
             const meta = SUPPORT_STATUS[ticket.status] || SUPPORT_STATUS.open;
+            const priority = SUPPORT_PRIORITY[ticket.priority] || SUPPORT_PRIORITY.normal;
             return (
-              <button key={ticket.id} type="button" onClick={() => setSelectedTicket(ticket)} className={`w-full rounded-xl border p-4 text-left transition-colors ${selectedTicket?.id === ticket.id ? 'border-cyan-400/40 bg-cyan-500/10' : 'border-white/10 bg-white/[0.025] hover:bg-white/5'}`}>
+              <button key={ticket.id} type="button" onClick={() => setSelectedTicket(ticket)} className={`w-full rounded-xl border border-l-4 p-4 text-left transition-colors ${priority.accentClass} ${selectedTicket?.id === ticket.id ? 'border-cyan-400/40 bg-cyan-500/10' : 'border-white/10 bg-white/[0.025] hover:bg-white/5'}`}>
                 <div className="flex items-start justify-between gap-2"><span className="font-mono text-xs font-semibold text-cyan-300">{ticket.public_id}</span><Badge variant="outline" className={meta.className}>{meta.label}</Badge></div>
                 <p className="mt-2 line-clamp-2 font-medium text-foreground">{ticket.subject}</p>
                 <p className="mt-2 truncate text-xs text-muted-foreground">{ticket.requester_name} · {ticket.requester_email}</p>
-                <p className="mt-1 text-xs text-muted-foreground">Prioridade {SUPPORT_PRIORITY[ticket.priority]}</p>
+                <Badge variant="outline" className={`mt-2 ${priority.className}`}>Prioridade {priority.label}</Badge>
               </button>
             );
           }) : <p className="rounded-xl border border-dashed border-white/10 p-8 text-center text-sm text-muted-foreground">Nenhum ticket encontrado.</p>}
@@ -200,13 +235,37 @@ const SupportManagement = () => {
               </Select>
               <Select value={selectedTicket.priority} onValueChange={(priority) => updateTicket({ priority })} disabled={saving}>
                 <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
-                <SelectContent>{Object.entries(SUPPORT_PRIORITY).map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}</SelectContent>
+                <SelectContent>{Object.entries(SUPPORT_PRIORITY).map(([value, meta]) => <SelectItem key={value} value={value}>{meta.label}</SelectItem>)}</SelectContent>
               </Select>
+              <Button type="button" size="sm" variant="destructive" className="sm:ml-auto" onClick={() => setDeleteOpen(true)} disabled={saving}>
+                <Trash2 className="mr-2 h-4 w-4" />Excluir ticket
+              </Button>
             </div>
           ) : null}
           <SupportConversation ticket={selectedTicket} messages={messages} loading={threadLoading} saving={saving} isAdmin onReply={reply} />
         </div>
       </div>
+
+      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir o ticket {selectedTicket?.public_id}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Ele deixará de aparecer para o cidadão e na fila ativa. A ação e o histórico ficam registrados para auditoria.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-2">
+            <label htmlFor="support-delete-reason" className="text-sm font-medium">Motivo da exclusão (opcional)</label>
+            <Textarea id="support-delete-reason" value={deleteReason} onChange={(event) => setDeleteReason(event.target.value)} maxLength={500} placeholder="Informe o motivo para facilitar futuras auditorias." />
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={saving}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={(event) => { event.preventDefault(); void archiveTicket(); }} disabled={saving} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}Confirmar exclusão
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

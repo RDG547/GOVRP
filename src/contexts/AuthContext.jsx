@@ -53,6 +53,13 @@ export const AuthProvider = ({ children }) => {
   const [authError, setAuthError] = useState('');
   const [triggerTutorial, setTriggerTutorial] = useState(false);
   const hydrationRequestRef = useRef(0);
+  const sessionRef = useRef(null);
+  const userRef = useRef(null);
+  const resumeRefreshRef = useRef(false);
+  const lastResumeRefreshAtRef = useRef(0);
+
+  useEffect(() => { sessionRef.current = session; }, [session]);
+  useEffect(() => { userRef.current = user; }, [user]);
 
   const attachPrivateAccountIdentity = useCallback(async (profile, currentSession) => {
     if (!profile) return profile;
@@ -239,10 +246,12 @@ export const AuthProvider = ({ children }) => {
   const hydrateSession = useCallback(async (currentSession, { showLoading = true } = {}) => {
     const requestId = ++hydrationRequestRef.current;
     setSession(currentSession || null);
+    sessionRef.current = currentSession || null;
     setAuthError('');
 
     if (!currentSession?.user) {
       setUser(null);
+      userRef.current = null;
       setLoading(false);
       return null;
     }
@@ -258,12 +267,14 @@ export const AuthProvider = ({ children }) => {
 
       if (requestId !== hydrationRequestRef.current) return profile;
       setUser(profile);
+      userRef.current = profile;
       setLoading(false);
       return profile;
     } catch (error) {
       if (requestId !== hydrationRequestRef.current) return null;
       console.error('Falha na hidratação da sessão:', error);
       setUser(null);
+      userRef.current = null;
       setAuthError(error?.message || 'Não foi possível carregar sua conta.');
       setLoading(false);
       return null;
@@ -371,6 +382,47 @@ export const AuthProvider = ({ children }) => {
     }
   }, [hydrateSession]);
 
+  const refreshSessionSilently = useCallback(async () => {
+    const now = Date.now();
+    if (resumeRefreshRef.current || now - lastResumeRefreshAtRef.current < 5000) return;
+    resumeRefreshRef.current = true;
+    lastResumeRefreshAtRef.current = now;
+
+    try {
+      const { data, error } = await supabase.auth.getSession();
+      if (error) throw error;
+
+      let currentSession = data.session;
+      if (!currentSession?.user) {
+        sessionRef.current = null;
+        userRef.current = null;
+        setSession(null);
+        setUser(null);
+        return;
+      }
+
+      const expiresAt = Number(currentSession.expires_at || 0) * 1000;
+      if (expiresAt && expiresAt - Date.now() < 120000) {
+        const refreshed = await supabase.auth.refreshSession(currentSession);
+        if (refreshed.error) throw refreshed.error;
+        currentSession = refreshed.data.session || currentSession;
+      }
+
+      sessionRef.current = currentSession;
+      setSession(currentSession);
+      const profile = await fetchUserProfile(currentSession);
+      if (profile) {
+        userRef.current = profile;
+        setUser(profile);
+        setAuthError('');
+      }
+    } catch (error) {
+      console.warn('Não foi possível atualizar a sessão silenciosamente:', error);
+    } finally {
+      resumeRefreshRef.current = false;
+    }
+  }, [fetchUserProfile]);
+
   useEffect(() => {
     let isMounted = true;
 
@@ -380,7 +432,23 @@ export const AuthProvider = ({ children }) => {
       // Consultas Supabase dentro do callback assíncrono do Auth podem bloquear o
       // cliente. O callback apenas captura o evento; a hidratação roda no próximo turno.
       window.setTimeout(() => {
-        if (isMounted) void hydrateSession(newSession, { showLoading: event === 'SIGNED_IN' });
+        if (!isMounted) return;
+        if (event === 'SIGNED_OUT' || !newSession?.user) {
+          void hydrateSession(null, { showLoading: false });
+          return;
+        }
+        if (event === 'TOKEN_REFRESHED') {
+          sessionRef.current = newSession;
+          setSession(newSession);
+          return;
+        }
+        const isSameUser = userRef.current?.id === newSession.user.id;
+        if (event === 'SIGNED_IN' && isSameUser) {
+          sessionRef.current = newSession;
+          setSession(newSession);
+          return;
+        }
+        void hydrateSession(newSession, { showLoading: event === 'SIGNED_IN' && !isSameUser });
       }, 0);
     });
 
@@ -392,6 +460,19 @@ export const AuthProvider = ({ children }) => {
       authListener?.subscription.unsubscribe();
     };
   }, [hydrateSession, restoreSession]);
+
+  useEffect(() => {
+    const handleResume = () => { void refreshSessionSilently(); };
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') handleResume();
+    };
+    window.addEventListener('govrp:resume', handleResume);
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => {
+      window.removeEventListener('govrp:resume', handleResume);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
+  }, [refreshSessionSilently]);
 
   const login = async ({ identifier, password, captchaToken }) => {
     const email = identifier.trim().toLowerCase();

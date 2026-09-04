@@ -27,6 +27,27 @@ const formatValue = (type, value) => {
     return value;
 };
 
+const formatDocumentDate = (value) => {
+    if (!value) return 'NÃO INFORMADA';
+    const normalized = /^\d{4}-\d{2}-\d{2}$/.test(value) ? `${value}T12:00:00` : value;
+    const date = new Date(normalized);
+    return Number.isNaN(date.getTime()) ? 'NÃO INFORMADA' : date.toLocaleDateString('pt-BR');
+};
+
+const getCitizenNaturality = (user) => {
+    const city = user?.birth_city_name;
+    const state = user?.birth_state_code;
+    if (city && state) return `${city} - ${state}`;
+    return city || state || 'NÃO INFORMADA';
+};
+
+const getCitizenResidence = (user) => {
+    const city = user?.residence_city_name;
+    const state = user?.residence_state_code;
+    if (city && state) return `${city} - ${state}`;
+    return city || state || 'NÃO INFORMADO';
+};
+
 const normalizeMrzValue = (value = '') =>
     value
         .normalize('NFD')
@@ -158,7 +179,7 @@ const GenericBackSide = ({ doc }) => (
 );
 
 const RGDocument = ({ user, doc, side }) => {
-    const dateOfBirth = new Date(user.date_of_birth.replace(/-/g, '\/')).toLocaleDateString('pt-BR');
+    const dateOfBirth = formatDocumentDate(user.date_of_birth);
     return (
     <DocumentContainer className="bg-gradient-to-br from-gray-100 to-blue-50 text-black font-sans">
         {side === 'front' ? (
@@ -182,7 +203,7 @@ const RGDocument = ({ user, doc, side }) => {
                         <DocumentField label="DATA DE EXPEDIÇÃO" value={new Date(doc.issued_at).toLocaleDateString('pt-BR')} />
                         <DocumentField label="NOME" value={user.full_name?.toUpperCase()} className="col-span-2" />
                         <DocumentField label="FILIAÇÃO" value="NÃO INFORMADO" className="col-span-2" />
-                        <DocumentField label="NATURALIDADE" value="GOV - RP" />
+                        <DocumentField label="NATURALIDADE" value={getCitizenNaturality(user).toUpperCase()} />
                         <DocumentField label="DATA NASC." value={dateOfBirth} />
                         <DocumentField label="DOC. ORIGEM" value="N/A" />
                         <DocumentField label="CPF" value={formatCPF(user.cpf)} />
@@ -201,7 +222,7 @@ const RGDocument = ({ user, doc, side }) => {
 )};
 
 const CPFDocument = ({ user, doc, side }) => {
-    const dateOfBirth = new Date(user.date_of_birth.replace(/-/g, '\/')).toLocaleDateString('pt-BR');
+    const dateOfBirth = formatDocumentDate(user.date_of_birth);
     return (
     <DocumentContainer className="bg-gradient-to-br from-blue-50 to-green-50 text-black font-sans justify-between">
         {side === 'front' ? (
@@ -264,7 +285,7 @@ const CNPJDocument = ({ user, doc, side }) => (
 );
 
 const CTDDocument = ({ user, doc, side }) => {
-    const dateOfBirth = new Date(user.date_of_birth.replace(/-/g, '\/')).toLocaleDateString('pt-BR');
+    const dateOfBirth = formatDocumentDate(user.date_of_birth);
     return (
     <DocumentContainer className="bg-[#0A2240] text-white font-sans">
         {side === 'front' ? (
@@ -307,7 +328,7 @@ const CTDDocument = ({ user, doc, side }) => {
 )};
 
 const TituloEleitorDocument = ({ user, doc, side }) => {
-    const dateOfBirth = new Date(user.date_of_birth.replace(/-/g, '\/')).toLocaleDateString('pt-BR');
+    const dateOfBirth = formatDocumentDate(user.date_of_birth);
     return (
     <DocumentContainer className="bg-white text-black font-mono">
         {side === 'front' ? (
@@ -328,7 +349,7 @@ const TituloEleitorDocument = ({ user, doc, side }) => {
                             <DocumentField label="ZONA" value="001" />
                             <DocumentField label="SEÇÃO" value="0001" />
                         </div>
-                        <DocumentField label="MUNICÍPIO" value="GOV - RP" />
+                        <DocumentField label="MUNICÍPIO / UF" value={getCitizenResidence(user).toUpperCase()} />
                         <DocumentField label="DATA DE EMISSÃO" value={new Date(doc.issued_at).toLocaleDateString('pt-BR')} />
                     </div>
                     <div className="w-1/3 flex flex-col items-center">
@@ -344,7 +365,7 @@ const TituloEleitorDocument = ({ user, doc, side }) => {
 )};
 
 const CNHDocument = ({ user, doc, side }) => {
-    const dateOfBirth = new Date(user.date_of_birth.replace(/-/g, '\/')).toLocaleDateString('pt-BR');
+    const dateOfBirth = formatDocumentDate(user.date_of_birth);
     return (
     <DocumentContainer className="bg-gradient-to-br from-green-100 to-blue-100 text-black font-mono">
         {side === 'front' ? (
@@ -399,7 +420,7 @@ const CNHDocument = ({ user, doc, side }) => {
 )};
 
 const PassportDocument = ({ user, doc, side }) => {
-    const dateOfBirth = new Date(user.date_of_birth.replace(/-/g, '\/')).toLocaleDateString('pt-BR');
+    const dateOfBirth = formatDocumentDate(user.date_of_birth);
     const { surname, givenNames } = getPassportNames(user.full_name);
     const mrzLineOne = buildMrzLine(`P<GOV${surname}${givenNames ? `<<${givenNames}` : '<<'}`);
     const mrzLineTwo = buildMrzLine(
@@ -455,7 +476,7 @@ const PassportDocument = ({ user, doc, side }) => {
 )};
 
 const MarriageCertificateDocument = ({ user, doc }) => {
-    const dateOfBirth = new Date(user.date_of_birth.replace(/-/g, '\/')).toLocaleDateString('pt-BR');
+    const dateOfBirth = formatDocumentDate(user.date_of_birth);
     return (
         <div data-official-document className="p-6 bg-white rounded-lg text-black font-serif max-w-2xl mx-auto border-4 border-pink-300">
             <header className="text-center mb-6">
@@ -516,7 +537,7 @@ const ProfessionalRegistryDocument = ({ user, doc, side }) => (
 );
 
 const ReservistCertificateDocument = ({ user, doc, side }) => {
-    const dateOfBirth = new Date(user.date_of_birth.replace(/-/g, '\/')).toLocaleDateString('pt-BR');
+    const dateOfBirth = formatDocumentDate(user.date_of_birth);
     return (
     <DocumentContainer className="bg-gradient-to-br from-green-100 to-yellow-100 text-black font-mono">
         {side === 'front' ? (
@@ -587,7 +608,7 @@ export const OfficialDocument = ({ user, doc, onBack, side: initialSide = 'front
   }
 
   return (
-    <div className={`relative mx-auto w-full ${onBack ? 'max-w-[34rem] pr-14' : 'max-w-[30rem]'}`}>
+    <div className="relative mx-auto w-full max-w-[30rem]">
       <DocumentComponent user={user} doc={doc} side={side}/>
        {onBack && (
         <div className="absolute right-2 top-2 flex flex-col gap-2">

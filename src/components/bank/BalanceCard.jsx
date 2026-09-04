@@ -9,6 +9,8 @@ import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { formatCurrency } from '@/lib/utils';
 import { motion } from 'framer-motion';
+import useRpExchangeRates from '@/hooks/use-rp-exchange-rates';
+import { formatExchangeRate, getExchangePair, getExchangeTrend } from '@/lib/currency';
 
 const currencySymbols = {
   BRL: 'R$',
@@ -34,6 +36,7 @@ const BalanceCard = ({ account, onUpdate, onTransferClick, onPayClick }) => {
   const [isGeneratingKey, setIsGeneratingKey] = useState(false);
   const [visibleCurrencies, setVisibleCurrencies] = useState(['BRL', 'USD', 'EUR', 'GBP', 'JPY', 'CNY']);
   const [isBalanceVisible, setIsBalanceVisible] = useState(true);
+  const { baseCurrency, rates, loading: ratesLoading, error: ratesError } = useRpExchangeRates(user);
 
   useEffect(() => {
     if (user?.ui_preferences?.visibleCurrencies) {
@@ -91,6 +94,28 @@ const BalanceCard = ({ account, onUpdate, onTransferClick, onPayClick }) => {
     
   const accountInfoText = `Ag: ${account?.agency_number} / Cc: ${account?.account_number}`;
 
+  const renderRate = (currency) => {
+    const rate = rates[currency];
+    if (ratesLoading && !rate) {
+      return <span className="inline-flex items-center text-[11px] text-blue-200/60"><Loader2 className="mr-1 h-3 w-3 animate-spin" />Atualizando câmbio</span>;
+    }
+    if (!rate) return <span className="text-[11px] text-blue-200/60">Cotação indisponível</span>;
+
+    const trend = getExchangeTrend(rate.variation);
+    const trendSymbol = trend === 'up' ? '▲' : trend === 'down' ? '▼' : '—';
+    const trendClass = trend === 'up' ? 'text-emerald-300' : trend === 'down' ? 'text-rose-300' : 'text-blue-200/70';
+    return (
+      <div className="shrink-0 border-l border-white/10 pl-2 text-right">
+        <p className="text-[10px] uppercase tracking-wide text-blue-200/55">{getExchangePair(currency, baseCurrency)}</p>
+        <p className="whitespace-nowrap text-xs font-semibold text-blue-50">{formatExchangeRate(rate.value, baseCurrency)}</p>
+        <span className={`inline-flex shrink-0 items-center gap-1 text-[11px] font-semibold ${trendClass}`} title="Variação desde o início do dia no calendário do RP">
+          <span aria-hidden="true">{trendSymbol}</span>
+          {rate.variation >= 0 ? '+' : ''}{Number(rate.variation).toFixed(2)}%
+        </span>
+      </div>
+    );
+  };
+
   return (
     <div className="relative rounded-2xl p-6 text-white overflow-hidden bg-gradient-to-br from-blue-900 via-slate-900 to-purple-900">
       <div className="absolute inset-0 bg-black/20"></div>
@@ -139,7 +164,7 @@ const BalanceCard = ({ account, onUpdate, onTransferClick, onPayClick }) => {
           </Popover>
         </div>
         
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mb-6">
+        <div className="mb-6 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
           {displayedBalances.filter(([c]) => c !== 'BRL').map(([currency, balance], index) => (
             <motion.div 
               key={currency} 
@@ -148,13 +173,20 @@ const BalanceCard = ({ account, onUpdate, onTransferClick, onPayClick }) => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.1 }}
             >
-              <p className="text-sm text-blue-200/70"><span className="text-base">{currencyFlags[currency]}</span> {currency}</p>
-              <p className="text-lg font-bold">
-                {isBalanceVisible ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency, minimumFractionDigits: 2 }).format(balance || 0) : `${currencySymbols[currency]} ••••••`}
-              </p>
+              <div className="flex min-w-0 items-center justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="text-sm text-blue-200/70"><span className="text-base">{currencyFlags[currency]}</span> {currency}</p>
+                  <p className="truncate text-lg font-bold">
+                    {isBalanceVisible ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency, minimumFractionDigits: 2 }).format(balance || 0) : `${currencySymbols[currency]} ••••••`}
+                  </p>
+                </div>
+                {renderRate(currency)}
+              </div>
             </motion.div>
           ))}
         </div>
+
+        {ratesError ? <p role="status" className="-mt-3 mb-4 text-xs text-amber-200">Os saldos continuam disponíveis; a cotação será atualizada automaticamente quando a conexão retornar.</p> : null}
 
         <div className="border-t border-white/10 pt-4 mt-4">
             <div className="flex gap-4">

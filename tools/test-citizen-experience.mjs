@@ -91,9 +91,19 @@ const uploadedPath = uploaded.data.path;
 const uploadedUrl = uploaded.data.publicUrl;
 assert(uploadedUrl.includes('/storage/v1/object/public/avatars/'), 'foto própria é enviada para a pasta segura do cidadão');
 
+const invalidIdentity = await client.rpc('save_citizen_identity', {
+  p_full_name: 'Marina 123 Horizonte',
+  p_username: `Marina.${suffix}`,
+  p_date_of_birth: '2001-09-07',
+  p_character_bio: null,
+  p_avatar_url: uploadedUrl,
+  p_character_gender: 'female',
+});
+assert(Boolean(invalidIdentity.error), 'nome civil rejeita números e símbolos incompatíveis');
+
 const identity = await client.rpc('save_citizen_identity', {
   p_full_name: 'Marina Horizonte',
-  p_username: `marina.${suffix}`,
+  p_username: `Marina.${suffix}`,
   p_date_of_birth: '2001-09-07',
   p_character_bio: 'Personagem criado para validar a experiência completa de cidadania.',
   p_avatar_url: uploadedUrl,
@@ -101,6 +111,7 @@ const identity = await client.rpc('save_citizen_identity', {
 });
 if (identity.error) throw identity.error;
 assert(identity.data.character_gender === 'female' && identity.data.avatar_url === uploadedUrl, 'sexo e foto do personagem persistem juntos');
+assert(identity.data.username === `Marina.${suffix}`, 'nome de usuário preserva maiúsculas e minúsculas escolhidas');
 
 const directGenderChange = await client.from('profiles').update({ character_gender: 'male' }).eq('id', userId);
 assert(Boolean(directGenderChange.error), 'campo oficial do personagem não pode ser adulterado diretamente');
@@ -136,7 +147,7 @@ assert(firstTransferBefore && Number(firstTransferBefore.progress) === 0, 'saldo
 const providedAvatar = `https://api.dicebear.com/7.x/adventurer/svg?seed=govrp-female-${suffix}`;
 const editedIdentity = await client.rpc('save_citizen_identity', {
   p_full_name: 'Marina Horizonte',
-  p_username: `marina.${suffix}`,
+  p_username: `Marina.${suffix}`,
   p_date_of_birth: '2001-09-07',
   p_character_bio: 'Biografia revisada ao voltar uma etapa antes da conclusão.',
   p_avatar_url: providedAvatar,

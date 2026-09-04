@@ -2,9 +2,8 @@ import React, { useCallback, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Helmet } from 'react-helmet-async';
-import { Calendar, Check, Eye, EyeOff, Loader2, Lock, Mail, Phone, User, UserPlus } from 'lucide-react';
-import PhoneNumberInput, { parsePhoneNumber } from 'react-phone-number-input';
-import pt from 'react-phone-number-input/locale/pt.json';
+import { Check, Eye, EyeOff, Loader2, Lock, Mail, User, UserPlus } from 'lucide-react';
+import { parsePhoneNumber } from 'react-phone-number-input';
 import { FaDiscord, FaFacebook, FaGoogle } from 'react-icons/fa';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -14,6 +13,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/components/ui/use-toast';
 import { checkPasswordStrength } from '@/lib/utils';
 import { isAuthPopupClosedError, signInWithOAuthPopup } from '@/lib/oauthPopup';
+import GovDatePicker from '@/components/ui/date-picker';
+import GovPhoneInput from '@/components/ui/phone-input';
 
 const PasswordStrengthIndicator = ({ score }) => {
   const levels = [
@@ -123,6 +124,8 @@ const Register = () => {
   };
 
   const currentYear = new Date().getFullYear();
+  const minimumBirthDate = new Date(currentYear - 120, 0, 1, 12);
+  const maximumBirthDate = new Date(currentYear - 13, 11, 31, 12);
   const inputClass = 'w-full border-white/10 bg-white/5 pl-10 text-white placeholder:text-gray-500 focus-visible:ring-blue-500';
 
   return (
@@ -148,7 +151,7 @@ const Register = () => {
             <div>
               <Label htmlFor="realDateOfBirth">Data de nascimento real</Label>
               <p className="mb-2 mt-1 text-xs text-gray-400">Informação privada da conta, diferente do nascimento do personagem.</p>
-              <div className="relative"><Calendar className="absolute left-3 top-1/2 z-10 h-5 w-5 -translate-y-1/2 text-gray-400" /><Input id="realDateOfBirth" name="realDateOfBirth" type="date" required min={`${currentYear - 120}-01-01`} max={`${currentYear - 13}-12-31`} value={formData.realDateOfBirth} onChange={handleChange} className={inputClass} /></div>
+              <div className="mt-2"><GovDatePicker id="realDateOfBirth" required minDate={minimumBirthDate} maxDate={maximumBirthDate} value={formData.realDateOfBirth} onChange={(value) => setField('realDateOfBirth', value)} /></div>
             </div>
             <div>
               <Label htmlFor="email">E-mail</Label>
@@ -156,7 +159,7 @@ const Register = () => {
             </div>
             <div>
               <Label htmlFor="phone">Telefone</Label>
-              <div className="relative mt-2"><Phone className="pointer-events-none absolute left-3 top-1/2 z-10 h-5 w-5 -translate-y-1/2 text-gray-400" /><PhoneNumberInput id="phone" international withCountryCallingCode labels={pt} limitMaxLength defaultCountry="BR" value={formData.phone} onChange={(value) => setField('phone', value || '')} className="phone-input-control" /></div>
+              <div className="mt-2"><GovPhoneInput id="phone" required defaultCountry="BR" value={formData.phone} onChange={(value) => setField('phone', value || '')} /></div>
             </div>
             <div>
               <Label htmlFor="password">Senha</Label>

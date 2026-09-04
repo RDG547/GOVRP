@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { Loader2, PlusCircle, Edit, Trash2, Calendar, Vote, RefreshCw } from 'lucide-react';
+import { Loader2, PlusCircle, Edit, Trash2, Calendar, Vote, RefreshCw, ChevronLeft, ChevronRight } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -17,7 +17,10 @@ const statusTranslations = {
     Candidacy: 'Candidatura',
     Voting: 'Votação',
     Finished: 'Finalizada',
+    Cancelled: 'Cancelada',
 };
+
+const PAGE_SIZE = 10;
 
 const ElectionForm = ({ election, onFinish }) => {
     const [formData, setFormData] = useState({
@@ -111,22 +114,30 @@ const ElectionManagement = () => {
     const [loading, setLoading] = useState(true);
     const [isFormOpen, setIsFormOpen] = useState(false);
     const [editingElection, setEditingElection] = useState(null);
+    const [page, setPage] = useState(1);
+    const [electionCount, setElectionCount] = useState(0);
+    const [statusFilter, setStatusFilter] = useState('all');
     const { toast } = useToast();
 
     const fetchElections = useCallback(async () => {
         setLoading(true);
-        const { data, error } = await supabase
+        const from = (page - 1) * PAGE_SIZE;
+        let query = supabase
             .from('elections_with_status')
-            .select('*, election_types(name)')
-            .order('created_at', { ascending: false });
+            .select('*, election_types(name)', { count: 'exact' })
+            .order('created_at', { ascending: false })
+            .range(from, from + PAGE_SIZE - 1);
+        if (statusFilter !== 'all') query = query.eq('status', statusFilter);
+        const { data, count, error } = await query;
             
         if (error) {
             toast({ title: "Erro ao buscar eleições", description: error.message, variant: "destructive" });
         } else {
             setElections(data);
+            setElectionCount(count || 0);
         }
         setLoading(false);
-    }, [toast]);
+    }, [page, statusFilter, toast]);
 
     useEffect(() => {
         fetchElections();
@@ -148,20 +159,33 @@ const ElectionManagement = () => {
             toast({ title: "Erro ao excluir eleição", description: error.message, variant: "destructive" });
         } else {
             toast({ title: "Sucesso", description: "Eleição excluída." });
-            fetchElections();
+            if (elections.length === 1 && page > 1) setPage((current) => current - 1);
+            else fetchElections();
         }
     };
 
     const handleFormFinish = () => {
         setIsFormOpen(false);
-        fetchElections();
+        if (page === 1) fetchElections();
+        else setPage(1);
     };
+
+    const totalPages = Math.max(1, Math.ceil(electionCount / PAGE_SIZE));
+    const firstShown = electionCount ? (page - 1) * PAGE_SIZE + 1 : 0;
+    const lastShown = Math.min(page * PAGE_SIZE, electionCount);
 
     return (
         <div className="space-y-6">
-            <div className="flex justify-between items-center gap-4">
+            <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-center">
                 <h2 className="text-2xl font-bold text-white">Gerenciamento de Eleições</h2>
-                <div className="flex gap-2">
+                <div className="flex flex-col gap-2 sm:flex-row">
+                    <Select value={statusFilter} onValueChange={(value) => { setStatusFilter(value); setPage(1); }}>
+                        <SelectTrigger className="w-full sm:w-52" aria-label="Filtrar eleições por status"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">Todos os status</SelectItem>
+                            {Object.entries(statusTranslations).map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}
+                        </SelectContent>
+                    </Select>
                     <Button onClick={fetchElections} variant="outline" size="icon" disabled={loading}>
                         {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
                     </Button>
@@ -193,6 +217,15 @@ const ElectionManagement = () => {
                     ))}
                 </div>
             )}
+
+            <div className="flex flex-col items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/[0.025] p-3 sm:flex-row">
+                <p className="text-sm text-muted-foreground">Exibindo {firstShown}–{lastShown} de {electionCount} eleição(ões)</p>
+                <div className="flex items-center gap-2">
+                    <Button type="button" variant="outline" size="sm" disabled={loading || page <= 1} onClick={() => setPage((current) => current - 1)}><ChevronLeft className="mr-1 h-4 w-4" />Anterior</Button>
+                    <span className="min-w-20 text-center text-sm">{page} de {totalPages}</span>
+                    <Button type="button" variant="outline" size="sm" disabled={loading || page >= totalPages} onClick={() => setPage((current) => current + 1)}>Próxima<ChevronRight className="ml-1 h-4 w-4" /></Button>
+                </div>
+            </div>
 
             <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
                 <DialogContent className="sm:max-w-2xl">

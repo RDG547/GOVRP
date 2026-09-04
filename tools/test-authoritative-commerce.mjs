@@ -31,6 +31,7 @@ const [seller, buyer, admin] = await Promise.all([
   createActor('seller', 'Cidadão', 1000), createActor('buyer', 'Cidadão', 2000), createActor('admin', 'Admin', 1000),
 ]);
 const businessTypeId = `test-${crypto.randomUUID().slice(0, 8)}`;
+const productName = `Produto funcional ${businessTypeId}`;
 const businessType = await service.from('business_types').insert({
   id: businessTypeId, name: 'Comércio funcional', category: 'Teste', description: 'Tipo temporário para validar o ciclo empresarial.',
   registration_fee: 100, min_employees: 2, is_active: true,
@@ -52,7 +53,7 @@ assert(!repeatedRegistration.error && repeatedRegistration.data.id === registrat
 await service.from('businesses').update({ status: 'active' }).eq('id', registration.data.id);
 
 const product = await seller.client.rpc('save_business_product', {
-  p_product_id: null, p_business_id: registration.data.id, p_name: 'Produto funcional',
+  p_product_id: null, p_business_id: registration.data.id, p_name: productName,
   p_description: 'Produto que valida todo o caminho oficial do comércio.', p_price: 100,
   p_image_url: 'https://example.test/product.png', p_product_type: 'one-time', p_subscription_interval: null,
   p_category: 'Outros', p_stock: 3, p_promotion_price: null, p_promotion_expires_at: null,
@@ -106,7 +107,7 @@ assert(Boolean(directInsert.error), 'cliente não cria transação bancária dir
 const spoofTransfer = await buyer.client.rpc('execute_transfer', { p_sender_id: seller.id, p_recipient_id: buyer.id, p_amount: 1, p_description: 'Tentativa', p_idempotency_key: crypto.randomUUID() });
 assert(Boolean(spoofTransfer.error), 'transferência não aceita remetente diferente da sessão');
 
-const history = await admin.client.rpc('get_admin_transaction_history', { p_page: 1, p_page_size: 5, p_search: 'Produto funcional', p_type: null });
+const history = await admin.client.rpc('get_admin_transaction_history', { p_page: 1, p_page_size: 5, p_search: productName, p_type: null });
 if (history.error) throw history.error;
 assert(history.data.length === 1 && Number(history.data[0].total_count) === 1, 'Admin consulta histórico paginado e pesquisável');
 

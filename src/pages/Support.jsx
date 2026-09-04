@@ -63,6 +63,7 @@ const Support = () => {
       .from('support_tickets')
       .select('*', { count: 'exact' })
       .eq('requester_id', user.id)
+      .is('deleted_at', null)
       .order('last_message_at', { ascending: false })
       .range(from, from + TICKETS_PER_PAGE - 1);
     if (error) {
@@ -172,6 +173,7 @@ const Support = () => {
             .from('support_tickets')
             .select('*')
             .eq('id', createdTicket.ticket_id)
+            .is('deleted_at', null)
             .maybeSingle();
           if (newTicket) setSelectedTicket(newTicket);
         }

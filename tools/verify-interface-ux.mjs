@@ -28,11 +28,21 @@ const digitalArchive = read('src/pages/services/DigitalArchive.jsx');
 const tutorial = read('src/components/WelcomeTutorial.jsx');
 const onboardingLibrary = read('src/lib/citizenOnboarding.js');
 const citizenOnboarding = read('src/pages/CitizenOnboarding.jsx');
+const datePicker = read('src/components/ui/date-picker.jsx');
+const phoneInput = read('src/components/ui/phone-input.jsx');
+const balanceCard = read('src/components/bank/BalanceCard.jsx');
+const exchangeRates = read('src/hooks/use-rp-exchange-rates.js');
+const supportManagement = read('src/components/admin/SupportManagement.jsx');
+const authorityJustice = read('src/features/justice/pages/AuthorityJusticeDashboard.jsx');
+const electionManagement = read('src/pages/admin/ElectionManagement.jsx');
+const economySystems = read('src/components/admin/EconomySystems.jsx');
+const identityLibrary = read('src/lib/citizenIdentity.js');
 
 verify('existe apenas um renderizador global de Toast', (main.match(/<Toaster\b/g) || []).length === 1 && !app.includes('<Toaster'));
 verify('StrictMode permanece ativo para revelar efeitos sem cleanup', main.includes('<React.StrictMode>'));
 verify('callback do Auth não aguarda consultas do Supabase', auth.includes('onAuthStateChange((event, newSession) =>') && !auth.includes('onAuthStateChange(async'));
 verify('hidratação possui timeout, erro recuperável e nova tentativa', auth.includes('AUTH_HYDRATION_TIMEOUT_MS') && auth.includes('authError') && auth.includes('Tentar novamente'));
+verify('retorno do PWA/App atualiza a sessão silenciosamente sem loading global', auth.includes("window.addEventListener('govrp:resume'") && auth.includes('refreshSessionSilently') && auth.includes("event === 'TOKEN_REFRESHED'"));
 verify('Admin troca conteúdo sem remontar o cabeçalho', app.includes("location.pathname.startsWith('/admin-dashboard')") && app.includes("? '/admin-dashboard'"));
 verify('Dialogs têm margem lateral e rolagem segura no celular', [dialog, alertDialog].every((source) => source.includes('calc(100%_-_2rem)') && source.includes('calc(100dvh_-_2rem)') && source.includes('overflow-y-auto')));
 verify('tabs do Admin preservam nomes completos', admin.includes('flex-nowrap') && admin.includes('shrink-0') && !admin.includes('substring(0, 6)'));
@@ -54,5 +64,14 @@ verify('helper oficial fixa timezone e segundos em PT-BR', dateTime.includes("Am
 verify('Diário Oficial exibe horário completo para todos os atos', (digitalArchive.match(/includeTime: true/g) || []).length >= 4 && !digitalArchive.includes('isOfficialGazetteDecreeType'));
 verify('documentação cidadã não expõe Painel Admin', !documentation.includes("id: 'admin'") && !documentation.includes('Painel de Administração'));
 verify('ícones do onboarding são compatíveis com a versão instalada', !['BriefcaseBusiness', 'UserRound', 'CircleUserRound', 'FileBadge2', 'PartyPopper'].some((icon) => tutorial.includes(icon) || onboardingLibrary.includes(icon) || citizenOnboarding.includes(icon)));
+verify('cadastro usa calendário visual com mês e ano personalizados', citizenOnboarding.includes('<GovDatePicker') && datePicker.includes('Escolher mês e ano') && datePicker.includes('DD/MM/AAAA'));
+verify('telefone usa seletor pesquisável com bandeira, país e DDI', citizenOnboarding.includes('<GovPhoneInput') && phoneInput.includes('Buscar país ou código') && phoneInput.includes('callingCode') && phoneInput.includes('countryFlag'));
+verify('identidade aceita caixa preservada e bloqueia símbolos inseguros', identityLibrary.includes('[A-Za-z0-9._-]') && citizenOnboarding.includes('sanitizePublicUsernameInput') && citizenOnboarding.includes('formatCivilName'));
+verify('cartões de saldo mostram par cambial e variação diária em tempo real', balanceCard.includes('getExchangePair') && balanceCard.includes('rate.variation') && exchangeRates.includes("country_rp_exchange_history") && exchangeRates.includes("postgres_changes"));
+verify('suporte administrativo confirma exclusão lógica', supportManagement.includes('admin_archive_support_ticket') && supportManagement.includes('<AlertDialog') && supportManagement.includes('Motivo da exclusão'));
+verify('prioridade normal é apresentada ao usuário como média', read('src/components/support/SupportConversation.jsx').includes("normal: { label: 'Média'"));
+verify('Polícia e Judiciário têm navegações independentes e responsivas', authorityJustice.includes("activePanelMode === 'police'") && authorityJustice.includes("setPanelMode('judicial')") && authorityJustice.includes('overflow-x-auto'));
+verify('eleições usam paginação no servidor de dez itens e filtro de status', electionManagement.includes('PAGE_SIZE = 10') && electionManagement.includes("count: 'exact'") && electionManagement.includes('.range(from, from + PAGE_SIZE - 1)') && electionManagement.includes('statusFilter'));
+verify('histórico financeiro tem acesso próprio na administração econômica', economySystems.includes('Histórico de transações') && economySystems.includes('<AdminTransactionHistory'));
 
 process.stdout.write(`✓ ${checks.length} verificações de interface e UX concluídas.\n`);

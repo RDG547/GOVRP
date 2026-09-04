@@ -29,6 +29,19 @@ const rpc = async (client, name, args) => {
   return result.data;
 };
 
+// Execuções interrompidas podem deixar juízes de teste sem processos e alterar
+// a distribuição seguinte. Desativa somente fixtures reconhecíveis deste teste.
+const staleJudges = await admin.from('profiles')
+  .select('id,titles')
+  .eq('role', 'Juiz')
+  .or('username.ilike.juiza%,username.ilike.juizb%');
+if (staleJudges.error) throw staleJudges.error;
+for (const staleJudge of staleJudges.data || []) {
+  const titles = (staleJudge.titles || []).filter((title) => title.toLocaleLowerCase('pt-BR') !== 'juiz');
+  const disabled = await admin.from('profiles').update({ role: 'Cidadão', titles }).eq('id', staleJudge.id);
+  if (disabled.error) throw disabled.error;
+}
+
 const createActor = async (label, role) => {
   const suffix = crypto.randomUUID().replaceAll('-', '').slice(0, 10);
   const email = `justice-${label}-${suffix}@govrp.local`;

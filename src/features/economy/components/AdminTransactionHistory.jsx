@@ -29,6 +29,7 @@ const INITIAL_FILTERS = {
   search: '',
   type: 'all',
   status: 'all',
+  currency: 'all',
   dateFrom: '',
   dateTo: '',
   minAmount: '',
@@ -53,8 +54,13 @@ const formatMoney = (amount, currency = 'BRL') => new Intl.NumberFormat('pt-BR',
 }).format(Number(amount || 0));
 
 const formatDateTime = (value) => new Intl.DateTimeFormat('pt-BR', {
-  dateStyle: 'short',
-  timeStyle: 'short',
+  day: '2-digit',
+  month: '2-digit',
+  year: 'numeric',
+  hour: '2-digit',
+  minute: '2-digit',
+  second: '2-digit',
+  timeZone: 'America/Sao_Paulo',
 }).format(new Date(value));
 
 const parseOptionalAmount = (value) => {
@@ -89,6 +95,7 @@ const AdminTransactionHistory = () => {
       p_search: filters.search || null,
       p_type: filters.type === 'all' ? null : filters.type,
       p_status: filters.status === 'all' ? null : filters.status,
+      p_currency: filters.currency === 'all' ? null : filters.currency,
       p_date_from: filters.dateFrom || null,
       p_date_to: filters.dateTo || null,
       p_min_amount: parseOptionalAmount(filters.minAmount),
@@ -144,6 +151,7 @@ const AdminTransactionHistory = () => {
 
   const selectedSender = users.find((user) => user.id === draftFilters.senderId);
   const selectedRecipient = users.find((user) => user.id === draftFilters.recipientId);
+  const findUser = (userId) => users.find((item) => item.id === userId);
 
   return (
     <Card className="border-border/70 bg-card/75">
@@ -197,6 +205,16 @@ const AdminTransactionHistory = () => {
                 <SelectItem value="completed">Concluída</SelectItem>
                 <SelectItem value="pending">Pendente</SelectItem>
                 <SelectItem value="failed">Falhou</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="admin-transaction-currency">Moeda</Label>
+            <Select value={draftFilters.currency} onValueChange={(value) => updateDraft('currency', value)}>
+              <SelectTrigger id="admin-transaction-currency"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas as moedas</SelectItem>
+                {['BRL', 'USD', 'EUR', 'GBP', 'JPY', 'CNY'].map((currency) => <SelectItem key={currency} value={currency}>{currency}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
@@ -296,12 +314,17 @@ const AdminTransactionHistory = () => {
             <tbody className="divide-y divide-border/60">
               {rows.map((row) => (
                 <tr key={row.id} className="bg-background/25">
-                  <td className="whitespace-nowrap px-4 py-3">{formatDateTime(row.created_at)}</td>
+                  <td className="whitespace-nowrap px-4 py-3">
+                    <span className="block">{formatDateTime(row.created_at)}</span>
+                    <span className="block max-w-36 truncate font-mono text-[10px] text-muted-foreground" title={row.id}>{row.id}</span>
+                  </td>
                   <td className="px-4 py-3">{transactionTypeLabels[row.type] || row.type || 'Outros'}</td>
                   <td className="px-4 py-3">
-                    <span>{row.sender_name || 'Sistema'}</span>
-                    <span className="mx-2 text-muted-foreground">→</span>
-                    <span>{row.recipient_name || 'Sistema'}</span>
+                    <div className="flex min-w-[19rem] items-center gap-2">
+                      <UserSelectOption user={findUser(row.sender_user_id)} label={row.sender_name || 'Sistema'} detail={`${row.sender_username ? `@${row.sender_username} · ` : ''}${formatAccount(row.sender_account_number)}`} />
+                      <span className="shrink-0 text-muted-foreground">→</span>
+                      <UserSelectOption user={findUser(row.recipient_user_id)} label={row.recipient_name || 'Sistema'} detail={`${row.recipient_username ? `@${row.recipient_username} · ` : ''}${formatAccount(row.recipient_account_number)}`} />
+                    </div>
                   </td>
                   <td className="max-w-[320px] truncate px-4 py-3" title={row.description || ''}>
                     {row.description || 'Sem descrição'}
@@ -358,8 +381,7 @@ const AdminTransactionHistory = () => {
             <div className="space-y-5 text-sm">
               <div className="grid gap-3 rounded-xl border border-border/60 bg-background/30 p-4 sm:grid-cols-[1fr_auto_1fr] sm:items-center">
                 <div>
-                  <p className="font-semibold">{selectedRow.sender_name || 'Sistema'}</p>
-                  {selectedRow.sender_username ? <p className="text-muted-foreground">@{selectedRow.sender_username}</p> : null}
+                  <UserSelectOption user={findUser(selectedRow.sender_user_id)} label={selectedRow.sender_name || 'Sistema'} detail={selectedRow.sender_username ? `@${selectedRow.sender_username}` : ''} />
                   <p className="text-xs text-muted-foreground">{formatAccount(selectedRow.sender_account_number)}</p>
                   {selectedRow.sender_user_id ? <p className="mt-1 break-all text-[11px] text-muted-foreground">{selectedRow.sender_user_id}</p> : null}
                 </div>
@@ -368,8 +390,7 @@ const AdminTransactionHistory = () => {
                   <p className="text-xs text-muted-foreground">→</p>
                 </div>
                 <div className="sm:text-right">
-                  <p className="font-semibold">{selectedRow.recipient_name || 'Sistema'}</p>
-                  {selectedRow.recipient_username ? <p className="text-muted-foreground">@{selectedRow.recipient_username}</p> : null}
+                  <div className="sm:flex sm:justify-end"><UserSelectOption user={findUser(selectedRow.recipient_user_id)} label={selectedRow.recipient_name || 'Sistema'} detail={selectedRow.recipient_username ? `@${selectedRow.recipient_username}` : ''} /></div>
                   <p className="text-xs text-muted-foreground">{formatAccount(selectedRow.recipient_account_number)}</p>
                   {selectedRow.recipient_user_id ? <p className="mt-1 break-all text-[11px] text-muted-foreground">{selectedRow.recipient_user_id}</p> : null}
                 </div>

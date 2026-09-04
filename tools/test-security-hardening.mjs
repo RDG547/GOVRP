@@ -221,7 +221,9 @@ try {
   });
   if (investmentAdjustment.error) throw investmentAdjustment.error;
   const { data: administrativeAudits, error: administrativeAuditError } = await service.from('economic_audit_log')
-    .select('action,actor_profile_id').in('action', ['admin_treasury_adjustment', 'admin_investment_adjustment']);
+    .select('action,actor_profile_id')
+    .eq('actor_profile_id', admin.id)
+    .in('action', ['admin_treasury_adjustment', 'admin_investment_adjustment']);
   if (administrativeAuditError) throw administrativeAuditError;
   assert(administrativeAudits.filter((item) => item.action === 'admin_treasury_adjustment').length === 2
     && administrativeAudits.some((item) => item.action === 'admin_investment_adjustment'),

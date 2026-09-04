@@ -1,5 +1,5 @@
 import React, { lazy, Suspense } from 'react';
-import { Activity, CalendarClock, CreditCard, Landmark, Loader2, ShieldCheck } from 'lucide-react';
+import { Activity, CalendarClock, CreditCard, History, Landmark, Loader2, ShieldCheck } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 const EmbeddedEconomyPanel = lazy(
@@ -10,6 +10,9 @@ const BankManagementPanel = lazy(
 );
 const NationalEventManagement = lazy(
   () => import('@/components/admin/NationalEventManagement')
+);
+const AdminTransactionHistory = lazy(
+  () => import('@/features/economy/components/AdminTransactionHistory')
 );
 
 const PanelFallback = () => (
@@ -27,7 +30,7 @@ const EconomySystems = () => (
       </p>
     </div>
 
-    <TabsList className="grid h-auto w-full grid-cols-2 gap-2 bg-muted/50 p-2 xl:grid-cols-5">
+    <TabsList className="grid h-auto w-full grid-cols-2 gap-2 bg-muted/50 p-2 lg:grid-cols-3 2xl:grid-cols-6">
       <TabsTrigger value="economic-engine">
         <Activity className="mr-2 h-4 w-4" /> Motor econômico
       </TabsTrigger>
@@ -42,6 +45,9 @@ const EconomySystems = () => (
       </TabsTrigger>
       <TabsTrigger value="national-events">
         <CalendarClock className="mr-2 h-4 w-4" /> Eventos nacionais
+      </TabsTrigger>
+      <TabsTrigger value="transactions">
+        <History className="mr-2 h-4 w-4" /> Histórico de transações
       </TabsTrigger>
     </TabsList>
 
@@ -59,6 +65,9 @@ const EconomySystems = () => (
     </TabsContent>
     <TabsContent value="national-events">
       <Suspense fallback={<PanelFallback />}><NationalEventManagement /></Suspense>
+    </TabsContent>
+    <TabsContent value="transactions">
+      <Suspense fallback={<PanelFallback />}><AdminTransactionHistory /></Suspense>
     </TabsContent>
   </Tabs>
 );

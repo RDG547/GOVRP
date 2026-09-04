@@ -14,10 +14,10 @@ export const SUPPORT_STATUS = {
 };
 
 export const SUPPORT_PRIORITY = {
-  low: 'Baixa',
-  normal: 'Normal',
-  high: 'Alta',
-  urgent: 'Urgente',
+  low: { label: 'Baixa', className: 'border-sky-400/30 bg-sky-500/10 text-sky-200', accentClass: 'border-l-sky-400' },
+  normal: { label: 'Média', className: 'border-amber-400/30 bg-amber-500/10 text-amber-200', accentClass: 'border-l-amber-400' },
+  high: { label: 'Alta', className: 'border-orange-400/30 bg-orange-500/10 text-orange-200', accentClass: 'border-l-orange-400' },
+  urgent: { label: 'Urgente', className: 'border-rose-400/30 bg-rose-500/10 text-rose-200', accentClass: 'border-l-rose-400' },
 };
 
 const formatDateTime = (value) => new Intl.DateTimeFormat('pt-BR', {
@@ -36,6 +36,7 @@ const SupportConversation = ({
 }) => {
   const [reply, setReply] = useState('');
   const status = SUPPORT_STATUS[ticket?.status] || SUPPORT_STATUS.open;
+  const priority = SUPPORT_PRIORITY[ticket?.priority] || SUPPORT_PRIORITY.normal;
 
   if (!ticket) {
     return (
@@ -68,7 +69,7 @@ const SupportConversation = ({
             </p>
           </div>
           {isAdmin ? (
-            <Badge variant="secondary">Prioridade {SUPPORT_PRIORITY[ticket.priority] || ticket.priority}</Badge>
+            <Badge variant="outline" className={priority.className}>Prioridade {priority.label}</Badge>
           ) : null}
         </div>
       </header>
