@@ -1,7 +1,57 @@
+-- Refinamentos integrados de identidade, suporte e histórico financeiro.
 begin;
 
 -- Identidade pública: preserva a capitalização escolhida e impede colisões
 -- que diferem apenas entre maiúsculas e minúsculas.
+-- Perfis legados podiam repetir o mesmo username com capitalização diferente.
+-- Mantemos o registro mais antigo e damos um sufixo curto e determinístico aos
+-- demais antes de criar o índice, sem remover ou fundir nenhuma conta.
+do $$
+declare
+  v_profile record;
+  v_base text;
+  v_candidate text;
+  v_suffix integer;
+begin
+  for v_profile in
+    select
+      p.id,
+      p.username,
+      row_number() over (
+        partition by lower(p.username)
+        order by p.created_at nulls last, p.id
+      ) as duplicate_number
+    from public.profiles p
+    where nullif(btrim(p.username), '') is not null
+  loop
+    if v_profile.duplicate_number > 1 then
+      v_base := regexp_replace(v_profile.username, '[^A-Za-z0-9._-]+', '', 'g');
+      if v_base = '' then
+        v_base := 'usuario';
+      end if;
+
+      v_suffix := v_profile.duplicate_number;
+      loop
+        v_candidate := left(v_base, greatest(1, 19 - length(v_suffix::text)))
+          || '-' || v_suffix::text;
+        exit when not exists (
+          select 1
+          from public.profiles existing
+          where existing.id <> v_profile.id
+            and lower(existing.username) = lower(v_candidate)
+        );
+        v_suffix := v_suffix + 1;
+      end loop;
+
+      update public.profiles
+      set username = v_candidate,
+          updated_at = clock_timestamp()
+      where id = v_profile.id;
+    end if;
+  end loop;
+end;
+$$;
+
 create unique index if not exists profiles_username_case_insensitive_key
   on public.profiles (lower(username));
 
