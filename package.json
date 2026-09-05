@@ -21,6 +21,7 @@
     "test:citizen-experience": "node tools/test-citizen-experience.mjs",
     "test:hardening": "node tools/test-security-hardening.mjs",
     "test:ux-refinements": "node tools/test-ux-refinements.mjs",
+    "test:resets": "node tools/test-admin-resets.mjs",
     "mobile:sync": "npm run build && cap sync",
     "mobile:sync:android": "npm run build && cap sync android",
     "mobile:sync:ios": "npm run build && cap sync ios",

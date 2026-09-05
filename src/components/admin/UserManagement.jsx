@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabaseClient';
 import { fetchElectionOfficeSyncState } from '@/lib/electionOfficeSync';
 import { resolvePrimaryRole } from '@/lib/roleResolution';
@@ -6,7 +7,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader2, Edit, Trash2, Search, Wallet, Crown, KeyRound, Filter, CreditCard, User, Shield, Scale, Gavel, Briefcase, ChevronLeft, ChevronRight, Landmark, AlertTriangle } from 'lucide-react';
+import { Loader2, Edit, Trash2, Search, Wallet, Crown, KeyRound, Filter, CreditCard, User, Shield, Scale, Gavel, Briefcase, ChevronLeft, ChevronRight, Landmark, AlertTriangle, RotateCcw } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -766,9 +767,13 @@ const UserManagement = () => {
 };
 
 const UserActionButtons = ({ user, adminUser, setModifyingBalanceUser, setChangingPasswordUser, setEditingUser, handleDeleteUser, setManagingCardLimitUser, deletingUserId }) => {
+    const navigate = useNavigate();
     const isDeleting = deletingUserId === user.id;
     return (
         <>
+            <Button variant="ghost" size="icon" onClick={() => navigate('/admin-dashboard/reset', { state: { resetUserId: user.id } })} title="Resetar cidadão" aria-label={`Resetar cidadão de ${user.full_name || user.username}`}>
+                <RotateCcw className="w-4 h-4 text-orange-400" />
+            </Button>
             {user.has_bank_account && (
                 <>
                     <Button variant="ghost" size="icon" onClick={() => setModifyingBalanceUser(user)} title="Modificar Saldo">

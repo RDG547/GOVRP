@@ -44,7 +44,7 @@ const DailyCheckInPopup = () => {
   useEffect(() => {
     if (!user) return;
 
-    const sessionDismissKey = `checkin_dismissed_${user.id}`;
+    const sessionDismissKey = `checkin_dismissed_${user.id}:${user.citizen_id || 'pending'}`;
     if (sessionStorage.getItem(sessionDismissKey)) {
       setDismissed(true);
       return;
@@ -108,7 +108,7 @@ const DailyCheckInPopup = () => {
     setIsVisible(false);
     setDismissed(true);
     if (user) {
-      sessionStorage.setItem(`checkin_dismissed_${user.id}`, 'true');
+      sessionStorage.setItem(`checkin_dismissed_${user.id}:${user.citizen_id || 'pending'}`, 'true');
     }
   };
 

@@ -1,6 +1,7 @@
 import React from 'react';
 import { Routes, Route, useLocation, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
+import { CartProvider } from '@/contexts/CartContext';
 import Navbar from '@/components/layout/Navbar';
 import Home from '@/pages/Home';
 import Login from '@/pages/Login';
@@ -163,7 +164,8 @@ const AppShell = ({ location, theme, isAuthCallback }) => {
     : [user?.role].filter(Boolean);
   const isAdmin = rolePool.includes('Admin') || user?.role === 'Admin';
   const isCitizenOnboarding = location.pathname === '/registro-cidadania';
-  const onboardingRequired = Boolean(user && user.onboarding_completed === false && !isAdmin);
+  const onboardingRequired = Boolean(user && user.onboarding_completed === false);
+  const citizenScope = user ? `${user.id}:${user.citizen_id || 'pending'}` : 'visitor';
   const routeTransitionKey = location.pathname.startsWith('/services/x')
     ? '/services/x'
     : location.pathname.startsWith('/admin-dashboard')
@@ -171,6 +173,7 @@ const AppShell = ({ location, theme, isAuthCallback }) => {
       : location.pathname;
 
   return (
+    <CartProvider key={citizenScope} storageKey={`govrp_cart:${citizenScope}`}>
     <GlobalSiteAvailabilityGate pathname={location.pathname} isAdmin={isAdmin}>
       <div className={`${theme} min-h-screen bg-background text-foreground custom-scrollbar`}>
         <NativeRuntime />
@@ -292,6 +295,7 @@ const AppShell = ({ location, theme, isAuthCallback }) => {
         </div>
       </div>
     </GlobalSiteAvailabilityGate>
+    </CartProvider>
   );
 };
 

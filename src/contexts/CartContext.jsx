@@ -5,12 +5,13 @@ const CartContext = createContext();
 
 export const useCart = () => useContext(CartContext);
 
-export const CartProvider = ({ children }) => {
+export const CartProvider = ({ children, storageKey }) => {
     const { toast } = useToast();
     const [cartItems, setCartItems] = useState(() => {
         try {
-            const localData = localStorage.getItem('govrp_cart');
-            return localData ? JSON.parse(localData) : [];
+            const localData = localStorage.getItem(storageKey);
+            const items = localData ? JSON.parse(localData) : [];
+            return Array.isArray(items) ? items : [];
         } catch (error) {
             console.error("Could not parse cart data from localStorage", error);
             return [];
@@ -18,8 +19,8 @@ export const CartProvider = ({ children }) => {
     });
 
     useEffect(() => {
-        localStorage.setItem('govrp_cart', JSON.stringify(cartItems));
-    }, [cartItems]);
+        localStorage.setItem(storageKey, JSON.stringify(cartItems));
+    }, [cartItems, storageKey]);
 
     const addToCart = (product) => {
         if (product.product_type === 'one-time' && product.stock <= 0) {

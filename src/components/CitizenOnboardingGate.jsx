@@ -12,9 +12,10 @@ const CitizenOnboardingGate = ({ children }) => {
   const location = useLocation();
   const rolePool = Array.isArray(user?.effective_roles) ? user.effective_roles : [user?.role];
   const isAdmin = rolePool.includes('Admin') || user?.role === 'Admin';
+  const isAdminArea = isAdmin && (location.pathname === '/admin-dashboard' || location.pathname.startsWith('/admin-dashboard/'));
   const isAllowed = allowedWhileIncomplete.some((path) => location.pathname === path || location.pathname.startsWith(`${path}/`));
 
-  if (session && user && user.onboarding_completed === false && !isAdmin && !isAllowed) {
+  if (session && user && user.onboarding_completed === false && !isAdminArea && !isAllowed) {
     return <Navigate to="/registro-cidadania" replace state={{ from: location.pathname }} />;
   }
 
@@ -22,8 +23,7 @@ const CitizenOnboardingGate = ({ children }) => {
     return <Navigate to="/dashboard" replace />;
   }
 
-  return children;
+  return <React.Fragment key={user?.citizen_id || 'visitor'}>{children}</React.Fragment>;
 };
 
 export default CitizenOnboardingGate;
-

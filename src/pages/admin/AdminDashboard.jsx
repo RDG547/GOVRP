@@ -14,6 +14,7 @@ import {
   Users,
   Vote,
   Gavel,
+  RotateCcw,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 import { useToast } from '@/components/ui/use-toast';
@@ -28,12 +29,14 @@ import PartyManagement from '@/components/admin/PartyManagement';
 import EconomySystems from '@/components/admin/EconomySystems';
 import JusticeSystem from '@/components/admin/JusticeSystem';
 import SupportManagement from '@/components/admin/SupportManagement';
+import ResetManagement from '@/components/admin/ResetManagement';
 
 const tabs = [
   { id: 'analytics', label: 'Análises', icon: BarChart3, component: SiteAnalytics },
   { id: 'economy', label: 'Economia', icon: Activity, component: EconomySystems },
   { id: 'justice', label: 'Justiça', icon: Gavel, component: JusticeSystem },
   { id: 'users', label: 'Usuários', icon: Users, component: UserManagement },
+  { id: 'reset', label: 'Resets', icon: RotateCcw, component: ResetManagement },
   { id: 'candidacies', label: 'Candidaturas', icon: ShieldCheck, component: CandidacyManagement },
   { id: 'elections', label: 'Eleições', icon: Vote, component: ElectionManagement },
   { id: 'parties', label: 'Partidos', icon: Flag, component: PartyManagement },

@@ -1,5 +1,13 @@
 # Changelog do GOV.RP
 
+## 5 de setembro de 2026
+
+- Administração ganhou reset individual, de cidadãos selecionados, de todos os cidadãos e do RP completo.
+- Cada reset exige motivo, prévia e confirmação escrita; o histórico registra responsável e alcance.
+- Cidadãos resetados recriam identidade, documentos e conta bancária, mantendo o login e os dados privados da conta.
+- Reset completo limpa a temporada e reinicia os países ativos a partir dos indicadores reais, preservando a evolução posterior pelo RP.
+- Operações de reset são atômicas e não duplicam o efeito em uma tentativa repetida.
+
 ## 30 de agosto de 2026
 
 - Eleições, votações parlamentares e posses ficaram mais seguras e passam a respeitar resultados reais.

@@ -87,6 +87,11 @@ export const AuthProvider = ({ children }) => {
       return profile;
     }
 
+    // A reset character cannot recover titles from a cached institutional state.
+    if (profile.onboarding_completed === false) {
+      return { ...profile, stored_role: profile.role, effective_roles: [profile.role === 'Admin' ? 'Admin' : 'Cidadão'] };
+    }
+
     try {
       const [executiveState, electionOfficeState] = await Promise.all([
         fetchExecutiveConstitutionalState(supabase),
@@ -473,6 +478,27 @@ export const AuthProvider = ({ children }) => {
       document.removeEventListener('visibilitychange', handleVisibility);
     };
   }, [refreshSessionSilently]);
+
+  useEffect(() => {
+    if (!session?.user?.id) return undefined;
+    let timer;
+    const scheduleRefresh = () => {
+      window.clearTimeout(timer);
+      timer = window.setTimeout(() => { void refreshUser({ skipSync: true }); }, 200);
+    };
+    const channel = supabase.channel(`citizen-reset:${session.user.id}`)
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'profiles', filter: `id=eq.${session.user.id}` }, scheduleRefresh)
+      .subscribe();
+    // Reconnect/focus also rehydrates the profile; this catches missed events.
+    const interval = window.setInterval(() => {
+      if (document.visibilityState === 'visible') scheduleRefresh();
+    }, 60000);
+    return () => {
+      window.clearTimeout(timer);
+      window.clearInterval(interval);
+      supabase.removeChannel(channel);
+    };
+  }, [refreshUser, session?.user?.id]);
 
   const login = async ({ identifier, password, captchaToken }) => {
     const email = identifier.trim().toLowerCase();

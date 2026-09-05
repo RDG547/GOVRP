@@ -6,7 +6,6 @@ import App from '@/App';
 import '@/index.css';
 import 'react-phone-number-input/style.css';
 import { ThemeProvider } from '@/contexts/ThemeContext';
-import { CartProvider } from '@/contexts/CartContext';
 import { Toaster } from '@/components/ui/toaster';
 import { Capacitor } from '@capacitor/core';
 import ConsentAwareAnalytics from '@/components/ConsentAwareAnalytics';
@@ -24,10 +23,8 @@ ReactDOM.createRoot(document.getElementById('root')).render(
       <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <ThemeProvider>
             <Toaster />
-            <CartProvider>
-                <App />
-                <ConsentAwareAnalytics />
-            </CartProvider>
+            <App />
+            <ConsentAwareAnalytics />
         </ThemeProvider>
       </BrowserRouter>
     </HelmetProvider>

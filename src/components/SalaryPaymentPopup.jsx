@@ -70,7 +70,7 @@ const SalaryPaymentPopup = () => {
     return [user?.role].filter(Boolean);
   }, [user?.effective_roles, user?.role]);
 
-  const popupStorageKey = user?.id ? `${POPUP_STORAGE_KEY_PREFIX}:${user.id}` : null;
+  const popupStorageKey = user?.id ? `${POPUP_STORAGE_KEY_PREFIX}:${user.id}:${user.citizen_id || 'pending'}` : null;
   const currentSalaryInfo = useMemo(
     () => resolveSalaryInfoFromRolePool(rolePool),
     [rolePool]
