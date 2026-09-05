@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
-import { AlertTriangle, Loader2, RotateCcw, Search } from 'lucide-react';
+import { AlertTriangle, Check, Eye, Loader2, RotateCcw, Search, X } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 import { executeAdminReset, fetchResetUsers, prepareAdminReset } from '@/lib/adminReset';
 import { useAuth } from '@/contexts/AuthContext';
@@ -102,7 +102,10 @@ export default function ResetManagement() {
       await refreshUser({ skipSync: true });
       await load();
     } catch (failure) {
-      setError(`${failure.message} Se a conexão caiu, consulte o histórico ou tente novamente com esta mesma confirmação.`);
+      const connectionFailed = /failed to fetch|network|connection|timeout|timed out|load failed/i.test(failure.message || '');
+      setError(connectionFailed
+        ? `${failure.message} Consulte o histórico ou tente novamente com esta mesma confirmação.`
+        : failure.message);
     } finally { inFlight.current = false; setBusy(false); }
   };
 
@@ -142,11 +145,11 @@ export default function ResetManagement() {
         <section className="space-y-3 rounded-xl border p-4"><h3 className="font-semibold">Todos os cidadãos</h3><p className="text-sm text-muted-foreground">Reinicia todas as contas ativas, incluindo administradores. Remove a vida e os vínculos dos cidadãos; mantém o estado nacional e os indicadores do RP.</p><Button variant="outline" disabled={loading || !!loadError || !users.length} onClick={() => openReset('all_users')}>Revisar reset de todos</Button></section>
         <section className="space-y-3 rounded-xl border border-red-500/40 bg-red-500/5 p-4"><h3 className="flex items-center gap-2 font-semibold"><AlertTriangle className="h-5 w-5 text-red-400" />RP completo</h3><p className="text-sm text-muted-foreground">Reinicia cidadãos, transações, posts, empresas, mandatos, processos, finanças públicas e históricos econômicos. Os países ativos começam novamente com dados reais consultados agora.</p><Button variant="destructive" disabled={loading || !!loadError} onClick={() => openReset('full_rp')}>Revisar reset completo</Button></section>
       </div>
-      <section className="space-y-3"><h3 className="font-semibold">Histórico de resets</h3><p className="text-xs text-muted-foreground">Doações reais, atendimentos de suporte, catálogos do sistema e registros de segurança são preservados.</p>{history.length ? history.map((entry) => <div key={entry.id} className="rounded-lg border p-3 text-sm"><p className="font-medium">{SCOPE_LABELS[entry.scope]} · {number(entry.result?.users)} conta(s)</p><p>{entry.reason}</p><p className="mt-1 text-xs text-muted-foreground">{new Date(entry.completed_at).toLocaleString('pt-BR')} · Administrador: {users.find((person) => person.id === entry.requested_by)?.email || entry.requested_by}</p></div>) : <p className="text-sm text-muted-foreground">Nenhum reset registrado.</p>}</section>
+      <section className="space-y-3"><h3 className="font-semibold">Histórico de resets</h3><p className="text-xs text-muted-foreground">Doações reais, atendimentos de suporte, catálogos do sistema e registros de segurança são preservados.</p>{history.length ? history.map((entry) => <div key={entry.id} className="rounded-lg border p-3 text-sm"><p className="font-medium">{SCOPE_LABELS[entry.scope]} · {number(entry.result?.users)} conta(s)</p><p>{entry.reason || 'Sem motivo informado'}</p><p className="mt-1 text-xs text-muted-foreground">{new Date(entry.completed_at).toLocaleString('pt-BR')} · Administrador: {users.find((person) => person.id === entry.requested_by)?.email || entry.requested_by}</p></div>) : <p className="text-sm text-muted-foreground">Nenhum reset registrado.</p>}</section>
       <Dialog open={!!intent} onOpenChange={(open) => { if (!open && !busy) setIntent(null); }}>
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-xl" onEscapeKeyDown={(event) => { if (busy) event.preventDefault(); }} onPointerDownOutside={(event) => { if (busy) event.preventDefault(); }}>
           <DialogHeader><DialogTitle>{SCOPE_LABELS[intent?.scope]}</DialogTitle><DialogDescription>Esta operação apaga os dados do jogo de forma permanente. Vínculos compartilhados, como transferências, empresas e conversas dos cidadãos afetados, também serão removidos. Revise o alcance antes de confirmar.</DialogDescription></DialogHeader>
-          {!preview ? <div className="space-y-2"><Label htmlFor="reset-reason">Motivo do reset</Label><Input id="reset-reason" value={reason} maxLength={500} disabled={busy} onChange={(event) => setReason(event.target.value)} placeholder="Ex.: início de uma nova temporada" /><p className="text-xs text-muted-foreground">{intent?.scope === 'selected_users' ? `${intent.ids.length} conta(s) selecionada(s).` : 'Todas as contas ativas, incluindo a sua.'}</p></div> : <div className="space-y-4">
+          {!preview ? <div className="space-y-2"><Label htmlFor="reset-reason">Motivo do reset (opcional)</Label><Input id="reset-reason" value={reason} maxLength={500} disabled={busy} onChange={(event) => setReason(event.target.value)} placeholder="Ex.: início de uma nova temporada" /><p className="text-xs text-muted-foreground">{intent?.scope === 'selected_users' ? `${intent.ids.length} conta(s) selecionada(s).` : 'Todas as contas ativas, incluindo a sua.'}</p></div> : <div className="space-y-4">
             <p className="rounded-lg bg-muted p-3 font-medium">{number(preview.users)} conta(s) · {number(preview.total_records)} registro(s) relacionados na prévia</p>
             <p className="text-xs text-muted-foreground">A confirmação vale por 15 minutos. Atividades relacionadas criadas até a execução também serão removidas.</p>
             <details className="text-sm"><summary className="cursor-pointer">Ver dados afetados</summary><div className="mt-2 max-h-40 space-y-1 overflow-auto">{Object.entries(groupRecordCounts(preview.records)).map(([name, count]) => <p key={name}>{name}: {number(count)}</p>)}</div></details>
@@ -155,7 +158,12 @@ export default function ResetManagement() {
           </div>}
           {error && <p role="alert" className="text-sm text-red-400">{error}</p>}
           {busy && <p role="status" className="flex items-center gap-2 text-sm"><Loader2 className="h-4 w-4 animate-spin" />{preview ? 'Executando reset. Aguarde a conclusão…' : 'Preparando a prévia e consultando as referências necessárias…'}</p>}
-          <DialogFooter><Button variant="outline" disabled={busy} onClick={() => setIntent(null)}>Cancelar</Button>{preview ? <Button variant="destructive" disabled={busy || confirmation !== preview.confirmation} onClick={execute}>Confirmar reset permanente</Button> : <Button disabled={busy || reason.trim().length < 5} onClick={prepare}>Preparar prévia</Button>}</DialogFooter>
+          <DialogFooter>
+            <Button variant="outline" disabled={busy} onClick={() => setIntent(null)}><X aria-hidden="true" className="mr-2 h-4 w-4" />Cancelar</Button>
+            {preview
+              ? <Button variant="destructive" disabled={busy || confirmation !== preview.confirmation} onClick={execute}><Check aria-hidden="true" className="mr-2 h-4 w-4" />Confirmar reset</Button>
+              : <Button disabled={busy} onClick={prepare}><Eye aria-hidden="true" className="mr-2 h-4 w-4" />Preparar prévia</Button>}
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

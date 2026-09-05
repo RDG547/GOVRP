@@ -9,6 +9,8 @@ end $$;
 create function pg_temp.assert_true(ok boolean, message text) returns void language plpgsql as $$
 begin if ok is distinct from true then raise exception 'ASSERTION FAILED: %',message; end if; raise notice 'PASS: %',message; end $$;
 
+select pg_temp.assert_true(current_setting('safeupdate.enabled')='on','test session reproduces API safeupdate protection');
+
 -- Fixtures intentionally include closed/immutable ledgers, a shared transfer,
 -- party membership, a self-referencing thread, investments and legal consequences.
 create temporary table test_trigger_modes as
@@ -89,20 +91,36 @@ exception when raise_exception then
   if sqlerrm<>'Selecione contas ativas e válidas.' then raise; end if;
   raise notice 'PASS: empty selection rejected';
 end $$;
-select public.admin_prepare_rp_reset('selected_users','{10000000-0000-0000-0000-000000000002}','Teste de reset individual') as plan \gset
+do $$ declare reason_value text; begin
+  foreach reason_value in array array[null::text,'','   ','x','  teste  ',repeat('a',500)] loop
+    perform public.admin_prepare_rp_reset('selected_users','{10000000-0000-0000-0000-000000000002}',reason_value);
+  end loop;
+  raise notice 'PASS: null, blank, short and 500-character reasons are accepted';
+end $$;
+do $$ begin
+  perform public.admin_prepare_rp_reset('selected_users','{10000000-0000-0000-0000-000000000002}',repeat('a',501));
+  raise exception 'oversized reason unexpectedly accepted';
+exception when raise_exception then
+  if sqlerrm<>'O motivo deve ter no máximo 500 caracteres.' then raise; end if;
+  raise notice 'PASS: reasons over 500 characters are rejected';
+end $$;
+select public.admin_prepare_rp_reset('selected_users','{10000000-0000-0000-0000-000000000002}') as plan \gset
 reset role;
 select pg_temp.assert_true((:'plan'::jsonb->>'users')::int=1,'preview contains exactly one citizen');
+select pg_temp.assert_true((:'plan'::jsonb->>'confirmation')='RESETAR','preview asks for RESETAR only');
+select pg_temp.assert_true((select reason='' from private.rp_reset_requests where id=(:'plan'::jsonb->>'request_id')::uuid),'reset reason can be omitted');
+
 select pg_temp.assert_true((select count(*) from public.accounts)=3,'preview changes no account');
 select set_config('test.request_id',:'plan'::jsonb->>'request_id',true);
 set local role authenticated;
 do $$ begin
-  perform public.admin_execute_rp_reset(current_setting('test.request_id')::uuid,'RESETAR RP');
+  perform public.admin_execute_rp_reset(current_setting('test.request_id')::uuid,'RESETAR USUARIOS');
   raise exception 'wrong confirmation unexpectedly accepted';
 exception when raise_exception then
   if sqlerrm<>'Digite a frase de confirmação exatamente como exibida.' then raise; end if;
-  raise notice 'PASS: scope-specific typed confirmation enforced';
+  raise notice 'PASS: only the simplified typed confirmation is accepted';
 end $$;
-select public.admin_execute_rp_reset(current_setting('test.request_id')::uuid,'RESETAR USUARIOS');
+select public.admin_execute_rp_reset(current_setting('test.request_id')::uuid,'RESETAR');
 reset role;
 select pg_temp.assert_true((select p.onboarding_completed=false and p.onboarding_step='welcome' and p.full_name is null
  and p.character_gender is null and p.reputation_points=0 and p.political_points=0 and not p.is_imprisoned and p.release_date is null
@@ -121,7 +139,7 @@ select pg_temp.assert_true((select economic_current->>'gdp' from public.country_
 select pg_temp.assert_true((select count(*) from auth.users where encrypted_password='unchanged-password')=4 and (select count(*) from private.account_identities)=4,'login credentials and private account identity preserved');
 select pg_temp.assert_true(not exists(select 1 from test_trigger_modes b join pg_class c on c.relname=b.relname and c.relnamespace='public'::regnamespace join pg_trigger g on g.tgrelid=c.oid and g.tgname=b.tgname where g.tgenabled<>b.tgenabled),'all gameplay and immutable triggers restored');
 set local role authenticated;
-select public.admin_execute_rp_reset(current_setting('test.request_id')::uuid,'RESETAR USUARIOS');
+select public.admin_execute_rp_reset(current_setting('test.request_id')::uuid,'RESETAR');
 reset role;
 select pg_temp.assert_true((select count(*) from private.rp_reset_requests where completed_at is not null)=1,'retry returns saved result without a second reset');
 
@@ -153,13 +171,13 @@ select pg_temp.assert_true((select count(*)=4 from public.documents where user_i
 select set_config('request.jwt.claim.sub','10000000-0000-0000-0000-000000000001',true);
 set local role authenticated;
 select public.admin_prepare_rp_reset('selected_users','{10000000-0000-0000-0000-000000000001,10000000-0000-0000-0000-000000000003}','Teste de reset em lote') as batch \gset
-select public.admin_execute_rp_reset((:'batch'::jsonb->>'request_id')::uuid,'RESETAR USUARIOS');
+select public.admin_execute_rp_reset((:'batch'::jsonb->>'request_id')::uuid,'RESETAR');
 reset role;
 select pg_temp.assert_true((select p.citizen_id=b.citizen_id and p.onboarding_completed from public.profiles p join before_profiles b using(id) where p.id='10000000-0000-0000-0000-000000000004'),'bulk selection preserves unselected citizen');
 select pg_temp.assert_true((select role='Admin' and not onboarding_completed from public.profiles where id='10000000-0000-0000-0000-000000000001'),'administrator keeps access while their citizen resets');
 set local role authenticated;
 select public.admin_prepare_rp_reset('all_users','{}','Teste de todos os usuários') as all_plan \gset
-select public.admin_execute_rp_reset((:'all_plan'::jsonb->>'request_id')::uuid,'RESETAR USUARIOS');
+select public.admin_execute_rp_reset((:'all_plan'::jsonb->>'request_id')::uuid,'RESETAR');
 reset role;
 select pg_temp.assert_true(not exists(select 1 from public.profiles where onboarding_completed) and (select count(*) from public.accounts)=0,'all users restart without bank accounts');
 
@@ -179,7 +197,7 @@ select set_config('test.country_request',:'country_plan'::jsonb->>'request_id',t
 select set_config('test.country_snapshots',:'two_countries',true);
 set local role authenticated;
 do $$ begin
-  perform public.admin_execute_rp_reset(current_setting('test.country_request')::uuid,'RESETAR RP');
+  perform public.admin_execute_rp_reset(current_setting('test.country_request')::uuid,'RESETAR');
   raise exception 'reset unexpectedly reactivated a disabled country';
 exception when raise_exception then
   if sqlerrm<>'A lista de países mudou. Consulte novamente as referências reais.' then raise; end if;
@@ -200,7 +218,7 @@ alter table public.economic_state add constraint test_reset_rollback check(curre
 select set_config('test.full_request',:'full_plan'::jsonb->>'request_id',true);
 set local role authenticated;
 do $$ begin
-  perform public.admin_execute_rp_reset(current_setting('test.full_request')::uuid,'RESETAR RP');
+  perform public.admin_execute_rp_reset(current_setting('test.full_request')::uuid,'RESETAR');
   raise exception 'full reset unexpectedly ignored forced failure';
 exception when check_violation then raise notice 'PASS: failed economic reset aborts the entire operation'; end $$;
 reset role;
@@ -209,7 +227,7 @@ select pg_temp.assert_true(not exists(select 1 from public.profiles p join befor
 select pg_temp.assert_true(not exists(select 1 from test_trigger_modes b join pg_class c on c.relname=b.relname and c.relnamespace='public'::regnamespace join pg_trigger g on g.tgrelid=c.oid and g.tgname=b.tgname where g.tgenabled<>b.tgenabled),'failed full reset restores trigger enable modes');
 alter table public.economic_state drop constraint test_reset_rollback;
 set local role authenticated;
-select public.admin_execute_rp_reset((:'full_plan'::jsonb->>'request_id')::uuid,'RESETAR RP');
+select public.admin_execute_rp_reset((:'full_plan'::jsonb->>'request_id')::uuid,'RESETAR');
 reset role;
 select pg_temp.assert_true((select economic_current=economic_baseline and (economic_current->>'gdp')::numeric=2000000000000
  and revision=0 and economy_influence=0 and reference_snapshot_at is not null from public.country_rp_states where country_code='BR'),'full RP starts from real snapshot and revision zero');
@@ -229,7 +247,7 @@ update private.rp_reset_requests set expires_at=clock_timestamp()-interval '1 se
 select set_config('test.expired_request',:'expired'::jsonb->>'request_id',true);
 set local role authenticated;
 do $$ begin
-  perform public.admin_execute_rp_reset(current_setting('test.expired_request')::uuid,'RESETAR USUARIOS');
+  perform public.admin_execute_rp_reset(current_setting('test.expired_request')::uuid,'RESETAR');
   raise exception 'expired reset unexpectedly accepted';
 exception when raise_exception then
   if sqlerrm<>'A prévia expirou. Prepare uma nova confirmação.' then raise; end if;
@@ -240,4 +258,5 @@ select pg_temp.assert_true((select count(*)=5 from public.government_rules) and 
 update public.economic_state set exchange_rate=6 where id=true;
 select pg_temp.assert_true((select (economic_baseline->>'exchangeUsd')::numeric=5 and (economic_current->>'exchangeUsd')::numeric=6 from public.country_rp_states where country_code='BR'),'RP engine changes current economy without overwriting the real baseline');
 select pg_temp.assert_true(not has_function_privilege('authenticated','private.build_rp_reset_plan(text,uuid[])','execute'),'private reset helpers cannot be called directly');
+select pg_temp.assert_true(current_setting('safeupdate.enabled')='on','API safeupdate protection remains enabled after every reset mode');
 rollback;

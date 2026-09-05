@@ -30,13 +30,15 @@ Depois disso, os gatilhos e o motor existentes voltam a governar a economia corr
 
 ## Confirmação e integridade
 
-1. O administrador escolhe o alcance e informa um motivo de 5 a 500 caracteres.
+1. O administrador escolhe o alcance e pode informar um motivo de até 500 caracteres. O campo é opcional.
 2. `admin_prepare_rp_reset` valida o acesso e guarda uma solicitação privada com IDs, fontes e contagens da prévia. Nenhum dado do jogo é apagado nessa etapa.
-3. A confirmação exige `RESETAR USUARIOS` ou `RESETAR RP`, conforme o alcance, em até 15 minutos.
+3. A confirmação exige somente `RESETAR`, em até 15 minutos, para qualquer alcance.
 4. `admin_execute_rp_reset` valida novamente o administrador e a solicitação. Resets globais são recusados se a lista de contas ou países mudou desde a prévia.
 5. A exclusão, a reinicialização e o registro do resultado ocorrem em uma transação. Uma falha reverte tudo. Repetir a mesma solicitação concluída retorna o resultado salvo.
 
 Durante a execução, tabelas são bloqueadas para impedir escritas concorrentes e observação de estado parcial. Apenas os gatilhos de aplicação são suspensos temporariamente; chaves estrangeiras, unicidade e constraints continuam valendo. Os modos originais dos gatilhos são restaurados ao concluir ou pelo rollback em caso de erro. Atividades relacionadas criadas depois da prévia e antes da execução entram no reset; o histórico guarda as contagens efetivamente planejadas sob os bloqueios.
+
+As atualizações e exclusões usam filtros explícitos, inclusive na reconciliação de contadores sociais e no reset econômico global. Isso permite executar o reset com a proteção `safeupdate` da API ativada.
 
 `private.rp_reset_policy()` classifica explicitamente cada tabela pública como preservada, reiniciada ou limpa. Uma tabela nova sem classificação impede o reset até que a política seja revisada. As funções auxiliares e a tabela de solicitações não são acessíveis diretamente aos clientes. O histórico administrativo mostra as últimas 30 operações concluídas.
 
@@ -46,6 +48,8 @@ Os arquivos de mídia sem referência deixados no Storage não fazem parte da tr
 
 A migração `supabase/migrations/20260905141051_admin_citizen_and_rp_reset.sql` deve ser aplicada antes da publicação do frontend. Ela adiciona somente a infraestrutura do recurso; **aplicar a migração não executa nenhum reset**. O histórico local e remoto deve conter a mesma versão após a aplicação.
 
+A migração `20260905153448_refine_admin_reset_confirmation.sql` adiciona o motivo opcional, simplifica a confirmação e corrige a compatibilidade com `safeupdate`. Aplique também essa atualização antes de publicar a interface correspondente.
+
 O teste `supabase/tests/admin_rp_reset.sql` exige uma cópia isolada e vazia do esquema com todas as migrações aplicadas. Ele recusa bancos que já contenham perfis e faz rollback de todas as fixtures. Para o container de teste `govrp-reset-test`:
 
 ```sh
@@ -53,5 +57,7 @@ npm run test:resets
 ```
 
 Outro container pode ser indicado por `RESET_TEST_CONTAINER`. Nunca use o banco de produção nem a base local de jogadores para estes testes.
+
+O runner usa o `POSTGRES_PASSWORD` do próprio container para carregar `safeupdate` como `supabase_admin`, depois muda a identidade da sessão para `postgres`. As verificações de autorização continuam usando a role `authenticated`, como no aplicativo. A proteção deve permanecer ativa do início ao fim dos testes.
 
 As verificações cobrem permissões, prévia sem exclusões, confirmação, reset individual/em lote/global, dados compartilhados, preservação de terceiros, recriação completa da cidadania, saldo inicial único, repetição da solicitação, falha forçada com rollback, gatilhos, expiração, regras iniciais e evolução econômica posterior pelo RP.
