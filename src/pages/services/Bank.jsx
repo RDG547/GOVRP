@@ -1,10 +1,13 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import { useDomainRealtime } from '@/hooks/use-domain-realtime';
+import { bankRealtimeTables } from '@/lib/bankRealtime';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabaseClient';
 import { useToast } from "@/components/ui/use-toast";
-import { Loader2, Landmark } from 'lucide-react';
-import OpenAccount from '@/components/bank/OpenAccount';
+import { Loader2, Landmark, RefreshCw } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import BankWelcome from '@/components/bank/BankWelcome';
 import BankDashboard from '@/components/bank/BankDashboard';
 import TransferDialog from '@/components/bank/TransferDialog';
 import PayBillDialog from '@/components/bank/PayBillDialog';
@@ -13,19 +16,22 @@ import PageHeader from '@/components/layout/PageHeader';
 const Bank = () => {
     const { user } = useAuth();
     const { toast } = useToast();
+    const request = useRef(0);
     const [bankData, setBankData] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [loadError, setLoadError] = useState('');
     const [isTransferDialogOpen, setIsTransferDialogOpen] = useState(false);
     const [isPayBillDialogOpen, setIsPayBillDialogOpen] = useState(false);
     const [activeTab, setActiveTab] = useState("overview");
 
-    const fetchBankData = useCallback(async (preserveTab = false) => {
+    const fetchBankData = useCallback(async (preserveTab = true) => {
         if (!user) return;
         if (!preserveTab) {
             setLoading(true);
         }
 
         const targetUserId = user.id;
+        const sequence = ++request.current;
 
         try {
             const { data: accountData, error: accountError } = await supabase
@@ -60,12 +66,14 @@ const Bank = () => {
                 }
             }
 
+            if (sequence !== request.current) return;
+            setLoadError('');
             if (!account) {
                 setBankData(null);
                 setLoading(false);
                 return;
             }
-            
+
             const [
               transactionsResponse,
               cardsResponse,
@@ -101,19 +109,22 @@ const Bank = () => {
                 variant: "destructive",
               });
             }
-            
-            setBankData({
+
+            if (sequence !== request.current) return;
+            setBankData(previous => ({
                 account,
-                transactions: transactionsResponse.data || [],
-                cards: cardsResponse.data || [],
-                investments: investmentsResponse.data || [],
-                loans: loansResponse.data || [],
-                investmentOptions: (investmentOptionsResponse.data || []).filter((option) => option.is_active !== false),
-                investmentOperations: investmentOperationsResponse.data || [],
-                portfolioSnapshots: portfolioSnapshotsResponse.data || [],
-            });
+                ...Object.fromEntries(Object.entries({
+                    transactions: transactionsResponse, cards: cardsResponse,
+                    investments: investmentsResponse, loans: loansResponse,
+                    investmentOptions: investmentOptionsResponse,
+                    investmentOperations: investmentOperationsResponse,
+                    portfolioSnapshots: portfolioSnapshotsResponse,
+                }).map(([key, response]) => [key, response.error ? (previous?.[key] || []) : key === 'investmentOptions' ? (response.data || []).filter(option => option.is_active !== false) : response.data || []])),
+            }));
 
         } catch (error) {
+            if (sequence !== request.current) return;
+            setLoadError('Não foi possível buscar os dados da sua conta bancária.');
             console.error("Error fetching bank data:", error);
             toast({
                 title: "Erro ao carregar dados",
@@ -121,42 +132,35 @@ const Bank = () => {
                 variant: "destructive",
             });
         } finally {
-            if (!preserveTab) {
-                setLoading(false);
-            }
+            if (sequence === request.current) setLoading(false);
         }
-    }, [user, toast]);
+    }, [user?.id, toast]);
 
     useEffect(() => {
         if (user) {
             fetchBankData();
         }
-    }, [fetchBankData, user]);
-
-    useEffect(() => {
-        if (!user?.id) return undefined;
-        const refresh = () => fetchBankData(true);
-        const channel = supabase.channel(`bank:${user.id}`)
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'accounts', filter: `user_id=eq.${user.id}` }, refresh)
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'transactions' }, refresh)
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'user_investments', filter: `user_id=eq.${user.id}` }, refresh)
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'investment_operations', filter: `user_id=eq.${user.id}` }, refresh)
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'investment_portfolio_snapshots', filter: `user_id=eq.${user.id}` }, refresh)
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'investment_options' }, refresh)
-            .subscribe();
-        return () => { supabase.removeChannel(channel); };
     }, [fetchBankData, user?.id]);
 
-    if (loading) {
+    useDomainRealtime('bank', user?.id, bankRealtimeTables(user?.id), () => fetchBankData(true), Boolean(user?.id));
+
+    if (loading && !bankData) {
         return (
             <div className="flex justify-center items-center h-screen">
                 <Loader2 className="w-12 h-12 animate-spin text-primary" />
             </div>
         );
     }
-    
-    if (!bankData?.account) {
-        return <OpenAccount onAccountCreated={() => fetchBankData(false)} />;
+
+    if (loadError && !bankData?.account) {
+        return <div className="mx-auto max-w-lg space-y-4 px-4 py-12" role="alert">
+            <p>{loadError}</p>
+            <Button onClick={() => fetchBankData(false)}><RefreshCw className="mr-2 h-4 w-4" />Tentar novamente</Button>
+        </div>;
+    }
+
+    if (!bankData?.account || bankData.account.bank_welcome_completed === false) {
+        return <div className="px-4 py-8"><BankWelcome initialAccount={bankData?.account} onComplete={() => fetchBankData(true)} /></div>;
     }
 
     return (
@@ -175,7 +179,7 @@ const Bank = () => {
                     iconColor="text-green-400"
                     centered={true}
                 />
-                 <BankDashboard 
+                 <BankDashboard
                     account={bankData.account}
                     transactions={bankData.transactions}
                     cards={bankData.cards}
@@ -184,7 +188,7 @@ const Bank = () => {
                     investmentOperations={bankData.investmentOperations}
                     portfolioSnapshots={bankData.portfolioSnapshots}
                     loanApplications={bankData.loans}
-                    onUpdate={(preserveTab) => fetchBankData(preserveTab)}
+                    onUpdate={() => fetchBankData(true)}
                     onTransferClick={() => setIsTransferDialogOpen(true)}
                     onPayClick={() => setIsPayBillDialogOpen(true)}
                     activeTab={activeTab}

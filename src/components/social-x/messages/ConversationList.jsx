@@ -30,16 +30,14 @@ const ConversationListItem = ({ convo, isSelected, onConversationDeleted }) => {
     const itemRef = useRef(null);
     const dragOccurred = useRef(false);
 
-    const participant = convo.participants.find(p => p.profile.id !== user.id)?.profile;
+    const participant = (convo.participants || []).find(p => p.profile?.id && p.profile.id !== user.id)?.profile;
 
     const handleDeleteConversation = async () => {
         setDeletingId(convo.id);
         try {
-            // First delete participants, then the conversation
-            await supabase.from('x_conversation_participants').delete().eq('conversation_id', convo.id);
-            const { error } = await supabase.from('x_conversations').delete().eq('id', convo.id);
+            const { error } = await supabase.rpc('delete_x_conversation', { p_conversation_id: convo.id });
             if (error) throw error;
-            
+
             toast({ title: "Sucesso", description: "Conversa excluída." });
             onConversationDeleted(convo.id);
             if (isSelected) {
@@ -82,6 +80,10 @@ const ConversationListItem = ({ convo, isSelected, onConversationDeleted }) => {
 
             <motion.div
                 ref={itemRef}
+                role="button"
+                tabIndex={0}
+                aria-label={`Conversa com ${participant.x_username || participant.x_handle}`}
+                onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); navigate(`/services/x/messages/${convo.id}`); } }}
                 drag="x"
                 dragControls={controls}
                 dragConstraints={{ left: -80, right: 0 }}
@@ -116,17 +118,17 @@ const ConversationList = ({ conversations, loading, onConversationDeleted }) => 
     if (loading) {
         return <div className="flex-1 flex items-center justify-center"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>;
     }
-    
+
     if (conversations.length === 0) {
         return <div className="flex-1 flex items-center justify-center text-muted-foreground text-center p-4">Nenhuma conversa encontrada.</div>;
     }
 
     return (
         <div className="flex-1 overflow-y-auto custom-scrollbar">
-            <h2 className="p-4 text-xl font-bold border-b border-border">Mensagens</h2>
+
             <ul>
                 {conversations.map(convo => (
-                    <ConversationListItem 
+                    <ConversationListItem
                         key={convo.id}
                         convo={convo}
                         isSelected={convo.id === conversationId}

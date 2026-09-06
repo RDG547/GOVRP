@@ -96,7 +96,7 @@ const ReceiptContent = React.forwardRef(({ receipt }, ref) => {
                     <p className="text-sm text-muted-foreground">Valor Total Debitado</p>
                     <p className="text-4xl font-bold text-blue-400">{formatCurrency(totalAmount)}</p>
                 </div>
-                
+
                 <div className="space-y-2 text-center text-sm">
                     <ReceiptInfoRow label="Valor da Transação:" value={formatCurrency(baseAmount)} />
                     {taxAmount > 0 && <ReceiptInfoRow label="Impostos:" value={formatCurrency(taxAmount)} />}
@@ -111,6 +111,7 @@ const ReceiptContent = React.forwardRef(({ receipt }, ref) => {
 
                 {receipt.recipient_name && <ReceiptParticipant title="Destinatário" data={recipientData} />}
 
+                {receipt.metadata?.seller_type && <div className="my-4 space-y-2 rounded-lg border border-white/10 p-3"><h3 className="font-semibold">Vendedor</h3><ReceiptInfoRow label="Tipo:" value={receipt.metadata.seller_type === 'citizen' ? 'Pessoa Física' : 'Empresa'} /><ReceiptInfoRow label="Nome:" value={receipt.metadata.seller_name || receipt.recipient_name} /></div>}
                 {receipt.metadata?.seller_snapshot && (
                     <div className="mt-4 space-y-2 rounded-lg border border-white/10 p-3">
                         <h3 className="font-semibold">Vendedor no momento da compra</h3>
@@ -181,7 +182,7 @@ const ReceiptDownloadDialog = ({ receipt, onBack }) => {
             let blob;
             let fileName;
             let fileType;
-            
+
             if (format === 'pdf') {
                 const imgData = canvas.toDataURL('image/png');
                 const pdf = new jsPDF({ orientation: 'portrait', unit: 'px', format: [canvas.width, canvas.height] });

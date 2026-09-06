@@ -1,3 +1,6 @@
+import { useRef } from 'react';
+import { useDomainRealtime } from '@/hooks/use-domain-realtime';
+import { usePublicProfileChanges } from '@/hooks/use-public-profile-changes';
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
@@ -132,9 +135,9 @@ const ProductDetails = () => {
     const [newRating, setNewRating] = useState(0);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isBuyDialogOpen, setIsBuyDialogOpen] = useState(false);
+    const purchaseIntent = useRef(null);
 
     const fetchProductDetails = useCallback(async () => {
-        setLoading(true);
         const { data: allProducts, error: productError } = await supabase
             .rpc('get_products_with_final_price');
 
@@ -147,11 +150,12 @@ const ProductDetails = () => {
         const productData = allProducts.find(p => p.id === productId);
 
         if (!productData) {
+            setProduct(null);
             toast({ title: "Erro", description: "Produto não encontrado.", variant: "destructive" });
             setLoading(false);
             return;
         }
-        
+
         setProduct(productData);
 
         const { data: reviewsData, error: reviewsError } = await supabase
@@ -171,8 +175,11 @@ const ProductDetails = () => {
     }, [productId, toast]);
 
     useEffect(() => {
+        setLoading(true);
         fetchProductDetails();
     }, [fetchProductDetails]);
+    useDomainRealtime('product-details', productId, [{ table: 'products', filter: `id=eq.${productId}` }, { table: 'product_reviews', filter: `product_id=eq.${productId}` }, 'government_rules'], fetchProductDetails);
+    usePublicProfileChanges(fetchProductDetails);
 
     const handleReviewSubmit = async () => {
         if (!newReview.trim() || newRating === 0) {
@@ -196,7 +203,7 @@ const ProductDetails = () => {
             fetchProductDetails();
         }
     };
-    
+
     const handleCopyLink = () => {
         const url = window.location.href;
         navigator.clipboard.writeText(url);
@@ -219,20 +226,25 @@ const ProductDetails = () => {
     const handleConfirmBuy = async (paymentMethod, cardId) => {
         if (!product) return;
 
-        const result = await executeProductPurchase({
+        const signature = JSON.stringify([user.id, product.id, paymentMethod, cardId || null]);
+    if (purchaseIntent.current?.signature !== signature) purchaseIntent.current = { signature, key: crypto.randomUUID() };
+    const result = await executeProductPurchase({
             supabase,
             productId: product.id,
             paymentMethod,
             cardId,
+      idempotencyKey: purchaseIntent.current.key,
         });
 
         if (!result.success) {
             toast({ title: "Erro na compra", description: result.message, variant: "destructive" });
+      return;
         } else {
             toast({ title: "Sucesso!", description: result.message });
             fetchProductDetails();
         }
-        setIsBuyDialogOpen(false);
+        purchaseIntent.current = null;
+    setIsBuyDialogOpen(false);
     };
 
     if (loading) {
@@ -243,9 +255,9 @@ const ProductDetails = () => {
         return <div className="text-center py-20">Produto não encontrado.</div>;
     }
 
-    const seller = product.seller;
-    const isBusiness = seller.role === 'PJ';
-    const businessName = isBusiness && seller.documents && seller.documents.length > 0 ? seller.documents[0]?.metadata?.trade_name : null;
+    const seller = product.seller || { full_name: 'Cidadão indisponível' };
+    const isBusiness = Boolean(product.business_id || seller.business_id);
+    const businessName = seller.business_name || null;
     const businessCnpj = isBusiness && seller.documents && seller.documents.length > 0 ? seller.documents[0]?.document_number : null;
     const isSubscription = product.product_type === 'subscription';
     const isOutOfStock = product.product_type === 'one-time' && product.stock <= 0;
@@ -269,12 +281,12 @@ const ProductDetails = () => {
                     <div className="lg:col-span-2 flex flex-col">
                         <h1 className="text-3xl lg:text-4xl font-bold mb-2">{product.name}</h1>
                         <div className="text-sm text-muted-foreground mb-4">
-                            Vendido por: <Link to={`/services/x/profile/${seller.x_handle}`} className="text-primary hover:underline">{businessName || seller.full_name}</Link>
+                            {isBusiness ? 'Empresa' : 'Pessoa Física'} · Vendido por: <Link to={`/services/x/profile/${seller.x_handle}`} className="text-primary hover:underline">{businessName || seller.full_name}</Link>
                             {isBusiness && businessCnpj && <span className="text-xs block">CNPJ: {formatCNPJ(businessCnpj)}</span>}
                         </div>
                         <p className="text-4xl font-bold mb-1">{formatCurrency(finalPrice)} {isSubscription && <span className="text-lg text-muted-foreground">/mês</span>}</p>
                         {product.tax_rate > 0 && <p className="text-xs text-muted-foreground mb-4">Inclui {formatCurrency(finalPrice - basePrice)} de impostos</p>}
-                        
+
                         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mb-6">
                             <Button size="lg" className="w-full sm:w-auto" onClick={() => setIsBuyDialogOpen(true)} disabled={isOutOfStock}>
                                 {isOutOfStock ? 'Esgotado' : (isSubscription ? <><Star className="mr-2 h-5 w-5" /> Assinar</> : <><ShoppingBag className="mr-2 h-5 w-5" /> Comprar Agora</>)}

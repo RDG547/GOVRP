@@ -71,7 +71,7 @@ verify('chave secreta Stripe ausente do frontend', !/STRIPE_SECRET_KEY|sk_(live|
 verify('hCaptcha integrado no login e cadastro', frontendSource.includes('HCaptchaChallenge') && frontendSource.includes('captchaToken'));
 
 const dic = rootFile('src/pages/services/DIC.jsx');
-verify('PDF do DIC pagina cada documento', dic.includes('addDocumentPage') && dic.includes('document.fonts.ready'));
+verify('PDF do DIC pagina cada documento', dic.includes('addDocumentPage') && dic.includes('— Frente') && dic.includes('— Verso') && rootFile('src/lib/captureElement.js').includes('document.fonts.ready'));
 
 const suggestionQueries = [
   rootFile('src/pages/services/ParliamentPanel.jsx'),

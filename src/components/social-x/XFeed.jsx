@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabaseClient';
@@ -7,6 +7,9 @@ import { Button } from '@/components/ui/button';
 import CreatePostForm from './CreatePostForm';
 import PostCard from './PostCard';
 import Stories from './stories/Stories';
+import { useDomainRealtime } from '@/hooks/use-domain-realtime';
+import { usePublicProfileChanges } from '@/hooks/use-public-profile-changes';
+import { mergePosts, changedPostIds, X_POST_TABLES } from '@/lib/xPosts';
 import { useOutletContext } from 'react-router-dom';
 
 const XFeed = () => {
@@ -15,31 +18,34 @@ const XFeed = () => {
     const { user } = useAuth();
     const { toast } = useToast();
     const [posts, setPosts] = useState([]);
-    const [newPostsAvailable, setNewPostsAvailable] = useState(false);
-    
-    const fetchPosts = useCallback(async () => {
-        if (!user || !user.x_handle) return;
-        const { data, error } = await supabase.rpc('get_posts_with_interactions', { p_user_id: user.id });
+    const postsRef = useRef(posts);
+    postsRef.current = posts;
+    const [loadingMore, setLoadingMore] = useState(false);
+    const [hasMore, setHasMore] = useState(true);
+
+    const fetchPosts = useCallback(async (ids = null, before = null) => {
+        if (!user?.id || !user?.x_handle) return;
+        const { data, error } = await supabase.rpc('get_x_posts', { p_post_ids: ids, p_before: before });
         if (error) {
             toast({ title: "Erro ao carregar os posts", description: error.message, variant: "destructive" });
         } else {
-            setPosts(data || []);
+            setPosts(current => mergePosts(current, data || []));
+            if (!ids) setHasMore((data || []).length === 100);
         }
-        setNewPostsAvailable(false);
-    }, [toast, user]);
+    }, [toast, user?.id, user?.x_handle]);
 
     const handlePostCreated = (newPost) => {
-        const formattedPost = { 
-            ...newPost, 
-            author: { ...user, x_username: user.x_username, x_handle: user.x_handle, x_avatar_url: user.x_avatar_url }, 
-            is_liked_by_user: false, 
-            is_reposted_by_user: false, 
-            likes_count: 0, 
-            reposts_count: 0, 
-            comments_count: 0, 
-            views_count: 0 
+        const formattedPost = {
+            ...newPost,
+            author: { ...user, x_username: user.x_username, x_handle: user.x_handle, x_avatar_url: user.x_avatar_url },
+            is_liked_by_user: false,
+            is_reposted_by_user: false,
+            likes_count: 0,
+            reposts_count: 0,
+            comments_count: 0,
+            views_count: 0
         };
-        setPosts(current => [formattedPost, ...current]);
+        setPosts(current => mergePosts(current, [formattedPost]));
     };
 
     const handlePostUpdate = (postId, updatedData) => {
@@ -49,37 +55,40 @@ const XFeed = () => {
     const handleDeletePost = (postId) => {
         setPosts(currentPosts => currentPosts.filter(p => p.id !== postId && p.original_post?.id !== postId));
     };
-    
+
     const handleRepostCreated = () => {
         fetchPosts();
     };
 
-    useEffect(() => {
-        fetchPosts();
-        
-        const channel = supabase.channel('realtime:posts')
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'posts' }, (payload) => {
-                if (payload.eventType === 'INSERT' && payload.new.user_id !== user.id) {
-                    setNewPostsAvailable(true);
-                } else if (payload.eventType === 'DELETE') {
-                    handleDeletePost(payload.old.id);
-                } else if (payload.eventType === 'UPDATE') {
-                     setPosts(currentPosts => 
-                        currentPosts.map(p => {
-                            if (p.id === payload.new.id) {
-                                return { ...p, ...payload.new };
-                            }
-                            if (p.original_post && p.original_post.id === payload.new.id) {
-                                return { ...p, original_post: { ...p.original_post, ...payload.new } };
-                            }
-                            return p;
-                        })
-                    );
-                }
-            }).subscribe();
-            
-        return () => supabase.removeChannel(channel);
-    }, [user, fetchPosts]);
+    useEffect(() => { void fetchPosts(); }, [fetchPosts]);
+    useDomainRealtime('x-posts', user?.id, X_POST_TABLES, async events => {
+        const deleted = events.filter(event => event.table === 'posts' && event.eventType === 'DELETE').map(event => event.old.id);
+        if (deleted.length) setPosts(current => current.filter(post => !deleted.includes(post.id) && !deleted.includes(post.original_post?.id)));
+        const ids = changedPostIds(events).filter(id => !deleted.includes(id));
+        if (events.some(event => event.eventType === 'SYNC')) {
+            // Reconcile currently displayed rows after a disconnection, preserving pagination and scroll.
+            const known = postsRef.current.map(post => post.id);
+            for (let offset = 0; offset < known.length; offset += 80) {
+                const batch = known.slice(offset, offset + 80);
+                const { data, error } = await supabase.rpc('get_x_posts', { p_post_ids: batch });
+                if (!error) setPosts(current => mergePosts(current.filter(post => !batch.includes(post.id) || data.some(row => row.id === post.id)), data));
+            }
+            await fetchPosts();
+        } else if (ids.length) {
+            const affected = [...new Set([...ids, ...postsRef.current.filter(post => ids.includes(post.original_post?.id)).map(post => post.id)])];
+            for (let offset = 0; offset < affected.length; offset += 80) await fetchPosts(affected.slice(offset, offset + 80));
+        }
+    }, Boolean(user?.x_handle));
+    usePublicProfileChanges(events => {
+        const changed = events.map(event => event.new?.id).filter(Boolean);
+        const ids = postsRef.current.filter(post => changed.includes(post.author?.id) || changed.includes(post.original_post?.author?.id)).map(post => post.id);
+        for (let offset = 0; offset < ids.length; offset += 80) void fetchPosts(ids.slice(offset, offset + 80));
+    });
+    const loadMore = async () => {
+        setLoadingMore(true);
+        try { await fetchPosts(null, postsRef.current.at(-1)?.created_at); }
+        finally { setLoadingMore(false); }
+    };
 
     return (
         <div>
@@ -87,16 +96,6 @@ const XFeed = () => {
                 <Stories />
                 <CreatePostForm ref={postInputRef} onPostCreated={handlePostCreated} />
             </div>
-
-            <AnimatePresence>
-                {newPostsAvailable && (
-                    <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="p-4">
-                        <Button className="w-full" variant="outline" onClick={() => fetchPosts()}>
-                            Novas publicações disponíveis. Clique para atualizar!
-                        </Button>
-                    </motion.div>
-                )}
-            </AnimatePresence>
 
             <div className="space-y-0">
                 <AnimatePresence>
@@ -107,6 +106,7 @@ const XFeed = () => {
                     ))}
                 </AnimatePresence>
             </div>
+            {hasMore && posts.length >= 100 && <Button variant="outline" className="m-4" disabled={loadingMore} onClick={loadMore}>{loadingMore ? 'Carregando…' : 'Ver publicações anteriores'}</Button>}
         </div>
     );
 };

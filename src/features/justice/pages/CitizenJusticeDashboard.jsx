@@ -105,7 +105,7 @@ const CitizenJusticeDashboard = () => {
     if (!quiet) setLoading(true);
     try {
       const nextData = await fetchCitizenJusticeData();
-      setData(nextData);
+      setData(previous => ({ ...nextData, ...Object.fromEntries((nextData.errors || []).map(section => [section, previous[section]])) }));
       if (nextData.serverNow) setServerOffset(new Date(nextData.serverNow).getTime() - Date.now());
     } catch (error) {
       toast({
@@ -292,6 +292,7 @@ const CitizenJusticeDashboard = () => {
         />
       </div>
 
+      {data.errors?.length ? <div role="alert" className="rounded-lg border border-amber-500/40 p-3 text-sm">Algumas informações não puderam ser atualizadas. <Button variant="link" onClick={() => loadData({ quiet: true })}>Tentar novamente</Button></div> : null}
       <Tabs defaultValue="occurrences" className="space-y-6">
         <TabsList className="grid h-auto w-full grid-cols-2 gap-2 bg-muted/50 p-2 md:grid-cols-3 xl:grid-cols-6">
           <TabsTrigger value="occurrences"><FileSearch className="mr-2 h-4 w-4" />Ocorrências</TabsTrigger>
@@ -474,9 +475,11 @@ const CitizenJusticeDashboard = () => {
                   <p className="line-clamp-3 text-sm text-muted-foreground">
                     {occurrence.description || occurrence.details}
                   </p>
+                  <p className="mt-3 text-xs text-muted-foreground">Atualizada em {formatJusticeDate(occurrence.updated_at || occurrence.created_at)}</p>
+                  {occurrence.history?.length ? <ol className="mt-4 space-y-2 border-l pl-4">{occurrence.history.map(event => <li key={event.id} className="text-sm"><p>{event.content}</p><time className="text-xs text-muted-foreground">{formatJusticeDate(event.created_at)}</time></li>)}</ol> : null}
                 </CardContent>
               </Card>
-            )) : (
+            )) : data.errors?.includes('occurrences') ? <JusticeEmptyState title="Ocorrências temporariamente indisponíveis" description="Tente atualizar novamente para consultar seus protocolos." /> : (
               <JusticeEmptyState
                 title="Nenhuma ocorrência identificada"
                 description="Ocorrências registradas com seu perfil aparecerão aqui com atualizações em tempo real."

@@ -708,8 +708,8 @@ export const registerBusinessHandler = async (request, response) => {
     const description = trimString(payload.description);
     const idempotencyKey = trimString(payload.idempotencyKey) || randomUUID();
 
-    if (!businessTypeId || !companyName || !description) {
-      throw createHttpError('Dados da empresa incompletos.', 400);
+    if (!businessTypeId || companyName.length < 5 || description.length < 15) {
+      throw createHttpError('Escolha o tipo e informe nome (mínimo de 5 caracteres) e descrição (mínimo de 15 caracteres).', 400);
     }
 
     const { data: newBusiness, error: registrationError } = await supabase.rpc(
@@ -722,7 +722,16 @@ export const registerBusinessHandler = async (request, response) => {
         p_idempotency_key: idempotencyKey,
       }
     );
-    if (registrationError) throw registrationError;
+    if (registrationError) {
+      const messages = {
+        BUSINESS_DETAILS_INCOMPLETE: 'Confira o nome e a descrição da empresa.',
+        BUSINESS_TYPE_NOT_AVAILABLE: 'Este tipo de empresa não está disponível.',
+        BANK_ACCOUNT_REQUIRED: 'Abra sua conta no Banco Nacional antes de criar uma empresa.',
+        INSUFFICIENT_BALANCE: 'Seu saldo não cobre a taxa de registro da empresa.',
+        INVALID_BUSINESS_LICENSE_FEE: 'A taxa de registro está indisponível. Contate a administração.',
+      };
+      throw createHttpError(messages[registrationError.message] || registrationError.message || 'Não foi possível registrar a empresa.', 400);
+    }
 
     json(response, 200, {
       success: true,

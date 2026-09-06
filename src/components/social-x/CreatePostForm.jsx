@@ -82,7 +82,7 @@ const CreatePostForm = forwardRef(({ onPostCreated }, ref) => {
         setPostContent(newContent);
         setIsMentionPopoverOpen(false);
         setMentionSuggestions([]);
-        ref.current.focus();
+        ref?.current?.focus();
     };
 
     const handleMediaSelect = (e) => {
@@ -135,7 +135,7 @@ const CreatePostForm = forwardRef(({ onPostCreated }, ref) => {
             setMediaPreview(URL.createObjectURL(file));
         }
     };
-    
+
     const removeMedia = () => {
         setPostMedia(null);
         setMediaPreview(null);
@@ -147,7 +147,7 @@ const CreatePostForm = forwardRef(({ onPostCreated }, ref) => {
 
     const handlePostSubmit = async (e) => {
         e.preventDefault();
-        if (!postContent.trim() && !postMedia) return;
+        if (isSubmitting || (!postContent.trim() && !postMedia)) return;
         setIsSubmitting(true);
         let mediaUrl = null;
 
@@ -163,12 +163,12 @@ const CreatePostForm = forwardRef(({ onPostCreated }, ref) => {
             mediaUrl = urlData.publicUrl;
         }
 
-        const { data: newPost, error } = await supabase.from('posts').insert({ 
-            content: postContent, 
-            user_id: user.id, 
+        const { data: newPost, error } = await supabase.from('posts').insert({
+            content: postContent,
+            user_id: user.id,
             image_url: mediaUrl,
             metadata: { type: mediaType }
-        }).select('*, author:profiles!posts_user_id_fkey(*)').single();
+        }).select('*, author:profiles!posts_user_id_fkey(id,username,full_name,x_username,x_handle,x_avatar_url,role,titles)').single();
 
         if (error) {
             toast({ title: 'Erro ao postar', description: error.message, variant: "destructive" });
@@ -204,12 +204,12 @@ const CreatePostForm = forwardRef(({ onPostCreated }, ref) => {
                         <img src={user.x_avatar_url || `https://api.dicebear.com/7.x/micah/svg?seed=${user?.username}`} alt="Seu avatar" className="w-12 h-12 rounded-full" />
                         <Popover open={isMentionPopoverOpen} onOpenChange={setIsMentionPopoverOpen}>
                             <PopoverTrigger asChild>
-                                <Textarea 
+                                <Textarea
                                     ref={ref}
                                     id="main-post-textarea"
-                                    value={postContent} 
-                                    onChange={handleTextChange} 
-                                    placeholder="O que está acontecendo?" 
+                                    value={postContent}
+                                    onChange={handleTextChange}
+                                    placeholder="O que está acontecendo?"
                                     className="bg-transparent border-0 text-lg text-white focus-visible:ring-0 p-0" />
                             </PopoverTrigger>
                             <PopoverContent className="w-80 p-0">

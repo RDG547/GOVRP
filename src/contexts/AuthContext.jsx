@@ -8,6 +8,7 @@ import {
   syncElectionOffices,
 } from '@/lib/electionOfficeSync';
 import { isManualElectionRoleSuperseded } from '@/lib/roleResolution';
+import { useDomainRealtime } from '@/hooks/use-domain-realtime';
 import { getAppRedirectUrl } from '@/lib/nativeLinks';
 
 const AuthContext = createContext();
@@ -53,6 +54,7 @@ export const AuthProvider = ({ children }) => {
   const [authError, setAuthError] = useState('');
   const [triggerTutorial, setTriggerTutorial] = useState(false);
   const hydrationRequestRef = useRef(0);
+  const profileRefreshRef = useRef(0);
   const sessionRef = useRef(null);
   const userRef = useRef(null);
   const resumeRefreshRef = useRef(false);
@@ -271,7 +273,7 @@ export const AuthProvider = ({ children }) => {
       );
 
       if (requestId !== hydrationRequestRef.current) return profile;
-      setUser(profile);
+      setUser(current => JSON.stringify(current) === JSON.stringify(profile) ? current : profile);
       userRef.current = profile;
       setLoading(false);
       return profile;
@@ -287,6 +289,10 @@ export const AuthProvider = ({ children }) => {
   }, [fetchUserProfile]);
 
   const refreshUser = useCallback(async ({ skipSync = false } = {}) => {
+    const session = sessionRef.current;
+    const user = userRef.current;
+    const requestId = hydrationRequestRef.current;
+    const refreshId = ++profileRefreshRef.current;
     if (session?.user?.id) {
       try {
         if (!skipSync && user?.role === 'Admin') {
@@ -294,7 +300,7 @@ export const AuthProvider = ({ children }) => {
             console.error('Error syncing election offices during refresh:', error);
           });
         }
-        await supabase.rpc('check_and_update_prisoner_status');
+        if (!skipSync && isPrisonSentenceActive(user)) await supabase.rpc('check_and_update_prisoner_status');
         const { data: profile, error } = await supabase
           .from('profiles')
           .select('*')
@@ -303,13 +309,15 @@ export const AuthProvider = ({ children }) => {
         if (profile && !error) {
             const privateProfile = await attachPrivateAccountIdentity(profile, session);
             const decoratedProfile = await decorateProfileWithEffectiveRoles(privateProfile);
-            setUser(decoratedProfile);
+            if (sessionRef.current?.user?.id !== session.user.id || requestId !== hydrationRequestRef.current || refreshId !== profileRefreshRef.current) return;
+            setUser(current => JSON.stringify(current) === JSON.stringify(decoratedProfile) ? current : decoratedProfile);
+            userRef.current = decoratedProfile;
         }
       } catch (error) {
         console.error('Error refreshing user profile:', error);
       }
     }
-  }, [attachPrivateAccountIdentity, decorateProfileWithEffectiveRoles, session, user?.role]);
+  }, [attachPrivateAccountIdentity, decorateProfileWithEffectiveRoles]);
 
   const syncOfficeStateForSessionUser = useCallback(async () => {
     if (!session?.user?.id || user?.role !== 'Admin') {
@@ -416,9 +424,10 @@ export const AuthProvider = ({ children }) => {
       sessionRef.current = currentSession;
       setSession(currentSession);
       const profile = await fetchUserProfile(currentSession);
+      if (sessionRef.current?.user?.id !== currentSession.user.id) return;
       if (profile) {
         userRef.current = profile;
-        setUser(profile);
+        setUser(current => JSON.stringify(current) === JSON.stringify(profile) ? current : profile);
         setAuthError('');
       }
     } catch (error) {
@@ -479,26 +488,9 @@ export const AuthProvider = ({ children }) => {
     };
   }, [refreshSessionSilently]);
 
-  useEffect(() => {
-    if (!session?.user?.id) return undefined;
-    let timer;
-    const scheduleRefresh = () => {
-      window.clearTimeout(timer);
-      timer = window.setTimeout(() => { void refreshUser({ skipSync: true }); }, 200);
-    };
-    const channel = supabase.channel(`citizen-reset:${session.user.id}`)
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'profiles', filter: `id=eq.${session.user.id}` }, scheduleRefresh)
-      .subscribe();
-    // Reconnect/focus also rehydrates the profile; this catches missed events.
-    const interval = window.setInterval(() => {
-      if (document.visibilityState === 'visible') scheduleRefresh();
-    }, 60000);
-    return () => {
-      window.clearTimeout(timer);
-      window.clearInterval(interval);
-      supabase.removeChannel(channel);
-    };
-  }, [refreshUser, session?.user?.id]);
+  useDomainRealtime('identity', session?.user?.id, [
+    { table: 'profiles', event: 'UPDATE', filter: `id=eq.${session?.user?.id}` },
+  ], () => { void refreshUser({ skipSync: true }); }, Boolean(session?.user?.id));
 
   const login = async ({ identifier, password, captchaToken }) => {
     const email = identifier.trim().toLowerCase();

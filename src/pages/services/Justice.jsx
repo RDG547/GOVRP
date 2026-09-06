@@ -1,3 +1,5 @@
+import ServiceAccess from '@/components/ServiceAccess';
+import { JUSTICE_AUTHORITY_ROLES, primaryJusticeRole } from '@/lib/justice/constants';
 import React, { useEffect, useMemo, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { useSearchParams } from 'react-router-dom';
@@ -52,6 +54,10 @@ const Justice = ({ defaultView = 'citizen' }) => {
     nextParams.set('view', view);
     setSearchParams(nextParams, { replace: true });
   };
+
+  if (hasAuthorityAccess && !searchParams.has('view') && defaultView === 'citizen') {
+    return <ServiceAccess requiredRoles={JUSTICE_AUTHORITY_ROLES} title="Como deseja acessar?" panelLabel={`Acessar como ${primaryJusticeRole(user)}`} citizenPath="/services/justice?view=citizen" panelPath="/services/justice?view=authority" />;
+  }
 
   return (
     <>

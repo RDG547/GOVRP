@@ -17,6 +17,7 @@ const admin = read('src/pages/admin/AdminDashboard.jsx');
 const parliament = read('src/pages/services/Parliament.jsx');
 const historyMigration = read('supabase/migrations/20260817140039_bill_status_history.sql');
 const dic = read('src/pages/services/DIC.jsx');
+const documentCapture = read('src/lib/captureElement.js');
 const officialDocument = read('src/components/dic/OfficialDocument.jsx');
 const homeNews = read('src/components/home/NewsSection.jsx');
 const bank = read('src/components/bank/BankManagementPanel.jsx');
@@ -50,8 +51,8 @@ verify('Parlamento exibe proposta e cronologia com segundos', parliament.include
 verify('tabs do Parlamento rolam localmente no celular', parliament.includes('overflow-x-auto scroll-smooth') && parliament.includes('min-w-max flex-nowrap'));
 verify('eventos parlamentares futuros usam hora do servidor', historyMigration.includes('clock_timestamp()') && historyMigration.includes('new.status is distinct from old.status'));
 verify('datas históricas não são inventadas', historyMigration.includes('bill.updated_at > bill.created_at') && historyMigration.includes('historical_updated_at'));
-verify('PDF aguarda fontes e captura o documento real', dic.includes('document.fonts.ready') && dic.includes("querySelector('[data-official-document]')") && officialDocument.includes('data-official-document'));
-verify('PDF corrige linha e escala sem esconder o renderizador', dic.includes('fontSize * 1.3') && dic.includes('scale: 3') && !dic.includes("left: '-9999px'"));
+verify('PDF aguarda fontes e captura o documento real', documentCapture.includes('document.fonts.ready') && dic.includes("querySelector('[data-official-document]')") && officialDocument.includes('data-official-document'));
+verify('PDF aguarda imagens, corrige transformações e preserva escala do documento', documentCapture.includes('img.decode') && documentCapture.includes("parent.style.transform = 'none'") && documentCapture.includes('useCORS: true') && dic.includes('scale: 3'));
 verify('Home consulta exatamente as três publicações recentes do feed nacional', homeNews.includes("rpc('get_national_feed'") && homeNews.includes('p_limit: 3'));
 verify('carrossel possui loop de cinco segundos, navegação e swipe', homeNews.includes('5000') && homeNews.includes('% news.length') && homeNews.includes('handleTouchStart') && homeNews.includes('Notícia anterior'));
 verify('notícias, Diário Oficial e imprensa acompanham publicações em tempo real com cleanup', homeNews.includes("channel('home-national-feed')") && ['news_articles', 'dou_entries', 'national_media_briefs'].every((table) => homeNews.includes(`'${table}'`)) && homeNews.includes('removeChannel(channel)'));

@@ -69,6 +69,7 @@ const ProfileHeader = ({ profile, followers, following, isFollowingInitial, onFo
     const navigate = useNavigate();
     const [isFollowLoading, setIsFollowLoading] = useState(false);
     const [isFollowing, setIsFollowing] = useState(isFollowingInitial);
+    React.useEffect(() => { setIsFollowing(isFollowingInitial); }, [isFollowingInitial]);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [followModalState, setFollowModalState] = useState({ isOpen: false, type: 'followers' });
     const [isMessageLoading, setIsMessageLoading] = useState(false);
@@ -81,7 +82,8 @@ const ProfileHeader = ({ profile, followers, following, isFollowingInitial, onFo
 
         setIsFollowLoading(true);
         try {
-            await supabase.rpc('toggle_follow', { p_following_id: profile.id });
+            const { error } = await supabase.rpc('toggle_follow', { p_following_id: profile.id });
+            if (error) throw error;
             const newIsFollowing = !isFollowing;
             setIsFollowing(newIsFollowing);
             onFollowToggle(newIsFollowing);
@@ -92,7 +94,7 @@ const ProfileHeader = ({ profile, followers, following, isFollowingInitial, onFo
             setIsFollowLoading(false);
         }
     };
-    
+
     const handleSendMessage = async () => {
         if (!currentUser || !profile) return;
         setIsMessageLoading(true);
@@ -101,11 +103,11 @@ const ProfileHeader = ({ profile, followers, following, isFollowingInitial, onFo
                 p_recipient_id: profile.id,
                 p_content: `Olá!`
             });
-            
+
             if (error || !data.success) {
                 throw new Error(data?.message || error.message);
             }
-            
+
             navigate(`/services/x/messages/${data.conversation_id}`);
 
         } catch (error) {
@@ -123,7 +125,7 @@ const ProfileHeader = ({ profile, followers, following, isFollowingInitial, onFo
     const profileName = profile.x_username || profile.full_name;
     const headerImage = profile.x_header_url || 'https://images.unsplash.com/photo-1557682250-33bd709cbe85?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D';
     const avatarImage = profile.x_avatar_url || `https://api.dicebear.com/7.x/micah/svg?seed=${profile.username}`;
-    
+
     const displayedTitles = profile.role === 'Admin' ? ['Fundador', ...(profile.titles || [])] : (profile.titles || []);
     const uniqueTitles = [...new Set(displayedTitles)];
 
@@ -167,7 +169,7 @@ const ProfileHeader = ({ profile, followers, following, isFollowingInitial, onFo
                     <div className="mt-4 text-gray-400 space-y-2">
                         <p className="flex items-center gap-2">
                             <Calendar className="w-4 h-4" />
-                            <span>Ingressou em {new Date(profile.created_at).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}</span>
+                            <span>Ingressou em {new Date(profile.citizenship_created_at || profile.created_at).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}</span>
                         </p>
                         <div className="flex gap-4">
                             <button onClick={() => openFollowModal('following')} className="hover:underline"><span className="font-bold text-white">{following}</span> Seguindo</button>
@@ -184,7 +186,7 @@ const ProfileHeader = ({ profile, followers, following, isFollowingInitial, onFo
                     onProfileUpdate={onProfileUpdate}
                 />
             )}
-             <FollowListModal 
+             <FollowListModal
                 isOpen={followModalState.isOpen}
                 setIsOpen={(val) => setFollowModalState(prev => ({...prev, isOpen: val}))}
                 userId={profile.id}

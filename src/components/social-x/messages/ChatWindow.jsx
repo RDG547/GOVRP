@@ -5,162 +5,110 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Loader2, Send } from 'lucide-react';
+import { useDomainRealtime } from '@/hooks/use-domain-realtime';
+import { invalidateDomain } from '@/lib/realtime';
 import { cn } from '@/lib/utils';
-import { format } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
 
-const ChatWindow = ({ conversation }) => {
-    const { user } = useAuth();
-    const [messages, setMessages] = useState([]);
-    const [newMessage, setNewMessage] = useState('');
-    const [loading, setLoading] = useState(true);
-    const [sending, setSending] = useState(false);
-    const messagesEndRef = useRef(null);
-    const prevMessagesCount = useRef(0); // Para rastrear a contagem de mensagens
+function mergeMessages(current, incoming) {
+  const rows = new Map(current.map(row => [row.id, row]));
+  incoming.forEach(row => rows.set(row.id, row));
+  return [...rows.values()].sort((a, b) => a.created_at.localeCompare(b.created_at) || a.id.localeCompare(b.id));
+}
 
-    const otherParticipant = conversation.participants.find(p => p.profile.id !== user.id)?.profile;
+export default function ChatWindow({ conversation }) {
+  const { user } = useAuth();
+  const [messages, setMessages] = useState([]);
+  const [draft, setDraft] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [sending, setSending] = useState(false);
+  const [loadingOlder, setLoadingOlder] = useState(false);
+  const [hasOlder, setHasOlder] = useState(false);
+  const [error, setError] = useState('');
+  const scrollRef = useRef(null);
+  const nearBottom = useRef(true);
+  const sendingRef = useRef(false);
+  const mounted = useRef(true);
+  const other = (conversation.participants || []).find(p => p.profile?.id && p.profile.id !== user.id)?.profile;
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
 
-    const fetchMessages = useCallback(async () => {
-        setLoading(true);
-        const { data, error } = await supabase
-            .from('x_messages')
-            .select('*, sender:sender_id(id, x_username, x_handle, x_avatar_url)')
-            .eq('conversation_id', conversation.id)
-            .order('created_at', { ascending: true });
-        
-        if (error) console.error(error);
-        else setMessages(data);
-        setLoading(false);
-    }, [conversation.id]);
-
-    useEffect(() => {
-        fetchMessages();
-        prevMessagesCount.current = 0; // Reinicia o contador ao mudar a conversa
-
-        const channel = supabase.channel(`x_dm:${conversation.id}`)
-            .on('postgres_changes', {
-                event: 'INSERT',
-                schema: 'public',
-                table: 'x_messages',
-                filter: `conversation_id=eq.${conversation.id}`
-            }, async (payload) => {
-                if (payload.new.sender_id !== user.id) {
-                    const { data: senderProfile } = await supabase.from('profiles').select('id, x_username, x_handle, x_avatar_url').eq('id', payload.new.sender_id).single();
-                    setMessages(m => [...m, { ...payload.new, sender: senderProfile }]);
-                }
-            })
-            .subscribe();
-
-        return () => supabase.removeChannel(channel);
-    }, [conversation.id, fetchMessages, user.id]);
-
-    useEffect(() => {
-        // Rola para baixo apenas se o número de mensagens aumentou
-        if (messages.length > prevMessagesCount.current) {
-            messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-        }
-        // Atualiza a contagem para a próxima renderização
-        prevMessagesCount.current = messages.length;
-    }, [messages]);
-
-    const handleSendMessage = async (e) => {
-        e.preventDefault();
-        if (newMessage.trim() === '' || sending) return;
-
-        setSending(true);
-        const contentToSend = newMessage;
-        setNewMessage('');
-
-        const tempMessage = {
-            id: 'temp-' + Date.now(),
-            conversation_id: conversation.id,
-            sender_id: user.id,
-            content: contentToSend,
-            created_at: new Date().toISOString(),
-            sender: {
-                id: user.id,
-                x_username: user.x_username,
-                x_handle: user.x_handle,
-                x_avatar_url: user.x_avatar_url,
-            }
-        };
-        setMessages(m => [...m, tempMessage]);
-
-        const { data, error } = await supabase.rpc('send_x_message', {
-            p_recipient_id: otherParticipant.id,
-            p_content: contentToSend
-        });
-
-        if (error) {
-            console.error('Erro ao enviar mensagem:', error);
-            setMessages(m => m.filter(msg => msg.id !== tempMessage.id));
-            setNewMessage(contentToSend);
-        }
-        
-        setSending(false);
-    };
-
-    if (!otherParticipant) {
-        return <div className="flex-1 flex items-center justify-center text-muted-foreground">Participante não encontrado.</div>;
+  const fetchMessages = useCallback(async (before = null) => {
+    let query = supabase.from('x_messages').select('id,conversation_id,sender_id,content,created_at')
+      .eq('conversation_id', conversation.id).order('created_at', { ascending: false }).limit(100);
+    if (before) query = query.lt('created_at', before);
+    const { data, error: failure } = await query;
+    if (!mounted.current) return;
+    if (failure) setError('Não foi possível carregar as mensagens. Tente novamente.');
+    else {
+      setError('');
+      setMessages(current => mergeMessages(current, data || []));
+      setHasOlder((data || []).length === 100);
     }
+    setLoading(false);
+  }, [conversation.id]);
+  useEffect(() => { void fetchMessages(); }, [fetchMessages]);
+  useDomainRealtime('x-chat', `${user.id}:${conversation.id}`, [{ table: 'x_messages', filter: `conversation_id=eq.${conversation.id}` }], events => {
+    if (events.some(event => event.eventType === 'SYNC')) void fetchMessages();
+    setMessages(current => {
+      let rows = current;
+      for (const event of events) {
+        if (event.eventType === 'DELETE') rows = rows.filter(row => row.id !== event.old.id);
+        else if (event.new?.id) rows = mergeMessages(rows, [event.new]);
+      }
+      return rows;
+    });
+  });
+  useEffect(() => {
+    if (nearBottom.current && scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+  }, [messages]);
 
-    return (
-        <div className="flex flex-col h-full flex-1">
-            <header className="p-4 border-b border-border flex items-center gap-3">
-                <Link to={`/services/x/profile/${otherParticipant.x_handle}`}>
-                    <img src={otherParticipant.x_avatar_url} alt={otherParticipant.x_handle} className="w-10 h-10 rounded-full"/>
-                </Link>
-                <div>
-                    <p className="font-bold text-foreground">{otherParticipant.x_username}</p>
-                    <p className="text-sm text-muted-foreground">@{otherParticipant.x_handle}</p>
-                </div>
-            </header>
-            
-            <main className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">
-                {loading ? <div className="flex justify-center"><Loader2 className="animate-spin" /></div> : (
-                    messages.map((msg, index) => {
-                        const isSender = msg.sender.id === user.id;
-                        const showAvatar = index === messages.length - 1 || messages[index + 1].sender.id !== msg.sender.id;
-                        return (
-                            <div key={msg.id} className={cn("flex items-end gap-2", isSender ? "justify-end" : "justify-start")}>
-                                {!isSender && (
-                                    <div className="w-8 flex-shrink-0">
-                                        {showAvatar && <img src={msg.sender.x_avatar_url} alt={msg.sender.x_handle} className="w-8 h-8 rounded-full" />}
-                                    </div>
-                                )}
-                                <div className={cn("p-3 rounded-2xl max-w-sm md:max-w-md", isSender ? "bg-primary text-primary-foreground rounded-br-none" : "bg-secondary text-secondary-foreground rounded-bl-none")}>
-                                    <p className="whitespace-pre-wrap">{msg.content}</p>
-                                    <p className="text-xs opacity-70 mt-1 text-right">{format(new Date(msg.created_at), 'p', { locale: ptBR })}</p>
-                                </div>
-                            </div>
-                        )
-                    })
-                )}
-                <div ref={messagesEndRef} />
-            </main>
+  const send = async event => {
+    event.preventDefault();
+    if (!draft.trim() || sendingRef.current || !other) return;
+    sendingRef.current = true; setSending(true); setError('');
+    const content = draft.trim();
+    try {
+      const { data, error: failure } = await supabase.rpc('send_x_message', { p_recipient_id: other.id, p_content: content });
+      if (failure || !data?.success) throw new Error(data?.message || 'A mensagem não foi enviada. Tente novamente.');
+      if (!mounted.current) return;
+      nearBottom.current = true;
+      if (data.message?.id) setMessages(current => mergeMessages(current, [data.message]));
+      else await fetchMessages();
+      setDraft('');
+      invalidateDomain('x-conversations', user.id);
+    } catch (failure) { if (mounted.current) setError(failure.message); }
+    finally { sendingRef.current = false; if (mounted.current) setSending(false); }
+  };
+  const older = async () => {
+    setLoadingOlder(true);
+    const height = scrollRef.current?.scrollHeight || 0;
+    nearBottom.current = false;
+    await fetchMessages(messages[0]?.created_at);
+    requestAnimationFrame(() => { if (scrollRef.current) scrollRef.current.scrollTop += scrollRef.current.scrollHeight - height; });
+    setLoadingOlder(false);
+  };
 
-            <footer className="p-4 border-t border-border">
-                <form onSubmit={handleSendMessage} className="flex gap-2">
-                    <Textarea 
-                        value={newMessage}
-                        onChange={(e) => setNewMessage(e.target.value)}
-                        placeholder={`Mensagem para @${otherParticipant.x_handle}`}
-                        className="resize-none"
-                        rows={1}
-                        onKeyDown={(e) => {
-                            if (e.key === 'Enter' && !e.shiftKey) {
-                                e.preventDefault();
-                                handleSendMessage(e);
-                            }
-                        }}
-                    />
-                    <Button type="submit" size="icon" disabled={sending}>
-                        {sending ? <Loader2 className="animate-spin" /> : <Send />}
-                    </Button>
-                </form>
-            </footer>
+  if (!other) return <p className="p-4 text-muted-foreground">Este participante está indisponível.</p>;
+  return <section className="flex h-full min-h-0 min-w-0 flex-1 flex-col" aria-label={`Conversa com ${other.x_username || other.x_handle}`}>
+    <header className="flex items-center gap-3 border-b p-3">
+      <Link to={`/services/x/profile/${other.x_handle}`} className="flex min-w-0 items-center gap-3">
+        <img src={other.x_avatar_url || '/favicon.svg'} alt="" className="h-10 w-10 rounded-full object-cover" />
+        <div className="min-w-0"><p className="truncate font-bold">{other.x_username || other.x_handle}</p><p className="truncate text-sm text-muted-foreground">@{other.x_handle}</p></div>
+      </Link>
+    </header>
+    {error && <div role="alert" className="p-3 text-sm text-destructive">{error} <Button variant="link" onClick={() => fetchMessages()}>Tentar novamente</Button></div>}
+    <div ref={scrollRef} onScroll={event => { const node = event.currentTarget; nearBottom.current = node.scrollHeight - node.scrollTop - node.clientHeight < 100; }} className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain p-3">
+      {hasOlder && <Button variant="ghost" onClick={older} disabled={loadingOlder}>{loadingOlder ? 'Carregando…' : 'Mensagens anteriores'}</Button>}
+      {loading && <Loader2 className="mx-auto animate-spin" aria-label="Carregando mensagens" />}
+      {messages.map(message => <div key={message.id} className={cn('flex', message.sender_id === user.id ? 'justify-end' : 'justify-start')}>
+        <div className={cn('max-w-[88%] break-words rounded-2xl px-3 py-2', message.sender_id === user.id ? 'rounded-br-sm bg-primary text-primary-foreground' : 'rounded-bl-sm bg-secondary')}>
+          <p className="whitespace-pre-wrap text-sm [overflow-wrap:anywhere]">{message.content}</p>
+          <time dateTime={message.created_at} className="mt-1 block text-right text-[11px] opacity-70">{new Date(message.created_at).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</time>
         </div>
-    );
-};
-
-export default ChatWindow;
+      </div>)}
+    </div>
+    <form onSubmit={send} className="flex shrink-0 items-end gap-2 border-t p-3">
+      <Textarea aria-label="Mensagem" value={draft} disabled={sending} maxLength={4000} onChange={event => setDraft(event.target.value)} placeholder={`Mensagem para @${other.x_handle}`} rows={2} className="max-h-36 min-h-11 resize-none" onKeyDown={event => { if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); void send(event); } }} />
+      <Button type="submit" size="icon" className="h-11 w-11 shrink-0" disabled={sending || !draft.trim()} aria-label="Enviar mensagem">{sending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}</Button>
+    </form>
+  </section>;
+}

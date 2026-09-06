@@ -4,30 +4,21 @@ import { supabase } from '@/lib/supabaseClient';
 import { useAuth } from './AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Wifi, WifiOff, Zap, Loader2 } from 'lucide-react';
+import { useDomainRealtime } from '@/hooks/use-domain-realtime';
+import { getInternetDelay, remainingInternetDelay, isInternetDelayExempt } from '@/lib/internetPlans';
 import { Button } from '@/components/ui/button';
 
 const InternetSpeedContext = createContext();
 
 export const useInternetSpeed = () => useContext(InternetSpeedContext);
 
-// Plan delay ranges in milliseconds
-const PLAN_DELAYS = {
-  'Básico': { min: 5000, max: 7000 },
-  'Ultra':  { min: 3000, max: 5000 },
-  'Mega':   { min: 0, max: 0 },
-};
-
-const getRandomDelay = (plan) => {
-  const config = PLAN_DELAYS[plan] || PLAN_DELAYS['Básico'];
-  if (config.min === 0 && config.max === 0) return 0;
-  return Math.floor(Math.random() * (config.max - config.min + 1)) + config.min;
-};
-
 const LoadingOverlay = ({ plan, delay, onUpgrade }) => {
   const [progress, setProgress] = useState(0);
   const [secondsLeft, setSecondsLeft] = useState(Math.ceil(delay / 1000));
 
   useEffect(() => {
+    setProgress(0);
+    setSecondsLeft(Math.ceil(delay / 1000));
     const interval = setInterval(() => {
       setProgress(prev => {
         const newVal = prev + (100 / (delay / 100));
@@ -62,7 +53,7 @@ const LoadingOverlay = ({ plan, delay, onUpgrade }) => {
         </motion.div>
 
         <h2 className="text-2xl font-bold text-foreground mb-4">Carregando a página...</h2>
-        
+
         <p className="text-muted-foreground mb-6">
           A demora é devido ao seu plano de internet atual (<strong className="text-primary">{plan}</strong>).
         </p>
@@ -88,10 +79,10 @@ const LoadingOverlay = ({ plan, delay, onUpgrade }) => {
               <p className="font-semibold text-blue-300 text-sm uppercase tracking-wider">Sugestão de Upgrade</p>
             </div>
             <p className="text-sm text-blue-100 mb-4">
-              Para navegar sem essa tela de espera e acessar em velocidade máxima, sugerimos que adquira um plano melhor. 
+              Para navegar sem essa tela de espera e acessar em velocidade máxima, sugerimos que adquira um plano melhor.
               {plan === 'Básico' ? ' O plano Ultra reduz a espera, e o plano Mega elimina totalmente o tempo de carregamento.' : ' Faça upgrade para o plano Mega e navegue na velocidade máxima.'}
             </p>
-            <Button 
+            <Button
               className="w-full bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-700 hover:to-cyan-600 text-white shadow-lg shadow-blue-500/25"
               onClick={onUpgrade}
             >
@@ -109,106 +100,60 @@ export const InternetSpeedProvider = ({ children }) => {
   const location = useLocation();
   const navigate = useNavigate();
   // Default to Básico so new users get the delay before they buy a plan
-  const [userPlan, setUserPlan] = useState('Básico'); 
+  const [userPlan, setUserPlan] = useState('Básico');
   const [isLoading, setIsLoading] = useState(false);
   const [currentDelay, setCurrentDelay] = useState(0);
   const previousPath = useRef(location.pathname);
   const loadingTimeout = useRef(null);
+  const waitingStarted = useRef(null);
+  const planRequest = useRef(0);
 
-  // Fetch user's internet plan
-  useEffect(() => {
-    const fetchPlan = async () => {
-      if (!user?.id) {
-        setUserPlan('Básico');
-        return;
-      }
-      
-      const { data, error } = await supabase
-        .from('user_services')
-        .select('plan_name')
-        .eq('user_id', user.id)
-        .eq('service_type', 'Internet')
-        .limit(1)
-        .maybeSingle();
-      
-      if (data?.plan_name) {
-        setUserPlan(data.plan_name);
-      } else {
-        setUserPlan('Básico');
-      }
-    };
-    
-    fetchPlan();
+  const fetchPlan = useCallback(async () => {
+    const sequence = ++planRequest.current;
+    if (!user?.id) { setUserPlan('Básico'); return; }
+    const { data, error } = await supabase.from('user_services').select('plan_name')
+      .eq('user_id', user.id).eq('service_type', 'Internet').limit(1).maybeSingle();
+    if (!error && sequence === planRequest.current) setUserPlan(data?.plan_name || 'Básico');
   }, [user?.id]);
+  useEffect(() => { void fetchPlan(); }, [fetchPlan]);
+  useDomainRealtime('internet', user?.id, [
+    { table: 'user_services', filter: `user_id=eq.${user?.id}` },
+  ], fetchPlan, Boolean(user?.id));
 
-  // Detect navigation and apply delay
   useEffect(() => {
     const currentPath = location.pathname;
-    
-    // Skip if same path or first load
-    if (previousPath.current === currentPath) return;
-
-    if (!user?.id) {
+    const changedPath = previousPath.current !== currentPath;
+    if (changedPath) {
+      const sameXSection = previousPath.current.startsWith('/services/x') && currentPath.startsWith('/services/x');
       previousPath.current = currentPath;
-      setIsLoading(false);
-      if (loadingTimeout.current) clearTimeout(loadingTimeout.current);
-      return;
+      waitingStarted.current = sameXSection || isInternetDelayExempt(currentPath, user) || getInternetDelay(userPlan) === 0 ? null : Date.now();
     }
-    
-    const skipPaths = [
-      '/login', '/register', '/auth/callback', '/update-password', '/forgot-password',
-      '/community', '/help', '/about', '/donate', '/country-info',
-      '/contact', '/support', '/faq', '/docs', '/account-deletion',
-      '/admin-dashboard'
-    ];
-    if (skipPaths.some(p => currentPath.startsWith(p))) {
-      previousPath.current = currentPath;
-      setIsLoading(false);
-      if (loadingTimeout.current) clearTimeout(loadingTimeout.current);
-      return;
-    }
-
-    // Don't delay within the same section (e.g., within /services/x/*)
-    const prevSection = previousPath.current.split('/').slice(0, 3).join('/');
-    const currSection = currentPath.split('/').slice(0, 3).join('/');
-    if (prevSection === currSection && prevSection === '/services/x') {
-      previousPath.current = currentPath;
-      return;
-    }
-
-    const delay = getRandomDelay(userPlan);
-    previousPath.current = currentPath;
-
-    if (delay > 0) {
-      setCurrentDelay(delay);
-      setIsLoading(true);
-
-      if (loadingTimeout.current) clearTimeout(loadingTimeout.current);
-      loadingTimeout.current = setTimeout(() => {
-        setIsLoading(false);
-      }, delay);
-    }
-    
-    // IMPORTANT: Clear on unmount or re-render
-    return () => {
-      if (loadingTimeout.current) clearTimeout(loadingTimeout.current);
-    };
-  }, [location.pathname, user?.id, userPlan]);
+    clearTimeout(loadingTimeout.current);
+    const delay = waitingStarted.current === null || isInternetDelayExempt(currentPath, user)
+      ? 0 : remainingInternetDelay(userPlan, Date.now() - waitingStarted.current);
+    setCurrentDelay(delay);
+    setIsLoading(delay > 0);
+    if (delay > 0) loadingTimeout.current = setTimeout(() => { waitingStarted.current = null; setIsLoading(false); }, delay);
+    else waitingStarted.current = null;
+  }, [location.pathname, user?.id, user?.onboarding_completed, userPlan]);
+  useEffect(() => () => clearTimeout(loadingTimeout.current), []);
 
   const handleUpgrade = () => {
+    waitingStarted.current = null;
     setIsLoading(false);
     if (loadingTimeout.current) clearTimeout(loadingTimeout.current);
     navigate('/services/internet');
   };
 
   return (
-    <InternetSpeedContext.Provider value={{ userPlan, isLoading }}>
+    <InternetSpeedContext.Provider value={{ userPlan, isLoading, refreshPlan: fetchPlan }}>
       {children}
       <AnimatePresence>
         {isLoading && (
-          <LoadingOverlay 
-            plan={userPlan} 
-            delay={currentDelay} 
+          <LoadingOverlay
+            key={location.pathname}
+            plan={userPlan}
+            delay={currentDelay}
             onUpgrade={handleUpgrade}
           />
         )}

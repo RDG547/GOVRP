@@ -1,3 +1,6 @@
+import { fetchPublicProfiles, unavailablePublicProfile } from '@/lib/publicProfiles';
+import { useDomainRealtime } from '@/hooks/use-domain-realtime';
+import { PARTY_REALTIME_TABLES } from '@/lib/parties';
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { useAuth } from '@/contexts/AuthContext';
@@ -54,7 +57,7 @@ const EditPartyForm = ({ party, onAction, closeDialog, userRole, members }) => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        
+
         const leaderIds = [formData.owner_id, formData.president_id, formData.vice_president_id].filter(Boolean);
         const viceDuplicatesCoreRole =
             formData.vice_president_id &&
@@ -108,8 +111,8 @@ const EditPartyForm = ({ party, onAction, closeDialog, userRole, members }) => {
                 p_orientation: formData.orientation,
             });
 
-            if (error || !data.success) throw new Error(error?.message || data.message || "Erro desconhecido");
-            
+            if (error || !data?.success) throw new Error(error?.message || data?.message || "Erro desconhecido");
+
             toast({ title: 'Sucesso!', description: 'Dados do partido atualizados.' });
             if(onAction) onAction();
             if(closeDialog) closeDialog();
@@ -191,6 +194,7 @@ const PartyManagementDialog = ({ party, onAction, isFromDetailsPage = false }) =
     const { user } = useAuth();
     const { toast } = useToast();
     const [loading, setLoading] = useState(false);
+    const [actingId, setActingId] = useState(null);
     const [isOpen, setIsOpen] = useState(false);
     const [currentTab, setCurrentTab] = useState('edit');
     const [affiliationMode, setAffiliationMode] = useState(party.affiliation_mode);
@@ -221,20 +225,22 @@ const PartyManagementDialog = ({ party, onAction, isFromDetailsPage = false }) =
     const canManageMembers = userRole === 'Dono' || userRole === 'Presidente';
     const canManageRequests = userRole === 'Dono' || userRole === 'Presidente' || userRole === 'Vice-Presidente';
 
-    const fetchData = useCallback(async (tab) => {
-        setLoading(true);
+    const fetchData = useCallback(async (tab, quiet = false) => {
+        if (!quiet) setLoading(true);
         try {
             if (tab === 'requests') {
-                const { data, error } = await supabase.from('party_affiliation_requests').select('*, user:profiles(id, full_name, avatar_url)').eq('party_id', party.id).eq('status', 'pending');
+                const { data, error } = await supabase.from('party_affiliation_requests').select('id,user_id,party_id,status,created_at').eq('party_id', party.id).eq('status', 'pending');
                 if (error) throw error;
-                setRequests(data || []);
+                const profiles = await fetchPublicProfiles((data || []).map(request => request.user_id));
+                setRequests((data || []).map(request => ({ ...request, user: profiles.get(request.user_id) || unavailablePublicProfile(request.user_id) })));
             } else if (tab === 'suggestions') {
                 const { data, error } = await supabase.from('bill_suggestions').select('*, author:profiles!bill_suggestions_author_id_fkey(full_name)').eq('target_id', party.id).eq('target_type', 'party').order('created_at', { ascending: false });
                 if (error) throw error;
                 setSuggestions(data || []);
             } else if (tab === 'members' || tab === 'edit') {
-                const { data, error } = await supabase.from('party_members').select('*, user_id, profile:profiles(id, full_name, avatar_url, role)').eq('party_id', party.id);
+                const { data, error } = await supabase.from('party_members').select('id,party_id,user_id,role,joined_at').eq('party_id', party.id);
                 if (error) throw error;
+                const profiles = await fetchPublicProfiles((data || []).map(member => member.user_id));
                 setMembers(
                     (data || [])
                         .map((member) => {
@@ -242,6 +248,7 @@ const PartyManagementDialog = ({ party, onAction, isFromDetailsPage = false }) =
 
                             return {
                                 ...member,
+                                profile: profiles.get(member.user_id) || unavailablePublicProfile(member.user_id),
                                 party_role: partyRole,
                                 party_role_label: getMemberPartyRoleLabel(member.user_id),
                             };
@@ -252,7 +259,7 @@ const PartyManagementDialog = ({ party, onAction, isFromDetailsPage = false }) =
         } catch (error) {
             toast({ title: 'Erro ao buscar dados', description: error.message, variant: 'destructive' });
         } finally {
-            setLoading(false);
+            if (!quiet) setLoading(false);
         }
     }, [getEffectivePartyRole, getMemberPartyRoleLabel, party.id, toast]);
 
@@ -261,18 +268,22 @@ const PartyManagementDialog = ({ party, onAction, isFromDetailsPage = false }) =
             fetchData(currentTab);
         }
     }, [isOpen, currentTab, fetchData]);
-    
+
+    useDomainRealtime('parties', user?.id, PARTY_REALTIME_TABLES, () => fetchData(currentTab, true), isOpen);
+
     const handleRespondToRequest = async (requestId, isApproved) => {
-        setLoading(true);
+        if (actingId) return;
+        setActingId(requestId);
         const { data, error } = await supabase.rpc('respond_to_affiliation_request', { p_request_id: requestId, p_is_approved: isApproved });
-        if (error || !data.success) {
+        if (error || !data?.success) {
             toast({ title: "Erro", description: data?.message || error.message, variant: "destructive" });
         } else {
             toast({ title: "Sucesso!", description: data.message });
-            fetchData('requests');
+            setRequests(current => current.filter(request => request.id !== requestId));
+            await fetchData('requests', true);
             onAction();
         }
-        setLoading(false);
+        setActingId(null);
     };
 
     const handleExpelMember = async () => {
@@ -280,35 +291,37 @@ const PartyManagementDialog = ({ party, onAction, isFromDetailsPage = false }) =
             toast({title: "Erro", description: "O motivo da expulsão é obrigatório.", variant: "destructive"});
             return;
         }
-        setLoading(true);
+        if (actingId) return;
+        setActingId(memberToExpel.id);
         const { data, error } = await supabase.rpc('expel_party_member', { p_party_id: party.id, p_member_id_to_expel: memberToExpel.user_id, p_reason: expelReason });
 
-        if (error || !data.success) {
+        if (error || !data?.success) {
             toast({ title: "Erro", description: data?.message || error.message, variant: "destructive" });
         } else {
             toast({ title: "Sucesso!", description: data.message });
-            fetchData('members');
+            await fetchData('members', true);
             onAction();
         }
-        setLoading(false);
+        setActingId(null);
         setIsExpelDialogOpen(false);
         setExpelReason('');
     };
 
     const handleToggleAffiliationMode = async (checked) => {
         const newMode = checked ? 'manual' : 'automatic';
-        setLoading(true);
+        if (actingId) return;
+        setActingId('settings');
         const {data, error} = await supabase.rpc('toggle_party_affiliation_mode', { p_party_id: party.id, p_mode: newMode });
-        if(error || !data.success) {
+        if(error || !data?.success) {
             toast({ title: 'Erro', description: error?.message || data.message, variant: 'destructive' });
         } else {
             setAffiliationMode(newMode);
             toast({ title: 'Sucesso!', description: data.message });
             onAction();
         }
-        setLoading(false);
+        setActingId(null);
     }
-    
+
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
             <DialogTrigger asChild>
@@ -372,8 +385,8 @@ const PartyManagementDialog = ({ party, onAction, isFromDetailsPage = false }) =
                                         </div>
                                         {canManageRequests && (
                                             <div className="flex gap-2">
-                                                <Button size="icon" className="h-8 w-8 bg-green-500 hover:bg-green-600" onClick={() => handleRespondToRequest(req.id, true)}><Check size={16} /></Button>
-                                                <Button size="icon" className="h-8 w-8 bg-red-500 hover:bg-red-600" onClick={() => handleRespondToRequest(req.id, false)}><X size={16} /></Button>
+                                                <Button size="icon" className="h-8 w-8 bg-green-500 hover:bg-green-600" disabled={Boolean(actingId)} aria-label="Aprovar filiação" onClick={() => handleRespondToRequest(req.id, true)}>{actingId === req.id ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}</Button>
+                                                <Button size="icon" className="h-8 w-8 bg-red-500 hover:bg-red-600" disabled={Boolean(actingId)} aria-label="Recusar filiação" onClick={() => handleRespondToRequest(req.id, false)}><X size={16} /></Button>
                                             </div>
                                         )}
                                     </Card>
@@ -387,7 +400,7 @@ const PartyManagementDialog = ({ party, onAction, isFromDetailsPage = false }) =
                              <Label htmlFor="affiliation-mode" className="text-base">Filiação Manual</Label>
                              <p className="text-sm text-muted-foreground">Exigir aprovação para novos membros.</p>
                            </div>
-                           <Switch id="affiliation-mode" checked={affiliationMode === 'manual'} onCheckedChange={handleToggleAffiliationMode} disabled={loading} />
+                           <Switch id="affiliation-mode" checked={affiliationMode === 'manual'} onCheckedChange={handleToggleAffiliationMode} disabled={loading || Boolean(actingId)} />
                         </div>
                     </TabsContent>
                 </Tabs>
@@ -405,8 +418,8 @@ const PartyManagementDialog = ({ party, onAction, isFromDetailsPage = false }) =
                     </div>
                     <DialogFooter>
                       <Button variant="outline" onClick={() => setIsExpelDialogOpen(false)}>Cancelar</Button>
-                      <Button variant="destructive" onClick={handleExpelMember} disabled={loading || !expelReason}>
-                        {loading ? <Loader2 className="animate-spin mr-2" /> : <UserMinus className="w-4 h-4 mr-2" />}
+                      <Button variant="destructive" onClick={handleExpelMember} disabled={Boolean(actingId) || !expelReason}>
+                        {actingId ? <Loader2 className="animate-spin mr-2" /> : <UserMinus className="w-4 h-4 mr-2" />}
                         Confirmar Expulsão
                       </Button>
                     </DialogFooter>

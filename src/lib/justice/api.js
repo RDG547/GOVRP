@@ -1,7 +1,10 @@
+import { justiceErrorMessage } from './errors';
+import { subscribeToDomain } from '@/lib/realtime';
 import { supabase } from '@/lib/supabaseClient';
 
 const throwIfError = ({ data, error }) => {
-  if (error) throw error;
+  if (error) throw new Error(justiceErrorMessage(error));
+  if (data?.success === false) throw new Error(data.message || 'Não foi possível concluir a ação.');
   return data;
 };
 
@@ -33,11 +36,7 @@ export const fetchCitizenJusticeData = async () => {
     caseAppealsResult,
     sentencesResult,
   ] = await Promise.all([
-    supabase
-      .from('police_occurrences')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .limit(50),
+    supabase.rpc('get_my_police_occurrences'),
     supabase
       .from('criminal_cases')
       .select('*')
@@ -71,7 +70,7 @@ export const fetchCitizenJusticeData = async () => {
     supabase.rpc('get_police_efficiency_metrics'),
     supabase.rpc('get_server_now'),
     supabase.from('investigation_subjects').select('*, profile:profiles(id, full_name)').order('created_at', { ascending: false }).limit(200),
-    supabase.from('profiles').select('id, full_name, username, avatar_url').order('full_name').limit(300),
+    supabase.from('public_citizen_profiles').select('id, full_name, username, avatar_url').order('full_name').limit(300),
     supabase.from('case_timeline_events').select('*').order('created_at', { ascending: true }).limit(500),
     supabase.from('case_documents').select('*').order('created_at', { ascending: false }).limit(200),
     supabase.from('hearings').select('*').order('scheduled_at', { ascending: false }).limit(100),
@@ -79,28 +78,34 @@ export const fetchCitizenJusticeData = async () => {
     supabase.from('sentences').select('*').order('issued_at', { ascending: false }).limit(100),
   ]);
 
+  const errors = [];
+  const readSection = (result, section) => {
+    if (result.error) { errors.push(section); console.warn(`Justiça: ${section} indisponível`, result.error.message); return null; }
+    return result.data;
+  };
   return {
-    occurrences: throwIfError(occurrencesResult) || [],
-    cases: throwIfError(casesResult) || [],
-    deadlines: throwIfError(deadlinesResult) || [],
-    requests: throwIfError(requestsResult) || [],
-    custody: throwIfError(custodyResult) || null,
-    fines: throwIfError(finesResult) || [],
-    fineAppeals: throwIfError(appealsResult) || [],
-    fineHearings: throwIfError(hearingsResult) || [],
-    citizenRequests: throwIfError(citizenRequestsResult) || [],
-    campaigns: throwIfError(campaignsResult) || [],
-    security: throwIfError(securityResult) || { warrants: [], investigations: [] },
-    wanted: throwIfError(wantedResult) || [],
-    policeMetrics: throwIfError(metricsResult) || {},
-    serverNow: throwIfError(serverNowResult),
-    investigationSubjects: throwIfError(subjectsResult) || [],
-    profiles: throwIfError(profilesResult) || [],
-    timeline: throwIfError(timelineResult) || [],
-    caseDocuments: throwIfError(documentsResult) || [],
-    caseHearings: throwIfError(hearingsCaseResult) || [],
-    caseAppeals: throwIfError(caseAppealsResult) || [],
-    sentences: throwIfError(sentencesResult) || [],
+    errors,
+    occurrences: readSection(occurrencesResult, 'occurrences') || [],
+    cases: readSection(casesResult, 'cases') || [],
+    deadlines: readSection(deadlinesResult, 'deadlines') || [],
+    requests: readSection(requestsResult, 'requests') || [],
+    custody: readSection(custodyResult, 'custody') || null,
+    fines: readSection(finesResult, 'fines') || [],
+    fineAppeals: readSection(appealsResult, 'fineAppeals') || [],
+    fineHearings: readSection(hearingsResult, 'fineHearings') || [],
+    citizenRequests: readSection(citizenRequestsResult, 'citizenRequests') || [],
+    campaigns: readSection(campaignsResult, 'campaigns') || [],
+    security: readSection(securityResult, 'security') || { warrants: [], investigations: [] },
+    wanted: readSection(wantedResult, 'wanted') || [],
+    policeMetrics: readSection(metricsResult, 'policeMetrics') || {},
+    serverNow: readSection(serverNowResult, 'serverNow'),
+    investigationSubjects: readSection(subjectsResult, 'investigationSubjects') || [],
+    profiles: readSection(profilesResult, 'profiles') || [],
+    timeline: readSection(timelineResult, 'timeline') || [],
+    caseDocuments: readSection(documentsResult, 'caseDocuments') || [],
+    caseHearings: readSection(hearingsCaseResult, 'caseHearings') || [],
+    caseAppeals: readSection(caseAppealsResult, 'caseAppeals') || [],
+    sentences: readSection(sentencesResult, 'sentences') || [],
   };
 };
 
@@ -169,7 +174,7 @@ export const fetchAuthorityJusticeData = async () => {
     supabase.from('public_integrity_cases').select('*').order('created_at', { ascending: false }).limit(100),
     supabase.rpc('get_server_now'),
     supabase.from('investigation_subjects').select('*, profile:profiles(id, full_name, username, avatar_url)').order('created_at', { ascending: false }).limit(300),
-    supabase.from('profiles').select('id, full_name, username, avatar_url').order('full_name').limit(500),
+    supabase.from('public_citizen_profiles').select('id, full_name, username, avatar_url').order('full_name').limit(500),
     supabase.from('case_timeline_events').select('*').order('created_at', { ascending: true }).limit(1000),
     supabase.from('case_documents').select('*').order('created_at', { ascending: false }).limit(500),
     supabase.from('hearings').select('*').order('scheduled_at', { ascending: false }).limit(300),
@@ -180,30 +185,36 @@ export const fetchAuthorityJusticeData = async () => {
     supabase.from('penal_code').select('*').eq('is_active', true).order('code').limit(300),
   ]);
 
+  const errors = [];
+  const readSection = (result, section) => {
+    if (result.error) { errors.push(section); console.warn(`Justiça: ${section} indisponível`, result.error.message); return null; }
+    return result.data;
+  };
   return {
-    occurrences: throwIfError(occurrencesResult) || [],
-    investigations: throwIfError(investigationsResult) || [],
-    cases: throwIfError(casesResult) || [],
-    requests: throwIfError(requestsResult) || [],
-    warrants: throwIfError(warrantsResult) || [],
-    custody: throwIfError(custodyResult) || [],
-    fines: throwIfError(finesResult) || [],
-    fineAppeals: throwIfError(appealsResult) || [],
-    fineHearings: throwIfError(hearingsResult) || [],
-    citizenRequests: throwIfError(citizenRequestsResult) || [],
-    campaigns: throwIfError(campaignsResult) || [],
-    integrityCases: throwIfError(integrityCasesResult) || [],
-    serverNow: throwIfError(serverNowResult),
-    investigationSubjects: throwIfError(subjectsResult) || [],
-    profiles: throwIfError(profilesResult) || [],
-    timeline: throwIfError(timelineResult) || [],
-    caseDocuments: throwIfError(documentsResult) || [],
-    caseHearings: throwIfError(caseHearingsResult) || [],
-    caseAppeals: throwIfError(caseAppealsResult) || [],
-    sentences: throwIfError(sentencesResult) || [],
-    investigationParties: throwIfError(partiesResult) || [],
-    caseParties: throwIfError(casePartiesResult) || [],
-    penalCodes: throwIfError(penalCodesResult) || [],
+    errors,
+    occurrences: readSection(occurrencesResult, 'occurrences') || [],
+    investigations: readSection(investigationsResult, 'investigations') || [],
+    cases: readSection(casesResult, 'cases') || [],
+    requests: readSection(requestsResult, 'requests') || [],
+    warrants: readSection(warrantsResult, 'warrants') || [],
+    custody: readSection(custodyResult, 'custody') || [],
+    fines: readSection(finesResult, 'fines') || [],
+    fineAppeals: readSection(appealsResult, 'fineAppeals') || [],
+    fineHearings: readSection(hearingsResult, 'fineHearings') || [],
+    citizenRequests: readSection(citizenRequestsResult, 'citizenRequests') || [],
+    campaigns: readSection(campaignsResult, 'campaigns') || [],
+    integrityCases: readSection(integrityCasesResult, 'integrityCases') || [],
+    serverNow: readSection(serverNowResult, 'serverNow'),
+    investigationSubjects: readSection(subjectsResult, 'investigationSubjects') || [],
+    profiles: readSection(profilesResult, 'profiles') || [],
+    timeline: readSection(timelineResult, 'timeline') || [],
+    caseDocuments: readSection(documentsResult, 'caseDocuments') || [],
+    caseHearings: readSection(caseHearingsResult, 'caseHearings') || [],
+    caseAppeals: readSection(caseAppealsResult, 'caseAppeals') || [],
+    sentences: readSection(sentencesResult, 'sentences') || [],
+    investigationParties: readSection(partiesResult, 'investigationParties') || [],
+    caseParties: readSection(casePartiesResult, 'caseParties') || [],
+    penalCodes: readSection(penalCodesResult, 'penalCodes') || [],
   };
 };
 
@@ -525,40 +536,18 @@ export const completePrisonActivity = async (runId) => throwIfError(
   await supabase.rpc('complete_prison_activity', { p_run_id: runId })
 );
 
-export const subscribeToJusticeChanges = (userId, onChange) => {
-  const channel = supabase
-    .channel(`justice:${userId}`)
-    .on(
-      'postgres_changes',
-      { event: '*', schema: 'public', table: 'criminal_cases' },
-      onChange
-    )
-    .on(
-      'postgres_changes',
-      { event: '*', schema: 'public', table: 'judicial_requests' },
-      onChange
-    )
-    .on(
-      'postgres_changes',
-      { event: '*', schema: 'public', table: 'prison_terms' },
-      onChange
-    )
-    .on(
-      'postgres_changes',
-      { event: '*', schema: 'public', table: 'prison_activity_runs' },
-      onChange
-    )
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'police_occurrences' }, onChange)
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'police_fines' }, onChange)
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'fine_appeals' }, onChange)
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'fine_hearing_requests' }, onChange)
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'citizen_justice_requests' }, onChange)
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'public_safety_campaigns' }, onChange)
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'public_integrity_cases' }, onChange)
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'investigation_subjects' }, onChange)
-    .subscribe();
+export const subscribeToJusticeChanges = (userId, onChange) => subscribeToDomain('justice', userId, [
+  'criminal_cases', 'criminal_investigations', 'judicial_requests', 'prison_terms',
+  'prison_activity_runs', 'police_occurrences', 'police_fines', 'fine_appeals',
+  'fine_hearing_requests', 'citizen_justice_requests', 'public_safety_campaigns',
+  'public_integrity_cases', 'investigation_subjects', 'investigation_parties',
+  'case_parties', 'case_timeline_events', 'case_documents', 'hearings', 'appeals',
+  'sentences', 'warrants', { table: 'notifications', filter: `user_id=eq.${userId}` },
+], onChange);
 
-  return () => {
-    supabase.removeChannel(channel);
-  };
-};
+export const revokeJudicialWarrant = async ({ warrantId, reason }) => throwIfError(
+  await supabase.rpc('revoke_judicial_warrant', { p_warrant_id: warrantId, p_reason: reason })
+);
+export const issueJusticeFine = async ({ userId, reason, amount, dueDate }) => throwIfError(
+  await supabase.rpc('issue_fine', { p_user_id: userId, p_reason: reason, p_amount: Number(amount), p_due_date: dueDate })
+);

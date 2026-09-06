@@ -3,6 +3,8 @@ import { Helmet } from 'react-helmet-async';
 import { supabase } from '@/lib/supabaseClient';
 import { useToast } from '@/components/ui/use-toast';
 import { ArrowRight, CalendarDays, FileText, Filter, Loader2, Newspaper, Rss, ScrollText, Search, Sparkles, Users } from 'lucide-react';
+import DailyNewspaper from '@/components/news/DailyNewspaper';
+import { useDomainRealtime } from '@/hooks/use-domain-realtime';
 import PageHeader from '@/components/layout/PageHeader';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Link, useSearchParams } from 'react-router-dom';
@@ -79,51 +81,7 @@ const GazetteEntryDialog = ({ entry, children }) => {
     );
 };
 
-const NationalFeedCard = ({ item }) => {
-    const articleLink = item.source_type === 'article' && item.article_id
-        ? `/news/${item.article_id}`
-        : null;
-    const sourceLabel = item.source_type === 'official_gazette'
-        ? 'Diário Oficial'
-        : item.source_type === 'national_event' ? 'Acontecimento nacional' : 'Notícia';
-
-    return (
-        <motion.div layout initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="flex">
-            <Card className="glass-effect flex w-full flex-col overflow-hidden border-white/10 transition-colors hover:border-primary/40">
-                {item.image_url ? (
-                    <div className="aspect-video overflow-hidden">
-                        <img src={item.image_url} alt="" className="h-full w-full object-cover" />
-                    </div>
-                ) : null}
-                <CardHeader>
-                    <div className="mb-2 flex flex-wrap gap-2">
-                        <Badge variant="secondary">{sourceLabel}</Badge>
-                        {item.category ? <Badge variant="outline">{item.category}</Badge> : null}
-                    </div>
-                    <CardTitle className="text-xl leading-tight">{item.title}</CardTitle>
-                </CardHeader>
-                <CardContent className="flex-grow">
-                    <p className="line-clamp-4 text-sm leading-6 text-muted-foreground">{item.summary}</p>
-                </CardContent>
-                <CardFooter className="flex items-center justify-between gap-3 text-xs text-muted-foreground">
-                    <span>{format(new Date(item.published_at), "dd 'de' MMMM, yyyy", { locale: ptBR })}</span>
-                    {articleLink ? (
-                        <Link to={articleLink} className="flex items-center text-primary hover:underline">
-                            Ler mais <ArrowRight className="ml-1 h-4 w-4" />
-                        </Link>
-                    ) : item.source_type === 'official_gazette' ? (
-                        <Link to="/news?tab=dou" className="flex items-center text-primary hover:underline">
-                            Abrir Diário <ArrowRight className="ml-1 h-4 w-4" />
-                        </Link>
-                    ) : null}
-                </CardFooter>
-            </Card>
-        </motion.div>
-    );
-};
-
 const News = () => {
-    const [nationalFeed, setNationalFeed] = useState([]);
     const [douEntries, setDouEntries] = useState([]);
     const [gazetteSearchTerm, setGazetteSearchTerm] = useState('');
     const [selectedGazetteType, setSelectedGazetteType] = useState('Todos');
@@ -133,14 +91,8 @@ const News = () => {
     const activeTab = searchParams.get('tab') || 'news';
 
     const fetchData = useCallback(async () => {
-        setLoading(true);
         try {
-            const [feedResponse, douData] = await Promise.all([
-                supabase.rpc('get_national_feed', { p_limit: 50, p_offset: 0 }),
-                fetchOfficialGazetteEntries(supabase),
-            ]);
-            if (feedResponse.error) throw feedResponse.error;
-            setNationalFeed(feedResponse.data || []);
+            const douData = await fetchOfficialGazetteEntries(supabase);
             setDouEntries(douData || []);
 
         } catch (error) {
@@ -154,25 +106,10 @@ const News = () => {
         fetchData();
     }, [fetchData]);
 
-    useEffect(() => {
-        let refreshTimer;
-        const refresh = () => {
-            window.clearTimeout(refreshTimer);
-            refreshTimer = window.setTimeout(fetchData, 300);
-        };
-        let channel = supabase.channel('national-news-page');
-        ['news_articles', 'dou_entries', 'national_media_briefs'].forEach((table) => {
-            channel = channel.on('postgres_changes', { event: '*', schema: 'public', table }, refresh);
-        });
-        channel.subscribe();
-        return () => {
-            window.clearTimeout(refreshTimer);
-            supabase.removeChannel(channel);
-        };
-    }, [fetchData]);
+    useDomainRealtime('gazette-news', 'public', ['dou_entries'], fetchData);
 
     const handleTabChange = (tab) => {
-        setSearchParams({ tab });
+        const next = new URLSearchParams(searchParams); next.set('tab', tab); setSearchParams(next);
     };
 
     const availableGazetteTypes = useMemo(
@@ -214,25 +151,6 @@ const News = () => {
             includeTime: true,
         })
         : 'Sem publicações';
-
-    const renderNewsContent = () => {
-        if (!nationalFeed.length) {
-            return (
-                <div className="text-center py-20 glass-effect rounded-lg">
-                    <h3 className="text-2xl font-bold">Nenhuma notícia encontrada</h3>
-                    <p className="text-muted-foreground mt-2">Ainda não há notícias, atos oficiais ou acontecimentos nacionais publicados.</p>
-                </div>
-            );
-        }
-
-        return (
-            <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-                <AnimatePresence>
-                    {nationalFeed.map((item) => <NationalFeedCard key={item.id} item={item} />)}
-                </AnimatePresence>
-            </div>
-        );
-    };
 
     const renderGazetteContent = () => {
         if (!douEntries.length) {
@@ -377,6 +295,7 @@ const News = () => {
     };
 
     const renderContent = () => {
+        if (activeTab === 'news') return <DailyNewspaper />;
         if (loading) {
             return (
                 <div className="flex justify-center items-center py-20">
@@ -385,7 +304,7 @@ const News = () => {
             );
         }
 
-        return activeTab === 'news' ? renderNewsContent() : renderGazetteContent();
+        return renderGazetteContent();
     };
 
     return (

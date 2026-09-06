@@ -27,7 +27,10 @@
     "mobile:sync:ios": "npm run build && cap sync ios",
     "mobile:open:android": "cap open android",
     "mobile:open:ios": "cap open ios",
-    "android:aab": "npm run mobile:sync:android && cd android && ./gradlew bundleRelease"
+    "android:aab": "npm run mobile:sync:android && cd android && ./gradlew bundleRelease",
+    "test:experience-behavior": "node tools/test-experience-behavior.mjs",
+    "test:experience-integration": "node tools/test-citizen-experience-integration.mjs",
+    "test:social-realtime": "node tools/test-social-realtime.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.0",

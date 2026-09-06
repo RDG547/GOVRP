@@ -20,6 +20,7 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { invalidateDomain } from '@/lib/realtime';
 import { normalizeSafeUrl, openUrlInNewTab } from '@/lib/security';
 
 const roleBadges = {
@@ -41,7 +42,7 @@ const PoliticalSeal = ({ role }) => {
     const badge = roleBadges[role];
     if (!badge) return null;
     const { icon: Icon, color, label } = badge;
-    
+
     const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
 
     if (isMobile) {
@@ -81,16 +82,16 @@ const InlineComments = ({ postId, currentCount }) => {
 
     useEffect(() => {
         const fetchComments = async () => {
-            if (currentCount === 0) { setLoading(false); return; }
+            if (currentCount === 0) { setComments([]); setLoading(false); return; }
             setLoading(true);
             const { data, error } = await supabase
                 .from('comments')
-                .select('*, author:profiles!comments_user_id_fkey(*)')
+                .select('*, author:profiles!comments_user_id_fkey(id,full_name,x_username,x_handle,x_avatar_url)')
                 .eq('post_id', postId)
                 .is('parent_comment_id', null)
                 .order('created_at', { ascending: true })
                 .limit(5); // Show only top 5 comments inline
-            
+
             if (!error && data) {
                 setComments(data);
             }
@@ -143,11 +144,18 @@ const PostCard = ({ post, onPostUpdate, onPostDelete, onRepostCreated }) => {
     const [isRepostModalOpen, setIsRepostModalOpen] = useState(false);
     const dropdownJustClosed = useRef(false);
 
+    const interactionBusy = useRef(false);
+    useEffect(() => { setIsLiked(Boolean(post.is_liked_by_user)); }, [post.is_liked_by_user]);
+    useEffect(() => { setIsReposted(Boolean(post.is_reposted_by_user)); }, [post.is_reposted_by_user]);
+    useEffect(() => { setLikesCount(post.likes_count || 0); }, [post.likes_count]);
+    useEffect(() => { setRepostsCount(post.reposts_count || 0); }, [post.reposts_count]);
+    useEffect(() => { setCommentsCount(post.comments_count || 0); }, [post.comments_count]);
+
     const author = post.author;
     const handle = author?.x_handle;
     const name = author?.x_username;
     const avatar = author?.x_avatar_url || `https://api.dicebear.com/7.x/micah/svg?seed=${handle}`;
-    
+
     const postDateTime = format(new Date(post.created_at), "dd/MM/yyyy, HH:mm", { locale: ptBR });
 
     const handleInteraction = async (action) => {
@@ -156,28 +164,22 @@ const PostCard = ({ post, onPostUpdate, onPostDelete, onRepostCreated }) => {
             return;
         }
 
-        switch (action) {
-            case 'like':
-                setIsLiked(!isLiked);
-                setLikesCount(prev => isLiked ? prev - 1 : prev + 1);
-                await supabase.rpc('toggle_like', { p_post_id: post.id });
-                break;
-            case 'repost':
-                if (isReposted) {
-                    setIsReposted(false);
-                    setRepostsCount(prev => prev - 1);
-                    await supabase.rpc('delete_repost', { p_original_post_id: post.id });
-                    if (onPostDelete) onPostDelete(post.id);
-                } else {
-                    setIsRepostModalOpen(true);
-                }
-                break;
-            case 'comment':
-                setIsCommenting(prev => !prev);
-                break;
-            default:
-                break;
-        }
+        if (action === 'comment') { setIsCommenting(prev => !prev); return; }
+        if (action === 'repost' && !isReposted) { setIsRepostModalOpen(true); return; }
+        if (interactionBusy.current) return;
+        interactionBusy.current = true;
+        const previous = { isLiked, likesCount, isReposted, repostsCount };
+        if (action === 'like') { setIsLiked(!isLiked); setLikesCount(Math.max(0, likesCount + (isLiked ? -1 : 1))); }
+        else { setIsReposted(false); setRepostsCount(Math.max(0, repostsCount - 1)); }
+        try {
+            const { error } = await supabase.rpc(action === 'like' ? 'toggle_like' : 'delete_repost', action === 'like' ? { p_post_id: post.id } : { p_original_post_id: post.id });
+            if (error) throw error;
+            invalidateDomain('x-posts');
+        } catch {
+            setIsLiked(previous.isLiked); setLikesCount(previous.likesCount);
+            setIsReposted(previous.isReposted); setRepostsCount(previous.repostsCount);
+            toast({ title: 'Não foi possível concluir', description: 'Sua alteração não foi salva. Tente novamente.', variant: 'destructive' });
+        } finally { interactionBusy.current = false; }
     };
 
     const handleCommentSubmit = async (e) => {
@@ -200,7 +202,7 @@ const PostCard = ({ post, onPostUpdate, onPostDelete, onRepostCreated }) => {
             if(onPostUpdate) onPostUpdate(post.id, { comments_count: commentsCount + 1 });
         }
     };
-    
+
     const handleReposted = () => {
       setIsReposted(true);
       setRepostsCount(p => p + 1);
@@ -239,7 +241,7 @@ const PostCard = ({ post, onPostUpdate, onPostDelete, onRepostCreated }) => {
         }
         setIsSavingEdit(false);
     };
-    
+
     const handleCopyLink = () => {
         const url = `${window.location.origin}/services/x/post/${post.id}`;
         navigator.clipboard.writeText(url);
@@ -272,9 +274,9 @@ const PostCard = ({ post, onPostUpdate, onPostDelete, onRepostCreated }) => {
       const urlRegex = /(https?:\/\/[^\s]+)/g;
       const mentionRegex = /@(\w+)/g;
       const hashtagRegex = /(#\w+)/g;
-  
+
       const parts = content.split(new RegExp(`(${urlRegex.source}|${mentionRegex.source}|${hashtagRegex.source})`, 'g'));
-      
+
       return parts.filter(part => part !== undefined && part !== null && part !== '').map((part, index) => {
         if (part.match(urlRegex)) {
           const safeUrl = normalizeSafeUrl(part);
@@ -292,7 +294,7 @@ const PostCard = ({ post, onPostUpdate, onPostDelete, onRepostCreated }) => {
         return part;
       });
     };
-    
+
     const OriginalPost = ({ original }) => (
       <div className="border border-border rounded-lg p-3 mt-2 flex gap-3">
         <img src={original.author.x_avatar_url || `https://api.dicebear.com/7.x/micah/svg?seed=${original.author.x_handle}`} alt={original.author.x_username} className="w-6 h-6 rounded-full"/>
@@ -307,17 +309,17 @@ const PostCard = ({ post, onPostUpdate, onPostDelete, onRepostCreated }) => {
         </div>
       </div>
     );
-    
+
     const baseTitles = author.titles || [];
     const displayedTitles = author.role === 'Admin' ? ['Fundador', ...baseTitles] : baseTitles;
     const uniqueTitles = [...new Set(displayedTitles)].filter(title => roleBadges[title]);
-    
+
     const mediaType = post.metadata?.type;
 
     const ActionButton = ({ icon: Icon, label, count, onClick, active, activeColor, hoverColor }) => (
         <motion.div whileTap={{ scale: 0.95 }} className="flex-1">
-            <button 
-              className={`flex flex-col items-center justify-center w-full group text-muted-foreground ${hoverColor}`} 
+            <button
+              className={`flex flex-col items-center justify-center w-full group text-muted-foreground ${hoverColor}`}
               onClick={onClick}
             >
                 <div className={`p-2 rounded-full group-hover:bg-opacity-10 ${active ? activeColor.replace('text-', 'bg-') + '/10' : ''}`}>
@@ -404,12 +406,12 @@ const PostCard = ({ post, onPostUpdate, onPostDelete, onRepostCreated }) => {
                     </div>
                 )}
                 {post.original_post && <OriginalPost original={post.original_post} />}
-                
+
                 <div className="flex justify-around items-center mt-4 no-navigate">
                     <ActionButton icon={MessageCircle} label="Comentar" count={commentsCount} onClick={(e) => {e.stopPropagation(); handleInteraction('comment')}} active={isCommenting} activeColor="text-blue-500" hoverColor="hover:text-blue-500"/>
                     <ActionButton icon={Repeat2} label="Repostar" count={repostsCount} onClick={(e) => {e.stopPropagation(); handleInteraction('repost')}} active={isReposted} activeColor="text-green-500" hoverColor="hover:text-green-500"/>
                     <ActionButton icon={Heart} label="Curtir" count={likesCount} onClick={(e) => {e.stopPropagation(); handleInteraction('like')}} active={isLiked} activeColor="text-red-500" hoverColor="hover:text-red-500"/>
-                    
+
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                             <motion.button whileTap={{ scale: 0.95 }} className="flex items-center justify-center gap-2 flex-1 group text-muted-foreground hover:text-yellow-500">
@@ -439,7 +441,7 @@ const PostCard = ({ post, onPostUpdate, onPostDelete, onRepostCreated }) => {
                             <form onSubmit={handleCommentSubmit} className="flex items-start gap-2 pt-2 border-t border-border mt-2">
                                 <img src={user.x_avatar_url || `https://api.dicebear.com/7.x/micah/svg?seed=${user.x_handle}`} alt="Seu avatar" className="w-8 h-8 rounded-full mt-1" />
                                 <div className="flex-1">
-                                  <Textarea 
+                                  <Textarea
                                       placeholder={`Respondendo a @${handle}`}
                                       value={commentContent}
                                       onChange={(e) => setCommentContent(e.target.value)}

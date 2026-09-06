@@ -57,6 +57,8 @@ import {
   refreshParliamentGovernanceState,
 } from '@/lib/parliamentGovernance';
 import { filterCompatibleParliamentMembers, resolveLegislativeRoleForHouse } from '@/lib/roleResolution';
+import { useDomainRealtime } from '@/hooks/use-domain-realtime';
+import { usePublicProfileChanges } from '@/hooks/use-public-profile-changes';
 import { formatDateTimeBR } from '@/lib/dateTime';
 
 const PARLIAMENT_RULE_ICON_MAP = {
@@ -168,107 +170,9 @@ const CitizenActions = ({ onPlebAction }) => {
       }
       setParties(partiesData || []);
 
-      const { data: membersData, error: membersError } = await supabase
-        .from('parliament_members')
-        .select('id, user_id, house_id, term_start_date, term_end_date, profile:profiles(id, full_name, role, titles)');
-      if (membersError) {
-        throw membersError;
-      }
-
-      const compatibleMembers = filterCompatibleParliamentMembers(
-        membersData || [],
-        syncState,
-        housesData || []
-      );
-      const activeAssignments = Array.isArray(syncState?.active_assignments)
-        ? syncState.active_assignments.filter((assignment) => {
-            if (!assignment?.user_id || !['Deputado', 'Senador'].includes(assignment?.office_role)) {
-              return false;
-            }
-
-            if (!assignment.term_end_at) {
-              return true;
-            }
-
-            return new Date(assignment.term_end_at).getTime() > Date.now();
-          })
-        : [];
-
-      const memberProfileMap = compatibleMembers.reduce((accumulator, member) => {
-        if (member?.user_id && member?.profile) {
-          accumulator[member.user_id] = member.profile;
-        }
-
-        return accumulator;
-      }, {});
-
-      const missingProfileIds = [...new Set(
-        activeAssignments
-          .map((assignment) => assignment.user_id)
-          .filter((userId) => userId && !memberProfileMap[userId])
-      )];
-
-      let fallbackProfilesMap = {};
-      if (missingProfileIds.length) {
-        const { data: missingProfiles, error: missingProfilesError } = await supabase
-          .from('profiles')
-          .select('id, full_name, role, titles')
-          .in('id', missingProfileIds);
-
-        if (missingProfilesError) {
-          throw missingProfilesError;
-        }
-
-        fallbackProfilesMap = (missingProfiles || []).reduce((accumulator, profile) => {
-          accumulator[profile.id] = profile;
-          return accumulator;
-        }, {});
-      }
-
-      const parliamentariansMap = new Map();
-
-      compatibleMembers.forEach((member) => {
-        const displayRole = resolveLegislativeRoleForHouse(
-          {
-            ...(member.profile || {}),
-            id: member.user_id,
-          },
-          syncState,
-          member.house_id,
-          housesData || []
-        );
-
-        if (!displayRole) {
-          return;
-        }
-
-        const fullName = member.profile?.full_name || 'Parlamentar';
-
-        parliamentariansMap.set(member.user_id, {
-          id: member.user_id,
-          name: `${fullName} (${displayRole})`,
-          role: displayRole,
-        });
-      });
-
-      activeAssignments.forEach((assignment) => {
-        if (parliamentariansMap.has(assignment.user_id)) {
-          return;
-        }
-
-        const profile = fallbackProfilesMap[assignment.user_id] || memberProfileMap[assignment.user_id];
-        const fullName = profile?.full_name || 'Parlamentar';
-
-        parliamentariansMap.set(assignment.user_id, {
-          id: assignment.user_id,
-          name: `${fullName} (${assignment.office_role})`,
-          role: assignment.office_role,
-        });
-      });
-
-      setParliamentarians(
-        [...parliamentariansMap.values()].sort((left, right) => left.name.localeCompare(right.name, 'pt-BR'))
-      );
+      const { data: targets, error: targetsError } = await supabase.rpc('get_bill_suggestion_targets');
+      if (targetsError) throw targetsError;
+      setParliamentarians((targets || []).sort((a, b) => a.name.localeCompare(b.name, 'pt-BR')));
     } catch (error) {
       toast({
         title: 'Erro ao carregar destinos',
@@ -285,6 +189,9 @@ const CitizenActions = ({ onPlebAction }) => {
       fetchTargets();
     }
   }, [fetchTargets, isSuggestOpen]);
+
+  useDomainRealtime('suggestion-targets', 'public', ['parliament_members', 'party_members', 'political_parties'], fetchTargets, isSuggestOpen);
+  usePublicProfileChanges(fetchTargets, isSuggestOpen);
 
   const handleSuggestionSubmit = async (event) => {
     event.preventDefault();
@@ -402,7 +309,10 @@ const CitizenActions = ({ onPlebAction }) => {
                 <SelectContent>
                   {targetOptions.map((target) => (
                     <SelectItem key={target.id} value={target.id}>
-                      {target.name}
+                      <span className="flex items-center gap-2">
+                        {target.role && <Avatar className="h-7 w-7"><AvatarImage src={target.avatar_url} /><AvatarFallback>{target.name?.[0] || 'P'}</AvatarFallback></Avatar>}
+                        <span>{target.name}{target.role && <span className="ml-1 text-xs text-muted-foreground">· {target.role} · {target.party_acronym || target.party_name || 'Sem partido'}</span>}</span>
+                      </span>
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -1187,17 +1097,16 @@ const Parliament = () => {
   const [activeTab, setActiveTab] = useState('members');
   const [selectedHouse, setSelectedHouse] = useState('all');
 
-  const fetchParliamentData = useCallback(async () => {
-    setLoading(true);
+  const fetchParliamentData = useCallback(async (refreshGovernance = false) => {
     try {
-      await autoCloseExpiredVotings(supabase);
+      if (refreshGovernance === true) await autoCloseExpiredVotings(supabase);
 
-      const governanceRefresh = await refreshParliamentGovernanceState(supabase).catch((error) => {
+      const governanceRefresh = refreshGovernance === true ? await refreshParliamentGovernanceState(supabase).catch((error) => {
         if (isGovernanceSchemaMissing(error)) {
           return { schemaReady: false, error };
         }
         throw error;
-      });
+      }) : { schemaReady: true };
 
       const [{ data: housesData, error: housesError }, syncState] = await Promise.all([
         supabase.from('parliament_houses').select('*'),
@@ -1341,11 +1250,13 @@ const Parliament = () => {
     } finally {
       setLoading(false);
     }
-  }, [toast, user]);
+  }, [toast, user?.id]);
 
   useEffect(() => {
-    fetchParliamentData();
+    fetchParliamentData(true);
   }, [fetchParliamentData]);
+  useDomainRealtime('parliament', user?.id, ['parliament_members', 'bills', 'bill_votings', 'plebiscites', 'parliament_commissions', 'parliament_leadership_terms', 'party_members'], () => fetchParliamentData());
+  usePublicProfileChanges(() => fetchParliamentData());
 
   if (loading) {
     return (
@@ -1396,18 +1307,17 @@ const Parliament = () => {
         </PageHeader>
 
         <CitizenActions onPlebAction={() => setActiveTab('plebiscites')} />
-        <ParliamentRulesSection />
 
         <div className="mt-12">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <div className="mb-8 flex flex-col items-center justify-between gap-4 md:flex-row">
               <div className="w-full overflow-x-auto scroll-smooth pb-2 custom-scrollbar md:w-auto" role="region" aria-label="Seções do Parlamento" tabIndex={0}>
                 <TabsList className="flex h-auto min-w-max flex-nowrap justify-start">
-                  <TabsTrigger className="shrink-0" value="members">Membros</TabsTrigger>
-                  <TabsTrigger className="shrink-0" value="bills">Histórico de Projetos</TabsTrigger>
-                  <TabsTrigger className="shrink-0" value="commissions">Comissões</TabsTrigger>
-                  <TabsTrigger className="shrink-0" value="leadership">Mesa Diretora</TabsTrigger>
-                  <TabsTrigger className="shrink-0" value="plebiscites">Plebiscitos</TabsTrigger>
+                  <TabsTrigger className="shrink-0" value="members"><Users className="mr-2 h-4 w-4" />Membros</TabsTrigger>
+                  <TabsTrigger className="shrink-0" value="bills"><ScrollText className="mr-2 h-4 w-4" />Histórico de Projetos</TabsTrigger>
+                  <TabsTrigger className="shrink-0" value="commissions"><Users className="mr-2 h-4 w-4" />Comissões</TabsTrigger>
+                  <TabsTrigger className="shrink-0" value="leadership"><Landmark className="mr-2 h-4 w-4" />Mesa Diretora</TabsTrigger>
+                  <TabsTrigger className="shrink-0" value="plebiscites"><Vote className="mr-2 h-4 w-4" />Plebiscitos</TabsTrigger>
                 </TabsList>
               </div>
 
@@ -1462,6 +1372,7 @@ const Parliament = () => {
             </TabsContent>
           </Tabs>
         </div>
+        <ParliamentRulesSection />
       </div>
     </>
   );

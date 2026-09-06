@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
+  X,
   BadgeCheck,
   Banknote,
   Briefcase,
@@ -9,7 +10,6 @@ import {
   Gavel,
   Loader2,
   LockKeyhole,
-  Megaphone,
   Scale,
   Search,
   Siren,
@@ -40,12 +40,13 @@ import {
   fileCriminalCharges,
   issueCaseAcquittal,
   issueCriminalSentence,
+  issueJusticeFine,
+  revokeJudicialWarrant,
   openInvestigation,
   recordInvestigationEvidence,
   releasePrisonTerm,
   requestInvestigationComplement,
   resolveInvestigation,
-  savePublicSafetyCampaign,
   scheduleCaseHearing,
   subscribeToJusticeChanges,
   transitionIntegrityCase,
@@ -80,7 +81,6 @@ const AuthorityJusticeDashboard = () => {
     fineAppeals: [],
     fineHearings: [],
     citizenRequests: [],
-    campaigns: [],
     integrityCases: [],
     serverNow: null,
     investigationSubjects: [],
@@ -93,12 +93,13 @@ const AuthorityJusticeDashboard = () => {
   const [action, setAction] = useState(null);
   const [reason, setReason] = useState('');
   const [scheduledAt, setScheduledAt] = useState('');
-  const [campaign, setCampaign] = useState(null);
   const [subjectForm, setSubjectForm] = useState(null);
 
   const role = primaryJusticeRole(user);
   const isPolice = hasAnyJusticeRole(user, ['Admin', 'Policial', 'Police', 'Delegado']);
   const isDelegate = hasAnyJusticeRole(user, ['Admin', 'Delegado']);
+  const isAdmin = hasAnyJusticeRole(user, ['Admin']);
+  const canDecideCase = criminalCase => isAdmin || (isJudge && criminalCase.judge_id === user?.id);
   const isJudge = hasAnyJusticeRole(user, ['Admin', 'Juiz']);
   const isProsecutor = hasAnyJusticeRole(user, ['Admin', 'Promotor']);
   const isLawyer = hasAnyJusticeRole(user, ['Admin', 'Advogado', 'Defensor Público']);
@@ -114,7 +115,6 @@ const AuthorityJusticeDashboard = () => {
       ['investigations', Search, 'Investigações'],
       ['requests', Gavel, 'Pedidos da investigação'],
       ['warrants', ClipboardList, 'Mandados'],
-      ['campaigns', Megaphone, 'Campanhas'],
       ['integrity', BadgeCheck, 'Integridade'],
     ]
     : [
@@ -131,7 +131,7 @@ const AuthorityJusticeDashboard = () => {
     if (!quiet) setLoading(true);
     try {
       const nextData = await fetchAuthorityJusticeData();
-      setData(nextData);
+      setData(previous => ({ ...nextData, ...Object.fromEntries((nextData.errors || []).map(section => [section, previous[section]])) }));
       if (nextData.serverNow) setServerOffset(new Date(nextData.serverNow).getTime() - Date.now());
     } catch (error) {
       toast({
@@ -179,7 +179,11 @@ const AuthorityJusticeDashboard = () => {
   const updateAction = (values) => setAction((current) => ({ ...current, ...values }));
 
   const performAction = async () => {
-    if (!action) return;
+    if (!action || acting) return;
+    if (reason.trim().length < actionReasonMinimum) {
+      toast({ title: 'Fundamentação incompleta', description: `Informe pelo menos ${actionReasonMinimum} caracteres.`, variant: 'destructive' });
+      return;
+    }
     setActing(true);
     try {
       if (action.type === 'triage') {
@@ -199,6 +203,10 @@ const AuthorityJusticeDashboard = () => {
           approved: action.approved,
           reason,
         });
+      } else if (action.type === 'revoke-warrant') {
+        await revokeJudicialWarrant({ warrantId: action.item.id, reason });
+      } else if (action.type === 'issue-fine') {
+        await issueJusticeFine({ userId: action.userId, reason, amount: action.amount, dueDate: new Date(scheduledAt).toISOString() });
       } else if (action.type === 'fine-appeal') {
         await decideFineAppeal({ appealId: action.item.id, approved: action.approved, reason });
       } else if (action.type === 'fine-hearing') {
@@ -266,20 +274,6 @@ const AuthorityJusticeDashboard = () => {
     }
   };
 
-  const persistCampaign = async () => {
-    setActing(true);
-    try {
-      await savePublicSafetyCampaign(campaign);
-      setCampaign(null);
-      toast({ title: 'Campanha salva', description: 'O informativo foi atualizado para o período definido.' });
-      await loadData({ quiet: true });
-    } catch (error) {
-      toast({ title: 'Não foi possível salvar a campanha', description: error.message, variant: 'destructive' });
-    } finally {
-      setActing(false);
-    }
-  };
-
   const persistSubject = async () => {
     setActing(true);
     try {
@@ -301,11 +295,13 @@ const AuthorityJusticeDashboard = () => {
   const actionReasonMinimum = action?.type === 'acquit' || action?.type === 'convict' ? 80
     : action?.type === 'appeal-decision' ? 60
       : ['admission', 'resolve-investigation', 'file-charge', 'complete-case-hearing'].includes(action?.type) ? 40
-        : ['complement-investigation', 'request-decision', 'release'].includes(action?.type) ? 20
+        : ['investigate', 'complement-investigation', 'request-decision', 'release', 'revoke-warrant'].includes(action?.type) ? 20
           : 10;
 
   const actionTitle = {
     investigate: 'Abrir investigação',
+    'revoke-warrant': 'Revogar mandado',
+    'issue-fine': 'Emitir multa',
     'request-decision': action?.approved ? 'Aprovar pedido' : 'Negar pedido',
     'fine-hearing': action?.status === 'scheduled' ? 'Agendar audiência' : 'Negar audiência',
     'fine-appeal': action?.approved ? 'Deferir recurso' : 'Indeferir recurso',
@@ -360,7 +356,7 @@ const AuthorityJusticeDashboard = () => {
           <>
             <JusticeStatCard icon={Siren} label="Ocorrências novas" value={queues.newOccurrences.length} tone="red" />
             <JusticeStatCard icon={Search} label="Investigações" value={queues.activeInvestigations.length} />
-            <JusticeStatCard icon={Megaphone} label="Campanhas ativas" value={data.campaigns.length} tone="amber" />
+            <JusticeStatCard icon={ClipboardList} label="Mandados disponíveis" value={data.warrants.length} tone="amber" />
           </>
         ) : (
           <>
@@ -371,6 +367,7 @@ const AuthorityJusticeDashboard = () => {
         )}
       </div>
 
+      {data.errors?.length ? <div role="alert" className="rounded-lg border border-amber-500/40 p-3 text-sm">Algumas informações não puderam ser atualizadas. <Button variant="link" onClick={() => loadData({ quiet: true })}>Tentar novamente</Button></div> : null}
       <Tabs key={activePanelMode} defaultValue={visibleTabs[0]?.[0]} className="space-y-6">
         <TabsList className="flex h-auto w-full justify-start gap-2 overflow-x-auto bg-muted/50 p-2">
           {visibleTabs.map(([value, Icon, label]) => (
@@ -490,7 +487,7 @@ const AuthorityJusticeDashboard = () => {
               </CardHeader>
               <CardContent className="space-y-4">
                 <p className="text-sm text-muted-foreground">{request.justification}</p>
-                {isJudge && request.status === 'pending' ? (
+                {isJudge && request.status === 'pending' && request.requested_by !== user.id && request.target_profile_id !== user.id ? (
                   <div className="flex flex-wrap gap-2">
                     <Button
                       size="sm"
@@ -501,7 +498,7 @@ const AuthorityJusticeDashboard = () => {
                       })}
                     >
                       <CheckCircle2 className="mr-2 h-4 w-4" />
-                      Aprovar
+                      {['arrest_warrant', 'search_warrant'].includes(request.request_type) ? 'Aprovar e emitir mandado' : 'Aprovar'}
                     </Button>
                     <Button
                       size="sm"
@@ -550,6 +547,8 @@ const AuthorityJusticeDashboard = () => {
                 <CardContent className="grid gap-3 text-sm sm:grid-cols-2">
                   <div><span className="text-muted-foreground">Pessoa relacionada</span><div className="mt-2"><UserSelectOption user={target} label={target?.full_name || 'Identidade protegida'} detail={target?.username ? `@${target.username}` : ''} /></div></div>
                   <p><span className="text-muted-foreground">Validade</span><br />{formatJusticeDate(warrant.expires_at)}</p>
+                  {warrant.revocation_reason && <p className="sm:col-span-2">Motivo da revogação: {warrant.revocation_reason}</p>}
+                  {isJudge && warrant.status === 'issued' && new Date(warrant.expires_at).getTime() > now && warrant.target_profile_id !== user.id && (isAdmin || warrant.issued_by === user.id || data.cases.some(item => item.id === warrant.case_id && item.judge_id === user.id)) && <Button variant="outline" size="sm" className="w-fit" onClick={() => setAction({ type: 'revoke-warrant', item: warrant })}><XCircle className="mr-2 h-4 w-4" />Revogar mandado</Button>}
                 </CardContent>
               </Card>
             );
@@ -581,7 +580,7 @@ const AuthorityJusticeDashboard = () => {
                 <div className="rounded-lg border border-border/70 p-3">
                   <Gavel className="mb-2 h-5 w-5 text-amber-300" />
                   <p className="text-muted-foreground">Juiz</p>
-                  <p>{criminalCase.judge_id ? 'Distribuído' : 'Pendente'}</p>
+                  <p>{data.profiles.find(profile => profile.id === criminalCase.judge_id)?.full_name || (criminalCase.judge_id ? 'Distribuído a outro juiz' : 'Pendente de distribuição')}</p>
                 </div>
                 <div className="rounded-lg border border-border/70 p-3">
                   <CalendarClock className="mb-2 h-5 w-5 text-cyan-300" />
@@ -591,11 +590,11 @@ const AuthorityJusticeDashboard = () => {
                 <div className="space-y-4 md:col-span-3">
                   <CaseTimeline status={criminalCase.status} events={data.timeline.filter((event) => event.case_id === criminalCase.id)} />
                   <div className="flex flex-wrap gap-2">
-                    {isJudge && criminalCase.status === 'judicial_review' ? <><Button size="sm" onClick={() => setAction({ type: 'admission', item: criminalCase, admitted: true })}>Receber denúncia</Button><Button size="sm" variant="destructive" onClick={() => setAction({ type: 'admission', item: criminalCase, admitted: false })}>Rejeitar denúncia</Button></> : null}
-                    {isJudge && ['initial_defense', 'instruction'].includes(criminalCase.status) ? <Button size="sm" onClick={() => setAction({ type: 'schedule-case-hearing', item: criminalCase, location: '' })}>Agendar audiência</Button> : null}
-                    {isJudge && criminalCase.status === 'hearing_scheduled' ? <Button size="sm" onClick={() => setAction({ type: 'complete-case-hearing', item: criminalCase, hearing: data.caseHearings.find((hearing) => hearing.case_id === criminalCase.id && ['scheduled', 'open'].includes(hearing.status)) })} disabled={!data.caseHearings.some((hearing) => hearing.case_id === criminalCase.id && ['scheduled', 'open'].includes(hearing.status))}>Concluir audiência</Button> : null}
-                    {isJudge && criminalCase.status === 'awaiting_sentence' ? <><Button size="sm" variant="outline" onClick={() => setAction({ type: 'acquit', item: criminalCase })}>Absolver</Button><Button size="sm" onClick={() => setAction({ type: 'convict', item: criminalCase, defendantId: data.caseParties.find((party) => party.case_id === criminalCase.id && party.party_type === 'defendant')?.profile_id || '', sentenceUnits: 1, fineAmount: 0, prisonRegime: 'closed' })}>Condenar</Button></> : null}
-                    {isJudge && criminalCase.status === 'appeal' ? data.caseAppeals.filter((appeal) => appeal.case_id === criminalCase.id && ['filed', 'under_review'].includes(appeal.status)).map((appeal) => <React.Fragment key={appeal.id}><Button size="sm" onClick={() => setAction({ type: 'appeal-decision', item: criminalCase, appeal, outcome: 'denied' })}>Manter decisão</Button><Button size="sm" variant="outline" onClick={() => setAction({ type: 'appeal-decision', item: criminalCase, appeal, outcome: 'granted' })}>Dar provimento</Button></React.Fragment>) : null}
+                    {canDecideCase(criminalCase) && criminalCase.status === 'judicial_review' ? <><Button size="sm" onClick={() => setAction({ type: 'admission', item: criminalCase, admitted: true })}>Receber denúncia</Button><Button size="sm" variant="destructive" onClick={() => setAction({ type: 'admission', item: criminalCase, admitted: false })}>Rejeitar denúncia</Button></> : null}
+                    {canDecideCase(criminalCase) && ['initial_defense', 'instruction'].includes(criminalCase.status) ? <Button size="sm" onClick={() => setAction({ type: 'schedule-case-hearing', item: criminalCase, location: '' })}>Agendar audiência</Button> : null}
+                    {canDecideCase(criminalCase) && criminalCase.status === 'hearing_scheduled' ? <Button size="sm" onClick={() => setAction({ type: 'complete-case-hearing', item: criminalCase, hearing: data.caseHearings.find((hearing) => hearing.case_id === criminalCase.id && ['scheduled', 'open'].includes(hearing.status)) })} disabled={!data.caseHearings.some((hearing) => hearing.case_id === criminalCase.id && ['scheduled', 'open'].includes(hearing.status))}>Concluir audiência</Button> : null}
+                    {canDecideCase(criminalCase) && criminalCase.status === 'awaiting_sentence' ? <><Button size="sm" variant="outline" onClick={() => setAction({ type: 'acquit', item: criminalCase })}>Absolver</Button><Button size="sm" onClick={() => setAction({ type: 'convict', item: criminalCase, defendantId: data.caseParties.find((party) => party.case_id === criminalCase.id && party.party_type === 'defendant')?.profile_id || '', sentenceUnits: 1, fineAmount: 0, prisonRegime: 'closed' })}>Condenar</Button></> : null}
+                    {isJudge && (isAdmin || criminalCase.judge_id !== user.id) && criminalCase.status === 'appeal' ? data.caseAppeals.filter((appeal) => appeal.case_id === criminalCase.id && ['filed', 'under_review'].includes(appeal.status)).map((appeal) => <React.Fragment key={appeal.id}><Button size="sm" onClick={() => setAction({ type: 'appeal-decision', item: criminalCase, appeal, outcome: 'denied' })}>Manter decisão</Button><Button size="sm" variant="outline" onClick={() => setAction({ type: 'appeal-decision', item: criminalCase, appeal, outcome: 'granted' })}>Dar provimento</Button></React.Fragment>) : null}
                   </div>
                 </div>
               </CardContent>
@@ -653,6 +652,7 @@ const AuthorityJusticeDashboard = () => {
         </TabsContent>
 
         <TabsContent value="sanctions" className="space-y-4">
+          {(isJudge || isPolice) && <Button onClick={() => setAction({ type: 'issue-fine', userId: '', amount: '' })}><Banknote className="mr-2 h-4 w-4" />Emitir multa</Button>}
           {(isJudge || isPolice) && (data.fineAppeals.length || data.fineHearings.length) ? (
             <>
               {data.fineAppeals.map((appeal) => {
@@ -671,17 +671,14 @@ const AuthorityJusticeDashboard = () => {
           {data.citizenRequests.length ? data.citizenRequests.map((request) => <Card key={request.id} className="glass-effect"><CardHeader><div className="flex items-start justify-between gap-3"><div><CardTitle className="text-lg">{request.subject}</CardTitle><CardDescription>{request.protocol_number} · {request.requester?.full_name || 'Cidadão'}</CardDescription></div><Badge variant="outline">{request.status}</Badge></div></CardHeader><CardContent className="space-y-4"><p className="text-sm text-muted-foreground">{request.description}</p>{!['approved', 'denied', 'completed', 'cancelled'].includes(request.status) ? <div className="flex flex-wrap gap-2"><Button size="sm" variant="outline" onClick={() => setAction({ type: 'citizen-request', item: request, status: 'under_review' })}>Assumir análise</Button><Button size="sm" onClick={() => setAction({ type: 'citizen-request', item: request, status: 'approved' })}>Aprovar</Button><Button size="sm" variant="destructive" onClick={() => setAction({ type: 'citizen-request', item: request, status: 'denied' })}>Negar</Button></div> : null}</CardContent></Card>) : <JusticeEmptyState title="Nenhum pedido administrativo" description="Pedidos de investigação e liberação de bens aparecerão nesta fila." />}
         </TabsContent>
 
-        <TabsContent value="campaigns" className="space-y-4">
-          {isPolice ? <Button onClick={() => setCampaign({ id: null, title: '', summary: '', content: '', category: 'Direitos do cidadão', startsAt: '', endsAt: '', isPublished: false })}><Megaphone className="mr-2 h-4 w-4" />Nova campanha</Button> : null}
-          {data.campaigns.length ? data.campaigns.map((item) => <Card key={item.id} className="glass-effect"><CardHeader><div className="flex items-start justify-between gap-3"><div><CardTitle>{item.title}</CardTitle><CardDescription>{item.category} · {formatJusticeDate(item.starts_at)}</CardDescription></div><Badge variant="outline">{item.is_published ? 'Publicada' : 'Rascunho'}</Badge></div></CardHeader><CardContent><p className="text-sm text-muted-foreground">{item.summary}</p>{isPolice ? <Button className="mt-4" size="sm" variant="outline" onClick={() => setCampaign({ id: item.id, title: item.title, summary: item.summary, content: item.content, category: item.category, startsAt: item.starts_at?.slice(0, 16) || '', endsAt: item.ends_at?.slice(0, 16) || '', isPublished: item.is_published })}>Editar</Button> : null}</CardContent></Card>) : <JusticeEmptyState title="Nenhuma campanha cadastrada" description="Crie orientações administráveis sobre leis, direitos e prevenção." />}
-        </TabsContent>
+
 
         <TabsContent value="integrity" className="space-y-4">
           {data.integrityCases.length ? data.integrityCases.map((item) => <Card key={item.id} className="glass-effect"><CardHeader><div className="flex items-start justify-between gap-3"><div><CardTitle>{item.title}</CardTitle><CardDescription>{item.case_number} · fluxo sem presunção automática de culpa</CardDescription></div><Badge variant="outline">{item.status}</Badge></div></CardHeader><CardContent className="space-y-4"><p className="text-sm text-muted-foreground">{item.summary}</p>{item.status === 'suspicion' ? <div className="flex gap-2"><Button size="sm" onClick={() => setAction({ type: 'integrity', item, status: 'police_investigation' })}>Abrir investigação</Button><Button size="sm" variant="outline" onClick={() => setAction({ type: 'integrity', item, status: 'archived' })}>Arquivar</Button></div> : null}</CardContent></Card>) : <JusticeEmptyState title="Nenhum caso de integridade" description="Suspeitas, investigações, processos e decisões finais ficam historicamente separados." />}
         </TabsContent>
       </Tabs>
 
-      <Dialog open={Boolean(action)} onOpenChange={(open) => !open && closeAction()}>
+      <Dialog open={Boolean(action)} onOpenChange={(open) => !open && !acting && closeAction()}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>{actionTitle}</DialogTitle>
@@ -695,17 +692,21 @@ const AuthorityJusticeDashboard = () => {
             {action?.type === 'schedule-case-hearing' ? <><Label htmlFor="case-hearing-date">Data e hora</Label><Input id="case-hearing-date" type="datetime-local" value={scheduledAt} onChange={(event) => setScheduledAt(event.target.value)} /><Label htmlFor="case-hearing-location">Local ou sala virtual</Label><Input id="case-hearing-location" value={action.location} onChange={(event) => updateAction({ location: event.target.value })} /></> : null}
             {action?.type === 'convict' ? <div className="grid grid-cols-2 gap-3"><div><Label htmlFor="sentence-units">Pena (anos RP)</Label><Input id="sentence-units" type="number" min="0.1" step="0.1" value={action.sentenceUnits} onChange={(event) => updateAction({ sentenceUnits: event.target.value })} /></div><div><Label htmlFor="sentence-fine">Multa</Label><Input id="sentence-fine" type="number" min="0" step="0.01" value={action.fineAmount} onChange={(event) => updateAction({ fineAmount: event.target.value })} /></div><div className="col-span-2"><Label>Regime</Label><Select value={action.prisonRegime} onValueChange={(value) => updateAction({ prisonRegime: value })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="open">Aberto</SelectItem><SelectItem value="semi_open">Semiaberto</SelectItem><SelectItem value="closed">Fechado</SelectItem><SelectItem value="maximum_security">Segurança máxima</SelectItem></SelectContent></Select></div></div> : null}
             {action?.type === 'fine-hearing' && action.status === 'scheduled' ? <><Label htmlFor="hearing-date">Data e hora</Label><Input id="hearing-date" type="datetime-local" value={scheduledAt} onChange={(event) => setScheduledAt(event.target.value)} /></> : null}
-            <Label htmlFor="authority-reason">Fundamentação</Label>
+            {action?.type === 'issue-fine' && <><Label>Cidadão</Label><Select value={action.userId} onValueChange={value => updateAction({ userId: value })}><SelectTrigger><SelectValue placeholder="Selecione o cidadão" /></SelectTrigger><SelectContent>{data.profiles.map(profile => <SelectItem key={profile.id} value={profile.id}><UserSelectOption user={profile} /></SelectItem>)}</SelectContent></Select><Label htmlFor="fine-amount">Valor da multa (R$)</Label><Input id="fine-amount" type="number" min="0.01" step="0.01" value={action.amount} onChange={event => updateAction({ amount: event.target.value })} /><Label htmlFor="fine-due-date">Vencimento</Label><Input id="fine-due-date" type="datetime-local" value={scheduledAt} onChange={event => setScheduledAt(event.target.value)} /></>}
+            <Label htmlFor="authority-reason">Fundamentação (mínimo de {actionReasonMinimum} caracteres)</Label>
             <Textarea
               id="authority-reason"
               value={reason}
               onChange={(event) => setReason(event.target.value)}
               rows={6}
+              minLength={actionReasonMinimum}
+              aria-describedby="authority-reason-help"
               placeholder="Explique os fatos, a base da ação e o próximo passo esperado."
             />
+            <p id="authority-reason-help" className="text-xs text-muted-foreground">{reason.trim().length} / {actionReasonMinimum} caracteres mínimos</p>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={closeAction}>Cancelar</Button>
+            <Button variant="outline" disabled={acting} onClick={closeAction}><X className="mr-2 h-4 w-4" />Cancelar</Button>
             <Button
               onClick={performAction}
               disabled={acting
@@ -714,7 +715,8 @@ const AuthorityJusticeDashboard = () => {
                 || (action?.type === 'fine-hearing' && action.status === 'scheduled' && !scheduledAt)
                 || (action?.type === 'evidence' && action.title?.trim().length < 5)
                 || (action?.type === 'file-charge' && (!action.defendantId || !action.penalCodeId || action.title?.trim().length < 5))
-                || (action?.type === 'convict' && !action.defendantId)}
+                || (action?.type === 'convict' && !action.defendantId)
+                || (action?.type === 'issue-fine' && (!action.userId || !Number.isFinite(Number(action.amount)) || Number(action.amount) <= 0 || !scheduledAt || new Date(scheduledAt).getTime() <= now))}
             >
               {acting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Briefcase className="mr-2 h-4 w-4" />}
               Confirmar ação
@@ -723,9 +725,7 @@ const AuthorityJusticeDashboard = () => {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={Boolean(campaign)} onOpenChange={(open) => !open && !acting && setCampaign(null)}>
-        <DialogContent className="max-w-2xl"><DialogHeader><DialogTitle>{campaign?.id ? 'Editar campanha' : 'Nova campanha de segurança'}</DialogTitle><DialogDescription>O conteúdo publicado aparecerá na área cidadã durante o período definido.</DialogDescription></DialogHeader>{campaign ? <div className="grid gap-4"><div className="space-y-2"><Label>Título</Label><Input value={campaign.title} onChange={(event) => setCampaign((current) => ({ ...current, title: event.target.value }))} /></div><div className="grid gap-4 sm:grid-cols-2"><div className="space-y-2"><Label>Categoria</Label><Input value={campaign.category} onChange={(event) => setCampaign((current) => ({ ...current, category: event.target.value }))} /></div><div className="space-y-2"><Label>Início</Label><Input type="datetime-local" value={campaign.startsAt} onChange={(event) => setCampaign((current) => ({ ...current, startsAt: event.target.value }))} /></div></div><div className="space-y-2"><Label>Resumo</Label><Textarea value={campaign.summary} onChange={(event) => setCampaign((current) => ({ ...current, summary: event.target.value }))} /></div><div className="space-y-2"><Label>Conteúdo</Label><Textarea rows={7} value={campaign.content} onChange={(event) => setCampaign((current) => ({ ...current, content: event.target.value }))} /></div><label className="flex items-center gap-3"><input type="checkbox" checked={campaign.isPublished} onChange={(event) => setCampaign((current) => ({ ...current, isPublished: event.target.checked }))} />Publicar para os cidadãos</label></div> : null}<DialogFooter><Button variant="outline" onClick={() => setCampaign(null)} disabled={acting}>Cancelar</Button><Button onClick={persistCampaign} disabled={acting || !campaign?.title || campaign?.content?.length < 20}>{acting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}Salvar</Button></DialogFooter></DialogContent>
-      </Dialog>
+
 
       <Dialog open={Boolean(subjectForm)} onOpenChange={(open) => !open && !acting && setSubjectForm(null)}>
         <DialogContent><DialogHeader><DialogTitle>Vincular pessoa à investigação</DialogTitle><DialogDescription>{subjectForm?.investigationNumber}. Investigações sigilosas não aparecem para o investigado até uma notificação formal.</DialogDescription></DialogHeader>{subjectForm ? <div className="grid gap-4"><div className="space-y-2"><Label>Pessoa</Label><Select value={subjectForm.profileId} onValueChange={(value) => setSubjectForm((current) => ({ ...current, profileId: value }))}><SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger><SelectContent>{data.profiles.map((profile) => <SelectItem key={profile.id} value={profile.id}><UserSelectOption user={profile} detail={profile.username ? `@${profile.username}` : ''} /></SelectItem>)}</SelectContent></Select></div><div className="space-y-2"><Label>Situação</Label><Select value={subjectForm.subjectStatus} onValueChange={(value) => setSubjectForm((current) => ({ ...current, subjectStatus: value }))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="under_review">Em verificação preliminar</SelectItem><SelectItem value="investigated">Investigado</SelectItem><SelectItem value="cleared">Inocentado/retirado</SelectItem><SelectItem value="indicted">Indiciado</SelectItem></SelectContent></Select></div><div className="space-y-2"><Label>Fundamentação interna</Label><Textarea value={subjectForm.notes} onChange={(event) => setSubjectForm((current) => ({ ...current, notes: event.target.value }))} /></div><label className="flex items-start gap-3 rounded-lg border border-white/10 p-3"><input type="checkbox" className="mt-1" checked={subjectForm.notifySubject} onChange={(event) => setSubjectForm((current) => ({ ...current, notifySubject: event.target.checked }))} /><span><span className="block font-medium">Notificar formalmente o cidadão</span><span className="text-xs text-muted-foreground">Ao marcar, a investigação deixa de ficar oculta para esta pessoa.</span></span></label></div> : null}<DialogFooter><Button variant="outline" onClick={() => setSubjectForm(null)}>Cancelar</Button><Button onClick={persistSubject} disabled={acting || !subjectForm?.profileId}>{acting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}Vincular</Button></DialogFooter></DialogContent>

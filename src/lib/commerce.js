@@ -1,3 +1,17 @@
+const PURCHASE_ERRORS = {
+  INSUFFICIENT_BALANCE: 'Seu saldo não é suficiente para esta compra.',
+  INSUFFICIENT_CARD_LIMIT: 'O cartão não tem limite disponível para esta compra.',
+  PRODUCT_OUT_OF_STOCK: 'Este produto está sem estoque.',
+  PRODUCT_NOT_FOUND: 'Este produto não está mais disponível.',
+  OWN_PRODUCT_PURCHASE_DENIED: 'Você não pode comprar seu próprio produto.',
+  INVALID_CARD: 'Selecione um cartão ativo que pertença a você.',
+  BUSINESS_NOT_ACTIVE: 'Esta empresa não está disponível para vendas.',
+  SELLER_OWNERSHIP_CHANGED: 'O responsável por este produto mudou. Atualize o anúncio.',
+  SELLER_BANK_ACCOUNT_REQUIRED: 'O vendedor precisa de uma conta para receber esta compra.',
+  BUYER_BANK_ACCOUNT_REQUIRED: 'Abra sua conta no Banco Nacional antes de comprar.',
+  IDEMPOTENCY_KEY_FORBIDDEN: 'Esta confirmação pertence a outra conta. Abra uma nova compra.',
+  IDEMPOTENCY_PAYLOAD_MISMATCH: 'Os dados desta confirmação mudaram. Abra uma nova compra.',
+};
 const DEFAULT_PURCHASE_ERROR_MESSAGE = 'Ocorreu um erro inesperado durante a compra.';
 const DEFAULT_PURCHASE_SUCCESS_MESSAGE = 'Compra realizada com sucesso!';
 
@@ -29,19 +43,25 @@ export const executeProductPurchase = async ({
   cardId,
   idempotencyKey = crypto.randomUUID(),
 }) => {
-  const { data, error } = await supabase.rpc('buy_product', {
-    p_product_id: productId,
-    p_payment_method: paymentMethod,
-    p_card_id: cardId || null,
-    p_idempotency_key: idempotencyKey,
-  });
+  let response;
+  try {
+    response = await supabase.rpc('buy_product', {
+      p_product_id: productId,
+      p_payment_method: paymentMethod,
+      p_card_id: paymentMethod === 'card' ? cardId || null : null,
+      p_idempotency_key: idempotencyKey,
+    });
+  } catch (error) {
+    return { success: false, data: null, error, message: 'A conexão falhou. Tente novamente com esta mesma confirmação de compra.' };
+  }
+  const { data, error } = response;
 
   if (error) {
     return {
       success: false,
       data,
       error,
-      message: error.message || DEFAULT_PURCHASE_ERROR_MESSAGE,
+      message: PURCHASE_ERRORS[error.message] || DEFAULT_PURCHASE_ERROR_MESSAGE,
     };
   }
 

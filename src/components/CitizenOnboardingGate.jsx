@@ -19,10 +19,6 @@ const CitizenOnboardingGate = ({ children }) => {
     return <Navigate to="/registro-cidadania" replace state={{ from: location.pathname }} />;
   }
 
-  if (session && user?.onboarding_completed === true && location.pathname === '/registro-cidadania') {
-    return <Navigate to="/dashboard" replace />;
-  }
-
   return <React.Fragment key={user?.citizen_id || 'visitor'}>{children}</React.Fragment>;
 };
 

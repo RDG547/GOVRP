@@ -16,6 +16,8 @@ import TrackCandidacy from './elections/TrackCandidacy';
 import { useAuth } from '@/contexts/AuthContext';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { useDomainRealtime } from '@/hooks/use-domain-realtime';
+import { isCurrentElection } from '@/lib/currentElections';
 import { fetchExecutiveConstitutionalState } from '@/lib/executiveGovernance';
 
 const statusConfig = {
@@ -474,9 +476,9 @@ const Elections = () => {
     const [isTrackOpen, setIsTrackOpen] = useState(false);
     const [userVotes, setUserVotes] = useState({});
 
-    const fetchElectionsAndVotes = useCallback(async () => {
+    const fetchElectionsAndVotes = useCallback(async (syncStatuses = false) => {
         try {
-          await supabase.rpc('update_election_statuses');
+          if (syncStatuses === true) await supabase.rpc('update_election_statuses');
           const [electionsResponse, executiveResponse] = await Promise.all([
             supabase.from('elections').select('*, election_types(name, requires_vice_candidate, voting_system)').order('voting_start_date', { ascending: false }),
             fetchExecutiveConstitutionalState(supabase),
@@ -508,8 +510,9 @@ const Elections = () => {
     }, [toast, user?.id]);
 
     useEffect(() => {
-        fetchElectionsAndVotes();
+        fetchElectionsAndVotes(true);
     }, [fetchElectionsAndVotes]);
+    useDomainRealtime('elections', user?.id, ['elections', 'candidates', { table: 'votes', filter: `voter_id=eq.${user?.id}` }], () => fetchElectionsAndVotes());
 
     const handleVote = async (candidateId) => {
         const { data, error } = await supabase.rpc('cast_vote', { p_election_id: selectedElection, p_candidate_id: candidateId });
@@ -563,7 +566,12 @@ const Elections = () => {
         }
     ];
 
-    const currentElection = elections.find(e => e.id === selectedElection);
+    const currentElections = elections.filter(election => isCurrentElection(election));
+    const displayedElections = activeDisplay === 'candidatos' ? currentElections : elections;
+    useEffect(() => {
+        if (selectedElection !== 'all' && !displayedElections.some(election => election.id === selectedElection)) setSelectedElection('all');
+    }, [selectedElection, displayedElections]);
+    const currentElection = displayedElections.find(e => e.id === selectedElection);
 
     return (
         <div className="container mx-auto p-4 md:p-8">
@@ -640,7 +648,7 @@ const Elections = () => {
                                                     </SelectTrigger>
                                                     <SelectContent>
                                                         <SelectItem value="all">Todas as Eleições</SelectItem>
-                                                        {elections.map(e => <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>)}
+                                                        {displayedElections.map(e => <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>)}
                                                     </SelectContent>
                                                 </Select>
                                             </div>
@@ -650,14 +658,14 @@ const Elections = () => {
                                 <CardContent>
                                     {activeDisplay === 'candidatos' && currentElection && <CandidatesList election={currentElection} onVote={handleVote} onNullVote={handleNullVote} userVote={userVotes[selectedElection]} />}
                                     {activeDisplay === 'candidatos' && selectedElection === 'all' && (
-                                        elections.length > 0 ? (
+                                        currentElections.length > 0 ? (
                                             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-                                                {elections.map(e => (
+                                                {currentElections.map(e => (
                                                     <ElectionOverviewCard key={e.id} election={e} type="candidates" onClick={(id) => setSelectedElection(id)} />
                                                 ))}
                                             </div>
                                         ) : (
-                                            <p className="text-center p-8 text-muted-foreground">Nenhuma eleição encontrada.</p>
+                                            <p className="text-center p-8 text-muted-foreground">Nenhuma eleição atual disponível para candidatura ou votação.</p>
                                         )
                                     )}
                                     {activeDisplay === 'resultados' && selectedElection === 'all' && (

@@ -1,3 +1,6 @@
+import { useRef } from 'react';
+import { useDomainRealtime } from '@/hooks/use-domain-realtime';
+import { usePublicProfileChanges } from '@/hooks/use-public-profile-changes';
 import React, { useState, useEffect, useCallback } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { supabase } from '@/lib/supabaseClient';
@@ -48,17 +51,17 @@ const StockBadge = ({ stock }) => {
 
 const ProductCard = ({ product, onAddToCart, onBuy, onEdit, onDelete, isOwner }) => {
   const navigate = useNavigate();
-  
+
   const hasPromotion = product.promotion_price && new Date(product.promotion_expires_at) > new Date();
 
   const originalPriceWithTax = product.price * (1 + product.tax_rate);
   const promotionalPriceWithTax = hasPromotion ? product.promotion_price * (1 + product.tax_rate) : null;
   const finalPrice = promotionalPriceWithTax ?? originalPriceWithTax;
 
-  const seller = product.seller;
-  const isBusiness = Boolean(seller.business_id) || seller.role === 'PJ';
+  const seller = product.seller || { full_name: 'Cidadão indisponível' };
+  const isBusiness = Boolean(product.business_id || seller.business_id);
   const businessDoc = seller.documents?.find(d => d.type === 'CNPJ');
-  const businessName = seller.business_name || (isBusiness ? businessDoc?.metadata?.company_name : null);
+  const businessName = product.business?.name || seller.business_name || (isBusiness ? businessDoc?.metadata?.company_name : null);
   const businessCnpj = isBusiness ? businessDoc?.document_number : null;
 
   const handleCardClick = (e) => {
@@ -79,11 +82,11 @@ const ProductCard = ({ product, onAddToCart, onBuy, onEdit, onDelete, isOwner })
       transition={{ duration: 0.3 }}
       className="flex flex-col"
     >
-      <Card 
+      <Card
         className={cn(
           "glass-effect flex-grow flex flex-col cursor-pointer transition-all",
           isOutOfStock && "opacity-50"
-        )} 
+        )}
         onClick={handleCardClick}
       >
         <CardHeader className="p-4">
@@ -113,7 +116,7 @@ const ProductCard = ({ product, onAddToCart, onBuy, onEdit, onDelete, isOwner })
             )}
           </div>
           <CardTitle className="text-lg font-bold leading-tight whitespace-normal break-words">{product.name}</CardTitle>
-          
+
           {product.product_type === 'subscription' ? (
             <span className="text-xs font-bold text-purple-400 flex items-center gap-1 mt-1">
               <Repeat className="w-3 h-3"/> ASSINATURA
@@ -125,7 +128,7 @@ const ProductCard = ({ product, onAddToCart, onBuy, onEdit, onDelete, isOwner })
           )}
 
           <CardDescription className="text-sm text-muted-foreground flex flex-col items-start gap-1 mt-2">
-            <span>Vendido por: <Link to={`/services/x/profile/${seller.x_handle}`} onClick={(e) => e.stopPropagation()} className="text-primary hover:underline no-navigate">{businessName || seller.full_name}</Link></span>
+            <span>{isBusiness ? 'Empresa' : 'Pessoa Física'} · Vendido por: <Link to={`/services/x/profile/${seller.x_handle}`} onClick={(e) => e.stopPropagation()} className="text-primary hover:underline no-navigate">{businessName || seller.full_name}</Link></span>
             {isBusiness && businessCnpj && <span className="text-xs">CNPJ: {formatCNPJ(businessCnpj)}</span>}
           </CardDescription>
         </CardHeader>
@@ -261,6 +264,7 @@ const Business = () => {
   const [productToEdit, setProductToEdit] = useState(null);
   const [productToDelete, setProductToDelete] = useState(null);
   const [isBuyDialogOpen, setIsBuyDialogOpen] = useState(false);
+    const purchaseIntent = useRef(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [categories, setCategories] = useState([]);
@@ -270,28 +274,19 @@ const Business = () => {
   const { addToCart } = useCart();
 
   const fetchProductsAndCategories = useCallback(async () => {
-    setLoading(true);
 
     const { data, error } = await supabase.rpc('get_products_with_final_price');
 
     if (error) {
         toast({ title: "Erro ao buscar produtos", description: error.message, variant: "destructive" });
-        setProducts([]);
     } else {
-        let filteredData = data;
-        if (searchTerm) {
-            filteredData = filteredData.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()));
-        }
-        if (selectedCategory !== 'all') {
-            filteredData = filteredData.filter(p => p.category === selectedCategory);
-        }
-        setProducts(filteredData || []);
+        setProducts(data || []);
 
         const uniqueCategories = [...new Set((data || []).map(p => p.category).filter(Boolean))];
         setCategories(uniqueCategories);
     }
     setLoading(false);
-  }, [searchTerm, selectedCategory, toast]);
+  }, [toast]);
 
   useEffect(() => {
     const debounce = setTimeout(() => {
@@ -299,6 +294,10 @@ const Business = () => {
     }, 300);
     return () => clearTimeout(debounce);
   }, [fetchProductsAndCategories]);
+
+  useDomainRealtime('marketplace', 'public', ['products', 'businesses', 'government_rules'], fetchProductsAndCategories);
+  usePublicProfileChanges(fetchProductsAndCategories);
+  const visibleProducts = products.filter(product => (!searchTerm || product.name.toLocaleLowerCase('pt-BR').includes(searchTerm.toLocaleLowerCase('pt-BR'))) && (selectedCategory === 'all' || product.category === selectedCategory));
 
   const handleBuyClick = (product) => {
     if (!user) {
@@ -321,19 +320,24 @@ const Business = () => {
   const handleConfirmBuy = async (paymentMethod, cardId) => {
     if (!selectedProduct) return;
 
+    const signature = JSON.stringify([user.id, selectedProduct.id, paymentMethod, cardId || null]);
+    if (purchaseIntent.current?.signature !== signature) purchaseIntent.current = { signature, key: crypto.randomUUID() };
     const result = await executeProductPurchase({
       supabase,
       productId: selectedProduct.id,
       paymentMethod,
       cardId,
+      idempotencyKey: purchaseIntent.current.key,
     });
 
     if (!result.success) {
       toast({ title: "Erro na compra", description: result.message, variant: "destructive" });
+      return;
     } else {
       toast({ title: "Sucesso!", description: result.message });
       fetchProductsAndCategories();
     }
+    purchaseIntent.current = null;
     setIsBuyDialogOpen(false);
     setSelectedProduct(null);
   };
@@ -432,12 +436,12 @@ const Business = () => {
         </div>
       ) : (
         <AnimatePresence>
-          {products.length > 0 ? (
+          {visibleProducts.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-              {products.map(product => (
-                <ProductCard 
-                  key={product.id} 
-                  product={product} 
+              {visibleProducts.map(product => (
+                <ProductCard
+                  key={product.id}
+                  product={product}
                   onAddToCart={handleAddToCart}
                   onBuy={handleBuyClick}
                   onEdit={handleEditClick}

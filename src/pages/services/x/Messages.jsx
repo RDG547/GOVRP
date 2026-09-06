@@ -1,4 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useDomainRealtime } from '@/hooks/use-domain-realtime';
+import { usePublicProfileChanges } from '@/hooks/use-public-profile-changes';
+import { useToast } from '@/components/ui/use-toast';
 import { Helmet } from 'react-helmet-async';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabaseClient';
@@ -10,6 +13,7 @@ import { Button } from '@/components/ui/button';
 
 const XMessages = () => {
     const { user } = useAuth();
+    const { toast } = useToast();
     const { conversationId } = useParams();
     const navigate = useNavigate();
     const [conversations, setConversations] = useState([]);
@@ -17,8 +21,7 @@ const XMessages = () => {
 
     const fetchConversations = useCallback(async () => {
         if (!user) return;
-        setLoading(true);
-        
+
         const { data: userConversations, error: convError } = await supabase
             .from('x_conversation_participants')
             .select('conversation_id')
@@ -51,23 +54,17 @@ const XMessages = () => {
             .order('updated_at', { ascending: false });
 
         if (error) {
-            console.error(error);
+            toast({ title: 'Não foi possível carregar as conversas', description: 'Tente novamente em instantes.', variant: 'destructive' });
         } else {
             setConversations(data);
         }
         setLoading(false);
-    }, [user]);
+    }, [user?.id, toast]);
 
-    useEffect(() => {
-        fetchConversations();
-        const channel = supabase.channel('x_dms')
-          .on('postgres_changes', { event: '*', schema: 'public', table: 'x_messages' }, payload => {
-              fetchConversations();
-          })
-          .subscribe();
-        return () => supabase.removeChannel(channel);
-    }, [fetchConversations]);
-    
+    useEffect(() => { void fetchConversations(); }, [fetchConversations]);
+    useDomainRealtime('x-conversations', user?.id, ['x_conversations', { table: 'x_conversation_participants', filter: `user_id=eq.${user?.id}` }, { table: 'notifications', filter: `user_id=eq.${user?.id}` }], fetchConversations, Boolean(user?.id));
+    usePublicProfileChanges(fetchConversations);
+
     const selectedConversation = conversations.find(c => c.id === conversationId);
 
     const handleConversationDeleted = (deletedConvoId) => {
@@ -77,38 +74,38 @@ const XMessages = () => {
     return (
         <>
             <Helmet><title>Mensagens - X</title></Helmet>
-            <div className="flex flex-col h-[calc(100vh-5rem)] md:flex-row">
+            <div className="flex flex-col h-[calc(100dvh-8rem)] min-h-[420px] lg:flex-row">
                 {/* Conversation List */}
                 <div className={`
-                    w-full md:w-80 lg:w-96 
-                    border-r border-border 
+                    w-full lg:w-72 xl:w-80
+                    border-r border-border
                     flex-shrink-0 flex flex-col
-                    ${conversationId ? 'hidden md:flex' : 'flex'}
+                    ${conversationId ? 'hidden lg:flex' : 'flex'}
                 `}>
                     <div className="p-4 border-b border-border">
                         <h2 className="text-xl font-bold text-foreground">Mensagens</h2>
                     </div>
                     <div className="flex-1 overflow-y-auto custom-scrollbar">
-                        <ConversationList 
-                            conversations={conversations} 
-                            loading={loading} 
-                            onConversationDeleted={handleConversationDeleted} 
+                        <ConversationList
+                            conversations={conversations}
+                            loading={loading}
+                            onConversationDeleted={handleConversationDeleted}
                         />
                     </div>
                 </div>
-                
+
                 {/* Chat Area */}
                 <div className={`
                     flex-1 flex flex-col min-w-0
-                    ${!conversationId ? 'hidden md:flex' : 'flex'}
+                    ${!conversationId ? 'hidden lg:flex' : 'flex'}
                 `}>
                     {conversationId && selectedConversation ? (
                         <>
                             {/* Mobile back button */}
-                            <div className="md:hidden p-2 border-b border-border">
-                                <Button 
-                                    variant="ghost" 
-                                    size="sm" 
+                            <div className="lg:hidden p-2 border-b border-border">
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
                                     onClick={() => navigate('/services/x/messages')}
                                     className="gap-2"
                                 >

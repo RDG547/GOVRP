@@ -1,3 +1,4 @@
+import { fingerprintPaths } from '@/lib/citizenFingerprint';
 import React, { useState, useMemo } from 'react';
 import QRCode from 'qrcode.react';
 import { formatCPF, formatRG } from '@/lib/utils';
@@ -141,30 +142,13 @@ const DocumentContainer = ({ children, className = '' }) => (
 );
 
 const FingerprintSVG = ({ seed }) => {
-    const paths = useMemo(() => {
-        let str = String(seed || 'default');
-        const result = [];
-        for (let i = 0; i < 15; i++) {
-            str = str.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0).toString();
-            // Pad the string to ensure we always have enough characters
-            const padded = str.padEnd(12, '0');
-            const p1 = parseInt(padded.substring(0, 2), 10) || 0;
-            const p2 = parseInt(padded.substring(2, 4), 10) || 0;
-            const p3 = parseInt(padded.substring(4, 6), 10) || 0;
-            const p4 = parseInt(padded.substring(6, 8), 10) || 0;
-            const p5 = parseInt(padded.substring(8, 10), 10) || 0;
-            const p6 = parseInt(padded.substring(10, 12), 10) || 0;
-            const d = `M ${20 + (p1 % 100)/5} ${10 + (p2 % 100)/2} C ${p3 % 100} ${(p4 % 100)/2}, ${100-(p5 % 100)} ${(p6 % 100)/2}, ${30 + (p1 % 100)/5} ${80 + (p2 % 100)/2}`;
-            result.push(d);
-        }
-        return result;
-    }, [seed]);
+    const paths = useMemo(() => fingerprintPaths(seed), [seed]);
 
     return (
-        <svg viewBox="0 0 100 100" className="w-full h-full">
+        <svg viewBox="0 0 100 110" className="w-full h-full" role="img" aria-label="Digital fictícia do cidadão"><defs><clipPath id={`print-${String(seed).replace(/[^a-zA-Z0-9]/g, '')}`}><ellipse cx="50" cy="53" rx="42" ry="51" /></clipPath></defs><g clipPath={`url(#print-${String(seed).replace(/[^a-zA-Z0-9]/g, '')})`}>
             {paths.map((d, i) => (
-                <path key={i} d={d} stroke="black" strokeWidth="1.5" fill="none" strokeLinecap="round" />
-            ))}
+                <path key={i} d={d} stroke="black" strokeWidth="1.05" fill="none" strokeLinecap="round" />
+            ))}</g>
         </svg>
     );
 };
@@ -188,13 +172,13 @@ const RGDocument = ({ user, doc, side }) => {
                     <h1 className="font-bold text-[0.6rem] sm:text-sm">REPÚBLICA FEDERATIVA DE GOV.RP</h1>
                     <img src={SEAL_IMAGE} alt="Selo" className="h-8 w-8 object-contain sm:h-10 sm:w-10"/>
                 </header>
-                <p className="mt-1 shrink-0 text-center font-semibold text-[0.5rem] sm:text-[0.68rem]">SECRETARIA DE SEGURANÇA PÚBLICA</p>
+                <p className="mt-1 shrink-0 text-center font-semibold text-[0.5rem] sm:text-[0.68rem]">DEPARTAMENTO DE IDENTIFICAÇÃO CIVIL — DIC</p>
                 <p className="shrink-0 text-center font-bold text-[0.8rem] sm:text-base">CARTEIRA DE IDENTIDADE</p>
                 <main className="mt-1 flex min-h-0 flex-grow gap-2 sm:gap-3">
                     <div className="flex w-1/4 min-h-0 flex-col items-center">
                         <img src={user.avatar_url} alt="Foto" className="h-[52%] min-h-0 w-full object-cover border-2 border-gray-400"/>
                         <div className="mt-1 h-[31%] min-h-0 w-full border border-black p-0.5">
-                           <FingerprintSVG seed={user.id} />
+                           <FingerprintSVG seed={user.citizen_id || doc.citizen_id || user.id} />
                         </div>
                         <p className="mt-1 shrink-0 text-center text-[0.4rem] sm:text-[8px]">POLEGAR DIREITO</p>
                     </div>
@@ -232,7 +216,7 @@ const CPFDocument = ({ user, doc, side }) => {
                         <img src={SEAL_IMAGE} alt="Selo" className="w-8 h-8 sm:w-12 sm:h-12 object-contain"/>
                         <div className="text-center">
                             <p className="text-[0.5rem] sm:text-sm font-bold">REPÚBLICA FEDERATIVA DE GOV.RP</p>
-                            <p className="text-[0.4rem] sm:text-xs">MINISTÉRIO DA FAZENDA</p>
+                            <p className="text-[0.4rem] sm:text-xs">DEPARTAMENTO DE IDENTIFICAÇÃO CIVIL — DIC</p>
                             <p className="text-[0.4rem] sm:text-xs">SECRETARIA DA RECEITA FEDERAL</p>
                         </div>
                     </div>
@@ -384,7 +368,7 @@ const CNHDocument = ({ user, doc, side }) => {
                     <div className="w-3/4 space-y-1 sm:space-y-1.5 text-[0.5rem] sm:text-[11px] bg-white/30 p-1 sm:p-2 rounded">
                         <DocumentField label="NOME" value={user.full_name?.toUpperCase()} />
                         <div className="flex justify-between gap-2">
-                            <DocumentField label="DOC. IDENTIDADE / ORG. EMISSOR" value={`${formatRG(user.rg)} SSP/RP`} />
+                            <DocumentField label="DOC. IDENTIDADE / ORG. EMISSOR" value={`${formatRG(user.rg)} DIC/RP`} />
                             <DocumentField label="CPF" value={formatCPF(user.cpf)} />
                         </div>
                         <div className="flex justify-between">
@@ -601,7 +585,7 @@ export const OfficialDocument = ({ user, doc, onBack, side: initialSide = 'front
                 <DocumentComponent user={user} doc={doc} />
             </div>
             {onBack && (
-                <Button variant="ghost" size="icon" onClick={onBack} className="absolute top-2 right-2 text-foreground bg-background/50 hover:bg-background/70 h-8 w-8"><X className="h-4 w-4"/></Button>
+                <Button variant="ghost" size="icon" onClick={onBack} aria-label="Fechar documento" className="relative z-30 min-h-11 min-w-11 text-foreground bg-background/50 hover:bg-background/70 h-8 w-8"><X className="h-4 w-4"/></Button>
             )}
         </div>
     );
@@ -611,9 +595,9 @@ export const OfficialDocument = ({ user, doc, onBack, side: initialSide = 'front
     <div className="relative mx-auto w-full max-w-[30rem]">
       <DocumentComponent user={user} doc={doc} side={side}/>
        {onBack && (
-        <div className="absolute right-2 top-2 flex flex-col gap-2">
-           <Button variant="ghost" size="icon" onClick={onBack} className={actionButtonClassName}><X className="h-4 w-4"/></Button>
-           {hasTwoSides && <Button variant="ghost" size="icon" onClick={() => setSide(s => s === 'front' ? 'back' : 'front')} className={actionButtonClassName}><RefreshCw className="h-4 w-4"/></Button>}
+        <div data-export-ignore className="relative z-30 mt-3 flex justify-end gap-3 pointer-events-auto">
+           <Button variant="ghost" size="icon" aria-label="Fechar documento" type="button" onClick={onBack} className={`${actionButtonClassName} min-h-11 min-w-11 touch-manipulation`}><X className="h-4 w-4"/></Button>
+           {hasTwoSides && <Button variant="ghost" size="icon" aria-label="Virar documento" type="button" onClick={() => setSide(s => s === 'front' ? 'back' : 'front')} className={`${actionButtonClassName} min-h-11 min-w-11 touch-manipulation`}><RefreshCw className="h-4 w-4"/></Button>}
         </div>
        )}
     </div>

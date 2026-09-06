@@ -1,3 +1,5 @@
+import BankWelcome from '@/components/bank/BankWelcome';
+import { prefetchMunicipalities } from '@/lib/brazilianLocations';
 import React, {
   useCallback,
   useEffect,
@@ -198,9 +200,10 @@ const CitizenOnboarding = () => {
   });
   const [locationError, setLocationError] = useState("");
   const [aspiration, setAspiration] = useState("");
+  const [bankGuideOpen, setBankGuideOpen] = useState(false);
 
-  const loadOnboarding = useCallback(async () => {
-    setLoading(true);
+  const loadOnboarding = useCallback(async ({ preserveStep = false, quiet = false } = {}) => {
+    if (!quiet) setLoading(true);
     setLoadError("");
     const { data, error } = await supabase.rpc("get_my_citizen_onboarding");
     if (error) {
@@ -244,12 +247,15 @@ const CitizenOnboarding = () => {
       residenceCity: profile.residence_city_code || "",
     });
     setAspiration(profile.initial_aspiration || "");
-    setViewStep(profile.onboarding_step || "welcome");
+    if (!preserveStep) setViewStep(profile.onboarding_step || "welcome");
+    if (profile.onboarding_completed) setCeremony(data);
     setLoading(false);
   }, [toast]);
 
   useEffect(() => {
     loadOnboarding();
+    const timer = setTimeout(() => { void prefetchMunicipalities(); }, 500);
+    return () => clearTimeout(timer);
   }, [loadOnboarding]);
 
   useEffect(
@@ -266,14 +272,15 @@ const CitizenOnboarding = () => {
       return undefined;
     }
     const controller = new AbortController();
+    setLocationError("");
     setLocationsLoading((current) => ({ ...current, birth: true }));
     fetchMunicipalitiesByState(origin.birthState, controller.signal)
-      .then(setBirthCities)
+      .then(cities => { if (!controller.signal.aborted) setBirthCities(cities); })
       .catch((error) => {
         if (error.name !== "AbortError") setLocationError(error.message);
       })
       .finally(() =>
-        setLocationsLoading((current) => ({ ...current, birth: false })),
+        !controller.signal.aborted && setLocationsLoading((current) => ({ ...current, birth: false })),
       );
     return () => controller.abort();
   }, [origin.birthState]);
@@ -286,12 +293,12 @@ const CitizenOnboarding = () => {
     const controller = new AbortController();
     setLocationsLoading((current) => ({ ...current, residence: true }));
     fetchMunicipalitiesByState(origin.residenceState, controller.signal)
-      .then(setResidenceCities)
+      .then(cities => { if (!controller.signal.aborted) setResidenceCities(cities); })
       .catch((error) => {
         if (error.name !== "AbortError") setLocationError(error.message);
       })
       .finally(() =>
-        setLocationsLoading((current) => ({ ...current, residence: false })),
+        !controller.signal.aborted && setLocationsLoading((current) => ({ ...current, residence: false })),
       );
     return () => controller.abort();
   }, [origin.residenceState]);
@@ -500,23 +507,10 @@ const CitizenOnboarding = () => {
         title: data.created ? `${type} emitido` : `${type} já estava emitido`,
         description: "O documento foi preservado no seu registro oficial.",
       });
-      await loadOnboarding();
+      await loadOnboarding({ preserveStep: true, quiet: true });
     });
 
-  const openBankAccount = () =>
-    run("bank", async () => {
-      const { data, error } = await supabase.rpc("ensure_citizen_bank_account");
-      if (error) throw error;
-      toast({
-        title: data.created
-          ? "Conta bancária aberta"
-          : "Conta bancária preservada",
-        description: data.created
-          ? `Saldo inicial: ${formatCurrency(data.account.balance)}`
-          : "Nenhuma conta ou saldo foi duplicado.",
-      });
-      await loadOnboarding();
-    });
+  const openBankAccount = () => setBankGuideOpen(true);
 
   const finalize = () =>
     run("finalize", async () => {
@@ -654,7 +648,7 @@ const CitizenOnboarding = () => {
         {allIssued && (
           <div className="mt-6 flex justify-end">
             <Button
-              onClick={() => issueDocument(types[types.length - 1])}
+              onClick={() => setViewStep(types.includes("CPF") ? "mandatory_documents" : "initial_status")}
               disabled={Boolean(working)}
             >
               Continuar <ArrowRight className="ml-2 h-4 w-4" />
@@ -885,6 +879,7 @@ const CitizenOnboarding = () => {
                   className="grid gap-6 rounded-3xl border border-white/10 bg-slate-950/60 p-5 sm:p-8 md:grid-cols-[230px_1fr]"
                 >
                   <div>
+                    <h2 className="mb-3 text-center font-semibold">Foto do cidadão</h2>
                     <button
                       type="button"
                       onClick={() => avatarInputRef.current?.click()}
@@ -924,7 +919,38 @@ const CitizenOnboarding = () => {
                       Opcional · a prévia aparece antes de salvar
                     </p>
 
-                    <fieldset className="mt-5 text-left">
+
+
+                    {identity.gender ? (
+                      <div className="mt-5 text-left">
+                        <p className="mb-2 text-xs font-medium text-slate-300">
+                          Escolher avatar
+                        </p>
+                        <div className="grid max-h-56 grid-cols-4 gap-2 overflow-y-auto rounded-xl border border-white/10 bg-black/20 p-2 custom-scrollbar">
+                          {CHARACTER_AVATARS[identity.gender].map((avatar) => (
+                            <button
+                              key={avatar.id}
+                              type="button"
+                              onClick={() => selectProvidedAvatar(avatar.url)}
+                              aria-label={`Selecionar avatar ${avatar.id}`}
+                              aria-pressed={identity.avatarUrl === avatar.url}
+                              className={`aspect-square overflow-hidden rounded-lg border-2 transition ${identity.avatarUrl === avatar.url ? "border-emerald-400 ring-2 ring-emerald-400/20" : "border-transparent hover:border-white/40"}`}
+                            >
+                              <img
+                                src={avatar.url}
+                                alt=""
+                                loading="lazy"
+                                className="h-full w-full object-cover"
+                              />
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    ) : <p className="mt-4 text-center text-xs text-slate-400">Escolha o sexo do personagem para ver os avatares disponíveis.</p>}
+                  </div>
+
+                  <div className="space-y-5">
+                    <fieldset className="rounded-xl border border-white/10 p-4 text-left">
                       <legend className="text-sm font-medium">
                         Sexo do personagem
                       </legend>
@@ -949,36 +975,6 @@ const CitizenOnboarding = () => {
                         </button>
                       </div>
                     </fieldset>
-
-                    {identity.gender ? (
-                      <div className="mt-5 text-left">
-                        <p className="mb-2 text-xs font-medium text-slate-300">
-                          Ou escolha um avatar GOVRP
-                        </p>
-                        <div className="grid max-h-56 grid-cols-4 gap-2 overflow-y-auto rounded-xl border border-white/10 bg-black/20 p-2 custom-scrollbar">
-                          {CHARACTER_AVATARS[identity.gender].map((avatar) => (
-                            <button
-                              key={avatar.id}
-                              type="button"
-                              onClick={() => selectProvidedAvatar(avatar.url)}
-                              aria-label={`Selecionar avatar ${avatar.id}`}
-                              aria-pressed={identity.avatarUrl === avatar.url}
-                              className={`aspect-square overflow-hidden rounded-lg border-2 transition ${identity.avatarUrl === avatar.url ? "border-emerald-400 ring-2 ring-emerald-400/20" : "border-transparent hover:border-white/40"}`}
-                            >
-                              <img
-                                src={avatar.url}
-                                alt=""
-                                loading="lazy"
-                                className="h-full w-full object-cover"
-                              />
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    ) : null}
-                  </div>
-
-                  <div className="space-y-5">
                     <div>
                       <Label htmlFor="character-name">
                         Nome civil do personagem
@@ -1123,7 +1119,7 @@ const CitizenOnboarding = () => {
                 key="origin"
                 eyebrow="Etapa 2 · Origem"
                 title="De onde vem o seu cidadão?"
-                description="Nascimento e residência são informações distintas e estruturadas com códigos oficiais do IBGE."
+                description="Escolha onde seu cidadão nasceu e onde vive hoje. Esses lugares fazem parte da sua história no RP."
               >
                 <form
                   onSubmit={saveOrigin}
@@ -1172,7 +1168,7 @@ const CitizenOnboarding = () => {
                       />
                       <FieldSelect
                         id="birth-city"
-                        label="Município de nascimento"
+                        label={<>Município de nascimento {locationsLoading.birth && <Loader2 className="ml-1 inline h-4 w-4 animate-spin" />}</>}
                         value={origin.birthCity}
                         onChange={(value) => setOriginField("birthCity", value)}
                         disabled={!origin.birthState || locationsLoading.birth}
@@ -1215,7 +1211,7 @@ const CitizenOnboarding = () => {
                       />
                       <FieldSelect
                         id="residence-city"
-                        label="Município de residência"
+                        label={<>Município de residência {locationsLoading.residence && <Loader2 className="ml-1 inline h-4 w-4 animate-spin" />}</>}
                         value={origin.residenceCity}
                         onChange={(value) =>
                           setOriginField("residenceCity", value)
@@ -1316,7 +1312,7 @@ const CitizenOnboarding = () => {
                 {renderDocuments(
                   ["CPF", "RG"],
                   "Sua identidade está sendo registrada",
-                  "CPF e RG são emitidos pelo Registro Nacional e passam a pertencer ao cidadão durante toda a sua trajetória.",
+                  "CPF e RG são emitidos pelo Departamento de Identificação Civil — DIC e passam a pertencer ao cidadão durante toda a sua trajetória.",
                 )}
               </React.Fragment>
             )}
@@ -1337,7 +1333,7 @@ const CitizenOnboarding = () => {
                 title="Seu cidadão está pronto para começar"
                 description="Os dados abaixo vêm dos registros oficiais do país. Nenhuma informação foi sorteada ou inventada."
               >
-                <div className="grid gap-5 lg:grid-cols-[1fr_320px]">
+                {bankGuideOpen ? <BankWelcome initialAccount={state.bank_account} initialBalance={state.settings?.initial_bank_balance} citizenship onComplete={async () => { await loadOnboarding({ quiet: true }); setBankGuideOpen(false); setViewStep('citizenship'); }} /> : <div className="grid gap-5 lg:grid-cols-[1fr_320px]">
                   <div className="rounded-3xl border border-white/10 bg-slate-950/60 p-6">
                     <div className="mb-6 flex items-center gap-4">
                       <img
@@ -1407,12 +1403,12 @@ const CitizenOnboarding = () => {
                   <div className="rounded-3xl border border-emerald-400/20 bg-emerald-500/5 p-6">
                     <Building2 className="h-9 w-9 text-emerald-300" />
                     <h2 className="mt-4 text-xl font-semibold">
-                      Sua vida financeira
+                      Sua vida financeira começa aqui
                     </h2>
                     {state.bank_account ? (
                       <>
                         <p className="mt-3 text-sm text-slate-300">
-                          Sua conta existente foi preservada.
+                          Seu primeiro saldo ajuda a dar os primeiros passos. Agora é hora de construir sua própria renda.
                         </p>
                         <p className="mt-5 text-2xl font-bold text-emerald-300">
                           {formatCurrency(state.bank_account.balance)}
@@ -1420,8 +1416,7 @@ const CitizenOnboarding = () => {
                       </>
                     ) : (
                       <p className="mt-3 text-sm leading-6 text-slate-300">
-                        Abra uma conta no Banco Nacional. O saldo inicial usa a
-                        configuração econômica vigente.
+                        Abra sua conta no Banco Nacional para receber seu primeiro saldo{state.settings?.initial_bank_balance != null ? ` de ${formatCurrency(state.settings.initial_bank_balance)}` : ""}. Ele vai ajudar nos primeiros passos enquanto você encontra seu caminho para ganhar a própria renda.
                       </p>
                     )}
                     <Button
@@ -1435,11 +1430,11 @@ const CitizenOnboarding = () => {
                         <Banknote className="mr-2 h-4 w-4" />
                       )}
                       {state.bank_account
-                        ? "Preservar conta e continuar"
+                        ? "Conhecer minha conta"
                         : "Abrir minha conta"}
                     </Button>
                   </div>
-                </div>
+                </div>}
               </StepShell>
             )}
 

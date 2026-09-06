@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -22,7 +22,7 @@ const EditProfileModal = ({ isOpen, setIsOpen, profile, onProfileUpdate }) => {
     const { refreshUser } = useAuth();
     const { toast } = useToast();
     const [loading, setLoading] = useState(false);
-    
+
     const [xUsername, setXUsername] = useState(profile.x_username || '');
     const [xHandle, setXHandle] = useState(profile.x_handle || '');
     const [xBio, setXBio] = useState(profile.x_bio || '');
@@ -36,6 +36,16 @@ const EditProfileModal = ({ isOpen, setIsOpen, profile, onProfileUpdate }) => {
     const [headerPreview, setHeaderPreview] = useState(profile.x_header_url || '');
     const [headerAction, setHeaderAction] = useState('none');
     const headerInputRef = useRef(null);
+
+    const profileRef = useRef(profile);
+    profileRef.current = profile;
+    useEffect(() => {
+        if (!isOpen) return;
+        const current = profileRef.current;
+        setXUsername(current.x_username || ''); setXHandle(current.x_handle || ''); setXBio(current.x_bio || '');
+        setAvatarPreview(current.x_avatar_url || ''); setHeaderPreview(current.x_header_url || '');
+        setAvatarFile(null); setHeaderFile(null); setAvatarAction('none'); setHeaderAction('none');
+    }, [isOpen]);
 
     const handleAvatarChange = (e) => {
         const file = e.target.files?.[0];
@@ -58,7 +68,7 @@ const EditProfileModal = ({ isOpen, setIsOpen, profile, onProfileUpdate }) => {
             setAvatarAction('upload');
         }
     };
-    
+
     const handleHeaderChange = (e) => {
         const file = e.target.files?.[0];
         if (file) {
@@ -80,13 +90,13 @@ const EditProfileModal = ({ isOpen, setIsOpen, profile, onProfileUpdate }) => {
             setHeaderAction('upload');
         }
     };
-    
+
     const handleRemoveAvatar = () => {
         setAvatarFile(null);
         setAvatarPreview('');
         setAvatarAction('remove');
     };
-    
+
     const handleRemoveHeader = () => {
         setHeaderFile(null);
         setHeaderPreview('');
@@ -94,7 +104,9 @@ const EditProfileModal = ({ isOpen, setIsOpen, profile, onProfileUpdate }) => {
     };
 
     const handleSave = async () => {
+        if (loading) return;
         setLoading(true);
+        const uploads = []; const obsolete = []; let saved = false;
         try {
             const updates = { x_username: xUsername, x_bio: xBio };
 
@@ -111,13 +123,14 @@ const EditProfileModal = ({ isOpen, setIsOpen, profile, onProfileUpdate }) => {
                 const newFilePath = buildStoragePath({ prefix: '', entityId: profile.id, fileName: avatarFile.name });
                 const { error: uploadError } = await supabase.storage.from('x-avatars').upload(newFilePath, avatarFile, { upsert: false });
                 if (uploadError) throw uploadError;
-                if (oldFilePath) await supabase.storage.from('x-avatars').remove([oldFilePath]);
+                uploads.push(['x-avatars',newFilePath]);
+                if (oldFilePath) obsolete.push(['x-avatars',oldFilePath]);
                 const { data } = supabase.storage.from('x-avatars').getPublicUrl(newFilePath);
                 updates.x_avatar_url = data.publicUrl;
             } else if (avatarAction === 'remove') {
                 if (profile.x_avatar_url) {
                     const filePath = extractStoragePathFromUrl(profile.x_avatar_url, 'x-avatars');
-                    if (filePath) await supabase.storage.from('x-avatars').remove([filePath]);
+                    if (filePath) obsolete.push(['x-avatars',filePath]);
                 }
                 updates.x_avatar_url = null;
             }
@@ -127,23 +140,26 @@ const EditProfileModal = ({ isOpen, setIsOpen, profile, onProfileUpdate }) => {
                 const newFilePath = buildStoragePath({ prefix: '', entityId: profile.id, fileName: headerFile.name });
                 const { error: uploadError } = await supabase.storage.from('headers').upload(newFilePath, headerFile, { upsert: false });
                 if (uploadError) throw uploadError;
-                if (oldFilePath) await supabase.storage.from('headers').remove([oldFilePath]);
+                uploads.push(['headers',newFilePath]);
+                if (oldFilePath) obsolete.push(['headers',oldFilePath]);
                 const { data } = supabase.storage.from('headers').getPublicUrl(newFilePath);
                 updates.x_header_url = data.publicUrl;
             } else if (headerAction === 'remove') {
                 if (profile.x_header_url) {
                     const filePath = extractStoragePathFromUrl(profile.x_header_url, 'headers');
-                    if (filePath) await supabase.storage.from('headers').remove([filePath]);
+                    if (filePath) obsolete.push(['headers',filePath]);
                 }
                 updates.x_header_url = null;
             }
-            
+
             if (Object.keys(updates).length > 0) {
               const { error: updateError } = await supabase.from('profiles').update(updates).eq('id', profile.id);
               if (updateError) throw updateError;
             }
-            
-            await refreshUser();
+
+            saved = true;
+            await Promise.all(obsolete.map(([bucket,path]) => supabase.storage.from(bucket).remove([path])));
+            await refreshUser({ skipSync: true });
             onProfileUpdate(updates);
             toast({ title: "Perfil atualizado com sucesso!" });
             setIsOpen(false);
@@ -151,12 +167,13 @@ const EditProfileModal = ({ isOpen, setIsOpen, profile, onProfileUpdate }) => {
             console.error("Error updating profile:", error);
             toast({ title: "Erro ao atualizar perfil", description: error.message, variant: "destructive" });
         } finally {
+            if (!saved) await Promise.all(uploads.map(([bucket,path]) => supabase.storage.from(bucket).remove([path])));
             setLoading(false);
         }
     };
 
     return (
-        <Dialog open={isOpen} onOpenChange={setIsOpen}>
+        <Dialog open={isOpen} onOpenChange={open => { if (!loading) setIsOpen(open); }}>
             <DialogContent className="glass-effect text-white">
                 <DialogHeader><DialogTitle>Editar Perfil X</DialogTitle><DialogDescription>Personalize seu perfil para a rede social X.</DialogDescription></DialogHeader>
                 <div className="space-y-4 py-4 max-h-[70vh] overflow-y-auto pr-2">
@@ -183,7 +200,7 @@ const EditProfileModal = ({ isOpen, setIsOpen, profile, onProfileUpdate }) => {
                     </div>
 
                     <div><Label htmlFor="x_username">Nome de Usuário</Label><Input id="x_username" value={xUsername} onChange={(e) => setXUsername(e.target.value)} /></div>
-                    
+
                     <div>
                         <Label htmlFor="xHandle">@handle</Label>
                         <div className="relative">

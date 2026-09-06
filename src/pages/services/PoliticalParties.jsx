@@ -1,3 +1,5 @@
+import { useDomainRealtime } from '@/hooks/use-domain-realtime';
+import { fetchPublicParties, PARTY_REALTIME_TABLES } from '@/lib/parties';
 import React, { useState, useEffect, useCallback } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { motion } from 'framer-motion';
@@ -77,99 +79,53 @@ const PoliticalParties = () => {
     const [orientationFilter, setOrientationFilter] = useState('Todos');
 
     const fetchData = useCallback(async () => {
-        setLoading(true);
-        let query = supabase.from('political_parties').select(`
-            *, 
-            members:party_members(user_id, role, profile:profiles(id, full_name)), 
-            founder:profiles!political_parties_founder_id_fkey(full_name),
-            owner:profiles!political_parties_owner_id_fkey(full_name),
-            president:profiles!political_parties_president_id_fkey(full_name),
-            vice_president:profiles!political_parties_vice_president_id_fkey(full_name)
-        `);
+        try {
+            const [data, requestResult] = await Promise.all([
+                fetchPublicParties(),
+                user?.id ? supabase.from('party_affiliation_requests').select('id,party_id,status').eq('user_id', user.id).eq('status', 'pending').limit(1).maybeSingle() : Promise.resolve({ data: null }),
+            ]);
+            if (requestResult.error) throw requestResult.error;
+            const affiliationParty = data.find(party => party.members.some(member => member.user_id === user?.id));
+            const member = affiliationParty?.members.find(item => item.user_id === user?.id);
+            setUserAffiliation(member ? { ...member, party_id: affiliationParty.id, party: affiliationParty } : null);
+            setPendingRequest(member ? null : requestResult.data);
+            const sorted = [...data].sort((a, b) => Number(b.id === affiliationParty?.id) - Number(a.id === affiliationParty?.id));
+            setParties(sorted);
+        } catch (error) {
+            toast({ title: 'Erro ao buscar partidos', description: error.message, variant: 'destructive' });
+        } finally { setLoading(false); }
+    }, [user?.id, toast]);
 
-        if (orientationFilter !== 'Todos') {
-            query = query.eq('orientation', orientationFilter);
-        }
-
-        const { data, error } = await query.order('created_at', { ascending: true });
-        if (error) { toast({ title: "Erro ao buscar partidos", description: error.message, variant: "destructive" }); }
-        const normalizedParties = suppressDuplicatePartyLeaders(data || []);
-
-        if (user?.id) {
-            const { data: memberData } = await supabase.from('party_members').select('*, party:political_parties(*, members:party_members(*, profile:profiles(*)))').eq('user_id', user.id).limit(1).maybeSingle();
-            setUserAffiliation(memberData);
-            
-            if (memberData && normalizedParties) {
-                const sortedData = [...normalizedParties].sort((a, b) => {
-                    if (a.id === memberData.party_id) return -1;
-                    if (b.id === memberData.party_id) return 1;
-                    return 0;
-                });
-                setParties(sortedData);
-            } else {
-                setParties(normalizedParties);
-            }
-
-            if (!memberData) {
-              const {data: requestData} = await supabase.from('party_affiliation_requests').select('*').eq('user_id', user.id).eq('status', 'pending').limit(1).maybeSingle();
-              setPendingRequest(requestData);
-            } else {
-              setPendingRequest(null);
-            }
-        } else {
-            setParties(normalizedParties);
-        }
-        setLoading(false);
-    }, [user, toast, orientationFilter]);
-
-    useEffect(() => { fetchData(); }, [fetchData]);
+    useEffect(() => { void fetchData(); }, [fetchData]);
+    useDomainRealtime('parties', user?.id, PARTY_REALTIME_TABLES, fetchData);
+    const visibleParties = parties.filter(party => orientationFilter === 'Todos' || party.orientation === orientationFilter);
 
     const handleAffiliate = async (partyId) => {
         setActionLoading(partyId);
         const { data, error } = await supabase.rpc('request_party_affiliation', { p_party_id: partyId });
-        if(error || !data.success) {
-            toast({ title: 'Erro', description: error?.message || data.message, variant: 'destructive' });
+        if(error || !data?.success) {
+            toast({ title: 'Erro', description: error?.message || data?.message, variant: 'destructive' });
         } else {
             toast({ title: 'Sucesso!', description: data.message });
-            
-            // Send notifications to party leaders if manual affiliation
-            const party = parties.find(p => p.id === partyId);
-            if (party && party.affiliation_mode === 'manual' && user) {
-                const leaderIds = [party.owner_id, party.president_id, party.vice_president_id]
-                    .filter(Boolean)
-                    .filter((id, index, self) => self.indexOf(id) === index && id !== user.id);
-                
-                if (leaderIds.length > 0) {
-                    const notifications = leaderIds.map(leaderId => ({
-                        user_id: leaderId,
-                        sender_id: user.id,
-                        type: 'party_affiliation_request',
-                        content: `${user.full_name} solicitou filiação ao partido ${party.name} (${party.acronym}).`,
-                        link: `/services/political-parties/${party.id}`,
-                        is_read: false
-                    }));
-                    await supabase.from('notifications').insert(notifications);
-                }
-            }
-            
+
             fetchData();
         }
         setActionLoading(null);
     }
-    
+
     const handleDisaffiliate = async () => {
         if (!userAffiliation) return;
-        
+
         setActionLoading('disaffiliate');
-        const { data, error } = await supabase.rpc('disaffiliate_from_party', { 
+        const { data, error } = await supabase.rpc('disaffiliate_from_party', {
             p_party_id: userAffiliation.party_id
         });
 
-        if(error || !data.success) {
-            toast({ title: 'Erro', description: error?.message || data.message, variant: 'destructive' });
-        } else { 
-            toast({ title: 'Sucesso!', description: data.message }); 
-            fetchData(); 
+        if(error || !data?.success) {
+            toast({ title: 'Erro', description: error?.message || data?.message, variant: 'destructive' });
+        } else {
+            toast({ title: 'Sucesso!', description: data.message });
+            fetchData();
         }
         setActionLoading(null);
     };
@@ -178,8 +134,8 @@ const PoliticalParties = () => {
         if(!pendingRequest) return;
         setActionLoading(pendingRequest.party_id);
         const {data, error} = await supabase.rpc('cancel_affiliation_request', { p_request_id: pendingRequest.id });
-        if(error || !data.success) {
-            toast({ title: 'Erro', description: error?.message || data.message, variant: 'destructive' });
+        if(error || !data?.success) {
+            toast({ title: 'Erro', description: error?.message || data?.message, variant: 'destructive' });
         } else {
             toast({ title: 'Sucesso!', description: data.message });
             fetchData();
@@ -217,7 +173,7 @@ const PoliticalParties = () => {
               <Button className="w-full" disabled={isLoading}>{isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <LogIn className="mr-2 h-4 w-4" />} Filiar-se</Button>
             </AlertDialogTrigger>
             <AlertDialogContent>
-              <AlertDialogHeader><AlertDialogTitle>Trocar de partido?</AlertDialogTitle><AlertDialogDescription>Você já é membro de "{userAffiliation.party.name}". Ao se filiar a "{party.name}", você será automaticamente desfiliado do seu partido atual. Deseja continuar?</AlertDialogDescription></AlertDialogHeader>
+              <AlertDialogHeader><AlertDialogTitle>Trocar de partido?</AlertDialogTitle><AlertDialogDescription>Você já é membro de "{userAffiliation.party.name}". Para entrar em "{party.name}", primeiro desfilie-se do partido atual. A solicitação não altera sua filiação automaticamente.</AlertDialogDescription></AlertDialogHeader>
               <AlertDialogFooter><AlertDialogCancel>Cancelar</AlertDialogCancel><AlertDialogAction onClick={affiliateAction}>Continuar</AlertDialogAction></AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
@@ -248,9 +204,9 @@ const PoliticalParties = () => {
                 </div>
                 {loading ? (
                     <div className="flex justify-center items-center min-h-[40vh]"><Loader2 className="w-12 h-12 animate-spin text-blue-400" /></div>
-                ) : parties.length > 0 ? (
+                ) : visibleParties.length > 0 ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                        {parties.map(party => {
+                        {visibleParties.map(party => {
                             const memberCount = party.members?.length || 0;
                             const isActive = memberCount >= 5;
                             const isUserParty = userAffiliation?.party_id === party.id;
@@ -313,7 +269,7 @@ const PoliticalParties = () => {
                                                     <Button variant="outline" className="w-full"><Info className="mr-2 h-4 w-4" />Detalhes</Button>
                                                 </Link>
                                             </div>
-                                            {userIsLeader && 
+                                            {userIsLeader &&
                                               <div className="w-full mt-2 flex justify-center">
                                                 <PartyManagementDialog party={party} onAction={fetchData} />
                                               </div>

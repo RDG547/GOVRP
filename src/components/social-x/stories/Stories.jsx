@@ -21,7 +21,7 @@ const Stories = () => {
             .eq('follower_id', user.id);
 
         const idsToFetch = [user.id, ...(followingIds || []).map(f => f.following_id)];
-        
+
         const { data, error } = await supabase.rpc('get_stories_by_user_ids', { p_user_ids: idsToFetch });
 
         if (error) {
@@ -30,7 +30,7 @@ const Stories = () => {
             setStories(data || []);
         }
         setLoading(false);
-    }, [user]);
+    }, [user?.id]);
 
 
     useEffect(() => {

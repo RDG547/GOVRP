@@ -1,3 +1,5 @@
+import { useDomainRealtime } from '@/hooks/use-domain-realtime';
+import { bankRealtimeTables } from '@/lib/bankRealtime';
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { useAuth } from '@/contexts/AuthContext';
@@ -147,7 +149,7 @@ const CreditLimitBar = ({ used, limit }) => {
 };
 
 // Componente dos itens da fatura (inalterado)
-const InvoiceItems = ({ invoiceId }) => {
+const InvoiceItems = ({ invoiceId, revision }) => {
     const [items, setItems] = useState([]);
     const [loading, setLoading] = useState(true);
     const { toast } = useToast();
@@ -166,7 +168,7 @@ const InvoiceItems = ({ invoiceId }) => {
         if (invoiceId) {
             fetchItems();
         }
-    }, [invoiceId, toast]);
+    }, [invoiceId, revision, toast]);
 
     if (loading) return <div className="flex justify-center p-4"><Loader2 className="animate-spin" /></div>;
     if (items.length === 0) return <p className="text-center text-sm text-muted-foreground p-4">Nenhum gasto nesta fatura.</p>;
@@ -214,13 +216,12 @@ const CardsTab = ({ onUpdate }) => {
     // Funções de busca de dados, solicitação e cancelamento (inalteradas)
     const fetchData = useCallback(async () => {
         if (!user) return;
-        setLoading(true);
         const { data: cardsData, error: cardsError } = await supabase
             .from('cards')
             .select('*')
             .eq('user_id', user.id)
             .order('created_at', { ascending: true });
-        
+
         if (cardsError) {
             toast({ title: 'Erro ao buscar cartões', description: cardsError.message, variant: 'destructive' });
         } else {
@@ -255,7 +256,7 @@ const CardsTab = ({ onUpdate }) => {
             setCardApplications(applicationsData || []);
         }
         setLoading(false);
-    }, [user, toast]);
+    }, [user?.id, toast]);
 
     useEffect(() => {
         // Close any due invoices when the user loads the tab
@@ -269,6 +270,10 @@ const CardsTab = ({ onUpdate }) => {
         closeInvoices();
         fetchData();
     }, [fetchData]);
+
+    useDomainRealtime('bank', user?.id, bankRealtimeTables(user?.id), (events) => {
+        if (events.some(event => event.eventType === 'SYNC' || ['cards', 'credit_card_applications', 'card_invoices', 'card_invoice_items'].includes(event.table))) void fetchData();
+    }, Boolean(user?.id));
 
     useEffect(() => {
         const availableBrands = [...new Set(cards.map((card) => normalizeCardBrand(card.brand)).filter(Boolean))];
@@ -329,7 +334,7 @@ const CardsTab = ({ onUpdate }) => {
             toast({ title: 'Erro ao cancelar cartão', description: error.message, variant: 'destructive' });
         }
     };
-    
+
     const toggleFlip = (cardId) => {
       setIsFlipped(prev => ({ ...prev, [cardId]: !prev[cardId] }));
     };
@@ -354,7 +359,7 @@ const CardsTab = ({ onUpdate }) => {
             default: return 'outline';
         }
     };
-    
+
     const getStatusText = (status) => {
         const texts = { paid: 'Paga', open: 'Aberta', closed: 'Fechada', overdue: 'Vencida' };
         return texts[status] || status;
@@ -371,7 +376,7 @@ const CardsTab = ({ onUpdate }) => {
       if (['Rejeitado', 'rejected'].includes(status)) return 'border-red-500/30 bg-red-500/15 text-red-300';
       return 'border-yellow-500/30 bg-yellow-500/15 text-yellow-300';
     };
-    
+
     const getFormattedDate = (day) => {
         let date = setDate(new Date(), day);
         if (new Date().getDate() > day) {
@@ -432,7 +437,7 @@ const CardsTab = ({ onUpdate }) => {
                                                 <RefreshCw className="w-4 h-4" />
                                             </Button>
                                         </div>
-                                        
+
                                         <div className="flex justify-between text-xs text-muted-foreground border-t border-b border-white/10 py-2">
                                            <div className="flex items-center gap-1.5">
                                                <CalendarDays className="w-3.5 h-3.5" />
@@ -553,7 +558,7 @@ const CardsTab = ({ onUpdate }) => {
                                                             transition={{ duration: 0.3 }}
                                                             className="overflow-hidden"
                                                         >
-                                                            <InvoiceItems invoiceId={invoice.id} />
+                                                            <InvoiceItems revision={`${invoice.amount}:${invoice.status}:${invoice.updated_at}`} invoiceId={invoice.id} />
                                                         </motion.div>
                                                     </AnimatePresence>
                                                 </TableCell>
@@ -649,7 +654,7 @@ const CardsTab = ({ onUpdate }) => {
                     </CardContent>
                 </Card>
             )}
-             <PayInvoiceDialog 
+             <PayInvoiceDialog
                 isOpen={isPayModalOpen}
                 setIsOpen={setIsPayModalOpen}
                 card={cardToPay}

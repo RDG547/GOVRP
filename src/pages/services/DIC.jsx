@@ -13,7 +13,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import html2canvas from 'html2canvas';
+import { captureElement } from '@/lib/captureElement';
 import jsPDF from 'jspdf';
 import { OfficialDocument } from '@/components/dic/OfficialDocument';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -37,56 +37,7 @@ const docInfo = {
     'Registro Profissional': { name: 'Registro Profissional', icon: Award, color: 'text-cyan-400' },
 };
 
-const captureDocument = async (element) => {
-    if (document.fonts?.ready) {
-        await document.fonts.ready;
-    }
-
-    const target = element.querySelector('[data-official-document]') || element;
-    const images = [...target.querySelectorAll('img')];
-    await Promise.all(images.map(async (image) => {
-        if (image.complete) {
-            await image.decode?.().catch(() => undefined);
-            return;
-        }
-        await new Promise((resolve) => {
-            image.addEventListener('load', resolve, { once: true });
-            image.addEventListener('error', resolve, { once: true });
-        });
-    }));
-
-    target.dataset.html2canvasActive = 'true';
-    try {
-        return await html2canvas(target, {
-            backgroundColor: null,
-            scale: 3,
-            useCORS: true,
-            logging: false,
-            imageTimeout: 15000,
-            width: target.scrollWidth,
-            height: target.scrollHeight,
-            windowWidth: 1024,
-            onclone: (clonedDocument) => {
-                const clonedTarget = clonedDocument.querySelector('[data-html2canvas-active="true"]');
-                if (!clonedTarget) return;
-
-                clonedTarget.style.transform = 'none';
-                clonedTarget.style.overflow = 'hidden';
-                clonedTarget.querySelectorAll('p, span, strong, time').forEach((node) => {
-                    const computed = clonedDocument.defaultView?.getComputedStyle(node);
-                    const fontSize = Number.parseFloat(computed?.fontSize || '0');
-                    const lineHeight = Number.parseFloat(computed?.lineHeight || '0');
-                    if (fontSize > 0 && (!lineHeight || lineHeight < fontSize * 1.25)) {
-                        node.style.lineHeight = `${fontSize * 1.3}px`;
-                    }
-                    node.style.textRendering = 'geometricPrecision';
-                });
-            },
-        });
-    } finally {
-        delete target.dataset.html2canvasActive;
-    }
-};
+const captureDocument = (element) => captureElement(element?.querySelector('[data-official-document]') || element, { scale: 3, backgroundColor: '#ffffff' });
 
 const addDocumentPage = (pdf, canvas, title, isFirstPage) => {
     if (!isFirstPage) pdf.addPage('a4', 'landscape');
@@ -336,7 +287,7 @@ const DIC = () => {
     };
 
     const handleGenerateAllDocs = async () => {
-        const validDocs = documents.filter(d => d.is_valid);
+        const validDocs = documents.filter(d => d.is_valid && docInfo[d.type]);
         if (validDocs.length === 0) {
             toast({ title: "Aviso", description: "Nenhum documento válido para gerar." });
             return;
@@ -353,6 +304,7 @@ const DIC = () => {
                 const frontElement = docRefs.current[`${doc.id}-front`];
                 const backElement = docRefs.current[`${doc.id}-back`];
 
+                if (!frontElement) throw new Error(`O documento ${docInfo[doc.type]?.name || doc.type} ainda não está pronto.`);
                 if (frontElement) {
                     const frontCanvas = await captureDocument(frontElement);
                     addDocumentPage(pdf, frontCanvas, `${docInfo[doc.type]?.name || 'Documento'} — Frente`, isFirstPage);
@@ -368,7 +320,7 @@ const DIC = () => {
             pdf.save(`documentos_govrp_${user.username}.pdf`);
             toast({ title: "Sucesso", description: "PDF com todos os documentos gerado." });
         } catch (error) {
-            toast({ title: "Erro ao gerar PDF", description: "Ocorreu um problema ao criar o arquivo.", variant: "destructive" });
+            toast({ title: "Erro ao gerar PDF", description: error.message || 'Ocorreu um problema ao criar o arquivo.', variant: "destructive" });
         } finally {
             setIsGeneratingAllPdfs(false);
         }
@@ -605,13 +557,14 @@ const DIC = () => {
             </div>
             <div
                 aria-hidden="true"
+                data-export-host
                 style={{
                     position: 'fixed',
-                    left: 0,
+                    left: '-10000px',
                     top: 0,
                     width: '520px',
                     pointerEvents: 'none',
-                    transform: 'translateX(-200vw)',
+                    transform: 'none',
                     zIndex: -1,
                 }}
             >
@@ -635,7 +588,7 @@ const DIC = () => {
             </div>
 
             <Dialog open={!!visualizingDoc} onOpenChange={() => setVisualizingDoc(null)}>
-                <DialogContent className="max-w-fit overflow-visible p-0 border-0 bg-transparent shadow-none [&>button]:hidden data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95">
+                <DialogContent aria-label="Documento oficial" className="w-[calc(100%-2rem)] max-w-[510px] overflow-visible p-0 border-0 bg-transparent shadow-none [&>button]:hidden data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95">
                     {visualizingDoc && <OfficialDocument user={visualizingDoc.user || displayProfile} doc={visualizingDoc} onBack={() => setVisualizingDoc(null)} />}
                 </DialogContent>
             </Dialog>

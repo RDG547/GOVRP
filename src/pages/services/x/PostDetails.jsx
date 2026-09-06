@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useDomainRealtime } from '@/hooks/use-domain-realtime';
+import { usePublicProfileChanges } from '@/hooks/use-public-profile-changes';
 import { Helmet } from 'react-helmet-async';
 import { supabase } from '@/lib/supabaseClient';
 import { useAuth } from '@/contexts/AuthContext';
@@ -17,23 +19,23 @@ const PostDetails = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { toast } = useToast();
-  
+
   const [post, setPost] = useState(null);
   const [comments, setComments] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const fetchPostAndComments = useCallback(async () => {
     if (!postId || !user) return;
-    setLoading(true);
 
     // Fetch the main post
     const { data: postData, error: postError } = await supabase
-      .rpc('get_posts_with_interactions', { p_user_id: user.id })
+      .rpc('get_x_posts', { p_post_ids: [postId] })
       .eq('id', postId)
       .single();
 
     if (postError || !postData) {
       toast({ title: "Erro", description: "Post não encontrado ou erro ao carregar.", variant: "destructive" });
+      setPost(null);
       setLoading(false);
       return;
     }
@@ -42,33 +44,40 @@ const PostDetails = () => {
     // Fetch comments
     const { data: commentsData, error: commentsError } = await supabase
       .from('comments')
-      .select('*, author:profiles!comments_user_id_fkey(*), replies_count')
+      .select('*, author:profiles!comments_user_id_fkey(id,username,full_name,x_username,x_handle,x_avatar_url), replies_count')
       .eq('post_id', postId)
       .is('parent_comment_id', null)
       .order('created_at', { ascending: true });
-    
+
     if (commentsError) {
       toast({ title: "Erro ao carregar comentários", variant: "destructive" });
     } else {
       setComments(commentsData || []);
     }
-    
+
     setLoading(false);
-  }, [postId, user, toast]);
+  }, [postId, user?.id, toast]);
 
   useEffect(() => {
+    setLoading(true);
     fetchPostAndComments();
   }, [fetchPostAndComments]);
-  
+  useDomainRealtime('x-post-details', `${user?.id}:${postId}`, [
+    { table: 'posts', filter: `id=eq.${postId}` },
+    { table: 'comments', filter: `post_id=eq.${postId}` },
+    { table: 'likes', filter: `post_id=eq.${postId}` },
+  ], fetchPostAndComments, Boolean(user?.id));
+  usePublicProfileChanges(fetchPostAndComments);
+
   const handleCommentAction = (action) => {
     if (action.type === 'comment_added') {
-      setComments(prev => [...prev, action.newComment]);
+      setComments(prev => [...prev.filter(comment => comment.id !== action.newComment.id), action.newComment]);
     } else if (action.type === 'comment_deleted') {
       setComments(prev => prev.filter(c => c.id !== action.commentId));
     } else if (action.type === 'reply_added') {
-      setComments(prev => prev.map(c => 
-          c.id === action.parentCommentId 
-            ? { ...c, replies_count: (c.replies_count || 0) + 1 } 
+      setComments(prev => prev.map(c =>
+          c.id === action.parentCommentId
+            ? { ...c, replies_count: (c.replies_count || 0) + 1 }
             : c
       ));
     }
@@ -97,20 +106,20 @@ const PostDetails = () => {
         </div>
     );
   }
-  
+
   return (
     <div>
         <Helmet>
-            <title>{`${post.author.x_username}: "${post.content.substring(0, 50)}..." - GOV.RP X`}</title>
+            <title>{`${(post.author?.x_username || 'Cidadão')}: "${(post.content || '').substring(0, 50)}..." - GOV.RP X`}</title>
         </Helmet>
-        
+
         <div className="p-4 border-b border-border sticky top-0 bg-background/80 backdrop-blur-md z-10 flex items-center gap-4">
             <Button variant="ghost" size="icon" onClick={() => navigate(-1)}><ArrowLeft/></Button>
             <h2 className="text-xl font-bold">Post</h2>
         </div>
-        
+
         <PostCard post={post} onPostUpdate={handlePostUpdate} onPostDelete={handlePostDelete} />
-        
+
         <div className="p-4 border-b border-border">
           <Card>
              <CardHeader>

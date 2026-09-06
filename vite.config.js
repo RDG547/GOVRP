@@ -316,7 +316,7 @@ export default defineConfig(({ mode }) => {
 				: []),
 			react(),
 			VitePWA({
-				registerType: 'autoUpdate',
+				registerType: 'prompt',
 				injectRegister: null,
 				includeAssets: [
 					'favicon.ico',
@@ -364,8 +364,8 @@ export default defineConfig(({ mode }) => {
 				},
 				workbox: {
 					cleanupOutdatedCaches: true,
-					clientsClaim: true,
-					skipWaiting: true,
+					clientsClaim: false,
+					skipWaiting: false,
 					navigateFallback: '/index.html',
 					navigateFallbackDenylist: [/^\/api\//],
 					maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,

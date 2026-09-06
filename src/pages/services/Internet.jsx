@@ -1,3 +1,5 @@
+import { invalidateDomain } from '@/lib/realtime';
+import { getInternetDelay } from '@/lib/internetPlans';
 import React, { useState, useEffect, useCallback } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -33,7 +35,7 @@ const Internet = () => {
                 .limit(1).maybeSingle();
 
             if (serviceError && serviceError.code !== 'PGRST116') throw serviceError;
-            
+
             let prices = {};
             try {
                 const { data: priceData, error: priceError } = await supabase.from('system_settings').select('value').eq('key', 'basic_service_prices').limit(1).maybeSingle();
@@ -43,7 +45,7 @@ const Internet = () => {
             } catch (e) {
                 console.warn("Falha ao buscar preços do backend, usando valores padrão", e);
             }
-            
+
             const defaultPlans = [
                 { id: 1, name: 'Básico', speed: '100 Mbps', price: prices['Internet_Básico'] !== undefined ? prices['Internet_Básico'] : 79.90, description: 'Navegação estável para uso cotidiano e redes sociais.', icon: Wifi, color: 'text-cyan-400', progress: 33 },
                 { id: 2, name: 'Ultra', speed: '500 Mbps', price: prices['Internet_Ultra'] !== undefined ? prices['Internet_Ultra'] : 99.90, description: 'Banda larga otimizada para streaming 4K e nuvem.', icon: Zap, color: 'text-blue-400', progress: 66 },
@@ -80,7 +82,7 @@ const Internet = () => {
         } finally {
             setLoading(false);
         }
-    }, [user, toast]);
+    }, [user?.id, toast]);
 
     useEffect(() => {
         fetchServiceAndPlans();
@@ -96,11 +98,12 @@ const Internet = () => {
             .select()
             .maybeSingle();
 
-        if (error && error.code !== 'PGRST116') {
-            toast({ title: 'Erro na atualização de rede', description: error.message, variant: 'destructive' });
+        if (error || !data) {
+            toast({ title: 'Erro na atualização de rede', description: error?.message || 'O plano não foi atualizado. Tente novamente.', variant: 'destructive' });
         } else {
             toast({ title: 'Uplink Concluído!', description: `Módulo de rede atualizado para ${plan.name}.` });
             setCurrentService({ ...currentService, plan_name: plan.name, price: plan.price });
+            invalidateDomain('internet', user.id);
         }
         setChangingPlan(false);
     };
@@ -209,8 +212,8 @@ const Internet = () => {
                                                     <div className={`text-3xl font-black tracking-tighter ${plan.color} mt-2 drop-shadow-md`}>{plan.speed}</div>
                                                 </CardHeader>
                                                 <CardContent className="flex-grow pt-4">
-                                                    <p className="text-center text-sm text-gray-400 mb-6">{plan.description}</p>
-                                                    
+                                                    <p className="text-center text-sm text-gray-400 mb-6">{getInternetDelay(plan.name) === 0 ? 'Navegação instantânea, sem espera.' : `Espera de ${getInternetDelay(plan.name) / 1000} segundos ao acessar outro serviço.`}</p>
+
                                                     <div className="space-y-1 mb-6">
                                                         <div className="flex justify-between text-[10px] uppercase tracking-wider text-muted-foreground font-bold">
                                                             <span>Potência de Transmissão</span>
@@ -221,10 +224,10 @@ const Internet = () => {
                                                 </CardContent>
                                                 <CardFooter className="flex-col gap-4 mt-auto">
                                                     <div className="text-2xl font-bold text-white">{formatCurrency(plan.price)}<span className="text-sm font-normal text-muted-foreground">/sem</span></div>
-                                                    <Button 
+                                                    <Button
                                                         variant={isCurrent ? 'secondary' : 'default'}
                                                         className={`w-full font-bold uppercase tracking-wider ${isCurrent ? 'bg-cyan-500/10 text-cyan-400 hover:bg-cyan-500/20' : ''}`}
-                                                        onClick={() => handlePlanChange(plan)} 
+                                                        onClick={() => handlePlanChange(plan)}
                                                         disabled={changingPlan || isCurrent}
                                                     >
                                                         {isUpgrading ? (

@@ -8,13 +8,15 @@ import { useToast } from '@/components/ui/use-toast';
 import { Loader2 } from 'lucide-react';
 import ProfileHeader from '@/components/social-x/profile/ProfileHeader';
 import ProfilePostList from '@/components/social-x/profile/ProfilePostList';
+import { useDomainRealtime } from '@/hooks/use-domain-realtime';
+import { usePublicProfileChanges } from '@/hooks/use-public-profile-changes';
 import ErrorPage from '@/pages/ErrorPage';
 
 const XProfile = () => {
     const { handle } = useParams();
     const { user: currentUser } = useAuth();
     const { toast } = useToast();
-    
+
     const [profileData, setProfileData] = useState({
         profile: null,
         posts: [],
@@ -27,14 +29,13 @@ const XProfile = () => {
 
     const fetchProfileData = useCallback(async () => {
         if (!handle || !currentUser) return;
-        setLoading(true);
         setError(null);
         try {
             const { data: profile, error: profileError } = await supabase
-                .from('profiles').select('*').eq('x_handle', handle).single();
+                .from('public_citizen_profiles').select('id,citizen_id,username,full_name,avatar_url,role,titles,x_handle,x_username,x_bio,x_avatar_url,x_header_url,citizenship_created_at').eq('x_handle', handle).single();
 
             if (profileError || !profile) throw new Error("Perfil não encontrado.");
-            
+
             const { count: followers } = await supabase.from('followers').select('*', { count: 'exact', head: true }).eq('following_id', profile.id);
             const { count: following } = await supabase.from('followers').select('*', { count: 'exact', head: true }).eq('follower_id', profile.id);
 
@@ -44,9 +45,9 @@ const XProfile = () => {
                 isFollowing = (followCheck || 0) > 0;
             }
 
-            const { data: userPosts, error: postsError } = await supabase.rpc('get_user_posts_with_interactions', { 
+            const { data: userPosts, error: postsError } = await supabase.rpc('get_user_posts_with_interactions', {
                 p_viewer_id: currentUser.id,
-                p_target_user_id: profile.id 
+                p_target_user_id: profile.id
             });
 
             if (postsError) throw postsError;
@@ -60,11 +61,21 @@ const XProfile = () => {
         } finally {
             setLoading(false);
         }
-    }, [handle, currentUser, toast]);
+    }, [handle, currentUser?.id, toast]);
 
     useEffect(() => {
+        setLoading(true);
         fetchProfileData();
     }, [fetchProfileData]);
+
+    useDomainRealtime('x-profile', `${currentUser?.id}:${profileData.profile?.id}`, [
+        { table: 'posts', filter: `user_id=eq.${profileData.profile?.id}` },
+        { table: 'followers', filter: `following_id=eq.${profileData.profile?.id}` },
+        { table: 'followers', filter: `follower_id=eq.${profileData.profile?.id}` },
+    ], fetchProfileData, Boolean(profileData.profile?.id));
+    usePublicProfileChanges(events => {
+        if (events.some(event => event.new?.id === profileData.profile?.id)) void fetchProfileData();
+    });
 
     const handleFollowToggle = (isNowFollowing) => {
         setProfileData(prev => ({
@@ -79,7 +90,7 @@ const XProfile = () => {
             profile: {...prev.profile, ...updatedProfileData}
         }));
     };
-    
+
     const handleDeletePost = (postId) => {
         setProfileData(prev => ({
             ...prev,
@@ -88,8 +99,8 @@ const XProfile = () => {
     };
 
     if (loading) return <div className="flex justify-center items-center h-96"><Loader2 className="w-12 h-12 animate-spin text-primary" /></div>;
-    if (error || !profileData.profile) return <ErrorPage title="Perfil não encontrado" message={error} />;
-    
+    if (!profileData.profile) return <ErrorPage title="Perfil não encontrado" message={error} />;
+
     const { profile, posts, followersCount, followingCount, isFollowing } = profileData;
     const profileName = profile.x_username || profile.full_name;
 

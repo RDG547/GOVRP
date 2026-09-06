@@ -40,6 +40,7 @@ import ProtectedRoute from '@/components/ProtectedRoute';
 import ServiceProtectedRoute from '@/components/ServiceProtectedRoute';
 import AdminDashboardPage from '@/pages/admin/AdminDashboard';
 import AdminProtectedRoute from '@/components/admin/AdminProtectedRoute';
+import PartyMembershipWelcome from '@/components/parties/PartyMembershipWelcome';
 import WelcomeTutorial from '@/components/WelcomeTutorial';
 import CitizenOnboardingGate from '@/components/CitizenOnboardingGate';
 import CitizenOnboarding from '@/pages/CitizenOnboarding';
@@ -184,7 +185,7 @@ const AppShell = ({ location, theme, isAuthCallback }) => {
             <CitizenOnboardingGate>
             <MainLayout>
               <ScrollRestoration />
-              {!isAuthCallback && !isCitizenOnboarding && user?.onboarding_completed && <WelcomeTutorial />}
+              {!isAuthCallback && !isCitizenOnboarding && user?.onboarding_completed && <><WelcomeTutorial /><PartyMembershipWelcome /></>}
               <AnimatePresence mode="wait">
                 <Routes location={location} key={routeTransitionKey}>
                 <Route path="/" element={<Home />} />

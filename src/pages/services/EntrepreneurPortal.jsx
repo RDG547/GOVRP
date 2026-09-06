@@ -1,3 +1,6 @@
+import RegisterCompanyDialog from '@/components/business/RegisterCompanyDialog';
+import { useDomainRealtime } from '@/hooks/use-domain-realtime';
+import { invalidateDomain } from '@/lib/realtime';
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -726,6 +729,10 @@ const EntrepreneurPortal = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [salesLoading, setSalesLoading] = useState(true);
   const [businessTariffs, setBusinessTariffs] = useState({});
+  const [catalogTypes, setCatalogTypes] = useState([]);
+  const [registrationFee, setRegistrationFee] = useState(null);
+  const [registrationOpen, setRegistrationOpen] = useState(false);
+  const [registrationType, setRegistrationType] = useState('');
   const [businessToSell, setBusinessToSell] = useState(null);
   const [savingSale, setSavingSale] = useState(false);
   const [buyingListingId, setBuyingListingId] = useState(null);
@@ -733,8 +740,15 @@ const EntrepreneurPortal = () => {
   // Fetch base tariffs for registration fees
   useEffect(() => {
     const fetchTariffs = async () => {
-      const { data } = await supabase.from('system_settings').select('value').eq('key', 'base_tariffs').single();
-      if (data?.value) setBusinessTariffs(data.value);
+      const [tariffs, catalog, rules] = await Promise.all([
+        supabase.from('system_settings').select('value').eq('key', 'base_tariffs').maybeSingle(),
+        supabase.from('business_types').select('*').eq('is_active', true).order('name'),
+        supabase.from('government_rules').select('numeric_value').eq('rule_key', 'business_license_fee').maybeSingle(),
+      ]);
+      if (tariffs.data?.value) setBusinessTariffs(tariffs.data.value);
+      if (catalog.data) setCatalogTypes(catalog.data);
+      if (rules.data?.numeric_value != null) setRegistrationFee(Number(rules.data.numeric_value));
+      if (catalog.error) toast({ title: 'Não foi possível carregar os tipos de empresa', description: catalog.error.message, variant: 'destructive' });
     };
     fetchTariffs();
   }, []);
@@ -745,13 +759,14 @@ const EntrepreneurPortal = () => {
     loja: 'biz_loja', transportadora: 'biz_transportadora', consultoria: 'biz_consultoria',
     seguranca: 'biz_seguranca', distribuidora: 'biz_distribuidora',
   };
-  const businessTypes = BUSINESS_TYPES.map(bt => {
-    const tariffKey = TARIFF_KEY_MAP[bt.id];
-    if (tariffKey && businessTariffs[tariffKey] != null) {
-      return { ...bt, registrationFee: businessTariffs[tariffKey] };
-    }
-    return bt;
-  });
+  const businessTypes = useMemo(() => catalogTypes.map(type => {
+    const presentation = BUSINESS_TYPES.find(item => item.id === type.id) || BUSINESS_TYPES.find(item => item.id === 'consultoria') || BUSINESS_TYPES[0];
+    return { ...presentation, id: type.id, name: type.name, description: type.description, category: type.category,
+      registrationFee: registrationFee ?? Number(type.registration_fee ?? businessTariffs[TARIFF_KEY_MAP[type.id]] ?? presentation.registrationFee),
+      minEmployees: type.min_employees, monthlyCosts: type.monthly_costs || presentation.monthlyCosts,
+      requirements: Array.isArray(type.requirements) ? type.requirements : presentation.requirements,
+    };
+  }), [catalogTypes, registrationFee, businessTariffs]);
 
   const fetchMyBusinesses = useCallback(async () => {
     if (!user?.id) {
@@ -759,7 +774,6 @@ const EntrepreneurPortal = () => {
       return;
     }
 
-    setIsLoading(true);
     try {
       const { data, error } = await supabase
         .from('businesses')
@@ -795,7 +809,6 @@ const EntrepreneurPortal = () => {
   }, [fetchMyBusinesses]);
 
   const fetchSaleListings = useCallback(async () => {
-    setSalesLoading(true);
     try {
       const [privateListingsResponse, stateListingsResponse] = await Promise.all([
         supabase
@@ -854,17 +867,7 @@ const EntrepreneurPortal = () => {
     fetchSaleListings();
   }, [fetchSaleListings]);
 
-  useEffect(() => {
-    const channel = supabase
-      .channel('entrepreneur-sale-listings')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'state_enterprises' }, fetchSaleListings)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'businesses' }, fetchSaleListings)
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [fetchSaleListings]);
+  useDomainRealtime('businesses', user?.id, ['businesses', 'state_enterprises'], () => { void fetchMyBusinesses(); void fetchSaleListings(); });
 
   const filteredTypes = useMemo(() => {
     if (!searchQuery.trim()) return businessTypes;
@@ -875,7 +878,7 @@ const EntrepreneurPortal = () => {
         b.category.toLowerCase().includes(q) ||
         b.description.toLowerCase().includes(q)
     );
-  }, [searchQuery]);
+  }, [searchQuery, businessTypes]);
 
   const totalRevenue = myBusinesses.reduce((s, b) => s + b.revenue, 0);
   const totalEmployees = myBusinesses.reduce((s, b) => s + b.employees, 0);
@@ -884,23 +887,22 @@ const EntrepreneurPortal = () => {
     return s + (type ? Object.values(type.monthlyCosts).reduce((a, v) => a + v, 0) : 0);
   }, 0);
 
-  const handleRegister = async (business) => {
+  const handleRegister = async (business, details) => {
     if (!user?.id) {
-      toast({ title: 'Erro', description: 'Você precisa estar logado para registrar uma empresa.', variant: 'destructive' });
-      return;
+      throw new Error('Entre na sua conta para registrar a empresa.');
     }
 
     setIsRegistering(true);
 
     try {
-      const companyName = `${business.name} do ${user?.full_name?.split(' ')[0] || 'Cidadão'}`;
+      const { companyName, description, idempotencyKey } = details;
       const response = await fetchWithSessionAuth('/api/businesses/register', {
         method: 'POST',
         body: JSON.stringify({
           businessTypeId: business.id,
           companyName,
-          description: business.description,
-          idempotencyKey: crypto.randomUUID(),
+          description,
+          idempotencyKey,
         }),
       });
       const payload = await response.json().catch(() => ({}));
@@ -921,23 +923,20 @@ const EntrepreneurPortal = () => {
           revenue: 0,
           createdAt: newBiz.created_at?.split('T')[0],
         },
-        ...prev,
+        ...prev.filter(item => item.id !== newBiz.id),
       ]);
 
       setSelectedBusiness(null);
       setActiveTab('my-businesses');
+      invalidateDomain('bank', user.id);
+      invalidateDomain('businesses', user.id);
 
       toast({
         title: '🎉 Empresa registrada com sucesso!',
         description: payload?.message || `${companyName} foi criada e está pendente de aprovação.`,
       });
     } catch (err) {
-      console.error('Erro ao registrar empresa:', err);
-      toast({
-        title: 'Erro ao registrar empresa',
-        description: err.message || 'Ocorreu um erro inesperado. Tente novamente.',
-        variant: 'destructive',
-      });
+      throw new Error(err.message || 'Não foi possível registrar a empresa. Tente novamente.');
     } finally {
       setIsRegistering(false);
     }
@@ -1078,7 +1077,7 @@ const EntrepreneurPortal = () => {
               </p>
               <div className="flex flex-col gap-3 sm:flex-row">
                 <Button
-                  onClick={() => setActiveTab('catalog')}
+                  onClick={() => { setRegistrationType(''); setRegistrationOpen(true); }}
                   className="w-full sm:w-auto bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500"
                 >
                   <Plus className="w-4 h-4 mr-2" />
@@ -1304,11 +1303,13 @@ const EntrepreneurPortal = () => {
           <BusinessDetailModal
             business={selectedBusiness}
             onClose={() => setSelectedBusiness(null)}
-            onRegister={handleRegister}
+            onRegister={(business) => { setRegistrationType(business.id); setSelectedBusiness(null); setRegistrationOpen(true); }}
             isRegistering={isRegistering}
           />
         )}
       </AnimatePresence>
+
+      <RegisterCompanyDialog open={registrationOpen} onOpenChange={setRegistrationOpen} initialType={registrationType} types={businessTypes} onRegister={handleRegister} loading={isRegistering} />
 
       <SalePriceDialog
         open={Boolean(businessToSell)}

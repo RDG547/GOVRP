@@ -139,7 +139,7 @@ const ProductFormDialog = ({ isOpen, setIsOpen, product, onSuccess }) => {
           return;
         }
         setBusinesses(data || []);
-        setFormData((current) => ({ ...current, business_id: current.business_id || data?.[0]?.id || '' }));
+
       });
   }, [isOpen, toast, user?.id]);
 
@@ -168,7 +168,11 @@ const ProductFormDialog = ({ isOpen, setIsOpen, product, onSuccess }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (loading) return;
     setLoading(true);
+    let uploadedPath = null;
+    let saved = false;
+    const oldFilePath = product?.image_url ? extractStoragePathFromUrl(product.image_url, 'product-images') : null;
 
     try {
       let finalImageUrl = formData.image_url;
@@ -177,13 +181,10 @@ const ProductFormDialog = ({ isOpen, setIsOpen, product, onSuccess }) => {
       const normalizedStock = parseInt(formData.stock, 10);
       const normalizedPromotionPrice = parseCurrencyInput(formData.promotion_price);
 
-      if (!formData.name.trim()) {
-        throw new Error('Informe o nome do produto.');
+      if (formData.name.trim().length < 3) {
+        throw new Error('Informe um nome com pelo menos 3 caracteres.');
       }
 
-      if (!formData.business_id) {
-        throw new Error('Selecione a empresa responsável pelo produto.');
-      }
 
       if (!finalImageUrl && !imageFile) {
         throw new Error('Informe uma imagem do produto por URL ou upload.');
@@ -193,8 +194,8 @@ const ProductFormDialog = ({ isOpen, setIsOpen, product, onSuccess }) => {
         throw new Error('Informe um preço maior que zero.');
       }
 
-      if (!formData.description.trim()) {
-        throw new Error('Informe a descrição do produto.');
+      if (formData.description.trim().length < 5) {
+        throw new Error('Descreva o produto com pelo menos 5 caracteres.');
       }
 
       if (!finalCategory) {
@@ -205,7 +206,7 @@ const ProductFormDialog = ({ isOpen, setIsOpen, product, onSuccess }) => {
         throw new Error('Informe o tipo do produto.');
       }
 
-      if (formData.product_type === 'one-time' && (!Number.isInteger(normalizedStock) || normalizedStock < 1)) {
+      if (formData.product_type === 'one-time' && (!Number.isInteger(normalizedStock) || (normalizedStock < 0 || (!product && normalizedStock < 1)))) {
         throw new Error('Informe um estoque válido para compra única.');
       }
 
@@ -214,7 +215,6 @@ const ProductFormDialog = ({ isOpen, setIsOpen, product, onSuccess }) => {
       }
 
       if (imageFile) {
-        const oldFilePath = product?.image_url ? extractStoragePathFromUrl(product.image_url, 'product-images') : null;
 
         const newFileName = buildStoragePath({ prefix: '', entityId: user.id, fileName: imageFile.name });
         const { data: uploadData, error: uploadError } = await supabase.storage
@@ -225,14 +225,12 @@ const ProductFormDialog = ({ isOpen, setIsOpen, product, onSuccess }) => {
 
         finalImageUrl = supabase.storage.from('product-images').getPublicUrl(uploadData.path).data.publicUrl;
 
-        if (oldFilePath) {
-          await supabase.storage.from('product-images').remove([oldFilePath]);
-        }
+        uploadedPath = uploadData.path;
       }
 
       const { error } = await supabase.rpc('save_business_product', {
         p_product_id: product?.id || null,
-        p_business_id: formData.business_id,
+        p_business_id: formData.business_id || null,
         p_name: formData.name,
         p_description: formData.description,
         p_price: normalizedPrice,
@@ -249,23 +247,36 @@ const ProductFormDialog = ({ isOpen, setIsOpen, product, onSuccess }) => {
 
       if (error) throw error;
 
+      saved = true;
+      if (uploadedPath && oldFilePath && uploadedPath !== oldFilePath) await supabase.storage.from('product-images').remove([oldFilePath]);
       toast({ title: `Produto ${product ? 'atualizado' : 'criado'} com sucesso!` });
       onSuccess();
     } catch (error) {
       toast({ title: 'Erro ao salvar produto', description: error.message, variant: 'destructive' });
     } finally {
+      if (!saved && uploadedPath) await supabase.storage.from('product-images').remove([uploadedPath]);
       setLoading(false);
     }
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+    <Dialog open={isOpen} onOpenChange={open => { if (!loading) setIsOpen(open); }}>
       <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-hidden p-0">
         <DialogHeader className="px-6 pt-6">
           <DialogTitle>{product ? 'Editar Produto' : 'Adicionar Novo Produto'}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="max-h-[calc(90vh-5rem)] space-y-4 overflow-y-auto px-6 pb-6 pt-4 custom-scrollbar">
-          <div className="space-y-2"><Label>Empresa vendedora</Label><Select value={formData.business_id} onValueChange={(value) => handleSelectChange('business_id', value)}><SelectTrigger><SelectValue placeholder="Selecione sua empresa" /></SelectTrigger><SelectContent>{businesses.map((business) => <SelectItem key={business.id} value={business.id}>{business.name}{business.status === 'pending' ? ' (aguardando ativação)' : ''}</SelectItem>)}</SelectContent></Select>{!businesses.length ? <p className="text-xs text-amber-300">Abra uma empresa no Portal do Empreendedor antes de anunciar.</p> : null}</div>
+          <div className="space-y-2">
+            <Label>Vender como</Label>
+            <Select value={formData.business_id || 'citizen'} onValueChange={(value) => handleSelectChange('business_id', value === 'citizen' ? '' : value)}>
+              <SelectTrigger><SelectValue placeholder="Pessoa Física" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="citizen">Pessoa Física — {user?.full_name || 'Meu cidadão'}</SelectItem>
+                {businesses.map((business) => <SelectItem key={business.id} value={business.id}>{business.name}{business.status === 'pending' ? ' (aguardando ativação)' : ''}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">{formData.business_id ? 'A venda será vinculada à empresa selecionada.' : 'Venda em seu nome e receba na sua conta, sem precisar de CNPJ.'}</p>
+          </div>
           <ImageUploader
             onUrlChange={(url) => setFormData(p => ({ ...p, image_url: url }))}
             onFileChange={setImageFile}

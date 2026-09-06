@@ -9,13 +9,7 @@ import { ThemeProvider } from '@/contexts/ThemeContext';
 import { Toaster } from '@/components/ui/toaster';
 import { Capacitor } from '@capacitor/core';
 import ConsentAwareAnalytics from '@/components/ConsentAwareAnalytics';
-// Módulo virtual fornecido pelo vite-plugin-pwa durante dev/build.
-// eslint-disable-next-line import/no-unresolved
-import { registerSW } from 'virtual:pwa-register';
-
-if (import.meta.env.PROD && !Capacitor.isNativePlatform()) {
-  registerSW({ immediate: true });
-}
+import PwaUpdateNotice from '@/components/PwaUpdateNotice';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
@@ -25,6 +19,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
             <Toaster />
             <App />
             <ConsentAwareAnalytics />
+            {import.meta.env.PROD && !Capacitor.isNativePlatform() && <PwaUpdateNotice />}
         </ThemeProvider>
       </BrowserRouter>
     </HelmetProvider>

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useDomainRealtime } from '@/hooks/use-domain-realtime';
 import { Helmet } from 'react-helmet-async';
 import { motion } from 'framer-motion';
 import { supabase } from '@/lib/supabaseClient';
@@ -29,8 +30,7 @@ const XNotifications = () => {
 
     const fetchAndReadNotifications = useCallback(async () => {
         if (!user) return;
-        setLoading(true);
-        
+
         const { data, error } = await supabase
             .from('notifications')
             .select('*, sender:sender_id(id, x_username, x_handle, x_avatar_url)')
@@ -38,7 +38,7 @@ const XNotifications = () => {
             .like('type', 'x_%')
             .order('created_at', { ascending: false })
             .limit(50);
-        
+
         if (error) {
             console.error("Error fetching notifications:", error);
             toast({ title: "Erro", description: "Não foi possível carregar as notificações.", variant: "destructive" });
@@ -49,23 +49,25 @@ const XNotifications = () => {
                 await supabase.from('notifications').update({ is_read: true }).in('id', unreadIds);
             }
         }
-        
+
         setLoading(false);
-    }, [user, toast]);
+    }, [user?.id, toast]);
 
     useEffect(() => {
         fetchAndReadNotifications();
     }, [fetchAndReadNotifications]);
-    
+
+    useDomainRealtime('x-notifications', user?.id, [{ table: 'notifications', filter: `user_id=eq.${user?.id}` }], fetchAndReadNotifications, Boolean(user?.id));
+
     const handleClearAll = async () => {
         if (!user || notifications.length === 0) return;
-        
+
         const { error } = await supabase
             .from('notifications')
             .delete()
             .eq('user_id', user.id)
             .like('type', 'x_%');
-        
+
         if (error) {
             toast({ title: "Erro", description: "Não foi possível limpar as notificações.", variant: "destructive" });
             console.error("Clear all error:", error);
