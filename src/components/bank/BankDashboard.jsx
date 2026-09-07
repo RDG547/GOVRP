@@ -10,13 +10,13 @@ import ExchangeTab from './ExchangeTab';
 import BankManagementPanel, { canManageNationalBank } from './BankManagementPanel';
 import { useAuth } from '@/contexts/AuthContext';
 
-const BankDashboard = ({ account, transactions, cards, investmentOptions, userInvestments, investmentOperations, portfolioSnapshots, loanApplications, onUpdate, onTransferClick, onPayClick, activeTab, setActiveTab }) => {
+const BankDashboard = ({ account, transactions, investmentOptions, userInvestments, investmentOperations, portfolioSnapshots, loanApplications, onUpdate, onTransferClick, onPayClick, activeTab, setActiveTab }) => {
   const { user } = useAuth();
   const showManagement = canManageNationalBank(user);
 
   return (
     <div className="space-y-6">
-      <BalanceCard account={account} onUpdate={onUpdate} onTransferClick={onTransferClick} onPayClick={onPayClick} />
+      <BalanceCard account={account} onUpdate={() => onUpdate(['account'])} onTransferClick={onTransferClick} onPayClick={onPayClick} />
       <Tabs value={activeTab} className="w-full" onValueChange={setActiveTab}>
         <TabsList className={`grid w-full grid-cols-2 sm:grid-cols-3 ${showManagement ? 'md:grid-cols-6' : 'md:grid-cols-5'} gap-1 sm:gap-2 h-auto`}>
           <TabsTrigger value="overview" className="text-xs sm:text-sm"><Landmark className="w-4 h-4 mr-1 sm:mr-2" />Extrato</TabsTrigger>
@@ -30,7 +30,7 @@ const BankDashboard = ({ account, transactions, cards, investmentOptions, userIn
           <TransactionsTab transactions={transactions} />
         </TabsContent>
         <TabsContent value="cards" className="mt-6">
-          <CardsTab account={account} onUpdate={onUpdate} />
+          <CardsTab account={account} onUpdate={() => onUpdate(['account', 'transactions'])} />
         </TabsContent>
         <TabsContent value="investments" className="mt-6">
           <InvestmentsTab 
@@ -38,14 +38,14 @@ const BankDashboard = ({ account, transactions, cards, investmentOptions, userIn
             userInvestments={userInvestments}
             investmentOperations={investmentOperations}
             portfolioSnapshots={portfolioSnapshots}
-            onUpdate={onUpdate}
+            onUpdate={() => onUpdate(['account', 'transactions', 'investments', 'investmentOperations', 'portfolioSnapshots'])}
           />
         </TabsContent>
         <TabsContent value="loans" className="mt-6">
-          <LoansTab loanApplications={loanApplications} onUpdate={onUpdate} />
+          <LoansTab loanApplications={loanApplications} onUpdate={() => onUpdate(['account', 'transactions', 'loans'])} />
         </TabsContent>
         <TabsContent value="exchange" className="mt-6">
-          <ExchangeTab onUpdate={onUpdate} account={account} />
+          <ExchangeTab onUpdate={() => onUpdate(['account', 'transactions'])} account={account} />
         </TabsContent>
         {showManagement ? (
           <TabsContent value="management" className="mt-6">

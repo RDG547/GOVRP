@@ -1,3 +1,4 @@
+import { documentCatalog as docInfo, documentHasTwoSides } from '@/lib/documentCatalog';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -22,19 +23,6 @@ const TARIFF_TO_DOC_MAP = {
     doc_CNH: 'CNH', doc_Passport: 'Passport', doc_CNPJ: 'CNPJ', doc_CTD: 'CTD',
     doc_Titulo_Eleitor: 'Título de Eleitor', doc_Certificado_Reservista: 'Certificado de Reservista',
     doc_Certidao_Casamento: 'Certidão de Casamento', doc_Registro_Profissional: 'Registro Profissional',
-};
-
-const docInfo = {
-    CPF: { name: 'Cadastro de Pessoa Física', icon: Fingerprint, color: 'text-purple-400' },
-    RG: { name: 'Registro Geral', icon: FileText, color: 'text-purple-400' },
-    CNH: { name: 'Carteira Nacional de Habilitação', icon: Car, color: 'text-blue-400' },
-    Passport: { name: 'Passaporte', icon: Globe, color: 'text-green-400' },
-    CNPJ: { name: 'Cadastro Nacional da Pessoa Jurídica', icon: Building, color: 'text-yellow-400' },
-    CTD: { name: 'Carteira de Trabalho Digital', icon: BriefcaseIcon, color: 'text-indigo-400' },
-    'Título de Eleitor': { name: 'Título de Eleitor', icon: Vote, color: 'text-teal-400' },
-    'Certificado de Reservista': { name: 'Certificado de Reservista', icon: ShieldCheck, color: 'text-orange-400' },
-    'Certidão de Casamento': { name: 'Certidão de Casamento', icon: Heart, color: 'text-pink-400' },
-    'Registro Profissional': { name: 'Registro Profissional', icon: Award, color: 'text-cyan-400' },
 };
 
 const captureDocument = (element) => captureElement(element?.querySelector('[data-official-document]') || element, { scale: 3, backgroundColor: '#ffffff' });
@@ -207,6 +195,15 @@ const DIC = () => {
         }
     };
 
+    const refreshDocuments = async () => {
+        const { data, error } = await supabase.from('documents').select('*, user:user_id(*)').eq('user_id', user.id).order('created_at');
+        if (error) {
+            toast({ title: 'Documento processado', description: 'Não foi possível atualizar a lista. Abra o histórico para tentar novamente.', variant: 'destructive' });
+            return;
+        }
+        setDocuments(data || []);
+    };
+
     const handleFormChange = (e) => setFormValues(prev => ({...prev, [e.target.id]: e.target.value}));
 
     const handleRequestDocument = async () => {
@@ -217,7 +214,7 @@ const DIC = () => {
         else if (!data.success) toast({ title: "Aviso", description: data.message, variant: "default" });
         else {
             toast({ title: "Sucesso!", description: data.message });
-            await fetchAllData();
+            await refreshDocuments();
         }
         setRequesting(''); setConfirmingDoc(null); setFormValues({});
     };
@@ -232,14 +229,14 @@ const DIC = () => {
             toast({ title: "Aviso", description: data.message, variant: "default" });
         } else {
             toast({ title: "Sucesso!", description: data.message });
-            await fetchAllData();
+            await refreshDocuments();
         }
         setRequesting('');
         setDeletingDoc(null);
     };
 
     const handleGenerateDoc = async (doc, format) => {
-        const hasTwoSides = !['Certidão de Casamento'].includes(doc.type);
+        const hasTwoSides = documentHasTwoSides(doc.type);
         const frontElement = docRefs.current[`${doc.id}-front`];
         const backElement = hasTwoSides ? docRefs.current[`${doc.id}-back`] : null;
 
@@ -287,7 +284,7 @@ const DIC = () => {
     };
 
     const handleGenerateAllDocs = async () => {
-        const validDocs = documents.filter(d => d.is_valid && docInfo[d.type]);
+        const validDocs = documents.filter(d => d.is_valid);
         if (validDocs.length === 0) {
             toast({ title: "Aviso", description: "Nenhum documento válido para gerar." });
             return;
@@ -301,6 +298,7 @@ const DIC = () => {
             let isFirstPage = true;
 
             for (const doc of validDocs) {
+                if (!docInfo[doc.type]) throw new Error(`O tipo de documento ${doc.type} ainda não possui um modelo de exportação.`);
                 const frontElement = docRefs.current[`${doc.id}-front`];
                 const backElement = docRefs.current[`${doc.id}-back`];
 
@@ -332,7 +330,7 @@ const DIC = () => {
     };
 
     const availableDocsToRequest = Object.keys(docInfo).filter(type => {
-        if (['CPF', 'RG'].includes(type)) return false;
+        if (['CPF', 'RG', 'Atestado de Antecedentes'].includes(type)) return false;
         if (type === 'CNPJ') return !getDoc(type, true); // can request if no valid cnpj exists
         return !getDoc(type, true);
     });
@@ -571,7 +569,7 @@ const DIC = () => {
                 {documents.map(doc => {
                     const docUser = doc.user || displayProfile;
                     if (!docUser) return null;
-                    const hasTwoSides = !['Certidão de Casamento'].includes(doc.type);
+                    const hasTwoSides = documentHasTwoSides(doc.type);
                     return (
                         <React.Fragment key={`offscreen-${doc.id}`}>
                             <div ref={el => docRefs.current[`${doc.id}-front`] = el}>

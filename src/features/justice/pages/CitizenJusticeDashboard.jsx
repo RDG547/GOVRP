@@ -1,10 +1,14 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useSectionLoader } from '@/hooks/use-section-loader';
+import { CITIZEN_JUSTICE_SECTIONS, citizenJusticeSectionsForEvents } from '@/lib/justice/citizenData';
+import React, { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import {
   AlertTriangle,
   BadgeCheck,
   Banknote,
   CalendarClock,
+  ChevronLeft,
+  ChevronRight,
   ClipboardList,
   FileSearch,
   FileText,
@@ -71,10 +75,7 @@ const lines = (value) => String(value || '').split('\n').map((item) => item.trim
 
 const money = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(value || 0));
 
-const CitizenJusticeDashboard = () => {
-  const { user } = useAuth();
-  const { toast } = useToast();
-  const [data, setData] = useState({
+const emptyJusticeData = {
     occurrences: [],
     cases: [],
     deadlines: [],
@@ -89,7 +90,13 @@ const CitizenJusticeDashboard = () => {
     wanted: [],
     policeMetrics: {},
     serverNow: null,
-  });
+    investigationSubjects: [], profiles: [], timeline: [], caseDocuments: [], caseHearings: [], caseAppeals: [], sentences: [],
+};
+
+const CitizenJusticeDashboard = () => {
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const [data, setData] = useState(emptyJusticeData);
   const [form, setForm] = useState(emptyForm);
   const [requestForm, setRequestForm] = useState(emptyRequestForm);
   const [fineAction, setFineAction] = useState({ fineId: '', type: '', reason: '' });
@@ -101,31 +108,52 @@ const CitizenJusticeDashboard = () => {
   const [caseAction, setCaseAction] = useState(null);
   const [caseActionText, setCaseActionText] = useState('');
 
-  const loadData = useCallback(async ({ quiet = false } = {}) => {
+  const [occurrencePage, setOccurrencePage] = useState(0);
+  const [occurrencesLoading, setOccurrencesLoading] = useState(false);
+  const occurrenceCursors = useRef([null]);
+  const occurrenceCursor = useRef(null);
+  const refreshSections = useSectionLoader(user?.id,
+    async sections => {
+      const cursor = occurrenceCursor.current;
+      return { ...await fetchCitizenJusticeData(sections, cursor), cursorKey: JSON.stringify(cursor) };
+    },
+    ({ values, errors, cursorKey }, sections) => {
+      const samePage = cursorKey === JSON.stringify(occurrenceCursor.current);
+      if (!samePage) { delete values.occurrences; delete values.nextOccurrenceCursor; }
+      setData(previous => ({ ...previous, ...values, errors: [...new Set([
+        ...(previous.errors || []).filter(section => !sections.includes(section)), ...errors,
+      ])] }));
+      if (values.serverNow) setServerOffset(new Date(values.serverNow).getTime() - Date.now());
+      if (samePage && sections.includes('occurrences')) setOccurrencesLoading(false);
+      setLoading(false);
+    },
+    () => { setLoading(false); setOccurrencesLoading(false); toast({ title: 'Não foi possível atualizar sua área de justiça', description: 'Tente novamente.', variant: 'destructive' }); },
+  );
+  const loadData = useCallback(({ quiet = false, sections = CITIZEN_JUSTICE_SECTIONS } = {}) => {
     if (!quiet) setLoading(true);
-    try {
-      const nextData = await fetchCitizenJusticeData();
-      setData(previous => ({ ...nextData, ...Object.fromEntries((nextData.errors || []).map(section => [section, previous[section]])) }));
-      if (nextData.serverNow) setServerOffset(new Date(nextData.serverNow).getTime() - Date.now());
-    } catch (error) {
-      toast({
-        title: 'Não foi possível carregar sua área de justiça',
-        description: error.message,
-        variant: 'destructive',
-      });
-    } finally {
-      if (!quiet) setLoading(false);
-    }
-  }, [toast]);
-
+    return refreshSections(sections);
+  }, [refreshSections]);
   useEffect(() => {
-    loadData();
+    setData(emptyJusticeData);
+    occurrenceCursor.current = null; occurrenceCursors.current = [null]; setOccurrencePage(0);
+    void loadData();
   }, [loadData]);
-
   useEffect(() => {
     if (!user?.id) return undefined;
-    return subscribeToJusticeChanges(user.id, () => loadData({ quiet: true }));
-  }, [loadData, user?.id]);
+    return subscribeToJusticeChanges(user.id, events => refreshSections(citizenJusticeSectionsForEvents(events)));
+  }, [refreshSections, user?.id]);
+
+  const changeOccurrencePage = page => {
+    if (occurrencesLoading || page < 0) return;
+    const cursor = page > occurrencePage ? data.nextOccurrenceCursor : occurrenceCursors.current[page];
+    if (page > occurrencePage && !cursor) return;
+    occurrenceCursors.current[page] = cursor || null;
+    occurrenceCursor.current = cursor || null;
+    setOccurrencePage(page);
+    setOccurrencesLoading(true);
+    setData(previous => ({ ...previous, occurrences: [], nextOccurrenceCursor: null }));
+    void refreshSections(['occurrences']);
+  };
 
   useEffect(() => {
     const interval = window.setInterval(() => setNow(Date.now() + serverOffset), 1000);
@@ -133,9 +161,7 @@ const CitizenJusticeDashboard = () => {
   }, [serverOffset]);
 
   const stats = useMemo(() => ({
-    activeOccurrences: data.occurrences.filter(
-      (item) => !['Arquivada', 'Duplicada'].includes(item.status)
-    ).length,
+    activeOccurrences: data.activeOccurrenceCount || 0,
     activeCases: data.cases.filter(
       (item) => !['acquitted', 'archived', 'served'].includes(item.status)
     ).length,
@@ -158,7 +184,8 @@ const CitizenJusticeDashboard = () => {
         title: 'Ocorrência registrada',
         description: `Protocolo ${occurrence.protocol_number}.`,
       });
-      await loadData({ quiet: true });
+      occurrenceCursor.current = null; occurrenceCursors.current = [null]; setOccurrencePage(0);
+      await loadData({ quiet: true, sections: ['occurrences', 'policeMetrics'] });
     } catch (error) {
       toast({
         title: 'Não foi possível registrar',
@@ -177,7 +204,7 @@ const CitizenJusticeDashboard = () => {
       const result = await createCitizenJusticeRequest({ ...requestForm, evidence: lines(requestForm.evidence) });
       setRequestForm(emptyRequestForm);
       toast({ title: 'Pedido protocolado', description: `Protocolo ${result.protocol_number}.` });
-      await loadData({ quiet: true });
+      await loadData({ quiet: true, sections: ['citizenRequests'] });
     } catch (error) {
       toast({ title: 'Não foi possível protocolar', description: error.message, variant: 'destructive' });
     } finally { setActionLoading(''); }
@@ -189,7 +216,7 @@ const CitizenJusticeDashboard = () => {
       const result = await payCitizenFine(fineId);
       if (!result?.success) throw new Error(result?.message || 'Pagamento recusado.');
       toast({ title: 'Pagamento confirmado', description: result.message });
-      await loadData({ quiet: true });
+      await loadData({ quiet: true, sections: ['fines'] });
     } catch (error) {
       toast({ title: 'Não foi possível pagar', description: error.message, variant: 'destructive' });
     } finally { setActionLoading(''); }
@@ -206,7 +233,7 @@ const CitizenJusticeDashboard = () => {
       if (result?.success === false) throw new Error(result.message);
       setFineAction({ fineId: '', type: '', reason: '' });
       toast({ title: type === 'appeal' ? 'Recurso protocolado' : 'Audiência solicitada' });
-      await loadData({ quiet: true });
+      await loadData({ quiet: true, sections: type === 'appeal' ? ['fineAppeals'] : ['fineHearings'] });
     } catch (error) {
       toast({ title: 'Solicitação não concluída', description: error.message, variant: 'destructive' });
     } finally { setActionLoading(''); }
@@ -242,7 +269,7 @@ const CitizenJusticeDashboard = () => {
       });
       setCaseAction(null);
       setCaseActionText('');
-      await loadData({ quiet: true });
+      await loadData({ quiet: true, sections: ['caseDocuments', 'caseAppeals', 'timeline', 'cases'] });
     } catch (error) {
       toast({ title: 'Não foi possível protocolar', description: error.message, variant: 'destructive' });
     } finally {
@@ -292,7 +319,7 @@ const CitizenJusticeDashboard = () => {
         />
       </div>
 
-      {data.errors?.length ? <div role="alert" className="rounded-lg border border-amber-500/40 p-3 text-sm">Algumas informações não puderam ser atualizadas. <Button variant="link" onClick={() => loadData({ quiet: true })}>Tentar novamente</Button></div> : null}
+      {data.errors?.length ? <div role="alert" className="rounded-lg border border-amber-500/40 p-3 text-sm">Algumas informações não puderam ser atualizadas. <Button variant="link" onClick={() => loadData({ quiet: true, sections: data.errors })}>Tentar novamente</Button></div> : null}
       <Tabs defaultValue="occurrences" className="space-y-6">
         <TabsList className="grid h-auto w-full grid-cols-2 gap-2 bg-muted/50 p-2 md:grid-cols-3 xl:grid-cols-6">
           <TabsTrigger value="occurrences"><FileSearch className="mr-2 h-4 w-4" />Ocorrências</TabsTrigger>
@@ -451,7 +478,7 @@ const CitizenJusticeDashboard = () => {
           </Card>
 
           <div className="grid gap-4">
-            {data.occurrences.length ? data.occurrences.map((occurrence) => (
+            {occurrencesLoading ? <div role="status" className="flex justify-center p-6"><Loader2 className="h-6 w-6 animate-spin" /><span className="sr-only">Carregando ocorrências</span></div> : data.occurrences.length ? data.occurrences.map((occurrence) => (
               <Card key={occurrence.id} className="glass-effect">
                 <CardHeader>
                   <div className="flex flex-wrap items-start justify-between gap-3">
@@ -486,6 +513,13 @@ const CitizenJusticeDashboard = () => {
               />
             )}
           </div>
+          <nav aria-label="Páginas de ocorrências" className="flex flex-wrap items-center justify-between gap-3">
+            <Button variant="outline" disabled={occurrencesLoading || occurrencePage === 0} onClick={() => changeOccurrencePage(occurrencePage - 1)}><ChevronLeft className="mr-2 h-4 w-4" />Anteriores</Button>
+            <span className="text-sm" aria-live="polite">Página {occurrencePage + 1}</span>
+            <Button variant="outline" disabled={occurrencesLoading || !data.nextOccurrenceCursor} onClick={() => changeOccurrencePage(occurrencePage + 1)}>Mais antigas<ChevronRight className="ml-2 h-4 w-4" /></Button>
+            {occurrencePage > 0 && <Button variant="link" disabled={occurrencesLoading} onClick={() => changeOccurrencePage(0)}>Ver mais recentes</Button>}
+          </nav>
+
         </TabsContent>
 
         <TabsContent value="cases" className="space-y-4">

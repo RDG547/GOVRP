@@ -30,7 +30,10 @@
     "android:aab": "npm run mobile:sync:android && cd android && ./gradlew bundleRelease",
     "test:experience-behavior": "node tools/test-experience-behavior.mjs",
     "test:experience-integration": "node tools/test-citizen-experience-integration.mjs",
-    "test:social-realtime": "node tools/test-social-realtime.mjs"
+    "test:social-realtime": "node tools/test-social-realtime.mjs",
+    "test:audit-fixes": "node tools/test-audited-experience.mjs",
+    "test:audit-realtime": "node tools/test-audited-realtime.mjs",
+    "test:document-rendering": "node tools/test-document-rendering.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.0",

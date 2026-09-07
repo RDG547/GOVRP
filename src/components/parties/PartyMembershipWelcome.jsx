@@ -87,6 +87,8 @@ export default function PartyMembershipWelcome() {
       <div className="relative space-y-4 py-2">
         <p className="text-sm leading-relaxed">Conheça seus colegas, participe das decisões e construa sua trajetória política. Suas ideias podem ajudar a definir o futuro do país.</p>
         <div className="rounded-lg bg-secondary p-3 text-sm">
+          <p><strong>Dono:</strong> {welcome?.party.owner?.full_name || 'Não informado'}</p>
+          <p><strong>Fundador:</strong> {welcome?.party.founder?.full_name || 'Não informado'}</p>
           <p><strong>Presidência:</strong> {welcome?.party.president?.full_name || 'Cargo vago'}</p>
           <p><strong>Vice-presidência:</strong> {welcome?.party.vice_president?.full_name || 'Cargo vago'}</p>
         </div>

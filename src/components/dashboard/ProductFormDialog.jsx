@@ -194,6 +194,11 @@ const ProductFormDialog = ({ isOpen, setIsOpen, product, onSuccess }) => {
         throw new Error('Informe um preço maior que zero.');
       }
 
+      if (showPromotion) {
+        const promotionError = validatePromotion(normalizedPrice, normalizedPromotionPrice, formData.promotion_expires_at);
+        if (promotionError) throw new Error(promotionError);
+      }
+
       if (formData.description.trim().length < 5) {
         throw new Error('Descreva o produto com pelo menos 5 caracteres.');
       }
@@ -252,7 +257,7 @@ const ProductFormDialog = ({ isOpen, setIsOpen, product, onSuccess }) => {
       toast({ title: `Produto ${product ? 'atualizado' : 'criado'} com sucesso!` });
       onSuccess();
     } catch (error) {
-      toast({ title: 'Erro ao salvar produto', description: error.message, variant: 'destructive' });
+      toast({ title: 'Erro ao salvar produto', description: userErrorMessage(error), variant: 'destructive' });
     } finally {
       if (!saved && uploadedPath) await supabase.storage.from('product-images').remove([uploadedPath]);
       setLoading(false);
@@ -372,3 +377,4 @@ const ProductFormDialog = ({ isOpen, setIsOpen, product, onSuccess }) => {
 };
 
 export default ProductFormDialog;
+import { userErrorMessage, validatePromotion } from '@/lib/userErrors';

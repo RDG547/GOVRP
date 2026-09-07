@@ -20,5 +20,6 @@ const messages = {
 };
 export function justiceErrorMessage(error) {
   const message = error?.message || 'Não foi possível concluir a ação. Tente novamente.';
-  return messages[message] || (/^[A-Z][A-Z_]+$/.test(message) ? 'A ação não está disponível neste estado. Atualize os dados e confira os campos.' : message);
+  return messages[message] || userErrorMessage(error);
 }
+import { userErrorMessage } from '../userErrors';

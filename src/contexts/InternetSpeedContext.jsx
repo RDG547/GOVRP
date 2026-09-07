@@ -100,7 +100,9 @@ export const InternetSpeedProvider = ({ children }) => {
   const location = useLocation();
   const navigate = useNavigate();
   // Default to Básico so new users get the delay before they buy a plan
-  const [userPlan, setUserPlan] = useState('Básico');
+  const [serviceState, setServiceState] = useState(null);
+  const currentService = serviceState?.userId === user?.id ? serviceState.value : null;
+  const userPlan = currentService?.plan_name || 'Básico';
   const [isLoading, setIsLoading] = useState(false);
   const [currentDelay, setCurrentDelay] = useState(0);
   const previousPath = useRef(location.pathname);
@@ -110,12 +112,14 @@ export const InternetSpeedProvider = ({ children }) => {
 
   const fetchPlan = useCallback(async () => {
     const sequence = ++planRequest.current;
-    if (!user?.id) { setUserPlan('Básico'); return; }
-    const { data, error } = await supabase.from('user_services').select('plan_name')
+    if (!user?.id) { setServiceState(null); return null; }
+    const { data, error } = await supabase.from('user_services').select('*')
       .eq('user_id', user.id).eq('service_type', 'Internet').limit(1).maybeSingle();
-    if (!error && sequence === planRequest.current) setUserPlan(data?.plan_name || 'Básico');
+    if (error) throw error;
+    if (sequence === planRequest.current) setServiceState({ userId: user.id, value: data });
+    return data;
   }, [user?.id]);
-  useEffect(() => { void fetchPlan(); }, [fetchPlan]);
+  useEffect(() => { void fetchPlan().catch(error => console.warn('Plano de internet indisponível:', error)); return () => { planRequest.current++; }; }, [fetchPlan]);
   useDomainRealtime('internet', user?.id, [
     { table: 'user_services', filter: `user_id=eq.${user?.id}` },
   ], fetchPlan, Boolean(user?.id));
@@ -146,7 +150,7 @@ export const InternetSpeedProvider = ({ children }) => {
   };
 
   return (
-    <InternetSpeedContext.Provider value={{ userPlan, isLoading, refreshPlan: fetchPlan }}>
+    <InternetSpeedContext.Provider value={{ userPlan, currentService, isLoading, refreshPlan: fetchPlan }}>
       {children}
       <AnimatePresence>
         {isLoading && (

@@ -1,4 +1,4 @@
-import { invalidateDomain } from '@/lib/realtime';
+import { useInternetSpeed } from '@/contexts/InternetSpeedContext';
 import { getInternetDelay } from '@/lib/internetPlans';
 import React, { useState, useEffect, useCallback } from 'react';
 import { Helmet } from 'react-helmet-async';
@@ -17,7 +17,7 @@ import { Progress } from '@/components/ui/progress';
 const Internet = () => {
     const { toast } = useToast();
     const { user } = useAuth();
-    const [currentService, setCurrentService] = useState(null);
+    const { currentService, refreshPlan } = useInternetSpeed();
     const [loading, setLoading] = useState(true);
     const [changingPlan, setChangingPlan] = useState(false);
     const [plans, setPlans] = useState([]);
@@ -27,14 +27,7 @@ const Internet = () => {
         if (!user) return;
         setLoading(true);
         try {
-            const { data: serviceData, error: serviceError } = await supabase
-                .from('user_services')
-                .select('*')
-                .eq('user_id', user.id)
-                .eq('service_type', serviceType)
-                .limit(1).maybeSingle();
-
-            if (serviceError && serviceError.code !== 'PGRST116') throw serviceError;
+            const serviceData = await refreshPlan();
 
             let prices = {};
             try {
@@ -53,36 +46,22 @@ const Internet = () => {
             ];
             setPlans(defaultPlans);
 
-            if(serviceData){
-                const matchingPlan = defaultPlans.find(p => p.name === serviceData.plan_name);
-                if (matchingPlan && matchingPlan.price !== undefined && serviceData.price !== matchingPlan.price) {
-                    await supabase
-                        .from('user_services')
-                        .update({ price: matchingPlan.price })
-                        .eq('id', serviceData.id);
-                    serviceData.price = matchingPlan.price;
-                }
-                setCurrentService(serviceData);
-            } else {
-                const basicPlan = defaultPlans.find(p => p.name === 'Básico');
-                if (basicPlan) {
-                    const { data: newService, error: insertError } = await supabase.from('user_services').insert({
-                        user_id: user.id,
-                        service_type: serviceType,
-                        plan_name: basicPlan.name,
-                        price: basicPlan.price,
-                    }).select().maybeSingle();
-
-                    if(insertError && insertError.code !== 'PGRST116') throw insertError;
-                    setCurrentService(newService);
-                }
+            if (!serviceData) {
+                const basicPlan = defaultPlans[0];
+                const { error: insertError } = await supabase.from('user_services').upsert({
+                    user_id: user.id, service_type: serviceType,
+                    plan_name: basicPlan.name, price: basicPlan.price,
+                }, { onConflict: 'user_id,service_type', ignoreDuplicates: true });
+                if (insertError) throw insertError;
+                await refreshPlan();
             }
+
         } catch (error) {
             toast({ title: 'Erro ao buscar dados', variant: 'destructive', description: error.message });
         } finally {
             setLoading(false);
         }
-    }, [user?.id, toast]);
+    }, [user?.id, toast, refreshPlan]);
 
     useEffect(() => {
         fetchServiceAndPlans();
@@ -91,21 +70,26 @@ const Internet = () => {
     const handlePlanChange = async (plan) => {
         if (!currentService) return;
         setChangingPlan(plan.id);
-        const { data, error } = await supabase
-            .from('user_services')
-            .update({ plan_name: plan.name, price: plan.price })
-            .eq('id', currentService.id)
-            .select()
-            .maybeSingle();
+        try {
+            const { data, error } = await supabase
+                .from('user_services')
+                .update({ plan_name: plan.name, price: plan.price })
+                .eq('id', currentService.id)
+                .select()
+                .maybeSingle();
 
-        if (error || !data) {
-            toast({ title: 'Erro na atualização de rede', description: error?.message || 'O plano não foi atualizado. Tente novamente.', variant: 'destructive' });
-        } else {
-            toast({ title: 'Uplink Concluído!', description: `Módulo de rede atualizado para ${plan.name}.` });
-            setCurrentService({ ...currentService, plan_name: plan.name, price: plan.price });
-            invalidateDomain('internet', user.id);
+            if (error || !data) {
+                toast({ title: 'Erro na atualização de rede', description: error?.message || 'O plano não foi atualizado. Tente novamente.', variant: 'destructive' });
+            } else {
+                toast({ title: 'Uplink Concluído!', description: `Módulo de rede atualizado para ${plan.name}.` });
+                await refreshPlan();
+            }
+        } catch (error) {
+            toast({ title: 'Não foi possível atualizar o plano', description: error.message, variant: 'destructive' });
+        } finally {
+            setChangingPlan(false);
         }
-        setChangingPlan(false);
+
     };
 
     return (

@@ -1,6 +1,8 @@
 import { useDomainRealtime } from '@/hooks/use-domain-realtime';
 import { bankRealtimeTables } from '@/lib/bankRealtime';
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { BANK_SECTIONS, bankSectionsForEvents, fetchBankSections } from '@/lib/bankData';
+import { useSectionLoader } from '@/hooks/use-section-loader';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabaseClient';
@@ -16,7 +18,6 @@ import PageHeader from '@/components/layout/PageHeader';
 const Bank = () => {
     const { user } = useAuth();
     const { toast } = useToast();
-    const request = useRef(0);
     const [bankData, setBankData] = useState(null);
     const [loading, setLoading] = useState(true);
     const [loadError, setLoadError] = useState('');
@@ -24,125 +25,28 @@ const Bank = () => {
     const [isPayBillDialogOpen, setIsPayBillDialogOpen] = useState(false);
     const [activeTab, setActiveTab] = useState("overview");
 
-    const fetchBankData = useCallback(async (preserveTab = true) => {
-        if (!user) return;
-        if (!preserveTab) {
-            setLoading(true);
-        }
-
-        const targetUserId = user.id;
-        const sequence = ++request.current;
-
-        try {
-            const { data: accountData, error: accountError } = await supabase
-                .from('accounts')
-                .select('*')
-                .eq('user_id', targetUserId)
-                .limit(1)
-                .maybeSingle();
-            let account = accountData;
-
-            if (accountError && accountError.code !== 'PGRST116') {
-                const { data: fallbackAccountData, error: fallbackAccountError } = await supabase.rpc('get_my_bank_account');
-                const fallbackAccount = Array.isArray(fallbackAccountData)
-                  ? fallbackAccountData[0]
-                  : fallbackAccountData;
-
-                if (fallbackAccountError || !fallbackAccount) {
-                  throw accountError;
-                }
-
-                account = fallbackAccount;
-            }
-
-            if (!account) {
-                const { data: fallbackAccountData } = await supabase.rpc('get_my_bank_account');
-                const fallbackAccount = Array.isArray(fallbackAccountData)
-                  ? fallbackAccountData[0]
-                  : fallbackAccountData;
-
-                if (fallbackAccount) {
-                  account = fallbackAccount;
-                }
-            }
-
-            if (sequence !== request.current) return;
-            setLoadError('');
-            if (!account) {
-                setBankData(null);
-                setLoading(false);
-                return;
-            }
-
-            const [
-              transactionsResponse,
-              cardsResponse,
-              investmentsResponse,
-              loansResponse,
-              investmentOptionsResponse,
-              investmentOperationsResponse,
-              portfolioSnapshotsResponse,
-            ] = await Promise.all([
-              supabase.rpc('get_user_transactions', { p_user_id: targetUserId }),
-              supabase.from('cards').select('*').eq('user_id', targetUserId),
-              supabase.from('user_investments').select('*, investment_option:investment_options(*)').eq('user_id', targetUserId).eq('is_active', true),
-              supabase.from('loan_applications').select('*').eq('user_id', targetUserId).order('created_at', { ascending: false }),
-              supabase.from('investment_options').select('*').order('annual_return_rate', { ascending: true }),
-              supabase.from('investment_operations').select('*, investment_option:investment_options(name, asset_symbol)').eq('user_id', targetUserId).order('executed_at', { ascending: false }).limit(100),
-              supabase.from('investment_portfolio_snapshots').select('*').eq('user_id', targetUserId).order('captured_at', { ascending: true }).limit(120),
-            ]);
-
-            const queryError =
-              transactionsResponse.error ||
-              cardsResponse.error ||
-              investmentsResponse.error ||
-              loansResponse.error ||
-              investmentOptionsResponse.error ||
-              investmentOperationsResponse.error ||
-              portfolioSnapshotsResponse.error;
-
-            if (queryError) {
-              console.error("Error fetching complementary bank data:", queryError);
-              toast({
-                title: "Dados bancários parcialmente carregados",
-                description: "Sua conta foi encontrada, mas alguns dados complementares não puderam ser carregados.",
-                variant: "destructive",
-              });
-            }
-
-            if (sequence !== request.current) return;
-            setBankData(previous => ({
-                account,
-                ...Object.fromEntries(Object.entries({
-                    transactions: transactionsResponse, cards: cardsResponse,
-                    investments: investmentsResponse, loans: loansResponse,
-                    investmentOptions: investmentOptionsResponse,
-                    investmentOperations: investmentOperationsResponse,
-                    portfolioSnapshots: portfolioSnapshotsResponse,
-                }).map(([key, response]) => [key, response.error ? (previous?.[key] || []) : key === 'investmentOptions' ? (response.data || []).filter(option => option.is_active !== false) : response.data || []])),
-            }));
-
-        } catch (error) {
-            if (sequence !== request.current) return;
-            setLoadError('Não foi possível buscar os dados da sua conta bancária.');
-            console.error("Error fetching bank data:", error);
-            toast({
-                title: "Erro ao carregar dados",
-                description: "Não foi possível buscar os dados da sua conta bancária.",
-                variant: "destructive",
-            });
-        } finally {
-            if (sequence === request.current) setLoading(false);
-        }
-    }, [user?.id, toast]);
-
+    const refreshSections = useSectionLoader(user?.id,
+        sections => fetchBankSections(supabase, user.id, sections),
+        ({ values, errors }, sections) => {
+            setBankData(previous => ({ ...Object.fromEntries(BANK_SECTIONS.map(key => [key, key === 'account' ? null : []])), ...previous, ...values }));
+            if (sections.includes('account')) setLoadError(errors.includes('account') ? 'Não foi possível buscar os dados da sua conta bancária.' : '');
+            if (errors.length) toast({ title: 'Dados bancários parcialmente carregados', description: 'Não foi possível atualizar algumas informações. Tente novamente.', variant: 'destructive' });
+            setLoading(false);
+        },
+        () => { setLoadError('Não foi possível buscar os dados da sua conta bancária.'); setLoading(false); },
+    );
+    const fetchBankData = useCallback((preserveTab = true, sections = BANK_SECTIONS) => {
+        if (!preserveTab) setLoading(true);
+        return refreshSections(sections);
+    }, [refreshSections]);
     useEffect(() => {
-        if (user) {
-            fetchBankData();
-        }
+        setBankData(null);
+        setLoading(true);
+        if (user?.id) void fetchBankData();
+        else setLoading(false);
     }, [fetchBankData, user?.id]);
-
-    useDomainRealtime('bank', user?.id, bankRealtimeTables(user?.id), () => fetchBankData(true), Boolean(user?.id));
+    useDomainRealtime('bank', user?.id, bankRealtimeTables(user?.id),
+        events => refreshSections(bankSectionsForEvents(events)), Boolean(user?.id));
 
     if (loading && !bankData) {
         return (
@@ -182,13 +86,12 @@ const Bank = () => {
                  <BankDashboard
                     account={bankData.account}
                     transactions={bankData.transactions}
-                    cards={bankData.cards}
                     investmentOptions={bankData.investmentOptions}
                     userInvestments={bankData.investments}
                     investmentOperations={bankData.investmentOperations}
                     portfolioSnapshots={bankData.portfolioSnapshots}
                     loanApplications={bankData.loans}
-                    onUpdate={() => fetchBankData(true)}
+                    onUpdate={sections => refreshSections(sections || BANK_SECTIONS)}
                     onTransferClick={() => setIsTransferDialogOpen(true)}
                     onPayClick={() => setIsPayBillDialogOpen(true)}
                     activeTab={activeTab}
@@ -196,8 +99,8 @@ const Bank = () => {
                 />
               </main>
             </div>
-            <TransferDialog isOpen={isTransferDialogOpen} setIsOpen={setIsTransferDialogOpen} onTransferSuccess={() => fetchBankData(true)} />
-            <PayBillDialog isOpen={isPayBillDialogOpen} setIsOpen={setIsPayBillDialogOpen} onPaymentSuccess={() => fetchBankData(true)} />
+            <TransferDialog isOpen={isTransferDialogOpen} setIsOpen={setIsTransferDialogOpen} onTransferSuccess={() => refreshSections(['account', 'transactions'])} />
+            <PayBillDialog isOpen={isPayBillDialogOpen} setIsOpen={setIsPayBillDialogOpen} onPaymentSuccess={() => refreshSections(['account', 'transactions'])} />
         </>
     );
 };

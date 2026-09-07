@@ -1,5 +1,7 @@
 import { useDomainRealtime } from '@/hooks/use-domain-realtime';
 import { bankRealtimeTables } from '@/lib/bankRealtime';
+import { CARD_SECTIONS, bankSectionsForEvents, fetchBankSections } from '@/lib/bankData';
+import { useSectionLoader } from '@/hooks/use-section-loader';
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { useAuth } from '@/contexts/AuthContext';
@@ -213,66 +215,38 @@ const CardsTab = ({ onUpdate }) => {
     const [invoiceBrand, setInvoiceBrand] = useState('');
     const [invoicePage, setInvoicePage] = useState(1);
 
-    // Funções de busca de dados, solicitação e cancelamento (inalteradas)
-    const fetchData = useCallback(async () => {
-        if (!user) return;
-        const { data: cardsData, error: cardsError } = await supabase
-            .from('cards')
-            .select('*')
-            .eq('user_id', user.id)
-            .order('created_at', { ascending: true });
-
-        if (cardsError) {
-            toast({ title: 'Erro ao buscar cartões', description: cardsError.message, variant: 'destructive' });
-        } else {
-            setCards(cardsData || []);
-            if (cardsData && cardsData.length > 0) {
-              const cardIds = cardsData.map(c => c.id);
-              const { data: invoicesData, error: invoicesError } = await supabase
-                .from('card_invoices')
-                .select('*')
-                .in('card_id', cardIds)
-                .order('due_date', { ascending: false });
-
-              if (invoicesError) {
-                toast({ title: 'Erro ao buscar faturas', description: invoicesError.message, variant: 'destructive' });
-              } else {
-                setInvoices(invoicesData || []);
-              }
-            } else {
-              setInvoices([]);
-            }
-        }
-
-        const { data: applicationsData, error: applicationsError } = await supabase
-            .from('credit_card_applications')
-            .select('*')
-            .eq('user_id', user.id)
-            .order('created_at', { ascending: false });
-
-        if (applicationsError) {
-            toast({ title: 'Erro ao buscar solicitações de cartão', description: applicationsError.message, variant: 'destructive' });
-        } else {
-            setCardApplications(applicationsData || []);
-        }
-        setLoading(false);
-    }, [user?.id, toast]);
-
+    const [itemRevisions, setItemRevisions] = useState({});
+    const refreshSections = useSectionLoader(user?.id,
+        sections => fetchBankSections(supabase, user.id, sections),
+        ({ values, errors }) => {
+            if ('cards' in values) setCards(values.cards || []);
+            if ('invoices' in values) setInvoices(values.invoices || []);
+            if ('cardApplications' in values) setCardApplications(values.cardApplications || []);
+            if (errors.length) toast({ title: 'Não foi possível atualizar os cartões', description: 'Tente novamente para consultar os dados mais recentes.', variant: 'destructive' });
+            setLoading(false);
+        }, () => setLoading(false),
+    );
+    const fetchData = useCallback(() => refreshSections(CARD_SECTIONS), [refreshSections]);
     useEffect(() => {
-        // Close any due invoices when the user loads the tab
-        const closeInvoices = async () => {
-            try {
-                await supabase.rpc('close_due_invoices');
-            } catch (e) {
-                // silently fail - function may not exist yet
-            }
+        setCards([]); setInvoices([]); setCardApplications([]); setItemRevisions({}); setLoading(true);
+        const load = async () => {
+            await supabase.rpc('close_due_invoices');
+            await fetchData();
         };
-        closeInvoices();
-        fetchData();
+        void load().catch(() => setLoading(false));
     }, [fetchData]);
-
-    useDomainRealtime('bank', user?.id, bankRealtimeTables(user?.id), (events) => {
-        if (events.some(event => event.eventType === 'SYNC' || ['cards', 'credit_card_applications', 'card_invoices', 'card_invoice_items'].includes(event.table))) void fetchData();
+    useDomainRealtime('bank', user?.id, bankRealtimeTables(user?.id), events => {
+        void refreshSections(bankSectionsForEvents(events, CARD_SECTIONS));
+        const changed = events.filter(event => event.table === 'card_invoice_items');
+        if (changed.length || events.some(event => event.eventType === 'SYNC')) setItemRevisions(previous => {
+            const next = { ...previous };
+            for (const event of changed) {
+                const invoiceId = event.new?.invoice_id || event.old?.invoice_id;
+                if (invoiceId) next[invoiceId] = (next[invoiceId] || 0) + 1;
+            }
+            if (events.some(event => event.eventType === 'SYNC' || (event.eventType === 'DELETE' && !event.old?.invoice_id))) next.all = (next.all || 0) + 1;
+            return next;
+        });
     }, Boolean(user?.id));
 
     useEffect(() => {
@@ -310,8 +284,7 @@ const CardsTab = ({ onUpdate }) => {
                 });
             if (error) throw error;
             toast({ title: 'Solicitação enviada', description: 'O Banco Nacional analisará seu pedido de cartão.' });
-            fetchData();
-            if (onUpdate) onUpdate(true);
+            await refreshSections(['cardApplications']);
         } catch (error) {
             toast({ title: 'Erro ao solicitar cartão', description: error.message, variant: 'destructive' });
         } finally {
@@ -328,8 +301,8 @@ const CardsTab = ({ onUpdate }) => {
                 return;
             };
             toast({ title: 'Sucesso', description: data.message });
-            fetchData();
-            if (onUpdate) onUpdate(true);
+            await refreshSections(['cards', 'invoices']);
+            if (onUpdate) onUpdate();
         } catch (error) {
             toast({ title: 'Erro ao cancelar cartão', description: error.message, variant: 'destructive' });
         }
@@ -558,7 +531,7 @@ const CardsTab = ({ onUpdate }) => {
                                                             transition={{ duration: 0.3 }}
                                                             className="overflow-hidden"
                                                         >
-                                                            <InvoiceItems revision={`${invoice.amount}:${invoice.status}:${invoice.updated_at}`} invoiceId={invoice.id} />
+                                                            <InvoiceItems revision={`${invoice.amount}:${invoice.status}:${invoice.updated_at}:${itemRevisions[invoice.id] || 0}:${itemRevisions.all || 0}`} invoiceId={invoice.id} />
                                                         </motion.div>
                                                     </AnimatePresence>
                                                 </TableCell>

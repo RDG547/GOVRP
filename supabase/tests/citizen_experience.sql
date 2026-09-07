@@ -161,4 +161,68 @@ insert into public.news_articles(id,author_id,title,content,created_at) values
 ('66000000-0000-0000-0000-000000000002','11000000-0000-0000-0000-000000000001','Edição seguinte','Matéria real de outro dia.','2026-08-02T00:01:00-03:00');
 select pg_temp.assert_true(public.get_daily_news('2026-08-01',0)->>'total'='1' and public.get_daily_news('2026-08-01',0)->>'next_date'='2026-08-02','jornal agrupa edições pelo dia de publicação no Brasil');
 select pg_temp.assert_true(public.get_daily_news('2026-08-02',0)->'items'->0->>'title'='Edição seguinte','arquivo entrega publicações reais sem inventar conteúdo');
+-- Regression cases from the nine-item experience audit.
+select set_config('request.jwt.claim.sub','11000000-0000-0000-0000-000000000002',true);
+set local role authenticated;
+insert into results values('normal-occurrence',to_jsonb(public.create_police_occurrence('Relato identificado','Descrição completa do relato identificado para testar sigilo.','Denúncia','Local de teste',now(),false,'normal')));
+reset role;
+select set_config('request.jwt.claim.sub','11000000-0000-0000-0000-000000000001',true);
+set local role authenticated;
+select public.triage_police_occurrence((select (payload->>'id')::uuid from results where name='normal-occurrence'),'accept','SEGREDO-INTERNO-REGRESSAO');
+reset role;
+select set_config('request.jwt.claim.sub','11000000-0000-0000-0000-000000000002',true);
+set local role authenticated;
+select pg_temp.assert_true((select count(*)=0 from public.police_occurrences),'cidadão não lê diretamente notas internas nem da própria ocorrência normal');
+select pg_temp.assert_true(not exists(select 1 from public.justice_audit_log a where entity_id=(select (payload->>'id')::uuid from results where name='normal-occurrence') and to_jsonb(a)::text like '%SEGREDO-INTERNO%'),'cidadão não obtém triagem pelo log interno');
+insert into results values('safe-page',public.get_my_police_occurrences_page());
+select pg_temp.assert_true((select jsonb_array_length(payload->'items')=2 from results where name='safe-page'),'RPC paginada mantém relatos próprios normais e anônimos');
+select pg_temp.assert_true((select payload::text not like '%SEGREDO-INTERNO%' and payload::text not like '%triage_notes%' and payload::text not like '%assigned_officer_id%' from results where name='safe-page'),'projeção de todas as ocorrências exclui conteúdo interno');
+select pg_temp.assert_true(exists(select 1 from public.notifications where user_id=auth.uid() and type='justice_occurrence_status_changed' and metadata->>'occurrence_id'=(select payload->>'id' from results where name='normal-occurrence')),'andamento permanece disponível por notificação segura');
+insert into results values('clearance',to_jsonb(public.issue_criminal_clearance_certificate()));
+select pg_temp.assert_true((select payload->>'type'='Atestado de Antecedentes' and payload->'metadata'->>'result'='nothing_found' and (payload->>'is_valid')::boolean from results where name='clearance'),'atestado válido possui tipo e resultado usados pelo modelo do DIC');
+do $$ begin
+ perform public.save_business_product(null,null,'Produto PF','Produto com promoção inválida.',100,'https://example.invalid/product.png','one-time',null,'Outros',2,150,null);
+ raise exception 'PROMOÇÃO INVÁLIDA FOI ACEITA';
+exception when others then if sqlerrm<>'INVALID_PROMOTION' then raise; end if;
+ raise notice 'PASS: backend mantém recusa de promoção acima do preço normal'; end $$;
+do $$ begin
+ for i in 1..103 loop
+  perform public.create_police_occurrence('Ocorrência de volume '||i,'Descrição completa dos fatos para teste de paginação.','Denúncia','Local de teste',now(),false,'normal');
+ end loop;
+end $$;
+create temporary table paged_occurrences(id uuid primary key);
+do $$ declare page jsonb; cursor_created timestamptz; cursor_id uuid; pages integer:=0; begin
+ loop
+  page:=public.get_my_police_occurrences_page(17,cursor_created,cursor_id);
+  insert into paged_occurrences select (item->>'id')::uuid from jsonb_array_elements(page->'items') item;
+  pages:=pages+1;
+  exit when page->'next_cursor'='null'::jsonb;
+  cursor_created:=(page->'next_cursor'->>'created_at')::timestamptz;
+  cursor_id:=(page->'next_cursor'->>'id')::uuid;
+  if pages>20 then raise exception 'PAGINAÇÃO NÃO TERMINOU'; end if;
+ end loop;
+ perform pg_temp.assert_true((select count(*)=105 from paged_occurrences),'paginação percorre 105 ocorrências sem omissão ou duplicação');
+ perform pg_temp.assert_true(pages=7,'cursor ordenado por data e ID percorre sete páginas');
+ perform pg_temp.assert_true((page->>'active_count')::integer=105,'contador de ocorrências considera todas as páginas');
+end $$;
+select pg_temp.assert_true(jsonb_array_length(public.get_my_police_occurrences_page(10000)->'items')=100,'limite de leitura por página é respeitado');
+do $$ begin
+ perform public.get_my_police_occurrences_page(20,now(),null);
+ raise exception 'CURSOR INCOMPLETO FOI ACEITO';
+exception when others then if sqlerrm<>'INVALID_PAGE_CURSOR' then raise; end if;
+ raise notice 'PASS: cursor incompleto é rejeitado'; end $$;
+reset role;
+select set_config('request.jwt.claim.sub','11000000-0000-0000-0000-000000000001',true);
+set local role authenticated;
+select pg_temp.assert_true(exists(select 1 from public.police_occurrences where triage_notes='SEGREDO-INTERNO-REGRESSAO'),'delegado autorizado mantém acesso à triagem interna');
+select pg_temp.assert_true(jsonb_array_length(public.get_my_police_occurrences_page()->'items')=0,'mesmo autoridade recebe somente sua autoria pela RPC do cidadão');
+reset role;
+select set_config('request.jwt.claim.role','service_role',true);
+update public.profiles set role='Cidadão',manual_role_override=true where id='11000000-0000-0000-0000-000000000003';
+select set_config('request.jwt.claim.sub','11000000-0000-0000-0000-000000000003',true);
+select set_config('request.jwt.claim.role','authenticated',true);
+set local role authenticated;
+select pg_temp.assert_true(jsonb_array_length(public.get_my_police_occurrences_page()->'items')=0,'terceiro não recebe relatos de outro autor pela paginação');
+select pg_temp.assert_true((select count(*)=0 from public.police_occurrences),'terceiro também não lê a tabela de ocorrências');
+select pg_temp.assert_true(not has_function_privilege('anon','public.get_my_police_occurrences_page(integer,timestamptz,uuid)','execute'),'RPC paginada não está liberada para sessões anônimas');
 rollback;

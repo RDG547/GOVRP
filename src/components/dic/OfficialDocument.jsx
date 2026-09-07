@@ -1,3 +1,4 @@
+import { documentCatalog as docInfo, documentHasTwoSides, documentIsFullPage } from '@/lib/documentCatalog';
 import { fingerprintPaths } from '@/lib/citizenFingerprint';
 import React, { useState, useMemo } from 'react';
 import QRCode from 'qrcode.react';
@@ -8,19 +9,6 @@ import { Button } from '@/components/ui/button';
 // O selo oficial precisa funcionar offline no PWA e nas versões nativas.
 // Ele reutiliza a mesma identidade visual do favicon/ícone do aplicativo.
 const SEAL_IMAGE = '/icon-512x512.png';
-
-const docInfo = {
-    CPF: { name: 'Cadastro de Pessoa Física', icon: Fingerprint, color: 'text-purple-400' },
-    RG: { name: 'Registro Geral', icon: FileText, color: 'text-purple-400' },
-    CNH: { name: 'Carteira Nacional de Habilitação', icon: Car, color: 'text-blue-400' },
-    Passport: { name: 'Passaporte', icon: Globe, color: 'text-green-400' },
-    CNPJ: { name: 'Cadastro Nacional da Pessoa Jurídica', icon: Building, color: 'text-yellow-400' },
-    CTD: { name: 'Carteira de Trabalho Digital', icon: Briefcase, color: 'text-indigo-400' },
-    'Título de Eleitor': { name: 'Título de Eleitor', icon: Vote, color: 'text-teal-400' },
-    'Certificado de Reservista': { name: 'Certificado de Reservista', icon: ShieldCheck, color: 'text-orange-400' },
-    'Certidão de Casamento': { name: 'Certidão de Casamento', icon: Heart, color: 'text-pink-400' },
-    'Registro Profissional': { name: 'Registro Profissional', icon: Award, color: 'text-cyan-400' },
-};
 
 const formatValue = (type, value) => {
     if (type === 'CPF') return formatCPF(value);
@@ -491,6 +479,36 @@ const MarriageCertificateDocument = ({ user, doc }) => {
     );
 };
 
+const ClearanceCertificateDocument = ({ user, doc }) => (
+    <div data-official-document className="mx-auto max-w-2xl space-y-6 rounded-lg border-4 border-emerald-700 bg-white p-6 font-serif text-black sm:p-10">
+        <header className="space-y-2 text-center">
+            <img src={SEAL_IMAGE} alt="Selo GOV.RP" className="mx-auto h-16 w-16 object-contain" />
+            <p className="text-sm font-bold">REPÚBLICA FEDERATIVA DE GOV.RP</p>
+            <p className="text-xs">CENTRAL DE SERVIÇOS JUDICIAIS</p>
+            <h1 className="text-lg font-bold">ATESTADO DE ANTECEDENTES</h1>
+        </header>
+        <main className="space-y-4 text-sm leading-relaxed">
+            <DocumentField label="CIDADÃO" value={doc.full_name || user.full_name} />
+            <DocumentField label="CPF" value={formatCPF(user.cpf)} />
+            <DocumentField label="PROTOCOLO" value={doc.document_number} />
+            <p className="rounded border border-emerald-200 p-4 font-semibold">
+                {doc.metadata?.result === 'nothing_found'
+                    ? 'Não constam antecedentes criminais ativos na data de emissão deste atestado.'
+                    : doc.metadata?.result === 'positive'
+                        ? 'Constam registros criminais ativos na data de emissão deste atestado.'
+                        : 'Resultado não informado. Consulte a Central de Serviços Judiciais.'}
+            </p>
+            <p>Este documento retrata os registros do cidadão no GOV.RP na data de sua emissão.</p>
+            <DocumentField label="EMISSÃO" value={formatDocumentDate(doc.issued_at)} />
+            <DocumentField label="VALIDADE" value={formatDocumentDate(doc.expires_at)} />
+        </main>
+        <footer className="flex flex-wrap items-center justify-between gap-4 border-t pt-4 text-xs">
+            <p>Documento emitido eletronicamente pelo GOV.RP.</p>
+            <QRCode value={doc.qr_code_data || `GOVRP:AAC:${doc.document_number}`} size={80} />
+        </footer>
+    </div>
+);
+
 const ProfessionalRegistryDocument = ({ user, doc, side }) => (
     <DocumentContainer className="bg-gradient-to-br from-cyan-50 to-indigo-50 text-black font-sans">
         {side === 'front' ? (
@@ -566,19 +584,21 @@ export const OfficialDocument = ({ user, doc, onBack, side: initialSide = 'front
       'Certidão de Casamento': MarriageCertificateDocument,
       'Registro Profissional': ProfessionalRegistryDocument,
       'Certificado de Reservista': ReservistCertificateDocument,
+      'Atestado de Antecedentes': ClearanceCertificateDocument,
   }[doc.type];
 
-  const hasTwoSides = !['Certidão de Casamento'].includes(doc.type);
+  const hasTwoSides = documentHasTwoSides(doc.type);
 
   if (!DocumentComponent) return null;
 
-  const isFullPageDoc = ['Certidão de Casamento'].includes(doc.type);
+  const isFullPageDoc = documentIsFullPage(doc.type);
   const actionButtonClassName =
     doc.type === 'Passport' && side === 'back'
       ? 'text-slate-700 bg-white/90 border border-slate-200 hover:bg-white h-8 w-8'
       : 'text-white bg-black/50 hover:bg-black/70 h-8 w-8';
 
   if (isFullPageDoc) {
+    if (!onBack) return <DocumentComponent user={user} doc={doc} />;
     return (
         <div className="relative w-full max-w-2xl mx-auto bg-background rounded-lg shadow-lg">
             <div className="p-4 overflow-y-auto max-h-[80vh]">

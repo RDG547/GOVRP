@@ -1,3 +1,4 @@
+import { fetchCitizenSections, CITIZEN_JUSTICE_SECTIONS } from './citizenData';
 import { justiceErrorMessage } from './errors';
 import { subscribeToDomain } from '@/lib/realtime';
 import { supabase } from '@/lib/supabaseClient';
@@ -12,102 +13,7 @@ export const fetchRpTimeSettings = async () => throwIfError(
   await supabase.from('rp_time_settings').select('*').eq('id', true).single()
 );
 
-export const fetchCitizenJusticeData = async () => {
-  const [
-    occurrencesResult,
-    casesResult,
-    deadlinesResult,
-    requestsResult,
-    custodyResult,
-    finesResult,
-    appealsResult,
-    hearingsResult,
-    citizenRequestsResult,
-    campaignsResult,
-    securityResult,
-    wantedResult,
-    metricsResult,
-    serverNowResult,
-    subjectsResult,
-    profilesResult,
-    timelineResult,
-    documentsResult,
-    hearingsCaseResult,
-    caseAppealsResult,
-    sentencesResult,
-  ] = await Promise.all([
-    supabase.rpc('get_my_police_occurrences'),
-    supabase
-      .from('criminal_cases')
-      .select('*')
-      .order('updated_at', { ascending: false })
-      .limit(50),
-    supabase
-      .from('justice_deadlines')
-      .select('*')
-      .eq('status', 'open')
-      .order('real_due_at', { ascending: true })
-      .limit(50),
-    supabase
-      .from('judicial_requests')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .limit(50),
-    supabase
-      .from('prison_terms')
-      .select('*, facility:prison_facilities(name), cell:prison_cells(code)')
-      .in('custody_status', ['awaiting_intake', 'provisional', 'serving'])
-      .order('admitted_at', { ascending: false })
-      .limit(1)
-      .maybeSingle(),
-    supabase.from('police_fines').select('*').order('created_at', { ascending: false }),
-    supabase.from('fine_appeals').select('*').order('created_at', { ascending: false }),
-    supabase.from('fine_hearing_requests').select('*').order('created_at', { ascending: false }),
-    supabase.from('citizen_justice_requests').select('*').order('created_at', { ascending: false }),
-    supabase.from('public_safety_campaigns').select('*').order('starts_at', { ascending: false }).limit(20),
-    supabase.rpc('get_my_security_status'),
-    supabase.rpc('get_public_wanted_list'),
-    supabase.rpc('get_police_efficiency_metrics'),
-    supabase.rpc('get_server_now'),
-    supabase.from('investigation_subjects').select('*, profile:profiles(id, full_name)').order('created_at', { ascending: false }).limit(200),
-    supabase.from('public_citizen_profiles').select('id, full_name, username, avatar_url').order('full_name').limit(300),
-    supabase.from('case_timeline_events').select('*').order('created_at', { ascending: true }).limit(500),
-    supabase.from('case_documents').select('*').order('created_at', { ascending: false }).limit(200),
-    supabase.from('hearings').select('*').order('scheduled_at', { ascending: false }).limit(100),
-    supabase.from('appeals').select('*').order('created_at', { ascending: false }).limit(100),
-    supabase.from('sentences').select('*').order('issued_at', { ascending: false }).limit(100),
-  ]);
-
-  const errors = [];
-  const readSection = (result, section) => {
-    if (result.error) { errors.push(section); console.warn(`Justiça: ${section} indisponível`, result.error.message); return null; }
-    return result.data;
-  };
-  return {
-    errors,
-    occurrences: readSection(occurrencesResult, 'occurrences') || [],
-    cases: readSection(casesResult, 'cases') || [],
-    deadlines: readSection(deadlinesResult, 'deadlines') || [],
-    requests: readSection(requestsResult, 'requests') || [],
-    custody: readSection(custodyResult, 'custody') || null,
-    fines: readSection(finesResult, 'fines') || [],
-    fineAppeals: readSection(appealsResult, 'fineAppeals') || [],
-    fineHearings: readSection(hearingsResult, 'fineHearings') || [],
-    citizenRequests: readSection(citizenRequestsResult, 'citizenRequests') || [],
-    campaigns: readSection(campaignsResult, 'campaigns') || [],
-    security: readSection(securityResult, 'security') || { warrants: [], investigations: [] },
-    wanted: readSection(wantedResult, 'wanted') || [],
-    policeMetrics: readSection(metricsResult, 'policeMetrics') || {},
-    serverNow: readSection(serverNowResult, 'serverNow'),
-    investigationSubjects: readSection(subjectsResult, 'investigationSubjects') || [],
-    profiles: readSection(profilesResult, 'profiles') || [],
-    timeline: readSection(timelineResult, 'timeline') || [],
-    caseDocuments: readSection(documentsResult, 'caseDocuments') || [],
-    caseHearings: readSection(hearingsCaseResult, 'caseHearings') || [],
-    caseAppeals: readSection(caseAppealsResult, 'caseAppeals') || [],
-    sentences: readSection(sentencesResult, 'sentences') || [],
-  };
-};
+export const fetchCitizenJusticeData = (sections = CITIZEN_JUSTICE_SECTIONS, cursor = null) => fetchCitizenSections(supabase, sections, cursor);
 
 export const fetchAuthorityJusticeData = async () => {
   const [
@@ -537,7 +443,7 @@ export const completePrisonActivity = async (runId) => throwIfError(
 );
 
 export const subscribeToJusticeChanges = (userId, onChange) => subscribeToDomain('justice', userId, [
-  'criminal_cases', 'criminal_investigations', 'judicial_requests', 'prison_terms',
+  'criminal_cases', 'criminal_investigations', 'judicial_requests', 'justice_deadlines', 'prison_terms',
   'prison_activity_runs', 'police_occurrences', 'police_fines', 'fine_appeals',
   'fine_hearing_requests', 'citizen_justice_requests', 'public_safety_campaigns',
   'public_integrity_cases', 'investigation_subjects', 'investigation_parties',

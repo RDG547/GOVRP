@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react"
+import { sanitizeToast } from '@/lib/userErrors'
 
 const TOAST_LIMIT = 1
 
@@ -41,7 +42,7 @@ export const toast = ({ ...props }) => {
     toastStore.setState((state) => ({
       ...state,
       toasts: state.toasts.map((t) =>
-        t.id === id ? { ...t, ...props } : t
+        t.id === id ? { ...t, ...sanitizeToast(props) } : t
       ),
     }))
 
@@ -53,7 +54,7 @@ export const toast = ({ ...props }) => {
   toastStore.setState((state) => ({
     ...state,
     toasts: [
-      { ...props, id, dismiss },
+      { ...sanitizeToast(props), id, dismiss },
       ...state.toasts,
     ].slice(0, TOAST_LIMIT),
   }))
