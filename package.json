@@ -34,7 +34,9 @@
     "test:audit-fixes": "node tools/test-audited-experience.mjs",
     "test:audit-realtime": "node tools/test-audited-realtime.mjs",
     "test:document-rendering": "node tools/test-document-rendering.mjs",
-    "test:internet-provider": "node tools/test-internet-provider.mjs"
+    "test:internet-provider": "node tools/test-internet-provider.mjs",
+    "test:legacy-visibility": "node tools/test-legacy-public-visibility.mjs",
+    "test:party-profile-api": "node tools/test-party-profile-api.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.0",
