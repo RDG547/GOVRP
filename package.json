@@ -33,7 +33,8 @@
     "test:social-realtime": "node tools/test-social-realtime.mjs",
     "test:audit-fixes": "node tools/test-audited-experience.mjs",
     "test:audit-realtime": "node tools/test-audited-realtime.mjs",
-    "test:document-rendering": "node tools/test-document-rendering.mjs"
+    "test:document-rendering": "node tools/test-document-rendering.mjs",
+    "test:internet-provider": "node tools/test-internet-provider.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.0",

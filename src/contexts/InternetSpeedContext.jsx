@@ -101,7 +101,8 @@ export const InternetSpeedProvider = ({ children }) => {
   const navigate = useNavigate();
   // Default to Básico so new users get the delay before they buy a plan
   const [serviceState, setServiceState] = useState(null);
-  const currentService = serviceState?.userId === user?.id ? serviceState.value : null;
+  // Missing session and service IDs must not match as undefined === undefined.
+  const currentService = serviceState && user?.id && serviceState.userId === user.id ? serviceState.value : null;
   const userPlan = currentService?.plan_name || 'Básico';
   const [isLoading, setIsLoading] = useState(false);
   const [currentDelay, setCurrentDelay] = useState(0);
