@@ -186,6 +186,6 @@ function main() {
 
 const isMainModule = import.meta.url === `file://${process.argv[1]}`;
 
-if (isMainModule) {
+if (isMainModule && process.env.GOVRP_SKIP_TEXT_ARTIFACTS !== '1') {
   main();
 }

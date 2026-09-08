@@ -12,7 +12,8 @@ const assertHttpsUrl = (name, value) => {
     throw new Error(`A variável ${name} precisa conter uma URL válida.`);
   }
 
-  if (parsedUrl.protocol !== 'https:') {
+  const localDevelopment = import.meta.env.DEV && parsedUrl.protocol === 'http:' && ['127.0.0.1', 'localhost', '[::1]'].includes(parsedUrl.hostname);
+  if (parsedUrl.protocol !== 'https:' && !localDevelopment) {
     throw new Error(`A variável ${name} deve usar HTTPS.`);
   }
 

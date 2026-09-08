@@ -54,9 +54,9 @@ const ProductCard = ({ product, onAddToCart, onBuy, onEdit, onDelete, isOwner })
 
   const hasPromotion = product.promotion_price && new Date(product.promotion_expires_at) > new Date();
 
-  const originalPriceWithTax = product.price * (1 + product.tax_rate);
-  const promotionalPriceWithTax = hasPromotion ? product.promotion_price * (1 + product.tax_rate) : null;
-  const finalPrice = promotionalPriceWithTax ?? originalPriceWithTax;
+  const finalPrice = Number(product.final_price);
+  const basePrice = Number(hasPromotion ? product.promotion_price : product.price);
+  const isRestricted = Boolean(product.seller?.activity_restricted);
 
   const seller = product.seller || { full_name: 'Cidadão indisponível' };
   const isBusiness = Boolean(product.business_id || seller.business_id);
@@ -147,12 +147,12 @@ const ProductCard = ({ product, onAddToCart, onBuy, onEdit, onDelete, isOwner })
             {hasPromotion ? (
               <div className="flex items-baseline gap-2">
                 <p className="text-2xl font-bold text-white">{formatCurrency(finalPrice)}</p>
-                <p className="text-lg font-medium text-muted-foreground line-through">{formatCurrency(originalPriceWithTax)}</p>
+                <span className="text-xs text-emerald-400">Em promoção</span>
               </div>
             ) : (
               <p className="text-2xl font-bold text-white">{formatCurrency(finalPrice)}</p>
             )}
-            {product.tax_rate > 0 && <p className="text-xs text-muted-foreground">Inclui {formatCurrency(finalPrice - (promotionalPriceWithTax ? product.promotion_price : product.price))} de impostos</p>}
+            {product.tax_rate > 0 && <p className="text-xs text-muted-foreground">Inclui {formatCurrency(finalPrice - basePrice)} de impostos</p>}
             {product.product_type === 'subscription' && <p className="text-xs text-muted-foreground">/mês</p>}
           </div>
           {isOwner ? (
@@ -162,11 +162,11 @@ const ProductCard = ({ product, onAddToCart, onBuy, onEdit, onDelete, isOwner })
             </Button>
           ) : (
             <div className="w-full flex flex-col gap-2 no-navigate">
-                <Button className="w-full" onClick={(e) => { e.stopPropagation(); onBuy(product); }} disabled={isOutOfStock}>
-                    {isOutOfStock ? 'Esgotado' : (product.product_type === 'subscription' ? <><Star className="w-4 h-4 mr-2" /> Assinar</> : <><ShoppingBag className="w-4 h-4 mr-2" />Comprar</>)}
+                <Button className="w-full" onClick={(e) => { e.stopPropagation(); onBuy(product); }} disabled={isOutOfStock || isRestricted}>
+                    {isRestricted ? 'Atividade suspensa por norma vigente' : isOutOfStock ? 'Esgotado' : (product.product_type === 'subscription' ? <><Star className="w-4 h-4 mr-2" /> Assinar</> : <><ShoppingBag className="w-4 h-4 mr-2" />Comprar</>)}
                 </Button>
                 {product.product_type !== 'subscription' && (
-                    <Button variant="outline" className="w-full" onClick={(e) => { e.stopPropagation(); onAddToCart(product); }} disabled={isOutOfStock}>
+                    <Button variant="outline" className="w-full" onClick={(e) => { e.stopPropagation(); onAddToCart(product); }} disabled={isOutOfStock || isRestricted}>
                         <ShoppingCart className="w-4 h-4 mr-2" /> Adicionar ao Carrinho
                     </Button>
                 )}
@@ -202,8 +202,7 @@ const BuyDialog = ({ product, open, onOpenChange, onConfirm }) => {
 
   if (!product) return null;
 
-  const hasPromotion = product.promotion_price && new Date(product.promotion_expires_at) > new Date();
-  const finalPrice = hasPromotion ? product.promotion_price * (1 + product.tax_rate) : product.price * (1 + product.tax_rate);
+  const finalPrice = Number(product.final_price);
 
 
   return (
@@ -218,6 +217,7 @@ const BuyDialog = ({ product, open, onOpenChange, onConfirm }) => {
             <span className="font-semibold">{product.name}</span>
             <span className="font-bold text-lg">{formatCurrency(finalPrice)}</span>
           </div>
+          {(product.unavailable || product.seller?.activity_restricted) && <p role="status" className="text-destructive">Este produto não está disponível para compra pela regra vigente.</p>}
           <div>
             <label className="text-sm font-medium">Método de Pagamento</label>
             <Select value={paymentMethod} onValueChange={setPaymentMethod}>
@@ -246,7 +246,7 @@ const BuyDialog = ({ product, open, onOpenChange, onConfirm }) => {
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-          <Button onClick={handleConfirm} disabled={loading || (paymentMethod === 'card' && !selectedCard)}>
+          <Button onClick={handleConfirm} disabled={loading || product.unavailable || product.seller?.activity_restricted || (paymentMethod === 'card' && !selectedCard)}>
             {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
             Confirmar e Pagar
           </Button>
@@ -273,14 +273,19 @@ const Business = () => {
   const { toast } = useToast();
   const { addToCart } = useCart();
 
+  const requestVersion = useRef(0);
   const fetchProductsAndCategories = useCallback(async () => {
+    const version = ++requestVersion.current;
 
     const { data, error } = await supabase.rpc('get_products_with_final_price');
 
+    if (version !== requestVersion.current) return;
     if (error) {
-        toast({ title: "Erro ao buscar produtos", description: error.message, variant: "destructive" });
+        console.error('marketplace:products', error);
+        toast({ title: "Erro ao buscar produtos", description: 'Não foi possível atualizar os produtos. Tente novamente.', variant: "destructive" });
     } else {
         setProducts(data || []);
+        setSelectedProduct(current => current ? data?.find(product => product.id === current.id) || { ...current, unavailable: true } : null);
 
         const uniqueCategories = [...new Set((data || []).map(p => p.category).filter(Boolean))];
         setCategories(uniqueCategories);
@@ -313,7 +318,7 @@ const Business = () => {
       toast({ title: "Ação necessária", description: "Você precisa estar logado para adicionar ao carrinho.", variant: "destructive" });
       return;
     }
-    addToCart(product);
+    if (!addToCart(product)) return;
     toast({ title: "Produto adicionado!", description: `${product.name} foi adicionado ao seu carrinho.` });
   };
 
@@ -403,7 +408,7 @@ const Business = () => {
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Cart />
             <Link to="/services/inventory">
               <Button variant="outline"><Package className="w-4 h-4 mr-2" /> Meu Inventário</Button>

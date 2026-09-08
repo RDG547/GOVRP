@@ -110,8 +110,8 @@ export const resolvePrimaryRole = (profile = {}, syncState = null, fallbackRole 
 export const isActiveDateOnly = (dateValue) => !dateValue || dateValue >= todayDate();
 
 export const resolveParliamentHouseIdFromRole = (role = '', houses = []) => {
-  const senateHouse = houses.find((house) => house?.name?.toLowerCase().includes('senado'));
-  const chamberHouse = houses.find((house) => house?.id !== senateHouse?.id);
+  const senateHouse = houses.find((house) => house?.id === 'fedcba09-8765-4321-0987-654321fedcba') || houses.find((house) => house?.name?.toLowerCase().includes('senado'));
+  const chamberHouse = houses.find((house) => house?.id === 'a1b2c3d4-e5f6-7890-1234-567890abcdef') || houses.find((house) => /c[aâ]mara|deputad/i.test(house?.name || '')) || houses.find((house) => house?.id !== senateHouse?.id);
 
   if (SENATE_PARLIAMENTARY_ROLES.includes(role)) {
     return senateHouse?.id || null;

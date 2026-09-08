@@ -1,3 +1,4 @@
+import { LEGAL_REALTIME_TABLES } from '@/lib/legalMeasures';
 import RegisterCompanyDialog from '@/components/business/RegisterCompanyDialog';
 import { useDomainRealtime } from '@/hooks/use-domain-realtime';
 import { invalidateDomain } from '@/lib/realtime';
@@ -728,45 +729,37 @@ const EntrepreneurPortal = () => {
   const [saleListings, setSaleListings] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [salesLoading, setSalesLoading] = useState(true);
-  const [businessTariffs, setBusinessTariffs] = useState({});
   const [catalogTypes, setCatalogTypes] = useState([]);
-  const [registrationFee, setRegistrationFee] = useState(null);
   const [registrationOpen, setRegistrationOpen] = useState(false);
   const [registrationType, setRegistrationType] = useState('');
   const [businessToSell, setBusinessToSell] = useState(null);
   const [savingSale, setSavingSale] = useState(false);
   const [buyingListingId, setBuyingListingId] = useState(null);
 
-  // Fetch base tariffs for registration fees
-  useEffect(() => {
-    const fetchTariffs = async () => {
-      const [tariffs, catalog, rules] = await Promise.all([
-        supabase.from('system_settings').select('value').eq('key', 'base_tariffs').maybeSingle(),
-        supabase.from('business_types').select('*').eq('is_active', true).order('name'),
-        supabase.from('government_rules').select('numeric_value').eq('rule_key', 'business_license_fee').maybeSingle(),
-      ]);
-      if (tariffs.data?.value) setBusinessTariffs(tariffs.data.value);
-      if (catalog.data) setCatalogTypes(catalog.data);
-      if (rules.data?.numeric_value != null) setRegistrationFee(Number(rules.data.numeric_value));
-      if (catalog.error) toast({ title: 'Não foi possível carregar os tipos de empresa', description: catalog.error.message, variant: 'destructive' });
-    };
-    fetchTariffs();
+  const fetchTariffs = useCallback(async () => {
+    const catalog = await supabase.from('business_types').select('*').eq('is_active', true).order('name');
+    if (catalog.error) { console.error('Catálogo empresarial indisponível', catalog.error); return; }
+    const types = await Promise.all((catalog.data || []).map(async type => {
+      const result = await supabase.rpc('quote_legal_levies', { p_basis: 'license', p_amount: 0, p_business: true, p_sector: type.economic_sector_id });
+      if (result.error) throw result.error;
+      return { ...type, registration_fee: Number(result.data.buyer_tax), activity_restricted: result.data.restricted };
+    }));
+    setCatalogTypes(types);
   }, []);
+  useEffect(() => { void fetchTariffs().catch(error => console.error('Taxas empresariais indisponíveis', error)); }, [fetchTariffs]);
+  useDomainRealtime('legal-rules', 'public', LEGAL_REALTIME_TABLES, fetchTariffs);
 
-  // Merge tariffs into business types
-  const TARIFF_KEY_MAP = {
-    banco: 'biz_banco', construtora: 'biz_construtora', fabrica: 'biz_fabrica',
-    loja: 'biz_loja', transportadora: 'biz_transportadora', consultoria: 'biz_consultoria',
-    seguranca: 'biz_seguranca', distribuidora: 'biz_distribuidora',
-  };
   const businessTypes = useMemo(() => catalogTypes.map(type => {
     const presentation = BUSINESS_TYPES.find(item => item.id === type.id) || BUSINESS_TYPES.find(item => item.id === 'consultoria') || BUSINESS_TYPES[0];
     return { ...presentation, id: type.id, name: type.name, description: type.description, category: type.category,
-      registrationFee: registrationFee ?? Number(type.registration_fee ?? businessTariffs[TARIFF_KEY_MAP[type.id]] ?? presentation.registrationFee),
+      registrationFee: Number(type.registration_fee),
       minEmployees: type.min_employees, monthlyCosts: type.monthly_costs || presentation.monthlyCosts,
       requirements: Array.isArray(type.requirements) ? type.requirements : presentation.requirements,
     };
-  }), [catalogTypes, registrationFee, businessTariffs]);
+  }), [catalogTypes]);
+  useEffect(() => {
+    setSelectedBusiness(current => current ? businessTypes.find(business => business.id === current.id) || current : null);
+  }, [businessTypes]);
 
   const fetchMyBusinesses = useCallback(async () => {
     if (!user?.id) {

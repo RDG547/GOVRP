@@ -248,9 +248,13 @@ const buildEntry = ({
   source,
   author,
   house,
+  legalMetadata,
+  publicationNumber,
 }) => ({
   id: `${source}-${id}`,
   source_id: id,
+  legal_metadata: legalMetadata,
+  publication_number: publicationNumber,
   source,
   title,
   summary,
@@ -269,6 +273,11 @@ export const publishOfficialGazetteEntry = async (
 ) => {
   const resolvedSourceId = normalizeOfficialGazetteSourceId(sourceId);
 
+  if (resolvedSourceId) {
+    const { data, error } = await supabase.from('dou_entries').select('id').eq('source_id', resolvedSourceId).eq('type', type).limit(1);
+    if (error) throw error;
+    if (data?.length) return;
+  }
   const { error } = await supabase.from('dou_entries').insert({
     title,
     summary,
@@ -329,10 +338,13 @@ export const fetchOfficialGazetteEntries = async (supabase) => {
       createdAt: entry.published_at,
       type: normalizeGazetteType(entry.type),
       source: 'dou_entry',
+      legalMetadata: entry.legal_metadata,
+      publicationNumber: entry.publication_number,
     })
   );
 
-  const decreeEntries = decrees.map((decree) =>
+  const publishedSources = new Set((douEntries || []).map(entry => entry.source_id).filter(Boolean));
+  const decreeEntries = decrees.filter(decree => !publishedSources.has(decree.id)).map((decree) =>
     buildEntry({
       id: decree.id,
       title: decree.title,
@@ -345,7 +357,7 @@ export const fetchOfficialGazetteEntries = async (supabase) => {
     })
   );
 
-  const billEntries = approvedBills.map(buildBillGazetteEntry);
+  const billEntries = approvedBills.filter(bill => !publishedSources.has(bill.id)).map(buildBillGazetteEntry);
 
   return sortByPublishedAt([
     ...normalizedDouEntries,

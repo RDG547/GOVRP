@@ -61,15 +61,14 @@ const product = await seller.client.rpc('save_business_product', {
 if (product.error) throw product.error;
 assert(product.data.business_id === registration.data.id, 'produto pertence a uma empresa canônica');
 
-const [treasuryBefore, sellerBefore, activeTaxRules] = await Promise.all([
+const [treasuryBefore, sellerBefore, levyQuote] = await Promise.all([
   service.from('government_finances').select('treasury_balance').eq('id', 1).single(),
   service.from('accounts').select('balance').eq('id', seller.account.id).single(),
-  service.from('government_rules').select('rule_key,numeric_value').in('rule_key', ['consumption_tax_rate', 'corporate_tax_rate']),
+  service.rpc('quote_legal_levies',{p_basis:'purchase',p_amount:100,p_business:true,p_sector:registration.data.economic_sector_id || null,p_category:'Outros'}),
 ]);
-for (const result of [treasuryBefore, sellerBefore, activeTaxRules]) if (result.error) throw result.error;
-const taxRule = Object.fromEntries(activeTaxRules.data.map((item) => [item.rule_key, Number(item.numeric_value)]));
-const expectedConsumptionTax = Math.round(100 * (taxRule.consumption_tax_rate || 0) * 100) / 100;
-const expectedCorporateTax = Math.round(100 * (taxRule.corporate_tax_rate || 0) * 100) / 100;
+for (const result of [treasuryBefore, sellerBefore, levyQuote]) if (result.error) throw result.error;
+const expectedConsumptionTax = Number(levyQuote.data.buyer_tax);
+const expectedCorporateTax = Number(levyQuote.data.seller_tax);
 const expectedTotal = 100 + expectedConsumptionTax;
 const expectedTaxes = expectedConsumptionTax + expectedCorporateTax;
 const purchaseKey = crypto.randomUUID();
@@ -84,7 +83,7 @@ const [buyerAccount, sellerAccount, treasuryAfter, order, revenues, businessLedg
   service.from('accounts').select('balance').eq('id', seller.account.id).single(),
   service.from('government_finances').select('treasury_balance').eq('id', 1).single(),
   service.from('commerce_orders').select('*').eq('idempotency_key', purchaseKey).single(),
-  service.from('government_revenues').select('revenue_type,amount').eq('source_table', 'commerce_orders'),
+  service.from('government_revenues').select('revenue_type,amount').eq('source_table', 'commerce_orders').eq('source_id',purchase.data.order_id),
   service.from('business_transactions').select('type,amount').eq('business_id', registration.data.id),
   service.from('user_inventory').select('quantity').eq('user_id', buyer.id).eq('product_id', product.data.id).single(),
   service.from('domain_events').select('event_type').eq('idempotency_key', `commerce-purchase:${purchaseKey}`).single(),
@@ -93,8 +92,8 @@ for (const result of [buyerAccount,sellerAccount,treasuryAfter,order,revenues,bu
 assert(Number(buyerAccount.data.balance) === 2000 - expectedTotal, 'comprador paga o total exato');
 assert(Number(sellerAccount.data.balance) === Number(sellerBefore.data.balance) + 100 - expectedCorporateTax, 'empresa recebe a venda líquida dos impostos');
 assert(toCents(treasuryAfter.data.treasury_balance) - toCents(treasuryBefore.data.treasury_balance) === toCents(expectedTaxes), 'Tesouro recebe toda a arrecadação da compra');
-assert(revenues.data.some((item) => item.revenue_type === 'consumption_tax' && Number(item.amount) === expectedConsumptionTax) && revenues.data.some((item) => item.revenue_type === 'corporate_tax' && Number(item.amount) === expectedCorporateTax), 'receitas públicas distinguem os dois impostos');
-assert(businessLedger.data.some((item) => item.type === 'revenue' && Number(item.amount) === 100) && businessLedger.data.some((item) => item.type === 'tax' && Number(item.amount) === -expectedCorporateTax), 'livro da empresa registra receita e tributo');
+assert(revenues.data.filter(item=>item.revenue_type==='consumption_tax').reduce((sum,item)=>sum+Number(item.amount),0)===expectedConsumptionTax && revenues.data.filter(item=>item.revenue_type==='corporate_tax').reduce((sum,item)=>sum+Number(item.amount),0)===expectedCorporateTax, 'receitas públicas distinguem os dois impostos');
+assert(businessLedger.data.some((item) => item.type === 'revenue' && Number(item.amount) === 100) && businessLedger.data.filter(item=>item.type==='tax').reduce((sum,item)=>sum+Number(item.amount),0)===-expectedCorporateTax, 'livro da empresa registra receita e tributo');
 assert(inventory.data.quantity === 1 && events.data.event_type === 'commerce_purchase_completed', 'estoque, inventário e evento são concluídos juntos');
 
 const repeatedPurchase = await buyer.client.rpc('buy_product', { p_product_id: product.data.id, p_payment_method: 'balance', p_card_id: null, p_idempotency_key: purchaseKey });

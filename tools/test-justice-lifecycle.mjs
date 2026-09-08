@@ -46,7 +46,10 @@ const createActor = async (label, role) => {
   const suffix = crypto.randomUUID().replaceAll('-', '').slice(0, 10);
   const email = `justice-${label}-${suffix}@govrp.local`;
   const password = `Govrp!${crypto.randomUUID()}Aa1`;
-  const created = await admin.auth.admin.createUser({ email, password, email_confirm: true });
+  // Deterministic ordering of this isolated roster, without changing other users' roles.
+  const fixtureId = role === 'Juiz' ? `00000000-0000-4000-8000-${crypto.randomUUID().replaceAll('-', '').slice(0,12)}` : undefined;
+  const created = await admin.auth.admin.createUser({ email, password, email_confirm: true, ...(fixtureId ? { id: fixtureId } : {}) });
+  if (fixtureId && created.data.user?.id !== fixtureId) throw new Error('O Auth local não aceitou o ID da fixture judicial.');
   if (created.error || !created.data.user) throw created.error || new Error('Conta de teste não criada.');
   const id = created.data.user.id;
   const profile = await admin.from('profiles').upsert({
@@ -139,12 +142,12 @@ const investigation = await rpc(police.client, 'open_criminal_investigation', {
 });
 assert(Boolean(investigation?.id), 'Polícia abre investigação vinculada');
 
-await rpc(delegate.client, 'add_investigation_party', {
+await rpc(delegate.client, 'add_investigation_subject', {
   p_investigation_id: investigation.id,
   p_profile_id: citizen.id,
-  p_party_type: 'suspect',
+  p_subject_status: 'investigated',
+  p_notify_subject: true,
   p_notes: 'Pessoa apontada pelos elementos preliminares, sem presunção automática de culpa.',
-  p_is_confidential: false,
 });
 const evidence = await rpc(delegate.client, 'record_investigation_evidence', {
   p_investigation_id: investigation.id,
@@ -239,6 +242,12 @@ const decidedAppeal = await rpc(appellateJudge.client, 'decide_case_appeal', {
 });
 assert(decidedAppeal?.status === 'denied', 'recurso é julgado por juiz diferente');
 
+const sentenceWarrant = await admin.from('warrants').select('*').eq('sentence_id', sentence.id).single();
+if (sentenceWarrant.error) throw sentenceWarrant.error;
+assert(sentenceWarrant.data.status === 'issued', 'sentença definitiva expede mandado antes da custódia');
+await rpc(police.client, 'execute_arrest_warrant', { p_warrant_id: sentenceWarrant.data.id, p_location: 'Praça da República', p_description: 'Mandado cumprido com identificação do alvo, registro da diligência e condução regular.' });
+await rpc(police.client, 'execute_arrest_warrant', { p_warrant_id: sentenceWarrant.data.id, p_location: 'Praça da República', p_description: 'Mandado cumprido com identificação do alvo, registro da diligência e condução regular.' });
+assert((await admin.from('arrests').select('id').eq('warrant_id',sentenceWarrant.data.id)).data.length===1,'repetir cumprimento não duplica prisão');
 const activeTerm = await admin.from('prison_terms')
   .select('id, custody_status')
   .eq('sentence_id', sentence.id)
@@ -246,11 +255,18 @@ const activeTerm = await admin.from('prison_terms')
 if (activeTerm.error) throw activeTerm.error;
 assert(['awaiting_intake', 'serving'].includes(activeTerm.data.custody_status), 'sentença definitiva entra em execução penal');
 
-const released = await rpc(appellateJudge.client, 'release_prison_term', {
-  p_prison_term_id: activeTerm.data.id,
-  p_reason: 'Liberação funcional autorizada para validar o encerramento completo da execução penal.',
-});
-assert(released?.custody_status === 'released', 'execução termina com liberação registrada');
+// Advance only this fixture's deadline; the real cron must perform the release without an RPC from the prisoner.
+const shortened = await admin.from('prison_terms').update({expected_release_at:new Date(Date.now()+2000).toISOString()}).eq('id',activeTerm.data.id);
+if(shortened.error) throw shortened.error;
+let released;
+for(let attempt=0;attempt<100;attempt++) {
+  const state=await admin.from('prison_terms').select('custody_status').eq('id',activeTerm.data.id).single();
+  if(state.error) throw state.error;
+  released=state.data;
+  if(released.custody_status==='released') break;
+  await new Promise(resolve=>setTimeout(resolve,200));
+}
+assert(released?.custody_status === 'released', 'cron encerra custódia pelo prazo mesmo com preso offline');
 
 const [timelineResult, directMutation] = await Promise.all([
   citizen.client.from('case_timeline_events').select('event_type,status_from,status_to').eq('case_id', criminalCase.id).order('created_at'),

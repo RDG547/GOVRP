@@ -1,0 +1,15 @@
+BEGIN;
+-- Use the same backend owner for entry points and non-public helpers.
+-- No execution privilege is granted to browser roles.
+DO $$ DECLARE f record; BEGIN
+ FOR f IN SELECT p.oid::regprocedure AS signature FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace
+ JOIN (VALUES ('private','admit_final_sentence'),('private','append_criminal_lifecycle_event'),('private','apply_structured_effect'),('private','assign_appeal_reviewer'),('private','broadcast_public_profile_change'),('private','capture_charge_norm'),('private','check_legal_effect_definition'),('private','classify_case_timeline'),('private','execute_decree_suspension'),('private','execute_sentence_fine'),('private','expire_structured_effect'),('private','guard_published_decree'),('private','guard_tax_settings'),('private','legal_scope_matches'),('private','notify_case_representation'),('private','notify_official_role_change'),('private','protect_transaction_legal_snapshot'),('private','register_penal_rule'),('private','sync_current_parliament_party'),('private','sync_investigation_subject_party'),('private','validate_legal_definition'),('private','validate_legal_measure'),('public','acknowledge_role_change'),('public','activate_legal_effects'),('public','archive_referred_investigation'),('public','buy_product'),('public','can_read_public_story'),('public','close_completed_sentences'),('public','configure_law_effect'),('public','configure_structured_law_effect'),('public','decide_case_appeal'),('public','decide_charge_admission'),('public','delete_post'),('public','delete_story'),('public','execute_arrest_warrant'),('public','execute_transfer'),('public','file_criminal_charges'),('public','generate_transaction_receipt'),('public','get_government_rule'),('public','get_products_with_final_price'),('public','get_stories_by_user_ids'),('public','issue_criminal_sentence'),('public','issue_document'),('public','issue_document_request'),('public','justice_admit_sentence'),('public','mark_tutorial_seen'),('public','penal_rule_at'),('public','process_due_legal_effects'),('public','process_legal_benefits'),('public','promulgate_decree_suspension'),('public','propose_decree_suspension'),('public','propose_parliament_bill'),('public','publish_decree_to_dou'),('public','quote_legal_levies'),('public','register_business_authoritative'),('public','resolve_investigation'),('public','save_tutorial_progress'),('public','submit_structured_legal_measure')) AS target(schema_name,function_name) ON target.schema_name=n.nspname AND target.function_name=p.proname
+ LOOP EXECUTE format('ALTER FUNCTION %s OWNER TO postgres',f.signature); END LOOP;
+END $$;
+ALTER TABLE public.legal_authority_rules OWNER TO postgres;
+ALTER FUNCTION public.publish_decree_to_dou() SET search_path = public,pg_temp;
+ALTER FUNCTION public.get_user_transactions(uuid) SET search_path = public,pg_temp;
+-- Custody may link the final sentence and its executed arrest together.
+ALTER TABLE public.prison_terms DROP CONSTRAINT prison_terms_check;
+ALTER TABLE public.prison_terms ADD CONSTRAINT prison_terms_check CHECK (num_nonnulls(sentence_id,arrest_id)>=1);
+COMMIT;

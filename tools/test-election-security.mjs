@@ -271,6 +271,13 @@ try {
   const { data: electedMember, error: electedMemberError } = await adminClient.from('parliament_members')
     .select('id,house_id').eq('user_id', candidate.id).gte('term_end_date', new Date().toISOString().slice(0, 10)).single();
   if (electedMemberError) throw electedMemberError;
+  // Keep the law scenario independent of mandates left by other local test suites.
+  const moved = await adminClient.from('parliament_members').update({ house_id: house.id }).eq('id', electedMember.id);
+  if (moved.error) throw moved.error;
+  electedMember.house_id = house.id;
+  const officeNotices = await adminClient.from('notifications').select('id,type,metadata').eq('user_id', candidate.id).eq('metadata->>election_id', activeElection.id);
+  if (officeNotices.error) throw officeNotices.error;
+  assert(officeNotices.data.filter(notice => notice.type === 'role_changed').length === 1 && !officeNotices.data.some(notice => notice.type === 'office_awarded'), 'posse eleitoral gera um único aviso persistente de mudança de cargo');
   const proposedBill = await candidate.client.rpc('propose_parliament_bill_with_effect', {
     p_title: 'Lei funcional de integração nacional',
     p_summary: 'Projeto eleito que altera uma regra econômica real e auditável.',

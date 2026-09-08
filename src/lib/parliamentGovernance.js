@@ -1,3 +1,4 @@
+import { fetchPublicProfileRows as fetchPublicProfiles } from './publicProfileQueries.js';
 import {
   HOUSE_PRESIDENT_ROLES,
   HOUSE_VICE_PRESIDENT_ROLES,
@@ -101,16 +102,7 @@ const fetchProfilesMap = async (supabase, profileIds = []) => {
     return {};
   }
 
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('id, full_name, avatar_url, role, x_handle, username')
-    .in('id', ids);
-
-  if (error) {
-    throw error;
-  }
-
-  return mapById(data || []);
+  return Object.fromEntries(await fetchPublicProfiles(ids, supabase));
 };
 
 const fetchPartiesMap = async (supabase, partyIds = []) => {

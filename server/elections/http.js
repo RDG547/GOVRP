@@ -1057,7 +1057,7 @@ const fetchExistingOfficeNotifications = async (supabase, userIds = []) => {
     .from('notifications')
     .select('user_id, metadata')
     .in('user_id', userIds)
-    .eq('type', 'office_awarded');
+    .in('type', ['office_awarded', 'role_changed']);
 
   if (error) {
     throw error;

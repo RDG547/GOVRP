@@ -1,4 +1,6 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+import { supabase } from '@/lib/supabaseClient';
+import { useDomainRealtime } from '@/hooks/use-domain-realtime';
 import { useToast } from '@/components/ui/use-toast';
 
 const CartContext = createContext();
@@ -22,14 +24,40 @@ export const CartProvider = ({ children, storageKey }) => {
         localStorage.setItem(storageKey, JSON.stringify(cartItems));
     }, [cartItems, storageKey]);
 
+    const [quoteReady, setQuoteReady] = useState(false);
+    const quoteVersion = useRef(0);
+    const itemIds = cartItems.map(item => item.id).sort().join(',');
+    const refreshPrices = useCallback(async () => {
+        const version = ++quoteVersion.current;
+        setQuoteReady(false);
+        const { data, error } = await supabase.rpc('get_products_with_final_price');
+        if (version !== quoteVersion.current) return;
+        if (error) { console.error('cart:quote', error); return; }
+        setCartItems(items => items.map(item => {
+            const live = data?.find(product => product.id === item.id);
+            return live ? { ...live, quantity: item.quantity } : { ...item, unavailable: true };
+        }));
+        setQuoteReady(true);
+    }, []);
+    useEffect(() => { if (itemIds) refreshPrices(); }, [itemIds, refreshPrices]);
+    useDomainRealtime('marketplace', 'public', ['products', 'businesses', 'government_rules'], refreshPrices, Boolean(itemIds));
+
+    const consumePurchasedItem = (productId) => {
+        setCartItems(items => items.flatMap(item => item.id !== productId ? [item] : item.quantity > 1 ? [{ ...item, quantity: item.quantity - 1 }] : []));
+    };
+
     const addToCart = (product) => {
+        if (product.unavailable || product.seller?.activity_restricted) {
+            toast({ title: 'Compra indisponível', description: 'Este produto está indisponível pela regra vigente.', variant: 'destructive' });
+            return false;
+        }
         if (product.product_type === 'one-time' && product.stock <= 0) {
             toast({
                 title: "Produto Esgotado",
                 description: "Este produto não está mais disponível em estoque.",
                 variant: "destructive",
             });
-            return;
+            return false;
         }
 
         setCartItems(prevItems => {
@@ -43,6 +71,7 @@ export const CartProvider = ({ children, storageKey }) => {
             }
             return [...prevItems, { ...product, quantity: 1 }];
         });
+        return true;
     };
 
     const removeFromCart = (productId) => {
@@ -67,6 +96,9 @@ export const CartProvider = ({ children, storageKey }) => {
 
     const value = {
         cartItems,
+        quoteReady,
+        refreshPrices,
+        consumePurchasedItem,
         addToCart,
         removeFromCart,
         updateQuantity,

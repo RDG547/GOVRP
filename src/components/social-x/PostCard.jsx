@@ -209,11 +209,12 @@ const PostCard = ({ post, onPostUpdate, onPostDelete, onRepostCreated }) => {
       if(onRepostCreated) onRepostCreated();
     }
 
-    const handleDelete = async () => {
+    const handleDelete = async (event) => {
+        event?.stopPropagation();
         if (user.id !== post.user_id && user.role !== 'Admin') return;
         try {
             const { data, error } = await supabase.rpc('delete_post', { p_post_id: post.id });
-            if (error || !data.success) throw new Error(data?.message || error.message);
+            if (error || !data?.success) throw new Error(data?.message || error.message);
             toast({ title: 'Sucesso', description: 'Post excluído com sucesso.' });
             if (onPostDelete) onPostDelete(post.id);
         } catch (error) {
@@ -232,7 +233,7 @@ const PostCard = ({ post, onPostUpdate, onPostDelete, onRepostCreated }) => {
             p_new_content: editedContent
         });
 
-        if (error || !data.success) {
+        if (error || !data?.success) {
             toast({ title: 'Erro ao editar', description: data?.message || error.message, variant: 'destructive' });
         } else {
             toast({ title: 'Sucesso', description: 'Post atualizado.' });
@@ -371,7 +372,7 @@ const PostCard = ({ post, onPostUpdate, onPostDelete, onRepostCreated }) => {
                     {(user?.id === post.user_id || user?.role === 'Admin') && (
                         <DropdownMenu onOpenChange={handleDropdownOpenChange}>
                             <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="w-8 h-8 no-navigate"><MoreHorizontal className="w-5 h-5 text-muted-foreground" /></Button></DropdownMenuTrigger>
-                            <DropdownMenuContent>
+                            <DropdownMenuContent onClick={event => event.stopPropagation()}>
                                 {user.id === post.user_id && <DropdownMenuItem onClick={() => setIsEditing(true)}><Edit className="mr-2 h-4 w-4" />Editar</DropdownMenuItem>}
                                 <DropdownMenuItem onClick={handleDelete} className="text-destructive focus:text-destructive focus:bg-destructive/10"><Trash2 className="mr-2 h-4 w-4" />Excluir</DropdownMenuItem>
                             </DropdownMenuContent>

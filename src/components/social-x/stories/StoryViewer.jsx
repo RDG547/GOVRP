@@ -1,228 +1,81 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { X, ChevronLeft, ChevronRight, Play, Pause, Volume2, VolumeX, Trash2 } from 'lucide-react';
-import { Progress } from '@/components/ui/progress';
+import { X, ChevronLeft, ChevronRight, Play, Pause, Volume2, VolumeX, Trash2, Loader2 } from 'lucide-react';
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/supabaseClient';
 import { useAuth } from '@/contexts/AuthContext';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog"
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 
-const StoryViewer = ({ stories, initialStoryIndex, onClose, onAction }) => {
-  const [currentStoryIndex, setCurrentStoryIndex] = useState(initialStoryIndex);
-  const [currentStoryItemIndex, setCurrentStoryItemIndex] = useState(0);
-  const [progress, setProgress] = useState(0);
-  const [isPaused, setIsPaused] = useState(false);
-  const [isMuted, setIsMuted] = useState(false);
-  const videoRef = useRef(null);
-  const { toast } = useToast();
+export default function StoryViewer({ stories, initialUserId, initialStoryIndex = 0, onClose, onAction }) {
+  const allItems = stories.flatMap(group => group.stories.map(item => ({ ...item, author: group })));
+  const [storyId, setStoryId] = useState(() => stories.find(group => group.user_id === initialUserId)?.stories[0]?.id || stories[initialStoryIndex]?.stories[0]?.id);
+  const item = allItems.find(entry => entry.id === storyId);
+  const [paused, setPaused] = useState(false);
+  const [muted, setMuted] = useState(true);
+  const [confirming, setConfirming] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const video = useRef(null);
   const { user } = useAuth();
-
-  const currentStorySet = stories[currentStoryIndex];
-  const currentStoryItem = currentStorySet?.stories[currentStoryItemIndex];
-
+  const { toast } = useToast();
+  const next = () => { const i = allItems.findIndex(entry => entry.id === storyId); if (i >= 0 && allItems[i + 1]) setStoryId(allItems[i + 1].id); else onClose(); };
+  const previous = () => { const i = allItems.findIndex(entry => entry.id === storyId); if (i > 0) setStoryId(allItems[i - 1].id); };
+  const advance = useRef(next); advance.current = next;
   useEffect(() => {
-    if (!currentStoryItem || isPaused) return;
-
-    setProgress(0);
-    const timer = setInterval(() => {
-      setProgress(prev => {
-        if (prev >= 100) {
-          clearInterval(timer);
-          return 100;
-        }
-        const duration = currentStoryItem.media_type === 'video' && videoRef.current ? videoRef.current.duration * 1000 : 5000;
-        return prev + (100 / (duration / 100));
-      });
-    }, 100);
-
-    return () => clearInterval(timer);
-  }, [currentStoryItemIndex, currentStoryIndex, isPaused, currentStoryItem]);
-
+    if (!item || paused || confirming || deleting || item.media_type === 'video') return undefined;
+    const timer = setTimeout(() => advance.current(), 5000);
+    return () => clearTimeout(timer);
+  }, [storyId, Boolean(item), paused, confirming, deleting, item?.media_type]);
   useEffect(() => {
-    if (progress >= 100) {
-      if (currentStoryItemIndex < currentStorySet.stories.length - 1) {
-        setCurrentStoryItemIndex(prev => prev + 1);
-      } else {
-        if (currentStoryIndex < stories.length - 1) {
-          setCurrentStoryIndex(prev => prev + 1);
-          setCurrentStoryItemIndex(0);
-        } else {
-          onClose();
-        }
-      }
-    }
-  }, [progress, currentStoryItemIndex, currentStoryIndex, currentStorySet, stories.length, onClose]);
-
-  useEffect(() => {
-    if (videoRef.current) {
-      videoRef.current.muted = isMuted;
-    }
-  }, [isMuted]);
-
-  const goToNextStorySet = () => {
-    if (currentStoryIndex < stories.length - 1) {
-      setCurrentStoryIndex(prev => prev + 1);
-      setCurrentStoryItemIndex(0);
-    } else {
-      onClose();
-    }
+    if (!video.current) return;
+    if (paused || confirming) video.current.pause(); else void video.current.play().catch(() => {});
+  }, [paused, confirming, storyId]);
+  const remove = async () => {
+    if (!item || deleting) return;
+    setDeleting(true);
+    try {
+      const { data, error } = await supabase.rpc('delete_story', { p_story_id: item.id });
+      if (error || data?.success === false) throw error || new Error(data.message);
+      await onAction?.();
+      setConfirming(false);
+      toast({ title: 'Story removido' });
+    } catch (error) {
+      console.error('Falha ao excluir Story', error);
+      toast({ title: 'Não foi possível excluir o Story', description: error.message, variant: 'destructive' });
+    } finally { setDeleting(false); }
   };
-
-  const goToPrevStorySet = () => {
-    if (currentStoryIndex > 0) {
-      setCurrentStoryIndex(prev => prev - 1);
-      setCurrentStoryItemIndex(0);
-    }
-  };
-
-  const handleVideoPlay = () => {
-    if (videoRef.current) {
-      if (isPaused) {
-        videoRef.current.play();
-      } else {
-        videoRef.current.pause();
-      }
-      setIsPaused(!isPaused);
-    }
-  };
-
-  const handleDeleteStory = async () => {
-    if (!currentStoryItem) return;
-
-    const { data, error } = await supabase.rpc('delete_story', { p_story_id: currentStoryItem.id });
-
-    if (error || !data.success) {
-      toast({ title: "Erro ao deletar story", description: data?.message || error.message, variant: "destructive" });
-    } else {
-      toast({ title: "Story deletado com sucesso!" });
-      if(onAction) onAction();
-      onClose();
-    }
-  };
-
-  if (!currentStorySet || !currentStoryItem) return null;
-
-  return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center"
-      onMouseDown={() => setIsPaused(true)}
-      onMouseUp={() => setIsPaused(false)}
-      onTouchStart={() => setIsPaused(true)}
-      onTouchEnd={() => setIsPaused(false)}
-    >
-      <div className="relative w-full max-w-[400px] aspect-[9/16] bg-black rounded-lg overflow-hidden shadow-2xl">
-        <AnimatePresence>
-          <motion.div
-            key={`${currentStoryIndex}-${currentStoryItemIndex}`}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="absolute inset-0"
-          >
-            {currentStoryItem.media_type === 'image' && (
-              <img className="w-full h-full object-cover" alt={`Story de ${currentStorySet.author_username}`} src={currentStoryItem.media_url} />
-            )}
-            {currentStoryItem.media_type === 'video' && (
-              <div className="relative w-full h-full">
-                <video
-                  ref={videoRef}
-                  src={currentStoryItem.media_url}
-                  className="w-full h-full object-cover"
-                  autoPlay
-                  playsInline
-                  muted={isMuted}
-                  onPlay={() => setIsPaused(false)}
-                  onPause={() => setIsPaused(true)}
-                />
-                <div className="absolute inset-0 flex items-center justify-center bg-black/20" onClick={handleVideoPlay}>
-                  {isPaused && <Play className="w-16 h-16 text-white/70" />}
-                </div>
-              </div>
-            )}
-            {currentStoryItem.media_type === 'text' && (
-              <div className="w-full h-full flex items-center justify-center p-8 bg-gradient-to-br from-blue-500 to-purple-600">
-                <p className="text-white text-2xl font-bold text-center">{currentStoryItem.content}</p>
-              </div>
-            )}
-          </motion.div>
-        </AnimatePresence>
-
-        <div className="absolute top-0 left-0 right-0 p-4 z-10 bg-gradient-to-b from-black/50 to-transparent">
-          <div className="flex items-center gap-2 mb-2">
-            {currentStorySet.stories.map((_, index) => (
-              <div key={index} className="flex-1 h-1 bg-white/30 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-white"
-                  style={{ width: `${index < currentStoryItemIndex ? 100 : index === currentStoryItemIndex ? progress : 0}%` }}
-                />
-              </div>
-            ))}
-          </div>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <img src={currentStorySet.author_avatar} alt={currentStorySet.author_username} className="w-8 h-8 rounded-full" />
-              <span className="text-white font-semibold text-sm">{currentStorySet.author_username}</span>
-            </div>
-            <div className="flex items-center gap-2">
-              {currentStoryItem.media_type === 'video' && (
-                <button onClick={() => setIsMuted(!isMuted)} className="text-white">
-                  {isMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}
-                </button>
-              )}
-              <button onClick={onClose} className="text-white">
-                <X size={24} />
-              </button>
-            </div>
+  return <Dialog open onOpenChange={open => { if (!open && !deleting) onClose(); }}>
+    <DialogContent aria-label="Visualizador de Stories" className="max-w-[400px] p-0 overflow-hidden border-0 bg-black backdrop-blur-none [&>button]:hidden" onKeyDown={event => {
+      if (confirming) return;
+      if (event.key === 'ArrowRight') next();
+      if (event.key === 'ArrowLeft') previous();
+      if (event.key === ' ') { event.preventDefault(); setPaused(value => !value); }
+    }}>
+      <DialogTitle className="sr-only">Story de {item?.author.author_username || 'cidadão'}</DialogTitle>
+      <DialogDescription className="sr-only">Use as setas para navegar e espaço para pausar.</DialogDescription>
+      <div className="relative aspect-[9/16] max-h-[85dvh] bg-black text-white">
+        {item ? <>
+          {['image', 'gif'].includes(item.media_type) && <img src={item.media_url} alt={`Story de ${item.author.author_username}`} className="w-full h-full object-contain" />}
+          {item.media_type === 'video' && <video key={item.id} ref={video} src={item.media_url} className="w-full h-full object-contain" autoPlay playsInline muted={muted} onEnded={next} />}
+          {item.media_type === 'text' && <div className="w-full h-full flex items-center justify-center p-8" style={{ backgroundColor: /^#[0-9a-f]{6}$/i.test(item.media_url) ? item.media_url : '#3b82f6' }}><p className="break-words whitespace-pre-wrap text-xl sm:text-2xl font-bold text-center">{item.content}</p></div>}
+        </> : <div role="status" className="h-full flex flex-col items-center justify-center gap-4 p-8 text-center"><p>Este Story foi removido ou expirou.</p><Button onClick={onClose}>Voltar aos Stories</Button></div>}
+        <div className="absolute inset-x-0 top-0 flex items-center justify-between gap-2 p-2 bg-gradient-to-b from-black/80 to-transparent">
+          <span className="truncate text-sm font-medium">{item?.author.author_username}</span>
+          <div className="flex shrink-0 gap-1">
+            {item && <Button size="icon" variant="ghost" aria-label={paused ? 'Reproduzir Story' : 'Pausar Story'} onClick={() => setPaused(value => !value)} className="min-h-11 min-w-11">{paused ? <Play /> : <Pause />}</Button>}
+            {item?.media_type === 'video' && <Button size="icon" variant="ghost" aria-label={muted ? 'Ativar som' : 'Silenciar'} onClick={() => setMuted(value => !value)} className="min-h-11 min-w-11">{muted ? <VolumeX /> : <Volume2 />}</Button>}
+            <Button size="icon" variant="ghost" aria-label="Fechar Story" onClick={onClose} className="min-h-11 min-w-11"><X /></Button>
           </div>
         </div>
-        
-        {user?.id === currentStorySet.user_id && (
-            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20">
-               <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <button className="bg-red-600/80 p-3 rounded-lg backdrop-blur-sm">
-                        <Trash2 className="w-6 h-6 text-white" />
-                    </button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        Esta ação não pode ser desfeita. Isso irá deletar permanentemente o seu story.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                      <AlertDialogAction onClick={handleDeleteStory} className="bg-red-600 hover:bg-red-700">Deletar</AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-            </div>
-        )}
+        {item && <div className="absolute inset-x-0 bottom-3 flex items-center justify-between gap-3 px-3">
+          <Button size="icon" variant="secondary" aria-label="Story anterior" onClick={previous} className="min-h-11 min-w-11"><ChevronLeft /></Button>
+          {(user?.id === item.author.user_id || user?.role === 'Admin') && <AlertDialog open={confirming} onOpenChange={setConfirming}>
+            <AlertDialogTrigger asChild><Button variant="destructive" size="icon" aria-label="Excluir Story" className="min-h-11 min-w-11"><Trash2 /></Button></AlertDialogTrigger>
+            <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Excluir Story?</AlertDialogTitle><AlertDialogDescription>{user?.id === item.author.user_id ? 'Este Story será removido permanentemente.' : 'A remoção será registrada e o autor será notificado.'}</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel disabled={deleting}>Cancelar</AlertDialogCancel><AlertDialogAction disabled={deleting} onClick={event => { event.preventDefault(); void remove(); }}>{deleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}Excluir Story</AlertDialogAction></AlertDialogFooter></AlertDialogContent>
+          </AlertDialog>}
+          <Button size="icon" variant="secondary" aria-label="Próximo Story" onClick={next} className="min-h-11 min-w-11"><ChevronRight /></Button>
+        </div>}
       </div>
-
-      <button onClick={goToPrevStorySet} className="absolute left-4 top-1/2 -translate-y-1/2 text-white bg-black/30 rounded-full p-2 hidden md:block">
-        <ChevronLeft size={32} />
-      </button>
-      <button onClick={goToNextStorySet} className="absolute right-4 top-1/2 -translate-y-1/2 text-white bg-black/30 rounded-full p-2 hidden md:block">
-        <ChevronRight size={32} />
-      </button>
-    </motion.div>
-  );
-};
-
-export default StoryViewer;
+    </DialogContent>
+  </Dialog>;
+}

@@ -1,3 +1,11 @@
+import { userErrorMessage } from '@/lib/userErrors';
+import { fetchPublicProfiles } from '@/lib/publicProfiles';
+import DecreeOversight from '@/components/parliament/DecreeOversight';
+import LegalMeasureStudio from '@/components/parliament/LegalMeasureStudio';
+import PartyIdentity from '@/components/parliament/PartyIdentity';
+import { PARLIAMENT_REALTIME_TABLES } from '@/lib/parliamentRealtime';
+import { useDomainRealtime } from '@/hooks/use-domain-realtime';
+import { usePublicProfileChanges } from '@/hooks/use-public-profile-changes';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { motion } from 'framer-motion';
@@ -384,12 +392,13 @@ const ParliamentPanel = () => {
     []
   );
 
-  const fetchPanelData = useCallback(async () => {
+  const fetchPanelData = useCallback(async (options = {}) => {
+    const quiet = options.quiet === true;
     if (!user) {
       return;
     }
 
-    setLoading(true);
+    if (!quiet) setLoading(true);
 
     try {
       const [{ data: housesData, error: housesError }, syncState] = await Promise.all([
@@ -442,7 +451,7 @@ const ParliamentPanel = () => {
       setParliamentMember(currentOperator);
       setHouse(currentHouse);
 
-      const governanceRefresh = await refreshParliamentGovernanceState(supabase).catch((error) => {
+      const governanceRefresh = quiet ? { schemaReady: true } : await refreshParliamentGovernanceState(supabase).catch((error) => {
         if (isGovernanceSchemaMissing(error)) {
           return { schemaReady: false, error };
         }
@@ -477,7 +486,7 @@ const ParliamentPanel = () => {
           .order('created_at', { ascending: false }),
         supabase
           .from('parliament_members')
-          .select('id, user_id, house_id, term_start_date, term_end_date, profile:profiles(id, full_name, avatar_url, x_handle, role, titles), party:political_parties(name, acronym, logo_url)')
+          .select('id, user_id, house_id, term_start_date, term_end_date, profile:profiles(id, full_name, avatar_url, x_handle, role, titles), party:political_parties!parliament_members_party_id_fkey(name, acronym, logo_url)')
           .eq('house_id', selectedHouseId)
           .order('term_start_date', { ascending: false }),
         supabase
@@ -510,8 +519,9 @@ const ParliamentPanel = () => {
       setBills(billsResponse.data || []);
       setSuggestions(suggestionsResponse.data || []);
       setPlebisciteRequests(plebiscitesResponse.data || []);
+      const visibleProfiles = await fetchPublicProfiles((membersResponse.data || []).map(member => member.user_id));
       const eligibleMembers = filterCompatibleParliamentMembers(
-        membersResponse.data || [],
+        (membersResponse.data || []).map(member => ({ ...member, profile: visibleProfiles.get(member.user_id) || member.profile })),
         syncState,
         housesData || []
       );
@@ -548,7 +558,7 @@ const ParliamentPanel = () => {
       console.error('Erro ao carregar painel do parlamento:', error);
       setAccessData({
         hasAccess: false,
-        reason: error.message || 'Não foi possível carregar o painel parlamentar.',
+        reason: userErrorMessage(error) || 'Não foi possível carregar o painel parlamentar.',
       });
       toast({
         title: 'Erro ao carregar dados',
@@ -563,6 +573,8 @@ const ParliamentPanel = () => {
   useEffect(() => {
     fetchPanelData();
   }, [fetchPanelData]);
+  useDomainRealtime('parliament', user?.id, PARLIAMENT_REALTIME_TABLES, () => fetchPanelData({ quiet: true }), Boolean(user?.id));
+  usePublicProfileChanges(() => fetchPanelData({ quiet: true }));
 
   useEffect(() => {
     if (!managedCommission) {
@@ -1117,6 +1129,8 @@ const ParliamentPanel = () => {
             className="mt-6"
           >
             <TabsContent value="projects" className="space-y-6">
+              <LegalMeasureStudio houseId={house?.id} onCreated={() => fetchPanelData({ quiet: true })} />
+              <DecreeOversight houseId={house?.id} onUpdated={() => fetchPanelData({ quiet: true })} />
               <Tabs value={activeSubTab} onValueChange={setActiveSubTab}>
                 <TabsList className="grid h-auto w-full grid-cols-2 items-stretch gap-2">
                   <TabsTrigger
@@ -1498,7 +1512,7 @@ const ParliamentPanel = () => {
                                       <AvatarImage src={item.member?.profile?.avatar_url} />
                                       <AvatarFallback>{item.member?.profile?.full_name?.charAt(0) || 'P'}</AvatarFallback>
                                     </Avatar>
-                                    <span>{item.member?.profile?.full_name || 'Parlamentar'}</span>
+                                    <span>{item.member?.profile?.full_name || 'Parlamentar'}<PartyIdentity party={item.member?.party} className="ml-2 text-xs" /></span>
                                     <span className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
                                       {item.role}
                                     </span>
@@ -1664,6 +1678,7 @@ const ParliamentPanel = () => {
                               <p className="text-lg font-semibold text-foreground">
                                 {activeTerm.member?.profile?.full_name || 'Parlamentar'}
                               </p>
+<PartyIdentity party={activeTerm.member?.party} className="text-sm" />
                               <p className="text-sm text-muted-foreground">
                                 Mandato até {new Date(`${activeTerm.term_end_date}T00:00:00`).toLocaleDateString('pt-BR')}
                               </p>
@@ -1737,6 +1752,7 @@ const ParliamentPanel = () => {
                                         <p className="font-medium text-foreground">
                                           {candidate.member?.profile?.full_name || 'Parlamentar'}
                                         </p>
+<PartyIdentity party={candidate.member?.party} className="text-sm" />
                                         <p className="text-sm text-muted-foreground">{candidate.votes} voto(s)</p>
                                       </div>
                                     </div>
@@ -1771,6 +1787,7 @@ const ParliamentPanel = () => {
                                 <p className="mt-2 text-sm text-emerald-50">
                                   Eleito: {election.winner?.profile?.full_name || 'Parlamentar'}
                                 </p>
+<PartyIdentity party={election.winner?.party} className="text-sm" />
                               </div>
                             ) : null}
                           </CardContent>
@@ -1889,11 +1906,7 @@ const ParliamentPanel = () => {
                         )}
                         {member.party ? (
                           <Badge variant="secondary" className="mt-3 inline-flex items-center gap-2">
-                            <Avatar className="h-4 w-4">
-                              <AvatarImage src={member.party.logo_url} />
-                              <AvatarFallback>{member.party.acronym?.charAt(0) || 'P'}</AvatarFallback>
-                            </Avatar>
-                            {member.party.acronym || member.party.name}
+                            <PartyIdentity party={member.party} />
                           </Badge>
                         ) : null}
                         <p className="mt-3 text-xs text-muted-foreground">
@@ -2069,7 +2082,7 @@ const ParliamentPanel = () => {
                   <SelectContent>
                     {members.map((member) => (
                       <SelectItem key={member.parliament_member_id} value={member.parliament_member_id}>
-                        <UserSelectOption user={member} detail={member.party_acronym || member.role || ''} />
+                        <UserSelectOption user={member} detail={<PartyIdentity party={member.party} />} />
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -2117,6 +2130,7 @@ const ParliamentPanel = () => {
                       </Avatar>
                       <div>
                         <p className="font-medium text-foreground">{item.member?.profile?.full_name || 'Parlamentar'}</p>
+<PartyIdentity party={item.member?.party} className="text-sm" />
                         <p className="text-sm text-muted-foreground">{item.role}</p>
                       </div>
                     </div>
@@ -2249,7 +2263,7 @@ const ParliamentPanel = () => {
                 <SelectContent>
                   {members.map((member) => (
                     <SelectItem key={member.parliament_member_id} value={member.parliament_member_id}>
-                      <UserSelectOption user={member} detail={member.party_acronym || member.role || ''} />
+                      <UserSelectOption user={member} detail={<PartyIdentity party={member.party} />} />
                     </SelectItem>
                   ))}
                 </SelectContent>

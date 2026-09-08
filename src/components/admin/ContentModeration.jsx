@@ -1,3 +1,5 @@
+import Stories from '@/components/social-x/stories/Stories';
+import { useDomainRealtime } from '@/hooks/use-domain-realtime';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { useToast } from '@/components/ui/use-toast';
@@ -12,12 +14,11 @@ const ContentModeration = () => {
     const { user } = useAuth();
     const { toast } = useToast();
     const [posts, setPosts] = useState([]);
-    const [loading, setLoading] = useState(false);
+    const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const viewedPosts = useRef(new Set());
 
     const fetchAllPosts = useCallback(async () => {
-        setLoading(true);
         if (!user) return;
         const { data, error } = await supabase.rpc('get_posts_with_interactions', { p_user_id: user.id });
         if (error) {
@@ -26,11 +27,13 @@ const ContentModeration = () => {
             setPosts(data);
         }
         setLoading(false);
-    }, [toast, user]);
+    }, [toast, user?.id]);
 
     useEffect(() => {
         fetchAllPosts();
     }, [fetchAllPosts]);
+
+    useDomainRealtime('x-moderation', user?.id, ['posts', 'stories'], fetchAllPosts, user?.role === 'Admin');
 
     const handleDeletePost = async (postId, postAuthor) => {
         const { error } = await supabase.rpc('admin_delete_post', { p_post_id: postId });
@@ -55,6 +58,7 @@ const ContentModeration = () => {
     return (
         <div className="space-y-6">
             <h2 className="text-2xl font-bold text-white">Moderação de Conteúdo</h2>
+            <Stories allowUpload={false} />
             <div className="relative max-w-sm">
                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5"/>
                 <Input 

@@ -1,3 +1,6 @@
+import { LegalEffectsForSource } from '@/components/parliament/LegalEffectsSummary';
+import LegalMeasureStudio from '@/components/parliament/LegalMeasureStudio';
+import LiveLegalRules from '@/components/parliament/LiveLegalRules';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Helmet } from 'react-helmet-async';
@@ -338,15 +341,16 @@ const DecreeManager = ({ decrees, onUpdate }) => {
             </CardHeader>
             <CardContent className="flex-grow space-y-4">
                  {decrees.length > 0 ? decrees.map(decree => (
-                    <div key={decree.id} className="flex items-center justify-between p-3 bg-slate-800/50 rounded-lg">
+                    <div key={decree.id} className="flex flex-col sm:flex-row gap-3 sm:items-center justify-between p-3 bg-slate-800/50 rounded-lg">
                         <div>
                             <p className="font-semibold">{decree.title}</p>
+                            <LegalEffectsForSource sourceKind="decree" sourceId={decree.id} />
                             <p className={`text-sm ${decree.is_published ? 'text-green-400' : 'text-yellow-400'}`}>{decree.is_published ? 'Publicado' : 'Rascunho'}</p>
                         </div>
                         <div className="flex gap-1">
-                            <Button variant="outline" size="sm" onClick={() => openEditDialog(decree)}><Edit className="w-4 h-4 mr-2"/>Editar</Button>
-                            <Button variant="outline" size="sm" onClick={() => handlePublish(decree.id, decree.is_published)}><Megaphone className="w-4 h-4 mr-2"/>Publicar</Button>
-                            <Button variant="destructive" size="sm" onClick={() => handleDelete(decree.id)}><Trash2 className="w-4 h-4 mr-2"/>Excluir</Button>
+                            <Button disabled={decree.is_published} variant="outline" size="sm" onClick={() => openEditDialog(decree)}><Edit className="w-4 h-4 mr-2"/>Editar</Button>
+                            <Button variant="outline" size="sm" disabled={decree.is_published} onClick={() => handlePublish(decree.id, decree.is_published)}><Megaphone className="w-4 h-4 mr-2"/>Publicar</Button>
+                            <Button variant="destructive" size="sm" disabled={decree.is_published} onClick={() => handleDelete(decree.id)}><Trash2 className="w-4 h-4 mr-2"/>Excluir</Button>
                         </div>
                     </div>
                 )) : <p className="text-center text-muted-foreground py-4">Nenhum decreto criado.</p>}
@@ -501,7 +505,7 @@ const BudgetManager = ({ budget, treasuryBalance, onUpdate, setActiveTab }) => {
                     const AreaIcon = areaIcons[area.name]?.icon || areaIcons.default.icon;
                     const iconColor = areaIcons[area.name]?.color || areaIcons.default.color;
                     return (
-                        <div key={area.name} className="flex items-center justify-between p-3 bg-slate-800/50 rounded-lg">
+                        <div key={area.name} className="flex flex-col sm:flex-row gap-3 sm:items-center justify-between p-3 bg-slate-800/50 rounded-lg">
                             <div className="flex items-center gap-3">
                                 <AreaIcon className={`w-5 h-5 ${iconColor}`} />
                                 <div>
@@ -565,120 +569,7 @@ const BudgetManager = ({ budget, treasuryBalance, onUpdate, setActiveTab }) => {
     );
 };
 
-const TaxManager = ({ taxes, onUpdate, setActiveTab }) => {
-    const { toast } = useToast();
-    const [taxRates, setTaxRates] = useState({});
-    const [isSaving, setIsSaving] = useState(false);
-
-    useEffect(() => {
-        if (taxes) {
-            setTaxRates({
-                product_tax: (taxes.product_tax || 0) * 100,
-                service_tax: (taxes.service_tax || 0) * 100,
-                transaction_tax_value: taxes.transaction_tax?.value ?
-                    (taxes.transaction_tax.type === 'percentage' ? taxes.transaction_tax.value * 100 : taxes.transaction_tax.value)
-                    : 0,
-                transaction_tax_type: taxes.transaction_tax?.type || 'percentage',
-            });
-        }
-    }, [taxes]);
-
-    const handleSave = async () => {
-        setIsSaving(true);
-        const newTaxData = {
-            product_tax: taxRates.product_tax / 100,
-            service_tax: taxRates.service_tax / 100,
-            transaction_tax: {
-                type: taxRates.transaction_tax_type,
-                value: taxRates.transaction_tax_type === 'percentage' ? taxRates.transaction_tax_value / 100 : taxRates.transaction_tax_value
-            }
-        };
-
-        const { error } = await supabase.from('system_settings').update({ value: newTaxData }).eq('key', 'tax_rates');
-
-        if (error) {
-            toast({ title: 'Erro ao salvar impostos', description: error.message, variant: 'destructive' });
-        } else {
-            toast({ title: 'Impostos salvos com sucesso!' });
-            onUpdate();
-            setActiveTab('finances');
-        }
-        setIsSaving(false);
-    };
-
-    const handleTaxValueChange = (taxName, value) => {
-        const numericValue = parseFloat(value);
-        if (!isNaN(numericValue)) {
-            setTaxRates(prev => ({ ...prev, [taxName]: numericValue }));
-        } else if (value === '') {
-            setTaxRates(prev => ({ ...prev, [taxName]: 0 }));
-        }
-    };
-
-    return (
-        <Card className="glass-effect h-full flex flex-col">
-            <CardHeader>
-                <CardTitle className="flex items-center gap-2"><BrainCircuit className="w-6 h-6 text-primary" />Gestão de Impostos</CardTitle>
-                <CardDescription>Ajuste as alíquotas de impostos do país.</CardDescription>
-            </CardHeader>
-            <CardContent className="flex-grow space-y-6">
-                <div className="space-y-2">
-                    <div className="flex justify-between items-center">
-                        <Label>Imposto sobre Produtos (IVC)</Label>
-                        <div className="flex items-center gap-1 w-24">
-                           <Input type="number" value={taxRates.product_tax?.toFixed(2)} onChange={e => handleTaxValueChange('product_tax', e.target.value)} className="h-8 text-right"/>
-                           <Percent className="h-4 w-4 text-muted-foreground" />
-                        </div>
-                    </div>
-                    <Slider value={[taxRates.product_tax || 0]} onValueChange={(val) => setTaxRates(p => ({...p, product_tax: val[0]}))} max={100} step={0.01} />
-                </div>
-                <div className="space-y-2">
-                    <div className="flex justify-between items-center">
-                        <Label>Imposto sobre Serviços (ISS)</Label>
-                         <div className="flex items-center gap-1 w-24">
-                           <Input type="number" value={taxRates.service_tax?.toFixed(2)} onChange={e => handleTaxValueChange('service_tax', e.target.value)} className="h-8 text-right"/>
-                           <Percent className="h-4 w-4 text-muted-foreground" />
-                        </div>
-                    </div>
-                    <Slider value={[taxRates.service_tax || 0]} onValueChange={(val) => setTaxRates(p => ({...p, service_tax: val[0]}))} max={100} step={0.01} />
-                </div>
-                 <div className="space-y-4">
-                    <Label>Imposto sobre Transações Financeiras (ITF)</Label>
-                    <Select value={taxRates.transaction_tax_type} onValueChange={(val) => setTaxRates(p => ({...p, transaction_tax_type: val}))}>
-                        <SelectTrigger><SelectValue/></SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="percentage">Porcentagem (%)</SelectItem>
-                            <SelectItem value="fixed">Valor Fixo (R$)</SelectItem>
-                        </SelectContent>
-                    </Select>
-                     {taxRates.transaction_tax_type === 'percentage' ? (
-                        <div className="space-y-2">
-                            <div className="flex justify-between items-center">
-                                <Label>Alíquota Percentual</Label>
-                                <div className="flex items-center gap-1 w-24">
-                                   <Input type="number" value={taxRates.transaction_tax_value?.toFixed(2)} onChange={e => handleTaxValueChange('transaction_tax_value', e.target.value)} className="h-8 text-right"/>
-                                   <Percent className="h-4 w-4 text-muted-foreground" />
-                                </div>
-                            </div>
-                            <Slider value={[taxRates.transaction_tax_value || 0]} onValueChange={(val) => setTaxRates(p => ({...p, transaction_tax_value: val[0]}))} max={100} step={0.01} />
-                        </div>
-                    ) : (
-                        <div>
-                            <Label>Valor Fixo por Transação</Label>
-                            <Input type="text" value={formatCurrency(taxRates.transaction_tax_value || 0, true)} onChange={(e) => setTaxRates(p => ({...p, transaction_tax_value: parseCurrency(e.target.value)}))} />
-                        </div>
-                    )}
-                </div>
-            </CardContent>
-            <CardFooter>
-                 <Button onClick={handleSave} disabled={isSaving} className="w-full">
-                    <Save className="mr-2 h-4 w-4" />
-                    {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : 'Salvar Impostos'}
-                </Button>
-            </CardFooter>
-        </Card>
-    );
-};
+const TaxManager = ({ onUpdate }) => <div className="space-y-4"><LiveLegalRules /><LegalMeasureStudio onCreated={() => onUpdate(false)} /></div>;
 
 const FinanceCard = ({ title, value, icon, isCurrency = true, colorClass = 'text-green-400' }) => {
     const Icon = icon;
@@ -900,129 +791,7 @@ const SelicManager = ({ economicPolicy, bankPolicy, onUpdate }) => {
     );
 };
 
-const TARIFF_GROUPS = {
-    'Emissão de Documentos': {
-        groupIcon: FileText,
-        tariffs: [
-            { key: 'doc_CNH', label: 'CNH', icon: Car },
-            { key: 'doc_Passport', label: 'Passaporte', icon: Globe },
-            { key: 'doc_CNPJ', label: 'CNPJ', icon: Building2 },
-            { key: 'doc_CTD', label: 'Carteira de Trabalho Digital', icon: Contact },
-            { key: 'doc_Titulo_Eleitor', label: 'Título de Eleitor', icon: FileCheck },
-            { key: 'doc_Certificado_Reservista', label: 'Certificado de Reservista', icon: Shield },
-            { key: 'doc_Certidao_Casamento', label: 'Certidão de Casamento', icon: FileSignature },
-            { key: 'doc_Registro_Profissional', label: 'Registro Profissional', icon: Briefcase },
-        ]
-    },
-    'Criação de Empresas': {
-        groupIcon: Store,
-        tariffs: [
-            { key: 'biz_banco', label: 'Banco', icon: Landmark },
-            { key: 'biz_construtora', label: 'Construtora', icon: HardHat },
-            { key: 'biz_fabrica', label: 'Fábrica', icon: Building },
-            { key: 'biz_loja', label: 'Loja / Comércio', icon: Store },
-            { key: 'biz_transportadora', label: 'Transportadora', icon: Tram },
-            { key: 'biz_consultoria', label: 'Consultoria', icon: BrainCircuit },
-            { key: 'biz_seguranca', label: 'Empresa de Segurança', icon: Shield },
-            { key: 'biz_distribuidora', label: 'Distribuidora', icon: Package },
-        ]
-    },
-    'Multas': {
-        groupIcon: Gavel,
-        tariffs: [
-            { key: 'fine_leve', label: 'Infração Leve', icon: AlertTriangle },
-            { key: 'fine_media', label: 'Infração Média', icon: AlertTriangle },
-            { key: 'fine_grave', label: 'Infração Grave', icon: Ban },
-            { key: 'fine_gravissima', label: 'Infração Gravíssima', icon: Ban },
-        ]
-    },
-};
-
-const TARIFF_GROUP_KEYS = Object.keys(TARIFF_GROUPS);
-
-const TariffManager = ({ baseTariffs, onUpdate }) => {
-    const { toast } = useToast();
-    const [tariffs, setTariffs] = useState({});
-    const [isSaving, setIsSaving] = useState(false);
-    const [activeTariffTab, setActiveTariffTab] = useState(TARIFF_GROUP_KEYS[0]);
-
-    useEffect(() => {
-        if (baseTariffs) {
-            setTariffs(baseTariffs);
-        }
-    }, [baseTariffs]);
-
-    const handleTariffChange = (key, value) => {
-        setTariffs(prev => ({ ...prev, [key]: parseCurrency(value) }));
-    };
-
-    const handleSave = async () => {
-        setIsSaving(true);
-        const { error } = await supabase.from('system_settings').upsert({ key: 'base_tariffs', value: tariffs });
-        if (error) {
-            toast({ title: 'Erro ao salvar tarifas', description: error.message, variant: 'destructive' });
-        } else {
-            toast({ title: 'Tarifas atualizadas com sucesso!' });
-            onUpdate();
-        }
-        setIsSaving(false);
-    };
-
-    const groupData = TARIFF_GROUPS[activeTariffTab];
-    const GroupIcon = groupData.groupIcon;
-
-    return (
-        <Card className="glass-effect">
-            <CardHeader>
-                <CardTitle className="flex items-center gap-2"><Receipt className="w-5 h-5 text-primary" /> Valores de Tarifas Base</CardTitle>
-                <CardDescription>Defina os valores cobrados para emissão de documentos, criação de empresas e multas.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-                <Tabs value={activeTariffTab} onValueChange={setActiveTariffTab} className="w-full">
-                    <TabsList className="w-full grid grid-cols-3">
-                        {TARIFF_GROUP_KEYS.map(groupName => {
-                            const GIcon = TARIFF_GROUPS[groupName].groupIcon;
-                            return (
-                                <TabsTrigger key={groupName} value={groupName} className="text-xs sm:text-sm">
-                                    <GIcon className="w-4 h-4 mr-1.5" />
-                                    {groupName.split(' ').slice(-1)[0]}
-                                </TabsTrigger>
-                            );
-                        })}
-                    </TabsList>
-                </Tabs>
-
-                <div className="flex items-center gap-2 mb-2">
-                    <GroupIcon className="w-5 h-5 text-primary" />
-                    <h4 className="font-semibold text-lg text-foreground">{activeTariffTab}</h4>
-                </div>
-
-                <div className="space-y-3">
-                    {groupData.tariffs.map(({ key, label, icon: TariffIcon }) => (
-                        <div key={key} className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                                <TariffIcon className="w-4 h-4 text-muted-foreground" />
-                                <Label htmlFor={key}>{label}</Label>
-                            </div>
-                            <Input
-                                id={key}
-                                value={formatCurrency(tariffs[key] || 0, true)}
-                                onChange={(e) => handleTariffChange(key, e.target.value)}
-                                className="w-32"
-                            />
-                        </div>
-                    ))}
-                </div>
-            </CardContent>
-            <CardFooter>
-                <Button onClick={handleSave} disabled={isSaving} className="w-full">
-                    <Save className="mr-2 h-4 w-4" />
-                    {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : 'Salvar Tarifas'}
-                </Button>
-            </CardFooter>
-        </Card>
-    );
-};
+const TariffManager = ({ onUpdate }) => <div className="space-y-4"><LiveLegalRules /><LegalMeasureStudio onCreated={() => onUpdate(false)} /></div>;
 
 const ConstitutionalStatusCard = ({ executiveState }) => {
     const currentTerm = executiveState?.currentTerm;
@@ -1317,6 +1086,7 @@ const BillReviewManager = ({ executiveState, onUpdate, actorId }) => {
                                     {bill.type || 'Projeto Legislativo'} • {bill.house?.name || 'Casa Legislativa'} • {bill.status}
                                 </p>
                                 <p className="text-sm text-muted-foreground">{bill.summary || 'Sem ementa cadastrada.'}</p>
+                                <LegalEffectsForSource sourceKind="bill" sourceId={bill.id} />
                             </div>
                             <div className="flex flex-wrap gap-2">
                                 <Button onClick={() => openReviewDialog(bill, isPromulgationOnly ? 'promulgate' : 'sanction')}>
@@ -2316,7 +2086,6 @@ const PresidentDashboard = () => {
     const [ministries, setMinistries] = useState([]);
     const [decrees, setDecrees] = useState([]);
     const [budget, setBudget] = useState(null);
-    const [taxes, setTaxes] = useState(null);
     const [servicePrices, setServicePrices] = useState(null);
     const [baseTariffs, setBaseTariffs] = useState(null);
     const [govFinances, setGovFinances] = useState(null);
@@ -2387,7 +2156,6 @@ const PresidentDashboard = () => {
             }
 
             setBudget(normalizedBudgetData);
-            setTaxes(settingsMap.tax_rates || { product_tax: 0, service_tax: 0, transaction_tax: { type: 'percentage', value: 0 } });
             setServicePrices(settingsMap.basic_service_prices || {});
             setBaseTariffs(settingsMap.base_tariffs || {});
             const normalizedEconomicPolicy = normalizeEconomicPolicy({
@@ -2705,7 +2473,7 @@ const PresidentDashboard = () => {
 
                                 <TabsContent value="taxes" className="mt-0">
                                     <div className="max-w-3xl mx-auto">
-                                        {taxes && <TaxManager taxes={taxes} onUpdate={fetchData} setActiveTab={setActiveTab} />}
+                                        <TaxManager onUpdate={fetchData} />
                                     </div>
                                 </TabsContent>
 
@@ -2775,7 +2543,7 @@ const PresidentDashboard = () => {
 
                                 <TabsContent value="decrees" className="mt-0">
                                     <div className="space-y-6 max-w-5xl mx-auto">
-                                        <DecreeManager decrees={decrees} onUpdate={fetchData} />
+                                        <LegalMeasureStudio onCreated={() => fetchData(false)} /><DecreeManager decrees={decrees} onUpdate={() => fetchData(false)} />
                                         <BillReviewManager executiveState={executiveState} onUpdate={fetchData} actorId={user?.id} />
                                         <ProvisionalMeasureManager executiveState={executiveState} onUpdate={fetchData} actorId={user?.id} />
                                     </div>

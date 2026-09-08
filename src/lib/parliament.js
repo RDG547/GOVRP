@@ -64,14 +64,6 @@ export const PARLIAMENT_RULE_SECTIONS = [
   },
 ];
 
-const getTodayDate = () => new Date().toISOString().slice(0, 10);
-
-const getFutureDate = (monthsAhead = 1) => {
-  const date = new Date();
-  date.setMonth(date.getMonth() + monthsAhead);
-  return date.toISOString().slice(0, 10);
-};
-
 export const inferBillTypeFromTitle = (title = '') => {
   const normalized = title.trim().toUpperCase();
 
@@ -98,47 +90,10 @@ const isPEC = (billType = '') => {
   return normalized === 'PEC';
 };
 
-export const ensureParliamentOperatorMember = async (
-  supabase,
-  { userId, houseId, member }
-) => {
-  if (member?.id && member.house_id === houseId) {
-    return member;
-  }
-
-  const { data: existingMember, error: existingMemberError } = await supabase
-    .from('parliament_members')
-    .select('id, user_id, house_id, party_id, term_start_date, term_end_date')
-    .eq('user_id', userId)
-    .eq('house_id', houseId)
-    .order('term_end_date', { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  if (existingMemberError) {
-    throw existingMemberError;
-  }
-
-  if (existingMember) {
-    return existingMember;
-  }
-
-  const { data: createdMember, error: createMemberError } = await supabase
-    .from('parliament_members')
-    .insert({
-      user_id: userId,
-      house_id: houseId,
-      term_start_date: getTodayDate(),
-      term_end_date: getFutureDate(),
-    })
-    .select('id, user_id, house_id, party_id, term_start_date, term_end_date')
-    .single();
-
-  if (createMemberError) {
-    throw createMemberError;
-  }
-
-  return createdMember;
+export const ensureParliamentOperatorMember = async (supabase, { houseId }) => {
+  const { data, error } = await supabase.rpc('ensure_current_parliament_member', { p_house_id: houseId });
+  if (error) throw error;
+  return data;
 };
 
 export const startBillVotingSession = async (

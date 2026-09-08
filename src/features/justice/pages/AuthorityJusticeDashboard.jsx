@@ -1,3 +1,4 @@
+import { executeArrestWarrant, archiveReferredInvestigation } from '@/lib/justice/api';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   X,
@@ -84,7 +85,7 @@ const AuthorityJusticeDashboard = () => {
     integrityCases: [],
     serverNow: null,
     investigationSubjects: [],
-    profiles: [],
+    profiles: [], timeline: [], caseDocuments: [], caseHearings: [], caseAppeals: [], sentences: [], investigationParties: [], caseParties: [], penalCodes: [], caseCharges: [],
   });
   const [loading, setLoading] = useState(true);
   const [acting, setActing] = useState(false);
@@ -118,6 +119,7 @@ const AuthorityJusticeDashboard = () => {
       ['integrity', BadgeCheck, 'Integridade'],
     ]
     : [
+      ...(isProsecutor ? [['investigations', Search, 'Remessas ao MP']] : []),
       ['requests', Gavel, 'Pedidos judiciais'],
       ['cases', Scale, 'Processos'],
       ['warrants', ClipboardList, 'Mandados'],
@@ -222,6 +224,10 @@ const AuthorityJusticeDashboard = () => {
         await transitionIntegrityCase({ caseId: action.item.id, status: action.status, summary: reason });
       } else if (action.type === 'evidence') {
         await recordInvestigationEvidence({ investigationId: action.item.id, title: action.title, description: reason, seal: action.seal });
+      } else if (action.type === 'execute-warrant') {
+        await executeArrestWarrant({ warrantId: action.item.id, location: action.location, description: reason });
+      } else if (action.type === 'archive-referred') {
+        await archiveReferredInvestigation({ investigationId: action.item.id, reason });
       } else if (action.type === 'resolve-investigation') {
         await resolveInvestigation({ investigationId: action.item.id, outcome: action.outcome, conclusion: reason });
       } else if (action.type === 'complement-investigation') {
@@ -294,13 +300,15 @@ const AuthorityJusticeDashboard = () => {
 
   const actionReasonMinimum = action?.type === 'acquit' || action?.type === 'convict' ? 80
     : action?.type === 'appeal-decision' ? 60
-      : ['admission', 'resolve-investigation', 'file-charge', 'complete-case-hearing'].includes(action?.type) ? 40
-        : ['investigate', 'complement-investigation', 'request-decision', 'release', 'revoke-warrant'].includes(action?.type) ? 20
+      : ['admission', 'resolve-investigation', 'archive-referred', 'file-charge', 'complete-case-hearing'].includes(action?.type) ? 40
+        : ['investigate', 'complement-investigation', 'execute-warrant', 'request-decision', 'release', 'revoke-warrant'].includes(action?.type) ? 20
           : 10;
 
   const actionTitle = {
     investigate: 'Abrir investigação',
     'revoke-warrant': 'Revogar mandado',
+    'execute-warrant': 'Cumprir mandado de prisão',
+    'archive-referred': 'Arquivar investigação no Ministério Público',
     'issue-fine': 'Emitir multa',
     'request-decision': action?.approved ? 'Aprovar pedido' : 'Negar pedido',
     'fine-hearing': action?.status === 'scheduled' ? 'Agendar audiência' : 'Negar audiência',
@@ -451,6 +459,7 @@ const AuthorityJusticeDashboard = () => {
                   <span className="text-muted-foreground">{data.investigationSubjects.filter((subject) => subject.investigation_id === investigation.id).length} pessoa(s) vinculada(s)</span>
                   <div className="flex flex-wrap gap-2">
                     {isPolice && ['open', 'in_progress', 'delegate_review', 'complement_requested'].includes(investigation.status) ? <Button size="sm" variant="outline" onClick={() => setAction({ type: 'evidence', item: investigation, title: '', seal: isDelegate })}>Registrar prova</Button> : null}
+                    {isProsecutor && investigation.status === 'sent_to_prosecutor' && <Button size="sm" variant="outline" onClick={() => setAction({ type: 'archive-referred', item: investigation })}>Arquivar no Ministério Público</Button>}
                     {isPolice ? <Button size="sm" variant="outline" onClick={() => setSubjectForm({ investigationId: investigation.id, investigationNumber: investigation.investigation_number, profileId: '', subjectStatus: 'under_review', notifySubject: false, notes: '' })}><Users className="mr-2 h-4 w-4" />Vincular pessoa</Button> : null}
                     {isDelegate && ['open', 'in_progress', 'delegate_review', 'complement_requested'].includes(investigation.status) ? <><Button size="sm" onClick={() => setAction({ type: 'resolve-investigation', item: investigation, outcome: 'indict' })}>Indiciar e remeter</Button><Button size="sm" variant="destructive" onClick={() => setAction({ type: 'resolve-investigation', item: investigation, outcome: 'no_indictment' })}>Arquivar sem indiciar</Button></> : null}
                     {isProsecutor && investigation.status === 'sent_to_prosecutor' ? <><Button size="sm" variant="outline" onClick={() => setAction({ type: 'complement-investigation', item: investigation })}>Pedir diligências</Button><Button size="sm" onClick={() => setAction({ type: 'file-charge', item: investigation, title: '', defendantId: '', penalCodeId: '' })}>Oferecer denúncia</Button></> : null}
@@ -548,6 +557,7 @@ const AuthorityJusticeDashboard = () => {
                   <div><span className="text-muted-foreground">Pessoa relacionada</span><div className="mt-2"><UserSelectOption user={target} label={target?.full_name || 'Identidade protegida'} detail={target?.username ? `@${target.username}` : ''} /></div></div>
                   <p><span className="text-muted-foreground">Validade</span><br />{formatJusticeDate(warrant.expires_at)}</p>
                   {warrant.revocation_reason && <p className="sm:col-span-2">Motivo da revogação: {warrant.revocation_reason}</p>}
+                  {isPolice && warrant.warrant_type === 'arrest' && warrant.status === 'issued' && new Date(warrant.expires_at).getTime() > now && warrant.target_profile_id !== user.id && <Button size="sm" className="w-fit" onClick={() => setAction({ type: 'execute-warrant', item: warrant, location: '' })}>Cumprir mandado de prisão</Button>}
                   {isJudge && warrant.status === 'issued' && new Date(warrant.expires_at).getTime() > now && warrant.target_profile_id !== user.id && (isAdmin || warrant.issued_by === user.id || data.cases.some(item => item.id === warrant.case_id && item.judge_id === user.id)) && <Button variant="outline" size="sm" className="w-fit" onClick={() => setAction({ type: 'revoke-warrant', item: warrant })}><XCircle className="mr-2 h-4 w-4" />Revogar mandado</Button>}
                 </CardContent>
               </Card>
@@ -588,12 +598,12 @@ const AuthorityJusticeDashboard = () => {
                   <p>{formatJusticeDate(criminalCase.updated_at)}</p>
                 </div>
                 <div className="space-y-4 md:col-span-3">
-                  <CaseTimeline status={criminalCase.status} events={data.timeline.filter((event) => event.case_id === criminalCase.id)} />
+                  <CaseTimeline status={criminalCase.status} events={data.timeline.filter((event) => event.case_id === criminalCase.id || (criminalCase.investigation_id && event.investigation_id === criminalCase.investigation_id))} />
                   <div className="flex flex-wrap gap-2">
                     {canDecideCase(criminalCase) && criminalCase.status === 'judicial_review' ? <><Button size="sm" onClick={() => setAction({ type: 'admission', item: criminalCase, admitted: true })}>Receber denúncia</Button><Button size="sm" variant="destructive" onClick={() => setAction({ type: 'admission', item: criminalCase, admitted: false })}>Rejeitar denúncia</Button></> : null}
                     {canDecideCase(criminalCase) && ['initial_defense', 'instruction'].includes(criminalCase.status) ? <Button size="sm" onClick={() => setAction({ type: 'schedule-case-hearing', item: criminalCase, location: '' })}>Agendar audiência</Button> : null}
                     {canDecideCase(criminalCase) && criminalCase.status === 'hearing_scheduled' ? <Button size="sm" onClick={() => setAction({ type: 'complete-case-hearing', item: criminalCase, hearing: data.caseHearings.find((hearing) => hearing.case_id === criminalCase.id && ['scheduled', 'open'].includes(hearing.status)) })} disabled={!data.caseHearings.some((hearing) => hearing.case_id === criminalCase.id && ['scheduled', 'open'].includes(hearing.status))}>Concluir audiência</Button> : null}
-                    {canDecideCase(criminalCase) && criminalCase.status === 'awaiting_sentence' ? <><Button size="sm" variant="outline" onClick={() => setAction({ type: 'acquit', item: criminalCase })}>Absolver</Button><Button size="sm" onClick={() => setAction({ type: 'convict', item: criminalCase, defendantId: data.caseParties.find((party) => party.case_id === criminalCase.id && party.party_type === 'defendant')?.profile_id || '', sentenceUnits: 1, fineAmount: 0, prisonRegime: 'closed' })}>Condenar</Button></> : null}
+                    {canDecideCase(criminalCase) && criminalCase.status === 'awaiting_sentence' ? <><Button size="sm" variant="outline" onClick={() => setAction({ type: 'acquit', item: criminalCase })}>Absolver</Button><Button size="sm" onClick={() => setAction({ type: 'convict', item: criminalCase, defendantId: data.caseParties.find((party) => party.case_id === criminalCase.id && party.party_type === 'defendant')?.profile_id || '', sentenceUnits: 1, fineAmount: (data.caseCharges || []).filter(charge => charge.case_id === criminalCase.id && charge.status === 'admitted').reduce((total, charge) => total + Number(charge.legal_snapshot?.fine || 0), 0), prisonRegime: 'closed' })}>Condenar</Button></> : null}
                     {isJudge && (isAdmin || criminalCase.judge_id !== user.id) && criminalCase.status === 'appeal' ? data.caseAppeals.filter((appeal) => appeal.case_id === criminalCase.id && ['filed', 'under_review'].includes(appeal.status)).map((appeal) => <React.Fragment key={appeal.id}><Button size="sm" onClick={() => setAction({ type: 'appeal-decision', item: criminalCase, appeal, outcome: 'denied' })}>Manter decisão</Button><Button size="sm" variant="outline" onClick={() => setAction({ type: 'appeal-decision', item: criminalCase, appeal, outcome: 'granted' })}>Dar provimento</Button></React.Fragment>) : null}
                   </div>
                 </div>
@@ -687,6 +697,7 @@ const AuthorityJusticeDashboard = () => {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-2 py-2">
+            {action?.type === 'execute-warrant' && <div><Label htmlFor="arrest-location">Local do cumprimento</Label><Input id="arrest-location" value={action.location} onChange={event => updateAction({ location: event.target.value })} /></div>}
             {action?.type === 'evidence' ? <><Label htmlFor="evidence-title">Identificação da prova</Label><Input id="evidence-title" value={action.title} onChange={(event) => updateAction({ title: event.target.value })} placeholder="Ex.: Laudo pericial nº 14" /><label className="flex items-center gap-2 py-2 text-sm"><input type="checkbox" checked={Boolean(action.seal)} disabled={!isDelegate} onChange={(event) => updateAction({ seal: event.target.checked })} />Lacrar prova ao registrar</label></> : null}
             {action?.type === 'file-charge' ? <><Label htmlFor="charge-title">Título da ação penal</Label><Input id="charge-title" value={action.title} onChange={(event) => updateAction({ title: event.target.value })} /><Label>Acusado</Label><Select value={action.defendantId} onValueChange={(value) => updateAction({ defendantId: value })}><SelectTrigger><SelectValue placeholder="Selecione o investigado" /></SelectTrigger><SelectContent>{data.investigationParties.filter((party) => party.investigation_id === action.item.id && party.party_type === 'suspect').map((party) => { const profile = data.profiles.find((item) => item.id === party.profile_id); return <SelectItem key={party.id} value={party.profile_id}><UserSelectOption user={profile || { id: party.profile_id, full_name: party.profile_id }} /></SelectItem>; })}</SelectContent></Select><Label>Tipo penal</Label><Select value={action.penalCodeId} onValueChange={(value) => updateAction({ penalCodeId: value })}><SelectTrigger><SelectValue placeholder="Selecione o enquadramento" /></SelectTrigger><SelectContent>{data.penalCodes.map((code) => <SelectItem key={code.id} value={code.id}>{code.code} — {code.name}</SelectItem>)}</SelectContent></Select></> : null}
             {action?.type === 'schedule-case-hearing' ? <><Label htmlFor="case-hearing-date">Data e hora</Label><Input id="case-hearing-date" type="datetime-local" value={scheduledAt} onChange={(event) => setScheduledAt(event.target.value)} /><Label htmlFor="case-hearing-location">Local ou sala virtual</Label><Input id="case-hearing-location" value={action.location} onChange={(event) => updateAction({ location: event.target.value })} /></> : null}

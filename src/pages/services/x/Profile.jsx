@@ -1,3 +1,5 @@
+import Stories from '@/components/social-x/stories/Stories';
+import { X_POST_TABLES } from '@/lib/xPosts';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { profileLookup, xProfilePath } from '@/lib/xProfileRoute';
@@ -84,9 +86,8 @@ const XProfile = () => {
     }, [fetchProfileData, handle, currentUser?.id]);
 
     useDomainRealtime('x-profile', `${currentUser?.id}:${profileData.profile?.id}`, [
-        { table: 'posts', filter: `user_id=eq.${profileData.profile?.id}` },
-        { table: 'followers', filter: `following_id=eq.${profileData.profile?.id}` },
-        { table: 'followers', filter: `follower_id=eq.${profileData.profile?.id}` },
+        ...X_POST_TABLES,
+        'followers',
     ], fetchProfileData, Boolean(profileData.profile?.id));
     usePublicProfileChanges(events => {
         if (events.some(event => event.new?.id === profileData.profile?.id)) void fetchProfileData();
@@ -121,7 +122,7 @@ const XProfile = () => {
     const handlePostDelete = (postId) => {
         setProfileData(prev => ({
             ...prev,
-            posts: prev.posts.filter(p => p.id !== postId)
+            posts: prev.posts.filter(p => p.id !== postId && p.original_post?.id !== postId)
         }));
     };
 
@@ -157,6 +158,7 @@ const XProfile = () => {
                         onFollowToggle={handleFollowToggle}
                         onProfileUpdate={handleProfileUpdate}
                     />
+                    <Stories profileId={profile.id} allowUpload={profile.id === currentUser.id} />
                     <ProfilePostList
                         posts={posts}
                         onPostUpdate={handlePostUpdate}

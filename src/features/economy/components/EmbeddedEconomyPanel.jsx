@@ -1,3 +1,4 @@
+import LiveLegalRules from '@/components/parliament/LiveLegalRules';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/supabaseClient';
@@ -130,6 +131,7 @@ const EmbeddedEconomyPanel = ({ view = 'public', showHeader = true }) => {
         </div>
       ) : null}
 
+      <LiveLegalRules />
       <Panel
         data={data}
         toast={toast}

@@ -84,6 +84,7 @@ const BuyDialog = ({ product, open, onOpenChange, onConfirm }) => {
             <span className="font-semibold">{product.name}</span>
             <span className="font-bold text-lg">{formatCurrency(finalPrice)}</span>
           </div>
+          {product.seller?.activity_restricted && <p role="status" className="text-destructive">Esta atividade está suspensa pela norma vigente.</p>}
           <div>
             <label className="text-sm font-medium">Método de Pagamento</label>
             <Select value={paymentMethod} onValueChange={setPaymentMethod}>
@@ -112,7 +113,7 @@ const BuyDialog = ({ product, open, onOpenChange, onConfirm }) => {
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-          <Button onClick={handleConfirm} disabled={loading || (paymentMethod === 'card' && !selectedCard)}>
+          <Button onClick={handleConfirm} disabled={loading || product.seller?.activity_restricted || (paymentMethod === 'card' && !selectedCard)}>
             {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
             Confirmar e Pagar
           </Button>
@@ -284,15 +285,16 @@ const ProductDetails = () => {
                             {isBusiness ? 'Empresa' : 'Pessoa Física'} · Vendido por: <Link to={`/services/x/profile/${seller.x_handle}`} className="text-primary hover:underline">{businessName || seller.full_name}</Link>
                             {isBusiness && businessCnpj && <span className="text-xs block">CNPJ: {formatCNPJ(businessCnpj)}</span>}
                         </div>
+                        {product.seller?.activity_restricted && <p role="status" className="text-destructive">Esta atividade está suspensa pela norma vigente.</p>}
                         <p className="text-4xl font-bold mb-1">{formatCurrency(finalPrice)} {isSubscription && <span className="text-lg text-muted-foreground">/mês</span>}</p>
                         {product.tax_rate > 0 && <p className="text-xs text-muted-foreground mb-4">Inclui {formatCurrency(finalPrice - basePrice)} de impostos</p>}
 
                         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mb-6">
-                            <Button size="lg" className="w-full sm:w-auto" onClick={() => setIsBuyDialogOpen(true)} disabled={isOutOfStock}>
+                            <Button size="lg" className="w-full sm:w-auto" onClick={() => setIsBuyDialogOpen(true)} disabled={isOutOfStock || product.seller?.activity_restricted}>
                                 {isOutOfStock ? 'Esgotado' : (isSubscription ? <><Star className="mr-2 h-5 w-5" /> Assinar</> : <><ShoppingBag className="mr-2 h-5 w-5" /> Comprar Agora</>)}
                             </Button>
                             {!isSubscription && (
-                                <Button size="lg" variant="outline" className="w-full sm:w-auto" onClick={() => { addToCart(product); toast({ title: 'Adicionado ao carrinho!' }); }} disabled={isOutOfStock}>
+                                <Button size="lg" variant="outline" className="w-full sm:w-auto" onClick={() => { if (addToCart(product)) toast({ title: 'Adicionado ao carrinho!' }); }} disabled={isOutOfStock || product.seller?.activity_restricted}>
                                     <ShoppingCart className="mr-2 h-5 w-5" /> Adicionar ao Carrinho
                                 </Button>
                             )}

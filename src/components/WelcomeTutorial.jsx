@@ -1,3 +1,6 @@
+import { Link } from 'react-router-dom';
+import { Checkbox } from '@/components/ui/checkbox';
+import { tutorialPath, shouldShowTutorial } from '@/lib/tutorial';
 import React, { useEffect, useState } from 'react';
 import { ArrowLeft, ArrowRight, Check, Flag, Landmark, LayoutDashboard, Loader2, Newspaper, Scale, Sparkles, Wallet, X } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -30,26 +33,30 @@ export default function WelcomeTutorial() {
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
   const [index, setIndex] = useState(0);
-  const [finished, setFinished] = useState(false);
+  const [finishedFor, setFinishedFor] = useState(null);
+  const [dontShowAgain, setDontShowAgain] = useState(false);
+  useEffect(() => { setFinishedFor(null); setOpen(false); setIndex(0); setDontShowAgain(Boolean(user?.tutorial_dont_show_again)); }, [user?.id]);
   const [saving, setSaving] = useState(false);
   useEffect(() => {
-    if (user?.onboarding_completed && !finished && user.has_seen_tutorial === false) setOpen(true);
-  }, [user?.onboarding_completed, user?.has_seen_tutorial, finished]);
+    if (shouldShowTutorial(user, finishedFor, sessionStorage.getItem(`govrp:tutorial:${user?.id}`))) setOpen(true);
+  }, [user?.id, user?.onboarding_completed, user?.tutorial_dont_show_again, finishedFor]);
   useEffect(() => {
     if (triggerTutorial) { setIndex(0); setOpen(true); setTriggerTutorial(false); }
   }, [triggerTutorial, setTriggerTutorial]);
-  const finish = async () => {
+  const finish = async (completed = false) => {
     if (saving) return;
     setSaving(true);
     try {
-      const { error } = await supabase.rpc('mark_tutorial_seen', { p_dont_show_again: true });
+      const { error } = await supabase.rpc('save_tutorial_progress', { p_completed: completed, p_dont_show_again: dontShowAgain });
       if (error) throw error;
-      setFinished(true); setOpen(false);
+      setFinishedFor(user.id); sessionStorage.setItem(`govrp:tutorial:${user.id}`, 'closed'); setOpen(false);
       await refreshUser({ skipSync: true });
     } catch {
       toast({ title: 'Não foi possível salvar seu progresso', description: 'Tente novamente para concluir o tutorial.', variant: 'destructive' });
     } finally { setSaving(false); }
   };
+  const colors = ['text-amber-400 bg-amber-500/10', 'text-blue-400 bg-blue-500/10', 'text-emerald-400 bg-emerald-500/10', 'text-rose-400 bg-rose-500/10', 'text-violet-400 bg-violet-500/10', 'text-purple-400 bg-purple-500/10', 'text-yellow-400 bg-yellow-500/10'];
+  const recommended = tutorialPath(user?.initial_aspiration);
   const current = steps[index];
   const Icon = current.icon;
   const firstName = user?.full_name?.split(' ')[0] || 'cidadão';
@@ -61,14 +68,16 @@ export default function WelcomeTutorial() {
         <DialogDescription>Sua jornada começa com suas escolhas.</DialogDescription>
       </DialogHeader>
       <div className="mt-2 grid gap-5 sm:grid-cols-[64px_1fr]">
-        <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10"><Icon className="h-8 w-8 text-primary" /></div>
+        <div className={`flex h-16 w-16 items-center justify-center rounded-2xl ${colors[index]}`}><Icon className="h-8 w-8" /></div>
         <div><p className="text-base leading-relaxed">{current.description}</p><p className="mt-4 rounded-xl bg-secondary p-4 text-sm text-muted-foreground">{current.hint || paths[user?.initial_aspiration] || paths.civil_life}</p></div>
       </div>
+      <aside className="rounded-xl border border-primary/20 p-4 space-y-3"><p className="text-sm">{recommended.description}</p><div className="flex flex-wrap gap-2">{recommended.links.map(link => <Button key={link.to} asChild size="sm" variant="outline"><Link to={link.to} onClick={() => { void finish(false); }}>{link.label}</Link></Button>)}</div></aside>
+      <label className="flex items-center gap-3 text-sm cursor-pointer"><Checkbox checked={dontShowAgain} onCheckedChange={value => setDontShowAgain(value === true)} />Não mostrar novamente</label>
       <div className="my-3 flex gap-1.5" aria-label={`Etapa ${index + 1} de ${steps.length}`}>{steps.map((step, i) => <span key={step.title} className={`h-1.5 flex-1 rounded-full ${i <= index ? 'bg-primary' : 'bg-secondary'}`} />)}</div>
       <div className="flex flex-wrap justify-between gap-2">
-        <Button variant="ghost" disabled={saving} onClick={finish}><X className="mr-2 h-4 w-4" />Pular</Button>
+        <Button variant="ghost" disabled={saving} onClick={() => finish(false)}><X className="mr-2 h-4 w-4" />Pular</Button>
         <div className="flex gap-2"><Button variant="outline" disabled={index === 0 || saving} onClick={() => setIndex(i => i - 1)}><ArrowLeft className="mr-2 h-4 w-4" />Voltar</Button>
-          {index < steps.length - 1 ? <Button onClick={() => setIndex(i => i + 1)}><ArrowRight className="mr-2 h-4 w-4" />Próximo</Button> : <Button disabled={saving} onClick={finish}>{saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Check className="mr-2 h-4 w-4" />}Começar minha jornada</Button>}
+          {index < steps.length - 1 ? <Button onClick={() => setIndex(i => i + 1)}><ArrowRight className="mr-2 h-4 w-4" />Próximo</Button> : <Button disabled={saving} onClick={() => finish(true)}>{saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Check className="mr-2 h-4 w-4" />}Começar minha jornada</Button>}
         </div>
       </div>
     </DialogContent>

@@ -1,3 +1,7 @@
+import LegalEffectsSummary from '@/components/parliament/LegalEffectsSummary';
+import PartyIdentity from '@/components/parliament/PartyIdentity';
+import { fetchPublicProfiles } from '@/lib/publicProfiles';
+import { PARLIAMENT_REALTIME_TABLES, parliamentSectionsForEvents } from '@/lib/parliamentRealtime';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { motion } from 'framer-motion';
@@ -71,21 +75,6 @@ const PLEBISCITE_COLORS = {
   Sim: '#22c55e',
   Não: '#ef4444',
   Abstenção: '#6b7280',
-};
-
-const LEGAL_EFFECT_LABELS = {
-  corporate_tax_rate: 'Alíquota sobre empresas',
-  consumption_tax_rate: 'Alíquota sobre consumo',
-  business_license_fee: 'Taxa de abertura de empresa',
-  public_safety_policy_index: 'Política de segurança',
-  social_welfare_policy_index: 'Bem-estar social',
-};
-
-const formatLegalEffectValue = (effect) => {
-  const value = Number(effect.effect_value || 0);
-  if (effect.effect_key.endsWith('_rate')) return `${(value * 100).toLocaleString('pt-BR')}%`;
-  if (effect.effect_key === 'business_license_fee') return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-  return value.toLocaleString('pt-BR');
 };
 
 const ParliamentRulesSection = () => (
@@ -163,7 +152,7 @@ const CitizenActions = ({ onPlebAction }) => {
 
       const { data: partiesData, error: partiesError } = await supabase
         .from('political_parties')
-        .select('id, name')
+        .select('id, name, acronym, logo_url')
         .eq('is_active', true);
       if (partiesError) {
         throw partiesError;
@@ -172,7 +161,8 @@ const CitizenActions = ({ onPlebAction }) => {
 
       const { data: targets, error: targetsError } = await supabase.rpc('get_bill_suggestion_targets');
       if (targetsError) throw targetsError;
-      setParliamentarians((targets || []).sort((a, b) => a.name.localeCompare(b.name, 'pt-BR')));
+      const logos = new Map((partiesData || []).map(party => [party.acronym, party.logo_url]));
+      setParliamentarians((targets || []).map(target => ({ ...target, party_logo_url: logos.get(target.party_acronym) })).sort((a, b) => a.name.localeCompare(b.name, 'pt-BR')));
     } catch (error) {
       toast({
         title: 'Erro ao carregar destinos',
@@ -311,7 +301,7 @@ const CitizenActions = ({ onPlebAction }) => {
                     <SelectItem key={target.id} value={target.id}>
                       <span className="flex items-center gap-2">
                         {target.role && <Avatar className="h-7 w-7"><AvatarImage src={target.avatar_url} /><AvatarFallback>{target.name?.[0] || 'P'}</AvatarFallback></Avatar>}
-                        <span>{target.name}{target.role && <span className="ml-1 text-xs text-muted-foreground">· {target.role} · {target.party_acronym || target.party_name || 'Sem partido'}</span>}</span>
+                        <span>{suggestionData.target_type === 'party' ? <PartyIdentity party={target} /> : target.name}{target.role && <span className="ml-1 text-xs text-muted-foreground">· {target.role} · <PartyIdentity party={target.party_name ? { name: target.party_name, acronym: target.party_acronym, logo_url: target.party_logo_url } : null} /></span>}</span>
                       </span>
                     </SelectItem>
                   ))}
@@ -468,7 +458,7 @@ const ParliamentMembersList = ({ members = [] }) => {
               ) : (
                 <p className="font-semibold">{member.profile?.full_name || 'Parlamentar'}</p>
               )}
-              <p className="text-sm text-muted-foreground">{member.party?.name || 'Sem partido'}</p>
+              <p className="text-sm text-muted-foreground"><PartyIdentity party={member.party} /></p>
               <p className="mt-1 text-xs text-muted-foreground">
                 Mandato parlamentar com duração constitucional de {PARLIAMENT_MANDATE_DURATION_LABEL}.
               </p>
@@ -610,7 +600,7 @@ const BillList = ({ bills = [] }) => {
                       <span className="rounded-full bg-muted px-2 py-1 text-xs text-muted-foreground">{bill.type}</span>
                       {activeVoting?.end_date ? <CountdownTimer endDate={activeVoting.end_date} /> : null}
                     </div>
-                    {bill.legal_effects?.length ? <div className="mt-4 rounded-lg border border-cyan-500/20 bg-cyan-500/5 p-3"><p className="text-xs font-semibold uppercase tracking-wide text-cyan-200">Efeito prático da norma</p>{bill.legal_effects.map((effect) => <p key={effect.id} className="mt-2 text-sm"><span className="font-medium">{LEGAL_EFFECT_LABELS[effect.effect_key] || effect.effect_key}:</span> {effect.operation === 'set' ? 'passa a' : effect.operation === 'add' ? 'varia em' : 'é multiplicado por'} {formatLegalEffectValue(effect)} <Badge variant="outline" className="ml-2">{effect.status === 'active' ? 'Em vigor' : 'Previsto'}</Badge></p>)}</div> : null}
+                    <LegalEffectsSummary effects={bill.legal_effects} />
                     {totalVotes ? (
                       <>
                         <div className="mt-4 space-y-2">
@@ -931,6 +921,7 @@ const CommissionList = ({ commissions = [], governanceSchemaReady }) => {
                       <p className="mt-2 text-sm text-foreground">
                         {commission.reporter?.profile?.full_name || 'Relator não designado'}
                       </p>
+<PartyIdentity party={commission.reporter?.party} className="text-sm" />
                     </div>
                     <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
                       <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Relatório Final</p>
@@ -995,6 +986,7 @@ const LeadershipList = ({ houseId, houses = [], terms = [], elections = [], gove
                     <p className="text-lg font-semibold text-foreground">
                       {term.member?.profile?.full_name || 'Parlamentar'}
                     </p>
+<PartyIdentity party={term.member?.party} className="text-sm" />
                     <p className="text-sm text-muted-foreground">Mandato mensal da mesa diretora.</p>
                   </div>
                 </CardContent>
@@ -1046,6 +1038,7 @@ const LeadershipList = ({ houseId, houses = [], terms = [], elections = [], gove
                         <p className="mt-2 text-sm text-emerald-50">
                           {election.winner.profile?.full_name || 'Parlamentar'}
                         </p>
+<PartyIdentity party={election.winner?.party} className="text-sm" />
                       </div>
                     ) : null}
                     <div className="grid gap-3 md:grid-cols-2">
@@ -1060,6 +1053,7 @@ const LeadershipList = ({ houseId, houses = [], terms = [], elections = [], gove
                               <p className="font-medium text-foreground">
                                 {candidate.member?.profile?.full_name || 'Parlamentar'}
                               </p>
+<PartyIdentity party={candidate.member?.party} className="text-sm" />
                               <p className="text-sm text-muted-foreground">{candidate.votes} voto(s)</p>
                             </div>
                           </div>
@@ -1097,7 +1091,8 @@ const Parliament = () => {
   const [activeTab, setActiveTab] = useState('members');
   const [selectedHouse, setSelectedHouse] = useState('all');
 
-  const fetchParliamentData = useCallback(async (refreshGovernance = false) => {
+  const fetchParliamentData = useCallback(async (refreshGovernance = false, events = null) => {
+    const sections = parliamentSectionsForEvents(events);
     try {
       if (refreshGovernance === true) await autoCloseExpiredVotings(supabase);
 
@@ -1108,6 +1103,7 @@ const Parliament = () => {
         throw error;
       }) : { schemaReady: true };
 
+      if (sections.includes('members')) {
       const [{ data: housesData, error: housesError }, syncState] = await Promise.all([
         supabase.from('parliament_houses').select('*'),
         fetchElectionOfficeSyncState(supabase).catch((error) => {
@@ -1122,14 +1118,17 @@ const Parliament = () => {
 
       const { data: membersData, error: membersError } = await supabase
         .from('parliament_members')
-        .select('*, profile:profiles(*), party:political_parties(name, acronym, logo_url)');
+        .select('*, profile:profiles(id,full_name,avatar_url,role,titles,x_handle), party:political_parties!parliament_members_party_id_fkey(name, acronym, logo_url)');
       if (membersError) {
         throw membersError;
       }
+      const publicProfiles = await fetchPublicProfiles((membersData || []).map(member => member.user_id));
       setAllMembers(
-        filterCompatibleParliamentMembers(membersData || [], syncState, housesData || [])
+        filterCompatibleParliamentMembers((membersData || []).map(member => ({ ...member, profile: publicProfiles.get(member.user_id) || member.profile })), syncState, housesData || [])
       );
 
+      }
+      if (sections.includes('bills')) {
       const { data: billsData, error: billsError } = await supabase
         .from('bills')
         .select('*, author:profiles(full_name, avatar_url), house:parliament_houses(id, name)')
@@ -1156,7 +1155,7 @@ const Parliament = () => {
             .order('occurred_at', { ascending: true }),
           supabase
             .from('law_effects')
-            .select('id, source_id, effect_key, operation, effect_value, explanation, status, activated_at')
+            .select('id, source_id, effect_key, operation, effect_value, explanation, status, activated_at, effect_data, previous_snapshot, valid_from, valid_until')
             .eq('source_kind', 'bill')
             .in('source_id', billIds),
         ]);
@@ -1201,6 +1200,8 @@ const Parliament = () => {
         }))
       );
 
+      }
+      if (sections.includes('plebiscites')) {
       const { data: plebiscitesData, error: plebiscitesError } = await supabase
         .from('plebiscites')
         .select('id, title, description, status, author_id, start_date, end_date, created_at, updated_at, approved_by_house_id, author_name, author_avatar_url, votes_sim, votes_nao, votes_abstencao')
@@ -1210,6 +1211,8 @@ const Parliament = () => {
       }
       setPlebiscites(plebiscitesData || []);
 
+      }
+      if (sections.includes('governance')) {
       const [commissionsResponse, leadershipResponse] = await Promise.all([
         fetchCommissionGovernanceData(supabase),
         fetchLeadershipGovernanceData(supabase),
@@ -1224,7 +1227,8 @@ const Parliament = () => {
           Boolean(leadershipResponse.schemaReady)
       );
 
-      if (user) {
+      }
+      if (sections.includes('plebiscites') && user) {
         const { data: plebVotes, error: plebVotesError } = await supabase
           .from('plebiscite_votes')
           .select('plebiscite_id, vote')
@@ -1238,7 +1242,7 @@ const Parliament = () => {
             return accumulator;
           }, {})
         );
-      } else {
+      } else if (!user) {
         setUserPlebiscitesVotes({});
       }
     } catch (error) {
@@ -1255,7 +1259,7 @@ const Parliament = () => {
   useEffect(() => {
     fetchParliamentData(true);
   }, [fetchParliamentData]);
-  useDomainRealtime('parliament', user?.id, ['parliament_members', 'bills', 'bill_votings', 'plebiscites', 'parliament_commissions', 'parliament_leadership_terms', 'party_members'], () => fetchParliamentData());
+  useDomainRealtime('parliament', user?.id, PARLIAMENT_REALTIME_TABLES, events => fetchParliamentData(false, events));
   usePublicProfileChanges(() => fetchParliamentData());
 
   if (loading) {

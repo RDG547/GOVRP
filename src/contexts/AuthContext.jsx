@@ -188,6 +188,7 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const logout = useCallback(async () => {
+    for (const key of Object.keys(sessionStorage)) if (key.startsWith('govrp:tutorial:')) sessionStorage.removeItem(key);
     try {
       const { error } = await supabase.auth.signOut();
       if (error) {

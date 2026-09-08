@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useDomainRealtime } from '@/hooks/use-domain-realtime';
 import { usePublicProfileChanges } from '@/hooks/use-public-profile-changes';
@@ -20,6 +20,9 @@ const PostDetails = () => {
   const { user } = useAuth();
   const { toast } = useToast();
 
+  const request = useRef(0);
+  const removed = useRef(false);
+  const [failure, setFailure] = useState(false);
   const [post, setPost] = useState(null);
   const [comments, setComments] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -27,17 +30,22 @@ const PostDetails = () => {
   const fetchPostAndComments = useCallback(async () => {
     if (!postId || !user) return;
 
+    const sequence = ++request.current;
+    if (removed.current) return;
     // Fetch the main post
     const { data: postData, error: postError } = await supabase
       .rpc('get_x_posts', { p_post_ids: [postId] })
       .eq('id', postId)
-      .single();
+      .maybeSingle();
 
-    if (postError || !postData) {
-      toast({ title: "Erro", description: "Post não encontrado ou erro ao carregar.", variant: "destructive" });
-      setPost(null);
-      setLoading(false);
-      return;
+    if (sequence !== request.current || removed.current) return;
+    if (postError) {
+      console.error('Falha ao consultar publicação', postError);
+      setFailure(true); setLoading(false); return;
+    }
+    setFailure(false);
+    if (!postData) {
+      removed.current = true; setPost(null); setComments([]); setLoading(false); return;
     }
     setPost(postData);
 
@@ -49,6 +57,7 @@ const PostDetails = () => {
       .is('parent_comment_id', null)
       .order('created_at', { ascending: true });
 
+    if (sequence !== request.current || removed.current) return;
     if (commentsError) {
       toast({ title: "Erro ao carregar comentários", variant: "destructive" });
     } else {
@@ -59,14 +68,20 @@ const PostDetails = () => {
   }, [postId, user?.id, toast]);
 
   useEffect(() => {
+    removed.current = false;
     setLoading(true);
-    fetchPostAndComments();
+    void fetchPostAndComments();
+    return () => { request.current++; };
   }, [fetchPostAndComments]);
   useDomainRealtime('x-post-details', `${user?.id}:${postId}`, [
-    { table: 'posts', filter: `id=eq.${postId}` },
+    { table: 'posts' },
     { table: 'comments', filter: `post_id=eq.${postId}` },
     { table: 'likes', filter: `post_id=eq.${postId}` },
-  ], fetchPostAndComments, Boolean(user?.id));
+  ], events => {
+    if (events.some(event => event.table === 'posts' && event.eventType === 'DELETE' && event.old?.id === postId)) {
+      removed.current = true; request.current++; setPost(null); setComments([]); setLoading(false);
+    } else if (!removed.current) void fetchPostAndComments();
+  }, Boolean(user?.id));
   usePublicProfileChanges(fetchPostAndComments);
 
   const handleCommentAction = (action) => {
@@ -85,13 +100,13 @@ const PostDetails = () => {
 
 
   const handlePostUpdate = (updatedPostId, updatedData) => {
-    if (updatedPostId === post.id) {
+    if (updatedPostId === post?.id) {
       setPost(prev => ({...prev, ...updatedData}));
     }
   };
 
   const handlePostDelete = () => {
-    navigate('/services/x');
+    removed.current = true; request.current++; setPost(null); setComments([]);
   };
 
   if (loading) {
@@ -101,8 +116,9 @@ const PostDetails = () => {
   if (!post) {
     return (
         <div className="p-4 text-center">
-            <h2 className="text-xl font-bold">Post não encontrado</h2>
-            <p>Este post pode ter sido removido.</p>
+            <h2 className="text-xl font-bold">{failure ? 'Não foi possível carregar a publicação.' : 'Esta publicação foi removida.'}</h2>
+            <Button className="mt-4" onClick={() => navigate('/services/x')}><ArrowLeft className="mr-2 h-4 w-4" />Voltar ao Feed</Button>
+            {failure && <Button variant="outline" className="m-2" onClick={fetchPostAndComments}>Tentar novamente</Button>}
         </div>
     );
   }

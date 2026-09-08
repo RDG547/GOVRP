@@ -1,3 +1,4 @@
+import LiveLegalRules from '@/components/parliament/LiveLegalRules';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { useSearchParams } from 'react-router-dom';
@@ -185,6 +186,7 @@ const Economy = () => {
           </div>
         </div>
 
+        <div className="mb-6"><LiveLegalRules /></div>
         {renderPanel()}
       </div>
     </>

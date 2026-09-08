@@ -1,4 +1,7 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import { useDomainRealtime } from '@/hooks/use-domain-realtime';
+import { LEGAL_REALTIME_TABLES } from '@/lib/legalMeasures';
+import TransactionTaxBreakdown from './TransactionTaxBreakdown';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Input } from '@/components/ui/input';
@@ -23,6 +26,21 @@ const TransferDialog = ({ isOpen, setIsOpen, onTransferSuccess }) => {
     const [agency, setAgency] = useState('');
     const [account, setAccount] = useState('');
     const [amount, setAmount] = useState('');
+    const intent = useRef(null);
+    const quoteRequest = useRef(0);
+    const [quote, setQuote] = useState(null);
+    const refreshQuote = useCallback(async () => {
+        const sequence = ++quoteRequest.current;
+        if (!isOpen || parseCurrency(amount) <= 0) { setQuote(null); return; }
+        setQuote(null);
+        const result = await supabase.rpc('quote_legal_levies', { p_basis: 'transfer', p_amount: parseCurrency(amount) });
+        if (sequence !== quoteRequest.current) return;
+        if (result.error) { console.error('Não foi possível calcular a transferência', result.error); setQuote(null); }
+        else setQuote(result.data);
+    }, [amount, isOpen]);
+    useEffect(() => { intent.current = crypto.randomUUID(); void refreshQuote(); }, [refreshQuote]);
+    useDomainRealtime('legal-rules', 'public', LEGAL_REALTIME_TABLES, refreshQuote, isOpen);
+
     const [description, setDescription] = useState('');
 
     const [isChecking, setIsChecking] = useState(false);
@@ -30,6 +48,7 @@ const TransferDialog = ({ isOpen, setIsOpen, onTransferSuccess }) => {
     const [lastTransactionId, setLastTransactionId] = useState(null);
     const [showReceiptDialog, setShowReceiptDialog] = useState(false);
     const [isTransferring, setIsTransferring] = useState(false);
+    useEffect(() => { intent.current = crypto.randomUUID(); }, [recipientInfo?.user_id, description]);
 
     const resetForm = useCallback(() => {
         setStep(1);
@@ -62,29 +81,35 @@ const TransferDialog = ({ isOpen, setIsOpen, onTransferSuccess }) => {
             rpcParams.p_value2 = account.replace(/\D/g, '');
         }
 
+        try {
         const { data, error } = await supabase.rpc('find_recipient', rpcParams);
 
-        if (error || !data.found) {
+        if (error || !data?.found) {
             toast({ title: "Erro", description: data?.message || 'Destinatário não encontrado.', variant: "destructive" });
         } else {
             setRecipientInfo(data);
             setStep(2);
         }
-        setIsChecking(false);
+        } catch (error) {
+            console.error('bank:recipient', error);
+            toast({ title: 'Falha de conexão', description: 'Não foi possível consultar o destinatário. Tente novamente.', variant: 'destructive' });
+        } finally { setIsChecking(false); }
     };
 
     const handleConfirmTransfer = async () => {
+        if (isTransferring || !quote || quote.restricted) return;
         setIsTransferring(true);
+        try {
         const { data, error } = await supabase.rpc('execute_transfer', {
             p_sender_id: user.id,
             p_recipient_id: recipientInfo.user_id,
             p_amount: parseCurrency(amount),
             p_description: description,
-            p_idempotency_key: crypto.randomUUID(),
+            p_idempotency_key: intent.current,
         });
 
-        if (error || !data.success) {
-            toast({ title: "Erro na Transferência", description: data?.message || error.message, variant: "destructive" });
+        if (error || !data?.success) {
+            toast({ title: "Erro na Transferência", description: data?.message || error?.message, variant: "destructive" });
         } else {
             toast({ title: "Sucesso!", description: data.message });
             setLastTransactionId(data.transaction_id);
@@ -92,7 +117,10 @@ const TransferDialog = ({ isOpen, setIsOpen, onTransferSuccess }) => {
             onTransferSuccess();
             setShowReceiptDialog(true);
         }
-        setIsTransferring(false);
+        } catch (error) {
+            console.error('bank:transfer', error);
+            toast({ title: 'Falha de conexão', description: 'Tente novamente com esta mesma confirmação de transferência.', variant: 'destructive' });
+        } finally { setIsTransferring(false); }
     };
 
     return (
@@ -150,11 +178,13 @@ const TransferDialog = ({ isOpen, setIsOpen, onTransferSuccess }) => {
                                 <div className="text-center">
                                     <p className="text-gray-400">Valor da Transferência</p>
                                     <p className="text-3xl font-bold text-green-400">{amount}</p>
+                                    {quote && <TransactionTaxBreakdown transaction={{ amount: parseCurrency(amount), type: 'transfer', direction: 'sent', metadata: quote }} receipt />}
+                                    {quote?.restricted && <p role="alert">Esta atividade está temporariamente restrita por norma vigente.</p>}
                                 </div>
                             </div>
                             <DialogFooter>
                                 <Button variant="outline" onClick={() => setStep(1)}>Voltar</Button>
-                                <Button onClick={handleConfirmTransfer} disabled={isTransferring}>
+                                <Button onClick={handleConfirmTransfer} disabled={isTransferring || !quote || quote.restricted}>
                                     {isTransferring ? <Loader2 className="animate-spin" /> : 'Confirmar'}
                                 </Button>
                             </DialogFooter>

@@ -1,3 +1,5 @@
+import TransactionTaxBreakdown from './TransactionTaxBreakdown';
+import { transactionAmounts } from '@/lib/transactionAmounts';
 import React, { useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogClose } from '@/components/ui/dialog';
@@ -71,9 +73,7 @@ const ReceiptContent = React.forwardRef(({ receipt }, ref) => {
         metadata: receipt.metadata,
     };
 
-    const taxAmount = receipt.tax_amount || receipt.metadata?.tax_amount;
-    const baseAmount = receipt.amount;
-    const totalAmount = receipt.total_amount || baseAmount + (taxAmount || 0);
+    const values = transactionAmounts(receipt);
 
     return (
         <div ref={ref} className="bg-[#0D1117] text-white w-full max-w-md mx-auto p-6 font-sans">
@@ -93,15 +93,11 @@ const ReceiptContent = React.forwardRef(({ receipt }, ref) => {
                 <div className="border-t border-dashed border-gray-600 my-4"></div>
 
                 <div className="text-center">
-                    <p className="text-sm text-muted-foreground">Valor Total Debitado</p>
-                    <p className="text-4xl font-bold text-blue-400">{formatCurrency(totalAmount)}</p>
+                    <p className="text-sm text-muted-foreground">{values.sent ? 'Total debitado' : 'Líquido recebido'}</p>
+                    <p className="text-4xl font-bold text-blue-400">{formatCurrency(values.displayed)}</p>
                 </div>
 
-                <div className="space-y-2 text-center text-sm">
-                    <ReceiptInfoRow label="Valor da Transação:" value={formatCurrency(baseAmount)} />
-                    {taxAmount > 0 && <ReceiptInfoRow label="Impostos:" value={formatCurrency(taxAmount)} />}
-                </div>
-
+                <TransactionTaxBreakdown transaction={receipt} receipt />
 
                 <div className="border-t border-dashed border-gray-600 my-4"></div>
 

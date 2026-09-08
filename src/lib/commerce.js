@@ -1,6 +1,8 @@
 const PURCHASE_ERRORS = {
   INSUFFICIENT_BALANCE: 'Seu saldo não é suficiente para esta compra.',
   INSUFFICIENT_CARD_LIMIT: 'O cartão não tem limite disponível para esta compra.',
+  ACTIVITY_RESTRICTED_BY_LAW: 'Esta atividade está suspensa pela norma vigente.',
+  TAX_EXCEEDS_OPERATION: 'Os tributos vigentes excedem o valor da operação. A compra não foi cobrada.',
   PRODUCT_OUT_OF_STOCK: 'Este produto está sem estoque.',
   PRODUCT_NOT_FOUND: 'Este produto não está mais disponível.',
   OWN_PRODUCT_PURCHASE_DENIED: 'Você não pode comprar seu próprio produto.',

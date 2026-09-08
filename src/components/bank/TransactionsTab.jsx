@@ -1,3 +1,5 @@
+import TransactionTaxBreakdown from './TransactionTaxBreakdown';
+import { transactionAmounts } from '@/lib/transactionAmounts';
 import React, { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -9,7 +11,7 @@ import ReceiptDownloadDialog from './ReceiptDownloadDialog';
 import { supabase } from '@/lib/supabaseClient';
 import { useToast } from '../ui/use-toast';
 
-const TransactionRow = ({ transaction, onShowReceipt }) => {
+const TransactionRow = ({ transaction, onShowReceipt, loadingReceipt }) => {
     const isSent = transaction.direction === 'sent';
     const isExchange = transaction.type === 'exchange';
 
@@ -80,14 +82,15 @@ const TransactionRow = ({ transaction, onShowReceipt }) => {
                     <div>
                         <p className="font-bold">{typeText}</p>
                         <p className="text-xs text-muted-foreground">{getFullDescription()}</p>
+                        <TransactionTaxBreakdown transaction={transaction} />
                     </div>
                 </div>
-                 <Button variant="outline" size="sm" className="sm:hidden" onClick={() => onShowReceipt(transaction.id)}><Receipt className="mr-2 h-4 w-4" />Ver Comprovante</Button>
+                 <Button variant="outline" size="sm" className="sm:hidden" disabled={loadingReceipt === transaction.id} onClick={() => onShowReceipt(transaction.id)}><Receipt className="mr-2 h-4 w-4" />Ver Comprovante</Button>
             </TableCell>
             <TableCell className="p-0 sm:p-4 mt-2 sm:mt-0 flex justify-between items-center sm:table-cell sm:text-right">
                 <span className="sm:hidden text-muted-foreground text-xs">Valor</span>
                 <Badge variant={getBadgeVariant()} className="font-mono text-sm">
-                    {isExchange ? '' : (isSent ? '-' : '+')} {formatCurrency(transaction.amount)}
+                    {isExchange ? '' : (isSent ? '-' : '+')} {formatCurrency(transactionAmounts(transaction).displayed)}
                 </Badge>
             </TableCell>
             <TableCell className="p-0 sm:p-4 mt-2 sm:mt-0 flex justify-between items-center sm:table-cell sm:text-right text-muted-foreground">
@@ -98,7 +101,7 @@ const TransactionRow = ({ transaction, onShowReceipt }) => {
                 </div>
             </TableCell>
              <TableCell className="p-0 sm:p-4 text-right hidden sm:table-cell">
-                <Button variant="outline" size="sm" onClick={() => onShowReceipt(transaction.id)}><Receipt className="mr-2 h-4 w-4" />Ver Comprovante</Button>
+                <Button variant="outline" size="sm" disabled={loadingReceipt === transaction.id} onClick={() => onShowReceipt(transaction.id)}><Receipt className="mr-2 h-4 w-4" />Ver Comprovante</Button>
             </TableCell>
         </TableRow>
     );
@@ -109,7 +112,7 @@ const ITEMS_PER_PAGE = 10;
 const TransactionsTab = ({ transactions }) => {
     const { toast } = useToast();
     const [selectedReceipt, setSelectedReceipt] = useState(null);
-    const [loadingReceipt, setLoadingReceipt] = useState(false);
+    const [loadingReceipt, setLoadingReceipt] = useState(null);
     const [currentPage, setCurrentPage] = useState(1);
 
     const totalPages = Math.max(1, Math.ceil((transactions?.length || 0) / ITEMS_PER_PAGE));
@@ -120,21 +123,21 @@ const TransactionsTab = ({ transactions }) => {
     }, [transactions, currentPage]);
 
     const handleShowReceipt = async (transactionId) => {
-        setLoadingReceipt(true);
+        setLoadingReceipt(transactionId);
         const { data, error } = await supabase.rpc('generate_transaction_receipt', {
             p_transaction_id: transactionId
         });
 
-        if (error || !data.success) {
+        if (error || !data?.success) {
             toast({
                 title: 'Erro',
                 description: data?.message || error?.message || 'Não foi possível gerar o comprovante.',
                 variant: 'destructive',
             });
         } else {
-            setSelectedReceipt(data);
+            setSelectedReceipt({ ...data, direction: transactions.find(tx => tx.id === transactionId)?.direction || data.direction });
         }
-        setLoadingReceipt(false);
+        setLoadingReceipt(null);
     };
 
     return (
@@ -156,15 +159,8 @@ const TransactionsTab = ({ transactions }) => {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {loadingReceipt && (
-                                <TableRow>
-                                    <TableCell colSpan="4" className="text-center py-8">
-                                        <Loader2 className="w-8 h-8 animate-spin mx-auto text-primary" />
-                                    </TableCell>
-                                </TableRow>
-                            )}
                             {paginatedTransactions.length > 0 ? (
-                                paginatedTransactions.map(tx => <TransactionRow key={tx.id} transaction={tx} onShowReceipt={handleShowReceipt}/>)
+                                paginatedTransactions.map(tx => <TransactionRow key={tx.id} transaction={tx} onShowReceipt={handleShowReceipt} loadingReceipt={loadingReceipt}/>)
                             ) : (
                                 <TableRow>
                                     <TableCell colSpan="4" className="text-center text-muted-foreground py-8">

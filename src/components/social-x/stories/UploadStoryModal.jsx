@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/components/ui/use-toast';
@@ -30,6 +30,8 @@ const UploadStoryModal = ({ isOpen, onOpenChange, onStoryCreated }) => {
     const { user } = useAuth();
     const { toast } = useToast();
     const fileInputRef = useRef(null);
+
+    useEffect(() => () => { if (preview) URL.revokeObjectURL(preview); }, [preview]);
 
     const bgColors = ['#3b82f6', '#ef4444', '#8b5cf6', '#10b981', '#f59e0b', '#ec4899'];
 
@@ -132,6 +134,7 @@ const UploadStoryModal = ({ isOpen, onOpenChange, onStoryCreated }) => {
             toast({ title: 'Story publicado com sucesso!' });
             onStoryCreated();
             onOpenChange(false);
+            resetState();
         } catch (error) {
             toast({ title: 'Erro ao publicar story', description: error.message, variant: 'destructive' });
         } finally {
@@ -185,7 +188,7 @@ const UploadStoryModal = ({ isOpen, onOpenChange, onStoryCreated }) => {
                             </div>
                             <div className="flex justify-center gap-2">
                                 {bgColors.map(color => (
-                                    <button key={color} onClick={() => setBgColor(color)} className="w-8 h-8 rounded-full" style={{ backgroundColor: color }} />
+                                    <button key={color} aria-label={`Cor ${color}`} aria-pressed={bgColor === color} onClick={() => setBgColor(color)} className="w-8 h-8 rounded-full" style={{ backgroundColor: color }} />
                                 ))}
                             </div>
                         </div>

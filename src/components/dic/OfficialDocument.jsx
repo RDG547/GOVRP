@@ -592,34 +592,27 @@ export const OfficialDocument = ({ user, doc, onBack, side: initialSide = 'front
   if (!DocumentComponent) return null;
 
   const isFullPageDoc = documentIsFullPage(doc.type);
-  const actionButtonClassName =
-    doc.type === 'Passport' && side === 'back'
-      ? 'text-slate-700 bg-white/90 border border-slate-200 hover:bg-white h-8 w-8'
-      : 'text-white bg-black/50 hover:bg-black/70 h-8 w-8';
+  const controls = onBack && <div data-export-ignore className="absolute right-2 top-2 z-50 flex flex-col gap-1 pointer-events-auto">
+    <Button title="Fechar documento" variant="destructive" size="icon" aria-label="Fechar documento" type="button" onClick={onBack} className="min-h-11 min-w-11 touch-manipulation bg-red-600 text-white hover:bg-red-700 focus-visible:ring-2 focus-visible:ring-red-300"><X className="h-5 w-5" /></Button>
+    {hasTwoSides && <Button title="Virar documento" size="icon" aria-label="Virar documento" type="button" onClick={() => setSide(s => s === 'front' ? 'back' : 'front')} className="min-h-11 min-w-11 touch-manipulation bg-cyan-700 text-white hover:bg-cyan-600 focus-visible:ring-2 focus-visible:ring-cyan-300"><RefreshCw className="h-5 w-5" /></Button>}
+  </div>;
 
   if (isFullPageDoc) {
     if (!onBack) return <DocumentComponent user={user} doc={doc} />;
     return (
-        <div className="relative w-full max-w-2xl mx-auto bg-background rounded-lg shadow-lg">
-            <div className="p-4 overflow-y-auto max-h-[80vh]">
+        <div className="relative w-full max-w-2xl mx-auto rounded-lg">
+            <div className="overflow-y-auto max-h-[80vh]">
                 <DocumentComponent user={user} doc={doc} />
             </div>
-            {onBack && (
-                <Button variant="ghost" size="icon" onClick={onBack} aria-label="Fechar documento" className="relative z-30 min-h-11 min-w-11 text-foreground bg-background/50 hover:bg-background/70 h-8 w-8"><X className="h-4 w-4"/></Button>
-            )}
+            {controls}
         </div>
     );
   }
 
   return (
-    <div className="relative mx-auto w-full max-w-[30rem]">
+    <div className="relative mx-auto w-full max-w-[470px] [&_[data-official-document]]:shadow-none">
       <DocumentComponent user={user} doc={doc} side={side}/>
-       {onBack && (
-        <div data-export-ignore className="relative z-30 mt-3 flex justify-end gap-3 pointer-events-auto">
-           <Button variant="ghost" size="icon" aria-label="Fechar documento" type="button" onClick={onBack} className={`${actionButtonClassName} min-h-11 min-w-11 touch-manipulation`}><X className="h-4 w-4"/></Button>
-           {hasTwoSides && <Button variant="ghost" size="icon" aria-label="Virar documento" type="button" onClick={() => setSide(s => s === 'front' ? 'back' : 'front')} className={`${actionButtonClassName} min-h-11 min-w-11 touch-manipulation`}><RefreshCw className="h-4 w-4"/></Button>}
-        </div>
-       )}
+      {controls}
     </div>
   )
 };

@@ -28,6 +28,8 @@ const house = await service.from('parliament_houses').insert({
   name: `Casa de validação ${suffix}`, description: 'Casa temporária para testar efeitos legais.',
 }).select('id').single();
 if (house.error) throw house.error;
+const mandate = await service.from('parliament_members').insert({ user_id: authorId, house_id: house.data.id, term_start_date: new Date(Date.now()-86400000).toISOString().slice(0,10), term_end_date: new Date(Date.now()+86400000).toISOString().slice(0,10) });
+if (mandate.error) throw mandate.error;
 const bill = await service.from('bills').insert({
   title: `Lei de responsabilidade econômica ${suffix}`,
   summary: 'Norma funcional que altera uma regra sistêmica mensurável.',
@@ -49,7 +51,7 @@ if (enacted.error) throw enacted.error;
 const [rule, effect, events] = await Promise.all([
   service.from('government_rules').select('numeric_value,version,source_id').eq('rule_key', 'corporate_tax_rate').single(),
   service.from('law_effects').select('status,activated_at').eq('id', configured.data.id).single(),
-  service.from('domain_events').select('*').eq('source_id', bill.data.id).order('created_at'),
+  service.from('domain_events').select('*').in('source_id', [bill.data.id, configured.data.id]).order('created_at'),
 ]);
 if (rule.error || effect.error || events.error) throw rule.error || effect.error || events.error;
 assert(Number(rule.data.numeric_value) === 0.17 && rule.data.source_id === bill.data.id, 'lei sancionada altera a regra oficial');

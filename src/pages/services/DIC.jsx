@@ -1,3 +1,5 @@
+import { useDomainRealtime } from '@/hooks/use-domain-realtime';
+import { LEGAL_REALTIME_TABLES } from '@/lib/legalMeasures';
 import { documentCatalog as docInfo, documentHasTwoSides } from '@/lib/documentCatalog';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Helmet } from 'react-helmet-async';
@@ -18,12 +20,6 @@ import { captureElement } from '@/lib/captureElement';
 import jsPDF from 'jspdf';
 import { OfficialDocument } from '@/components/dic/OfficialDocument';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-
-const TARIFF_TO_DOC_MAP = {
-    doc_CNH: 'CNH', doc_Passport: 'Passport', doc_CNPJ: 'CNPJ', doc_CTD: 'CTD',
-    doc_Titulo_Eleitor: 'Título de Eleitor', doc_Certificado_Reservista: 'Certificado de Reservista',
-    doc_Certidao_Casamento: 'Certidão de Casamento', doc_Registro_Profissional: 'Registro Profissional',
-};
 
 const captureDocument = (element) => captureElement(element?.querySelector('[data-official-document]') || element, { scale: 3, backgroundColor: '#ffffff' });
 
@@ -135,11 +131,10 @@ const DIC = () => {
         }
         try {
             await refreshUser();
-            const [profileResponse, documentsResponse, affiliationResponse, tariffResponse] = await Promise.all([
+            const [profileResponse, documentsResponse, affiliationResponse] = await Promise.all([
                 supabase.from('profiles').select('*').eq('id', user.id).single(),
                 supabase.from('documents').select('*, user:user_id(*)').eq('user_id', user.id).order('created_at'),
                 supabase.rpc('get_user_party_affiliation', { p_user_id: user.id }),
-                supabase.from('system_settings').select('value').eq('key', 'base_tariffs').single(),
             ]);
 
             if (profileResponse.error) throw profileResponse.error;
@@ -162,14 +157,6 @@ const DIC = () => {
                 setAffiliation(affiliationData);
             }
 
-            const { data: tariffData } = tariffResponse;
-            if (tariffData?.value) {
-                const fees = {};
-                Object.entries(TARIFF_TO_DOC_MAP).forEach(([tariffKey, docType]) => {
-                    fees[docType] = tariffData.value[tariffKey] || 0;
-                });
-                setDocFees(fees);
-            }
         } catch (error) {
             console.error(error);
             toast({ title: "Erro", description: "Não foi possível carregar seus dados.", variant: "destructive" });
@@ -187,6 +174,18 @@ const DIC = () => {
             setLoading(false);
         }
     }, [user?.id, fetchAllData]);
+
+    const refreshFees = useCallback(async () => {
+        const results = await Promise.all(Object.keys(docInfo).map(async type => {
+            const { data, error } = await supabase.rpc('quote_legal_levies', { p_basis: 'document', p_amount: 0, p_document: type });
+            if (error) throw error;
+            return [type, data.buyer_tax];
+        }));
+        setDocFees(Object.fromEntries(results));
+    }, []);
+    useEffect(() => { refreshFees().catch(error => console.error('Consulta de taxas documentais', error)); }, [refreshFees]);
+    useDomainRealtime('legal-rules', 'public', LEGAL_REALTIME_TABLES, refreshFees);
+    useDomainRealtime('dic-documents', user?.id, [{ table: 'documents', filter: `user_id=eq.${user?.id}` }], () => fetchAllData({ showPageLoader: false }), Boolean(user?.id));
 
     const handleTabChange = async (value) => {
         setActiveTab(value);
@@ -586,7 +585,7 @@ const DIC = () => {
             </div>
 
             <Dialog open={!!visualizingDoc} onOpenChange={() => setVisualizingDoc(null)}>
-                <DialogContent aria-label="Documento oficial" className="w-[calc(100%-2rem)] max-w-[510px] overflow-visible p-0 border-0 bg-transparent shadow-none [&>button]:hidden data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95">
+                <DialogContent plain aria-label="Documento oficial" className="w-[calc(100%-2rem)] max-w-[510px] overflow-visible p-0 border-0 bg-transparent shadow-none [&>button]:hidden data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95">
                     {visualizingDoc && <OfficialDocument user={visualizingDoc.user || displayProfile} doc={visualizingDoc} onBack={() => setVisualizingDoc(null)} />}
                 </DialogContent>
             </Dialog>

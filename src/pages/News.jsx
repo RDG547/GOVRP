@@ -1,3 +1,4 @@
+import LegalEffectsSummary from '@/components/parliament/LegalEffectsSummary';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { supabase } from '@/lib/supabaseClient';
@@ -62,10 +63,13 @@ const GazetteEntryDialog = ({ entry, children }) => {
                         </span>
                     </div>
                     <DialogTitle className="text-2xl leading-tight">{entry.title}</DialogTitle>
+                    {entry.publication_number && <p className="text-sm">{entry.type} nº {entry.publication_number}/{new Date(entry.published_at).getFullYear()}</p>}
+                    {entry.legal_metadata?.authority_name && <p className="text-sm">Autoridade: {entry.legal_metadata.authority_name} · Origem: {entry.legal_metadata.origin === 'bill' ? 'Parlamento e Executivo' : 'Executivo'}</p>}
                     <DialogDescription>{typeMeta.description}</DialogDescription>
                 </DialogHeader>
                 <ScrollArea className="max-h-[65vh] pr-6">
                     <div className="space-y-6 pb-4">
+                        <LegalEffectsSummary effects={entry.legal_metadata?.effects} />
                         <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
                             <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Ementa</p>
                             <p className="mt-3 text-sm leading-7 text-foreground">{entry.summary}</p>

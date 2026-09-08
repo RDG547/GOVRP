@@ -36,7 +36,12 @@
     "test:document-rendering": "node tools/test-document-rendering.mjs",
     "test:internet-provider": "node tools/test-internet-provider.mjs",
     "test:legacy-visibility": "node tools/test-legacy-public-visibility.mjs",
-    "test:party-profile-api": "node tools/test-party-profile-api.mjs"
+    "test:party-profile-api": "node tools/test-party-profile-api.mjs",
+    "test:world-social": "node tools/test-world-social.mjs",
+    "test:world-laws": "node tools/test-world-laws.mjs",
+    "test:world-parliament": "node tools/test-world-parliament.mjs",
+    "test:world-interface": "node tools/test-world-interface.mjs",
+    "test:world-behavior": "node tools/test-world-behavior.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.0",
@@ -135,6 +140,7 @@
     "eslint-plugin-react-hooks": "^7.1.1",
     "glob": "^13.0.6",
     "globals": "^17.11.0",
+    "playwright": "1.62.1",
     "postcss": "^8.4.31",
     "supabase": "^2.114.0",
     "tailwindcss": "^3.3.3",

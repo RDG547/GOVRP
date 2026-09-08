@@ -11,7 +11,7 @@ async function actor(label){
  const suffix=crypto.randomUUID().replaceAll('-','').slice(0,10),email=`social-${label}-${suffix}@govrp.local`,password=`Govrp!${crypto.randomUUID()}Aa1`;
  const data=await request(service.auth.admin.createUser({email,password,email_confirm:true}));
  const id=data.user.id;
- await request(service.from('profiles').upsert({id,username:`social${suffix}`,full_name:`Cidadão ${label}`,role:'Cidadão',onboarding_completed:true,onboarding_step:'completed',x_handle:`social${suffix}`,x_username:`Cidadão ${label}`},{onConflict:'id'}));
+ await request(service.from('profiles').upsert({id,username:`social${suffix}`,full_name:`Cidadão ${label}`,role:'Cidadão',onboarding_completed:true,onboarding_step:'completed',x_handle:`social${suffix}`,x_username:`Cidadão ${label} ${suffix}`},{onConflict:'id'}));
  const client=createClient(local.API_URL,local.ANON_KEY,{auth:{persistSession:false,autoRefreshToken:false}});clients.push(client);
  await request(client.auth.signInWithPassword({email,password}));return {id,client};
 }
@@ -40,7 +40,7 @@ try{
  const comment=await request(b.client.from('comments').insert({user_id:b.id,post_id:post.id,content:'Comentário real de validação.'}).select('id').single());
  await wait(()=>postEvents.some(event=>event.new.id===post.id&&event.new.comments_count===1),'contador de comentários');
  check(true,'comentário atualiza o post sem recarregar o feed');
- await request(a.client.from('profiles').update({x_username:'Nome público atualizado'}).eq('id',a.id));
+ await request(a.client.from('profiles').update({x_username:`Nome atualizado ${a.id.slice(0,8)}`}).eq('id',a.id));
  await wait(()=>publicEvents.some(event=>event.id===a.id),'alteração pública de perfil');
  check(publicEvents.filter(event=>event.id===a.id).every(event=>Object.keys(event).length===1),'alteração de perfil transmite somente ID, sem dados privados');
  await request(b.client.rpc('toggle_follow',{p_following_id:a.id}));

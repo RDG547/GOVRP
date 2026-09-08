@@ -540,7 +540,7 @@ const CitizenJusticeDashboard = () => {
                 <p className="text-sm text-muted-foreground">{criminalCase.summary}</p>
                 <CaseTimeline
                   status={criminalCase.status}
-                  events={data.timeline.filter((event) => event.case_id === criminalCase.id)}
+                  events={data.timeline.filter((event) => event.case_id === criminalCase.id || (criminalCase.investigation_id && event.investigation_id === criminalCase.investigation_id))}
                 />
                 {criminalCase.status === 'initial_defense' ? (
                   <Button onClick={() => setCaseAction({ type: 'defense', item: criminalCase })}>

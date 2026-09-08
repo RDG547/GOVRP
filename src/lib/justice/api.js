@@ -4,7 +4,7 @@ import { subscribeToDomain } from '@/lib/realtime';
 import { supabase } from '@/lib/supabaseClient';
 
 const throwIfError = ({ data, error }) => {
-  if (error) throw new Error(justiceErrorMessage(error));
+  if (error) { console.error('Justiça: operação recusada pelo banco', { code: error.code, message: error.message, details: error.details, hint: error.hint }); throw new Error(justiceErrorMessage(error), { cause: error }); }
   if (data?.success === false) throw new Error(data.message || 'Não foi possível concluir a ação.');
   return data;
 };
@@ -40,6 +40,7 @@ export const fetchAuthorityJusticeData = async () => {
     partiesResult,
     casePartiesResult,
     penalCodesResult,
+    chargesResult,
   ] = await Promise.all([
     supabase
       .from('police_occurrences')
@@ -88,7 +89,8 @@ export const fetchAuthorityJusticeData = async () => {
     supabase.from('sentences').select('*').order('issued_at', { ascending: false }).limit(300),
     supabase.from('investigation_parties').select('*').order('created_at', { ascending: false }).limit(500),
     supabase.from('case_parties').select('*').order('created_at', { ascending: false }).limit(500),
-    supabase.from('penal_code').select('*').eq('is_active', true).order('code').limit(300),
+    supabase.from('penal_code').select('*').order('code').limit(300),
+    supabase.from('case_charges').select('*').order('created_at', { ascending: false }).limit(500),
   ]);
 
   const errors = [];
@@ -120,6 +122,7 @@ export const fetchAuthorityJusticeData = async () => {
     sentences: readSection(sentencesResult, 'sentences') || [],
     investigationParties: readSection(partiesResult, 'investigationParties') || [],
     caseParties: readSection(casePartiesResult, 'caseParties') || [],
+    caseCharges: readSection(chargesResult, 'caseCharges') || [],
     penalCodes: readSection(penalCodesResult, 'penalCodes') || [],
   };
 };
@@ -447,7 +450,7 @@ export const subscribeToJusticeChanges = (userId, onChange) => subscribeToDomain
   'prison_activity_runs', 'police_occurrences', 'police_fines', 'fine_appeals',
   'fine_hearing_requests', 'citizen_justice_requests', 'public_safety_campaigns',
   'public_integrity_cases', 'investigation_subjects', 'investigation_parties',
-  'case_parties', 'case_timeline_events', 'case_documents', 'hearings', 'appeals',
+  'penal_code', 'case_charges', 'case_parties', 'case_timeline_events', 'case_documents', 'hearings', 'appeals',
   'sentences', 'warrants', { table: 'notifications', filter: `user_id=eq.${userId}` },
 ], onChange);
 
@@ -456,4 +459,11 @@ export const revokeJudicialWarrant = async ({ warrantId, reason }) => throwIfErr
 );
 export const issueJusticeFine = async ({ userId, reason, amount, dueDate }) => throwIfError(
   await supabase.rpc('issue_fine', { p_user_id: userId, p_reason: reason, p_amount: Number(amount), p_due_date: dueDate })
+);
+
+export const executeArrestWarrant = async ({ warrantId, location, description }) => throwIfError(
+  await supabase.rpc('execute_arrest_warrant', { p_warrant_id: warrantId, p_location: location, p_description: description })
+);
+export const archiveReferredInvestigation = async ({ investigationId, reason }) => throwIfError(
+  await supabase.rpc('archive_referred_investigation', { p_investigation_id: investigationId, p_reason: reason })
 );
