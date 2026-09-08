@@ -26,7 +26,11 @@
       "destination": "/api/donations/stripe-checkout"
     },
     {
-      "source": "/(.*)",
+      "source": "/api/elections/:action",
+      "destination": "/api/elections/[action]?action=:action"
+    },
+    {
+      "source": "/((?!api(?:/|$)).*)",
       "destination": "/index.html"
     }
   ]
