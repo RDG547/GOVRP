@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/components/ui/use-toast';
@@ -284,6 +284,8 @@ const BankManagementPanel = () => {
   const [savingPolicy, setSavingPolicy] = useState(false);
   const [processingId, setProcessingId] = useState(null);
   const [policy, setPolicy] = useState(DEFAULT_BANK_POLICY);
+  const policyDirty = useRef(false);
+  const setPolicyDraft = (next) => { policyDirty.current = true; setPolicy(next); };
   const [economicPolicy, setEconomicPolicy] = useState(DEFAULT_ECONOMIC_POLICY);
   const [creditApplications, setCreditApplications] = useState([]);
   const [loanApplications, setLoanApplications] = useState([]);
@@ -383,7 +385,7 @@ const BankManagementPanel = () => {
       const issuedCardRows = issuedCardsResponse.data || [];
 
       setEconomicPolicy(normalizedEconomicPolicy);
-      setPolicy(normalizedPolicy);
+      if (!policyDirty.current) setPolicy(normalizedPolicy);
       setAccounts(accountRows);
       setIssuedCards(issuedCardRows);
       setIssuedCardLimits(
@@ -639,7 +641,7 @@ const BankManagementPanel = () => {
     const spreadField = RATE_TO_SPREAD_FIELD[field];
     const selicMonthlyRate = annualPercentToMonthlyPercent(economicPolicy.selic_rate);
 
-    setPolicy((current) => ({
+    setPolicyDraft((current) => ({
       ...current,
       [field]: nextRate,
       ...(spreadField ? { [spreadField]: Math.max(0, nextRate - selicMonthlyRate) } : {}),
@@ -647,7 +649,7 @@ const BankManagementPanel = () => {
   };
 
   const updateBrandLimit = (brand, value) => {
-    setPolicy((current) => ({
+    setPolicyDraft((current) => ({
       ...current,
       credit_card_brand_limits: {
         ...(current.credit_card_brand_limits || {}),
@@ -688,6 +690,8 @@ const BankManagementPanel = () => {
     if (error) {
       toast({ title: 'Erro ao salvar taxas', description: error.message, variant: 'destructive' });
     } else {
+      policyDirty.current = false;
+      setPolicy(nextPolicy);
       toast({ title: 'Política do Banco Nacional atualizada' });
       void fetchData(false);
     }
@@ -884,7 +888,7 @@ const BankManagementPanel = () => {
             <Select
               value={getExchangeFeeMode(policy)}
               onValueChange={(value) =>
-                setPolicy((current) => ({
+                setPolicyDraft((current) => ({
                   ...current,
                   exchange_fee_free: value === 'free',
                   exchange_fee_type: value === 'fixed' ? 'fixed' : 'percentage',
@@ -910,7 +914,7 @@ const BankManagementPanel = () => {
                     disabled={policy.exchange_fee_free}
                     value={formatCurrency(policy.exchange_fee_fixed_amount || 0, true)}
                     onChange={(event) =>
-                      setPolicy((current) => ({
+                      setPolicyDraft((current) => ({
                         ...current,
                         exchange_fee_fixed_amount: parseCurrency(event.target.value),
                         exchange_fee_type: 'fixed',
@@ -933,7 +937,7 @@ const BankManagementPanel = () => {
                     disabled={policy.exchange_fee_free}
                     value={policy.exchange_fee_free ? 0 : policy.exchange_fee_rate}
                     onChange={(event) =>
-                      setPolicy((current) => ({
+                      setPolicyDraft((current) => ({
                         ...current,
                         exchange_fee_rate: Math.min(100, Math.max(0, Number(event.target.value || 0))),
                         exchange_fee_type: 'percentage',

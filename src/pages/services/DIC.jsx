@@ -21,7 +21,7 @@ import jsPDF from 'jspdf';
 import { OfficialDocument } from '@/components/dic/OfficialDocument';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
-const captureDocument = (element) => captureElement(element?.querySelector('[data-official-document]') || element, { scale: 3, backgroundColor: '#ffffff' });
+const captureDocument = (element) => captureElement(element, { scale: 3, backgroundColor: '#ffffff' });
 
 const addDocumentPage = (pdf, canvas, title, isFirstPage) => {
     if (!isFirstPage) pdf.addPage('a4', 'landscape');
@@ -571,11 +571,11 @@ const DIC = () => {
                     const hasTwoSides = documentHasTwoSides(doc.type);
                     return (
                         <React.Fragment key={`offscreen-${doc.id}`}>
-                            <div ref={el => docRefs.current[`${doc.id}-front`] = el}>
+                            <div style={{ padding: 20, width: 520, boxSizing: 'border-box' }} ref={el => docRefs.current[`${doc.id}-front`] = el}>
                                 <OfficialDocument user={docUser} doc={doc} side="front" />
                             </div>
                             {hasTwoSides && (
-                                <div ref={el => docRefs.current[`${doc.id}-back`] = el}>
+                                <div style={{ padding: 20, width: 520, boxSizing: 'border-box' }} ref={el => docRefs.current[`${doc.id}-back`] = el}>
                                     <OfficialDocument user={docUser} doc={doc} side="back" />
                                 </div>
                             )}
@@ -585,7 +585,7 @@ const DIC = () => {
             </div>
 
             <Dialog open={!!visualizingDoc} onOpenChange={() => setVisualizingDoc(null)}>
-                <DialogContent plain aria-label="Documento oficial" className="w-[calc(100%-2rem)] max-w-[510px] overflow-visible p-0 border-0 bg-transparent shadow-none [&>button]:hidden data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95">
+                <DialogContent plain aria-label="Documento oficial" className="w-[calc(100%-2rem)] max-w-[550px] overflow-visible p-0 border-0 bg-transparent shadow-none [&>button]:hidden data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95">
                     {visualizingDoc && <OfficialDocument user={visualizingDoc.user || displayProfile} doc={visualizingDoc} onBack={() => setVisualizingDoc(null)} />}
                 </DialogContent>
             </Dialog>

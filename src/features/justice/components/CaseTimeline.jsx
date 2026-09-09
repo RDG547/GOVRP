@@ -1,3 +1,4 @@
+import { justiceStatus } from '@/lib/justice/constants';
 import React from 'react';
 import { Check, Circle, Clock3 } from 'lucide-react';
 import { formatJusticeDate } from '@/lib/justice/time';
@@ -20,7 +21,7 @@ const CaseTimeline = ({ status, events = [] }) => {
             {event.description ? <p className="mt-1 text-sm text-muted-foreground">{event.description}</p> : null}
             {event.status_from !== event.status_to && event.status_to ? (
               <p className="mt-2 text-xs text-cyan-200">
-                {CASE_STATUS_LABELS[event.status_from] || event.status_from || 'Início'} → {CASE_STATUS_LABELS[event.status_to] || event.status_to}
+                {justiceStatus(event.status_from) || 'Início'} → {justiceStatus(event.status_to)}
               </p>
             ) : null}
           </li>

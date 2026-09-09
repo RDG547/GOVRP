@@ -1,3 +1,4 @@
+import { fetchPublicProfiles } from '@/lib/publicProfiles';
 import React, { useState, useEffect, useCallback } from 'react';
 import { useDomainRealtime } from '@/hooks/use-domain-realtime';
 import { usePublicProfileChanges } from '@/hooks/use-public-profile-changes';
@@ -46,7 +47,7 @@ const XMessages = () => {
             .select(`
                 id,
                 updated_at,
-                participants:x_conversation_participants (
+                participants:x_conversation_participants ( user_id,
                     profile:profiles ( id, x_username, x_handle, x_avatar_url )
                 )
             `)
@@ -56,7 +57,8 @@ const XMessages = () => {
         if (error) {
             toast({ title: 'Não foi possível carregar as conversas', description: 'Tente novamente em instantes.', variant: 'destructive' });
         } else {
-            setConversations(data);
+            const profiles = await fetchPublicProfiles((data || []).flatMap(conversation => conversation.participants.map(p => p.user_id)));
+            setConversations((data || []).map(conversation => ({ ...conversation, participants: conversation.participants.map(p => ({ ...p, profile: profiles.get(p.user_id) || p.profile })) })));
         }
         setLoading(false);
     }, [user?.id, toast]);
@@ -74,13 +76,13 @@ const XMessages = () => {
     return (
         <>
             <Helmet><title>Mensagens - X</title></Helmet>
-            <div className="flex flex-col h-[calc(100dvh-8rem)] min-h-[420px] lg:flex-row">
+            <div className="flex flex-col h-[calc(100dvh-8rem)] min-h-[420px] ">
                 {/* Conversation List */}
                 <div className={`
-                    w-full lg:w-72 xl:w-80
+                    w-full
                     border-r border-border
                     flex-shrink-0 flex flex-col
-                    ${conversationId ? 'hidden lg:flex' : 'flex'}
+                    ${conversationId ? 'hidden' : 'flex'}
                 `}>
                     <div className="p-4 border-b border-border">
                         <h2 className="text-xl font-bold text-foreground">Mensagens</h2>
@@ -97,12 +99,12 @@ const XMessages = () => {
                 {/* Chat Area */}
                 <div className={`
                     flex-1 flex flex-col min-w-0
-                    ${!conversationId ? 'hidden lg:flex' : 'flex'}
+                    ${!conversationId ? 'hidden' : 'flex'}
                 `}>
                     {conversationId && selectedConversation ? (
                         <>
                             {/* Mobile back button */}
-                            <div className="lg:hidden p-2 border-b border-border">
+                            <div className="p-2 border-b border-border">
                                 <Button
                                     variant="ghost"
                                     size="sm"

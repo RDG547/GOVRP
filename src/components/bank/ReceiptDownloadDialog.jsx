@@ -1,3 +1,4 @@
+import { X } from 'lucide-react';
 import TransactionTaxBreakdown from './TransactionTaxBreakdown';
 import { transactionAmounts } from '@/lib/transactionAmounts';
 import React, { useRef, useState } from 'react';
@@ -218,12 +219,13 @@ const ReceiptDownloadDialog = ({ receipt, onBack }) => {
 
     return (
         <Dialog open={!!receipt} onOpenChange={(isOpen) => !isOpen && onBack()}>
-            <DialogContent className="sm:max-w-md p-0 bg-transparent border-none shadow-none data-[state=open]:animate-none">
+            <DialogContent plain className="[&>button]:hidden sm:max-w-md p-0 bg-transparent border-none shadow-none data-[state=open]:animate-none">
                 <div className="max-h-[85vh] overflow-y-auto custom-scrollbar rounded-lg">
-                    <div className="p-4 bg-[#0D1117] sticky top-0 z-10">
+                    <div className="p-4 bg-[#0D1117] sticky top-0 z-10 flex items-center justify-between">
                         <Button onClick={onBack} variant="ghost" size="sm" className="text-white hover:bg-white/10">
                             <ArrowLeft className="mr-2 h-4 w-4" /> Voltar
                         </Button>
+                        <Button variant="ghost" size="icon" aria-label="Fechar comprovante" onClick={onBack}><X className="h-5 w-5" /></Button>
                     </div>
                     <ReceiptContent receipt={receipt} ref={receiptRef} />
                     <div className="p-4 bg-[#0D1117] space-y-2 sticky bottom-0 z-10">

@@ -1,3 +1,4 @@
+import { useServiceAvailability } from '@/hooks/use-service-availability';
 import React, { useEffect, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { motion } from 'framer-motion';
@@ -65,33 +66,7 @@ const ServiceCard = ({ service, mode }) => {
 };
 
 const Services = () => {
-  const [availabilitySettings, setAvailabilitySettings] = useState({});
-  const [loadingAvailability, setLoadingAvailability] = useState(true);
-
-  useEffect(() => {
-    let isMounted = true;
-
-    const fetchAvailability = async () => {
-      try {
-        const settings = await fetchServiceAvailabilitySettings(supabase);
-        if (isMounted) {
-          setAvailabilitySettings(settings);
-        }
-      } catch (error) {
-        console.error('Error fetching service availability for catalog:', error);
-      } finally {
-        if (isMounted) {
-          setLoadingAvailability(false);
-        }
-      }
-    };
-
-    fetchAvailability();
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
+  const { settings: availabilitySettings, loading: loadingAvailability } = useServiceAvailability();
 
   return (
     <>

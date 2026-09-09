@@ -1,3 +1,4 @@
+import { useDomainRealtime } from '@/hooks/use-domain-realtime';
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { useAuth } from '@/contexts/AuthContext';
@@ -39,23 +40,6 @@ const ExchangeTab = ({ onUpdate, account }) => {
   const { toast } = useToast();
   const countryCode = user?.residence_country_code || user?.country_code || 'BR';
 
-  const loadLegacyRates = useCallback(async () => {
-    const { data, error } = await supabase.functions.invoke('get-exchange-rates');
-    if (error || !data?.success || !data?.rates) {
-      throw new Error(error?.message || data?.error || 'Falha na comunicação com o serviço de câmbio.');
-    }
-
-    const fallbackRows = foreignCurrencies.map((currency) => ({
-      country_code: countryCode,
-      currency_code: currency.code,
-      brl_per_unit: data.rates[currency.code] ? 1 / Number(data.rates[currency.code]) : 0,
-      updated_at: data.updated_at || new Date().toISOString(),
-    }));
-    setRateRows(fallbackRows);
-    setRates(data.rates);
-    setRateHistory([]);
-  }, [countryCode]);
-
   const fetchRates = useCallback(async ({ silent = false } = {}) => {
     if (!silent) setLoading(true);
     try {
@@ -75,17 +59,8 @@ const ExchangeTab = ({ onUpdate, account }) => {
           .order('currency_code');
       }
 
-      if (currentResponse.error) {
-        if (missingExchangeSchemaCodes.has(currentResponse.error.code)) {
-          await loadLegacyRates();
-          return;
-        }
-        throw currentResponse.error;
-      }
-      if (!currentResponse.data?.length) {
-        await loadLegacyRates();
-        return;
-      }
+      if (currentResponse.error) throw currentResponse.error;
+      if (!currentResponse.data?.length) throw new Error('As cotações oficiais do RP ainda não estão disponíveis.');
 
       const historyResponse = await supabase
         .from('country_rp_exchange_history')
@@ -99,7 +74,9 @@ const ExchangeTab = ({ onUpdate, account }) => {
         throw historyResponse.error;
       }
 
-      setRateRows(currentResponse.data);
+      const quotes = await supabase.rpc('get_rp_exchange_quotes', { p_country_code: effectiveCountryCode });
+      if (quotes.error) throw quotes.error;
+      setRateRows(quotes.data || currentResponse.data);
       setRateHistory(historyResponse.data || []);
       setRates(Object.fromEntries(currentResponse.data.map((row) => [
         row.currency_code,
@@ -113,7 +90,7 @@ const ExchangeTab = ({ onUpdate, account }) => {
     } finally {
       setLoading(false);
     }
-  }, [countryCode, loadLegacyRates, toast]);
+  }, [countryCode, toast]);
 
   const fetchBankPolicy = useCallback(async () => {
     const { data, error } = await supabase
@@ -130,23 +107,8 @@ const ExchangeTab = ({ onUpdate, account }) => {
     fetchBankPolicy();
   }, [fetchRates, fetchBankPolicy]);
 
-  useEffect(() => {
-    let refreshTimer;
-    const channel = supabase
-      .channel(`bank-exchange:${countryCode}`)
-      .on('postgres_changes', {
-        event: '*', schema: 'public', table: 'country_rp_exchange_rates', filter: `country_code=eq.${countryCode}`,
-      }, () => {
-        window.clearTimeout(refreshTimer);
-        refreshTimer = window.setTimeout(() => fetchRates({ silent: true }), 250);
-      })
-      .subscribe();
-
-    return () => {
-      window.clearTimeout(refreshTimer);
-      supabase.removeChannel(channel);
-    };
-  }, [countryCode, fetchRates]);
+  useDomainRealtime('bank-exchange', countryCode, ['country_rp_exchange_rates', 'rp_time_settings'], () => fetchRates({ silent: true }));
+  useDomainRealtime('bank-policy', 'public', [{ table: 'system_settings', filter: `key=eq.${BANK_POLICY_SETTINGS_KEY}` }], fetchBankPolicy);
 
   useEffect(() => {
     if (!amount || !rates || !fromCurrency || !toCurrency || fromCurrency === toCurrency) {
@@ -177,16 +139,7 @@ const ExchangeTab = ({ onUpdate, account }) => {
     setResult({ convertedAmount, feeAmount, netAmount, feeRate, feeMode });
   }, [amount, fromCurrency, toCurrency, rates, bankPolicy]);
 
-  const variations = useMemo(() => Object.fromEntries(foreignCurrencies.map((currency) => {
-    const current = Number(rateRows.find((row) => row.currency_code === currency.code)?.brl_per_unit || 0);
-    const series = rateHistory.filter((row) => row.currency_code === currency.code);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const firstToday = series.find((row) => new Date(row.recorded_at) >= today);
-    const baseline = Number(firstToday?.brl_per_unit || series.at(-2)?.brl_per_unit || current);
-    const variation = baseline > 0 ? ((current - baseline) / baseline) * 100 : 0;
-    return [currency.code, variation];
-  })), [rateHistory, rateRows]);
+  const variations = useMemo(() => Object.fromEntries(rateRows.map(row => [row.currency_code, Number(row.change_percent || 0)])), [rateRows]);
 
   const chartData = useMemo(() => {
     const points = rateHistory
@@ -286,7 +239,7 @@ const ExchangeTab = ({ onUpdate, account }) => {
                       <span className="text-right">
                         <span className="block font-mono text-primary">R$ {Number(row?.brl_per_unit || 0).toFixed(4)}</span>
                         <span className={`inline-flex items-center text-xs ${variation < 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
-                          <TrendIcon className="mr-1 h-3 w-3" />{variation >= 0 ? '+' : ''}{variation.toFixed(2)}% hoje
+                          <TrendIcon className="mr-1 h-3 w-3" />{variation >= 0 ? '+' : ''}{variation.toFixed(2)}% no dia RP
                         </span>
                       </span>
                     </li>

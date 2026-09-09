@@ -1,3 +1,5 @@
+import CitizenNeedsSettings from '@/components/admin/CitizenNeedsSettings';
+import EconomicMixControl from '../components/EconomicMixControl';
 import React, { useState } from 'react';
 import { AlertTriangle, CheckCircle2, Clock3, Database, RefreshCw } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
@@ -39,6 +41,7 @@ const AdminEconomyPanel = ({ data, toast, onRefresh }) => {
 
   return (
     <div className="space-y-6">
+      <EconomicMixControl /><CitizenNeedsSettings />
       <div className="grid gap-6 xl:grid-cols-2">
         <Card className="border-border/70 bg-card/75">
           <CardHeader>

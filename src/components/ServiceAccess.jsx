@@ -45,8 +45,8 @@ const ServiceAccess = ({ requiredRoles, citizenPath, panelPath, isDashboard = fa
         ? "Como administrador, você pode acessar tanto o seu dashboard de cidadão quanto o painel administrativo."
         : "Detectamos que você tem permissões especiais. Como deseja acessar este serviço?";
 
-    const citizenButtonText = isDashboard ? "Dashboard do Cidadão" : "Acessar como Cidadão";
-    const panelButtonText = panelLabel || (isDashboard ? "Dashboard do Admin" : "Acessar Painel");
+    const citizenButtonText = "Acessar painel cidadão";
+    const panelButtonText = `Acessar painel ${isDashboard ? 'administrativo' : /parliament/.test(panelPath) ? 'parlamentar' : /president/.test(panelPath) ? 'presidencial' : /justice/.test(panelPath) ? 'jurídico' : /police/.test(panelPath) ? 'policial' : /armed/.test(panelPath) ? 'militar' : /agies/.test(panelPath) ? 'de inteligência' : (panelLabel || 'profissional').replace(/Acessar|Painel|painel/g, '').trim().toLowerCase()}`;
 
     const citizenButtonIcon = isDashboard ? <LayoutDashboard className="mr-2 h-4 w-4"/> : <User className="mr-2 h-4 w-4"/>;
     const panelButtonIcon = isDashboard ? <Crown className="mr-2 h-4 w-4"/> : <Shield className="mr-2 h-4 w-4"/>;

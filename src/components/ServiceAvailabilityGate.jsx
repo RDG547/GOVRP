@@ -1,3 +1,4 @@
+import { useServiceAvailability } from '@/hooks/use-service-availability';
 import React, { useEffect, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
@@ -12,47 +13,11 @@ import { useAuth } from '@/contexts/AuthContext';
 
 const ServiceAvailabilityGate = ({ serviceKey, children }) => {
   const { user } = useAuth();
-  const [loading, setLoading] = useState(true);
-  const [serviceMode, setServiceMode] = useState('active');
-
-  const rolePool = Array.isArray(user?.effective_roles)
-    ? user.effective_roles
-    : [user?.role].filter(Boolean);
-  const isAdmin = rolePool.includes('Admin') || user?.role === 'Admin';
-
-  useEffect(() => {
-    if (isAdmin) {
-      setLoading(false);
-      setServiceMode('active');
-      return undefined;
-    }
-
-    let isMounted = true;
-
-    const fetchAvailability = async () => {
-      try {
-        const settings = await fetchServiceAvailabilitySettings(supabase);
-        if (isMounted) {
-          setServiceMode(resolveServiceMode(settings, serviceKey));
-        }
-      } catch (error) {
-        console.error('Error fetching service availability settings:', error);
-        if (isMounted) {
-          setServiceMode('active');
-        }
-      } finally {
-        if (isMounted) {
-          setLoading(false);
-        }
-      }
-    };
-
-    fetchAvailability();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [serviceKey, isAdmin]);
+  const { settings, loading } = useServiceAvailability();
+  const [wasAvailable, setWasAvailable] = useState(false);
+  const isAdmin = user?.role === 'Admin' || user?.effective_roles?.includes('Admin');
+  const serviceMode = isAdmin ? 'active' : resolveServiceMode(settings, serviceKey);
+  useEffect(() => { if (!loading && serviceMode === 'active') setWasAvailable(true); }, [loading, serviceMode]);
 
   if (loading) {
     return (
@@ -64,7 +29,7 @@ const ServiceAvailabilityGate = ({ serviceKey, children }) => {
 
   const service = getServiceByKey(serviceKey);
 
-  if (serviceMode === 'coming_soon') {
+  if (!wasAvailable && serviceMode === 'coming_soon') {
     return (
       <ComingSoon
         serviceName={service?.name || 'Este serviço'}
@@ -73,7 +38,7 @@ const ServiceAvailabilityGate = ({ serviceKey, children }) => {
     );
   }
 
-  if (serviceMode === 'maintenance') {
+  if (!wasAvailable && serviceMode === 'maintenance') {
     return (
       <MaintenanceMode
         serviceName={service?.name || 'Este serviço'}
@@ -82,7 +47,10 @@ const ServiceAvailabilityGate = ({ serviceKey, children }) => {
     );
   }
 
-  return children;
+  return <div className="min-w-0">
+    {serviceMode !== 'active' && <div role="status" className="mb-4 rounded-xl border border-amber-500/40 bg-amber-500/10 p-4">Este serviço ficou temporariamente indisponível. Seu conteúdo foi preservado; novas ações estarão disponíveis quando o serviço voltar.</div>}
+    <fieldset disabled={serviceMode !== 'active'} className="min-w-0">{children}</fieldset>
+  </div>;
 };
 
 export default ServiceAvailabilityGate;

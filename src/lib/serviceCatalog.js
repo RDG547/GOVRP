@@ -1,4 +1,5 @@
 import {
+  ShoppingBasket,
   Archive,
   CheckCircle2,
   Building2,
@@ -79,6 +80,8 @@ export const SERVICE_CATEGORIES = [
   {
     name: 'Economia',
     services: [
+      { key: '/services/national-market', name: 'Mercado Nacional', path: '/services/national-market', icon: ShoppingBasket, color: 'text-orange-400', description: 'Compre alimentos e bebidas essenciais para o dia a dia do seu cidadão.' },
+      { key: '/services/national-housing', name: 'Imobiliária Nacional', path: '/services/national-housing', icon: Home, color: 'text-emerald-400', description: 'Encontre e adquira sua residência dentro do GOVRP.' },
       { key: '/services/economy', name: 'Economia Nacional', path: '/services/economy', icon: LineChart, color: 'text-cyan-300', description: 'Acompanhe PIB, inflação, emprego, poder de compra e as consequências das decisões econômicas.' },
       { key: '/services/entrepreneur-portal', name: 'Portal do Empreendedor', path: '/services/entrepreneur-portal', icon: Building2, color: 'text-cyan-400', description: 'Hub empresarial para criar, gerir, investir e negociar com empresas da nação.' },
       { key: '/services/business', name: 'Negócios Livres', path: '/services/business', icon: Store, color: 'text-blue-400', description: 'Compre e venda produtos e serviços no marketplace da comunidade.' },

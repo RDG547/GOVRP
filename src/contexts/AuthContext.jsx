@@ -1,3 +1,4 @@
+import { officialRoleCapabilities } from '@/lib/roleIcons';
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { isPrisonSentenceActive } from '@/lib/prison';
@@ -166,7 +167,7 @@ export const AuthProvider = ({ children }) => {
         ...profile,
         stored_role: profile.role,
         role: displayRole,
-        effective_roles: [...effectiveRoles],
+        effective_roles: [...new Set([...effectiveRoles].flatMap(officialRoleCapabilities))],
         executive_ticket_role: executiveTicketRole,
         acting_executive_authority: Boolean(
           executiveState?.isVacant && executiveState?.actingAuthority?.profile?.id === profile.id
@@ -182,7 +183,7 @@ export const AuthProvider = ({ children }) => {
         ...profile,
         stored_role: profile.role,
         role: fallbackRole,
-        effective_roles: [fallbackRole].filter(Boolean),
+        effective_roles: officialRoleCapabilities(fallbackRole).filter(Boolean),
       };
     }
   }, []);

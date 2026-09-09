@@ -55,7 +55,7 @@ insert into public.party_members(party_id,user_id) values
 update public.profiles set party_affiliation='40000000-0000-0000-0000-000000000002' where id='10000000-0000-0000-0000-000000000003';
 insert into public.country_rp_states(country_code,country_name,is_playable,economic_baseline,economic_current,reference_snapshot_at)
 values('BR','Brasil',true,'{"gdp":500}','{"gdp":900,"exchangeUsd":9,"currency":"BRL"}',clock_timestamp());
-insert into public.economic_state(id,current_selic,public_debt,base_monthly_gdp) values(true,99,999999,111111);
+insert into public.economic_state(id,current_selic,public_debt,base_monthly_gdp) values(true,99,999999,111111) on conflict(id) do update set current_selic=99,public_debt=999999,base_monthly_gdp=111111;
 insert into public.government_finances(id,treasury_balance,loans_balance) values(1,99999,999);
 insert into public.rp_time_settings(id) values(true);
 insert into public.economic_events(event_type,economic_classification,actor_profile_id,nominal_amount,economic_amount,real_amount,source_table,source_id,occurred_at_rp)
@@ -236,6 +236,7 @@ select pg_temp.assert_true((select treasury_balance=0 and loans_balance=0 from p
 select pg_temp.assert_true((select count(*) from public.country_rp_economic_snapshots)=1 and (select count(*) from public.economic_events)=0 and (select count(*) from public.transactions)=0,'only new economic baseline remains');
 select pg_temp.assert_true((select count(*) from public.currency_market_states)=6 and (select count(*) from public.currency_market_states where current_strength<>1)=0,'currency market starts from real quotes without old RP pressure');
 select pg_temp.assert_true((select count(*) from public.security_audit_log)=1 and (select value from public.system_settings where key='service_availability')='{"bank":true}'::jsonb,'security records and service configuration survive complete reset');
+select pg_temp.assert_true((select count(*) from public.products where state_enterprise_id is not null)=20,'full reset preserves the state food and housing catalog');
 select pg_temp.assert_true((select count(*) from public.profiles)=4 and (select count(*) from private.account_identities)=4,'full reset preserves all account anchors');
 select pg_temp.assert_true(not exists(select 1 from test_trigger_modes b join pg_class c on c.relname=b.relname and c.relnamespace='public'::regnamespace join pg_trigger g on g.tgrelid=c.oid and g.tgname=b.tgname where g.tgenabled<>b.tgenabled),'triggers remain enabled after full reset');
 
@@ -254,7 +255,7 @@ exception when raise_exception then
   raise notice 'PASS: expired preview cannot reset a citizen';
 end $$;
 reset role;
-select pg_temp.assert_true((select count(*)=6 from public.government_rules where rule_key in('corporate_tax_rate','consumption_tax_rate','business_license_fee','public_safety_policy_index','social_welfare_policy_index','transaction_tax')) and public.get_government_rule('business_license_fee')=250 and (select rule_kind='fee' from public.government_rules where rule_key='business_license_fee') and (select count(*)=6 from public.legal_authority_rules),'initial government rules are ready for the next laws and businesses');
+select pg_temp.assert_true((select count(*)=6 from public.government_rules where rule_key in('corporate_tax_rate','consumption_tax_rate','business_license_fee','public_safety_policy_index','social_welfare_policy_index','transaction_tax')) and public.get_government_rule('business_license_fee')=250 and (select rule_kind='fee' from public.government_rules where rule_key='business_license_fee') and (select count(*)=7 from public.legal_authority_rules) and exists(select 1 from public.legal_authority_rules where capability='executive_rate_adjustment' and decree_allowed),'initial government rules are ready for the next laws and businesses');
 update public.economic_state set exchange_rate=6 where id=true;
 select pg_temp.assert_true((select (economic_baseline->>'exchangeUsd')::numeric=5 and (economic_current->>'exchangeUsd')::numeric=6 from public.country_rp_states where country_code='BR'),'RP engine changes current economy without overwriting the real baseline');
 select pg_temp.assert_true(not has_function_privilege('authenticated','private.build_rp_reset_plan(text,uuid[])','execute'),'private reset helpers cannot be called directly');

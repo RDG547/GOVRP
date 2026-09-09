@@ -1,3 +1,4 @@
+import { justiceStatus } from '@/lib/justice/constants';
 import { executeArrestWarrant, archiveReferredInvestigation } from '@/lib/justice/api';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
@@ -448,7 +449,7 @@ const AuthorityJusticeDashboard = () => {
                     <CardTitle className="text-lg">{investigation.investigation_number}</CardTitle>
                     <CardDescription className="mt-1">{investigation.summary}</CardDescription>
                   </div>
-                  <Badge variant="outline">{investigation.status}</Badge>
+                  <Badge variant="outline">{justiceStatus(investigation.status)}</Badge>
                 </div>
               </CardHeader>
               <CardContent className="grid gap-3 text-sm sm:grid-cols-3">
@@ -491,7 +492,7 @@ const AuthorityJusticeDashboard = () => {
                       Pedido em {formatJusticeDate(request.created_at)}
                     </CardDescription>
                   </div>
-                  <Badge variant="outline">{request.status}</Badge>
+                  <Badge variant="outline">{justiceStatus(request.status)}</Badge>
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -550,7 +551,7 @@ const AuthorityJusticeDashboard = () => {
                       <CardTitle className="text-lg">{typeLabel}</CardTitle>
                       <CardDescription className="mt-1">{warrant.warrant_number} · emitido em {formatJusticeDate(warrant.issued_at)}</CardDescription>
                     </div>
-                    <Badge variant="outline">{warrant.status}</Badge>
+                    <Badge variant="outline">{justiceStatus(warrant.status)}</Badge>
                   </div>
                 </CardHeader>
                 <CardContent className="grid gap-3 text-sm sm:grid-cols-2">
@@ -577,7 +578,7 @@ const AuthorityJusticeDashboard = () => {
                     </CardDescription>
                   </div>
                   <Badge variant="outline">
-                    {CASE_STATUS_LABELS[criminalCase.status] || criminalCase.status}
+                    {justiceStatus(criminalCase.status)}
                   </Badge>
                 </div>
               </CardHeader>
@@ -667,24 +668,24 @@ const AuthorityJusticeDashboard = () => {
             <>
               {data.fineAppeals.map((appeal) => {
                 const fine = data.fines.find((item) => item.id === appeal.fine_id);
-                return <Card key={appeal.id} className="glass-effect"><CardHeader><div className="flex items-start justify-between gap-3"><div><CardTitle className="flex items-center gap-2 text-lg"><Banknote className="h-5 w-5 text-amber-300" />Recurso {fine?.fine_code || appeal.fine_id}</CardTitle><CardDescription>{fine?.citizen?.full_name || 'Cidadão'} · {formatJusticeDate(appeal.created_at)}</CardDescription></div><Badge variant="outline">{appeal.status}</Badge></div></CardHeader><CardContent className="space-y-4"><p className="text-sm text-muted-foreground">{appeal.reason}</p>{['pending', 'under_review'].includes(appeal.status) ? <div className="flex gap-2"><Button size="sm" onClick={() => setAction({ type: 'fine-appeal', item: appeal, approved: true })}>Deferir</Button><Button size="sm" variant="destructive" onClick={() => setAction({ type: 'fine-appeal', item: appeal, approved: false })}>Indeferir</Button></div> : null}</CardContent></Card>;
+                return <Card key={appeal.id} className="glass-effect"><CardHeader><div className="flex items-start justify-between gap-3"><div><CardTitle className="flex items-center gap-2 text-lg"><Banknote className="h-5 w-5 text-amber-300" />Recurso {fine?.fine_code || appeal.fine_id}</CardTitle><CardDescription>{fine?.citizen?.full_name || 'Cidadão'} · {formatJusticeDate(appeal.created_at)}</CardDescription></div><Badge variant="outline">{justiceStatus(appeal.status)}</Badge></div></CardHeader><CardContent className="space-y-4"><p className="text-sm text-muted-foreground">{appeal.reason}</p>{['pending', 'under_review'].includes(appeal.status) ? <div className="flex gap-2"><Button size="sm" onClick={() => setAction({ type: 'fine-appeal', item: appeal, approved: true })}>Deferir</Button><Button size="sm" variant="destructive" onClick={() => setAction({ type: 'fine-appeal', item: appeal, approved: false })}>Indeferir</Button></div> : null}</CardContent></Card>;
               })}
               {data.fineHearings.map((hearing) => {
                 const fine = data.fines.find((item) => item.id === hearing.fine_id);
-                return <Card key={hearing.id} className="glass-effect"><CardHeader><div className="flex items-start justify-between gap-3"><div><CardTitle className="text-lg">Audiência · {fine?.fine_code || hearing.fine_id}</CardTitle><CardDescription>{hearing.reason}</CardDescription></div><Badge variant="outline">{hearing.status}</Badge></div></CardHeader>{hearing.status === 'requested' ? <CardContent className="flex gap-2"><Button size="sm" onClick={() => setAction({ type: 'fine-hearing', item: hearing, status: 'scheduled' })}>Agendar</Button><Button size="sm" variant="destructive" onClick={() => setAction({ type: 'fine-hearing', item: hearing, status: 'denied' })}>Negar</Button></CardContent> : null}</Card>;
+                return <Card key={hearing.id} className="glass-effect"><CardHeader><div className="flex items-start justify-between gap-3"><div><CardTitle className="text-lg">Audiência · {fine?.fine_code || hearing.fine_id}</CardTitle><CardDescription>{hearing.reason}</CardDescription></div><Badge variant="outline">{justiceStatus(hearing.status)}</Badge></div></CardHeader>{hearing.status === 'requested' ? <CardContent className="flex gap-2"><Button size="sm" onClick={() => setAction({ type: 'fine-hearing', item: hearing, status: 'scheduled' })}>Agendar</Button><Button size="sm" variant="destructive" onClick={() => setAction({ type: 'fine-hearing', item: hearing, status: 'denied' })}>Negar</Button></CardContent> : null}</Card>;
               })}
             </>
           ) : <JusticeEmptyState title="Nenhum recurso ou audiência pendente" description="As solicitações aparecerão aqui sem necessidade de atualizar a página." />}
         </TabsContent>
 
         <TabsContent value="citizen" className="space-y-4">
-          {data.citizenRequests.length ? data.citizenRequests.map((request) => <Card key={request.id} className="glass-effect"><CardHeader><div className="flex items-start justify-between gap-3"><div><CardTitle className="text-lg">{request.subject}</CardTitle><CardDescription>{request.protocol_number} · {request.requester?.full_name || 'Cidadão'}</CardDescription></div><Badge variant="outline">{request.status}</Badge></div></CardHeader><CardContent className="space-y-4"><p className="text-sm text-muted-foreground">{request.description}</p>{!['approved', 'denied', 'completed', 'cancelled'].includes(request.status) ? <div className="flex flex-wrap gap-2"><Button size="sm" variant="outline" onClick={() => setAction({ type: 'citizen-request', item: request, status: 'under_review' })}>Assumir análise</Button><Button size="sm" onClick={() => setAction({ type: 'citizen-request', item: request, status: 'approved' })}>Aprovar</Button><Button size="sm" variant="destructive" onClick={() => setAction({ type: 'citizen-request', item: request, status: 'denied' })}>Negar</Button></div> : null}</CardContent></Card>) : <JusticeEmptyState title="Nenhum pedido administrativo" description="Pedidos de investigação e liberação de bens aparecerão nesta fila." />}
+          {data.citizenRequests.length ? data.citizenRequests.map((request) => <Card key={request.id} className="glass-effect"><CardHeader><div className="flex items-start justify-between gap-3"><div><CardTitle className="text-lg">{request.subject}</CardTitle><CardDescription>{request.protocol_number} · {request.requester?.full_name || 'Cidadão'}</CardDescription></div><Badge variant="outline">{justiceStatus(request.status)}</Badge></div></CardHeader><CardContent className="space-y-4"><p className="text-sm text-muted-foreground">{request.description}</p>{!['approved', 'denied', 'completed', 'cancelled'].includes(request.status) ? <div className="flex flex-wrap gap-2"><Button size="sm" variant="outline" onClick={() => setAction({ type: 'citizen-request', item: request, status: 'under_review' })}>Assumir análise</Button><Button size="sm" onClick={() => setAction({ type: 'citizen-request', item: request, status: 'approved' })}>Aprovar</Button><Button size="sm" variant="destructive" onClick={() => setAction({ type: 'citizen-request', item: request, status: 'denied' })}>Negar</Button></div> : null}</CardContent></Card>) : <JusticeEmptyState title="Nenhum pedido administrativo" description="Pedidos de investigação e liberação de bens aparecerão nesta fila." />}
         </TabsContent>
 
 
 
         <TabsContent value="integrity" className="space-y-4">
-          {data.integrityCases.length ? data.integrityCases.map((item) => <Card key={item.id} className="glass-effect"><CardHeader><div className="flex items-start justify-between gap-3"><div><CardTitle>{item.title}</CardTitle><CardDescription>{item.case_number} · fluxo sem presunção automática de culpa</CardDescription></div><Badge variant="outline">{item.status}</Badge></div></CardHeader><CardContent className="space-y-4"><p className="text-sm text-muted-foreground">{item.summary}</p>{item.status === 'suspicion' ? <div className="flex gap-2"><Button size="sm" onClick={() => setAction({ type: 'integrity', item, status: 'police_investigation' })}>Abrir investigação</Button><Button size="sm" variant="outline" onClick={() => setAction({ type: 'integrity', item, status: 'archived' })}>Arquivar</Button></div> : null}</CardContent></Card>) : <JusticeEmptyState title="Nenhum caso de integridade" description="Suspeitas, investigações, processos e decisões finais ficam historicamente separados." />}
+          {data.integrityCases.length ? data.integrityCases.map((item) => <Card key={item.id} className="glass-effect"><CardHeader><div className="flex items-start justify-between gap-3"><div><CardTitle>{item.title}</CardTitle><CardDescription>{item.case_number} · fluxo sem presunção automática de culpa</CardDescription></div><Badge variant="outline">{justiceStatus(item.status)}</Badge></div></CardHeader><CardContent className="space-y-4"><p className="text-sm text-muted-foreground">{item.summary}</p>{item.status === 'suspicion' ? <div className="flex gap-2"><Button size="sm" onClick={() => setAction({ type: 'integrity', item, status: 'police_investigation' })}>Abrir investigação</Button><Button size="sm" variant="outline" onClick={() => setAction({ type: 'integrity', item, status: 'archived' })}>Arquivar</Button></div> : null}</CardContent></Card>) : <JusticeEmptyState title="Nenhum caso de integridade" description="Suspeitas, investigações, processos e decisões finais ficam historicamente separados." />}
         </TabsContent>
       </Tabs>
 

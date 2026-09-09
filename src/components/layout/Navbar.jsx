@@ -1,3 +1,4 @@
+import CitizenNeedsHUD from '@/components/CitizenNeedsHUD';
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -41,7 +42,7 @@ const Navbar = () => {
   const [helpOpen, setHelpOpen] = useState(false);
   const [mobileServicesOpen, setMobileServicesOpen] = useState(false);
   const [isDashboardAlertOpen, setIsDashboardAlertOpen] = useState(false);
-  
+
   const { user, logout, session } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
@@ -58,7 +59,7 @@ const Navbar = () => {
     handleScroll();
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
-  
+
   useEffect(() => {
     const handleClickOutside = (event) => {
       const clickedTopNavigation = navRef.current?.contains(event.target);
@@ -97,7 +98,7 @@ const Navbar = () => {
       { name: 'Comunidade', path: '/community', icon: Users },
       { name: 'Ajuda', path: '#', icon: HelpCircle, isDropdown: true, type: 'help' },
   ];
-  
+
   const handleLogout = async () => {
     await logout();
     toast({ title: 'Você saiu da sua conta.' });
@@ -106,7 +107,7 @@ const Navbar = () => {
   const effectiveRoles = Array.isArray(user?.effective_roles) ? user.effective_roles : [user?.role].filter(Boolean);
   const hasPresidentAccess = effectiveRoles.includes('Presidente');
   const isAdmin = effectiveRoles.includes('Admin') || user?.role === 'Admin';
-  
+
   const handleServicesEnter = () => { clearTimeout(servicesTimeoutRef.current); setServicesOpen(true); };
   const handleServicesLeave = () => { servicesTimeoutRef.current = setTimeout(() => setServicesOpen(false), 200); };
   const handleServicesClick = (e) => { e.preventDefault(); setServicesOpen(prev => !prev); };
@@ -248,7 +249,7 @@ const Navbar = () => {
                 </>
               )}
             </div>
-            
+
             <div className="flex items-center md:hidden">
               {user && <NotificationBell />}
               <button
@@ -381,7 +382,7 @@ const MobileBottomNav = ({
         className="fixed inset-x-0 bottom-0 z-[70] border-t border-border/90 bg-background/95 px-2 pt-1 shadow-[0_-12px_35px_rgba(0,0,0,0.32)] backdrop-blur-xl"
         style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 0.25rem)' }}
       >
-        <div className="mx-auto grid h-[4.5rem] max-w-lg grid-cols-4 gap-1">
+        <div className="mx-auto grid h-[4.5rem] max-w-lg grid-cols-5 gap-1">
           <Link
             to="/"
             aria-current={location.pathname === '/' ? 'page' : undefined}
@@ -409,6 +410,7 @@ const MobileBottomNav = ({
             <span className="truncate">Serviços</span>
           </button>
 
+          <CitizenNeedsHUD mobile />
           <button
             type="button"
             aria-current={isDashboardRoute ? 'page' : undefined}
@@ -451,7 +453,7 @@ const MobileMenu = ({ isOpen, setIsOpen }) => {
     { name: 'Comunidade', path: '/community', icon: Users },
     { name: 'Apoie o Projeto', path: '/support-us', icon: Heart },
   ];
-  
+
   const NavLink = ({ to, children, icon: Icon, onClick }) => (
     <Link to={to} onClick={onClick} className="text-xl p-4 rounded-lg hover:bg-accent flex items-center w-full text-foreground gap-4">
       <Icon className="w-6 h-6"/>
@@ -515,7 +517,7 @@ const MobileMenu = ({ isOpen, setIsOpen }) => {
                 </div>
               </nav>
             </div>
-            
+
             <div className="flex-shrink-0 p-6 border-t border-border">
               {session ? (
                 <div className="space-y-4">

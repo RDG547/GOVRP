@@ -1322,7 +1322,8 @@ const Parliament = () => {
                   <TabsTrigger className="shrink-0" value="commissions"><Users className="mr-2 h-4 w-4" />Comissões</TabsTrigger>
                   <TabsTrigger className="shrink-0" value="leadership"><Landmark className="mr-2 h-4 w-4" />Mesa Diretora</TabsTrigger>
                   <TabsTrigger className="shrink-0" value="plebiscites"><Vote className="mr-2 h-4 w-4" />Plebiscitos</TabsTrigger>
-                </TabsList>
+                  <TabsTrigger value="institution"><Landmark className="mr-2 h-4 w-4" />Como funciona</TabsTrigger>
+              </TabsList>
               </div>
 
               <Select onValueChange={setSelectedHouse} value={selectedHouse}>
@@ -1374,9 +1375,10 @@ const Parliament = () => {
             <TabsContent value="plebiscites">
               <PlebisciteList plebiscites={plebiscites} userVote={userPlebiscitesVotes} onVote={fetchParliamentData} user={user} />
             </TabsContent>
+            <TabsContent value="institution"><ParliamentRulesSection /></TabsContent>
           </Tabs>
         </div>
-        <ParliamentRulesSection />
+
       </div>
     </>
   );

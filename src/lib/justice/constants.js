@@ -103,3 +103,19 @@ export const primaryJusticeRole = (user) => {
   return JUSTICE_AUTHORITY_ROLES.find((role) => roles.includes(role)) || 'Cidadão';
 };
 
+
+export const JUSTICE_STATUS_LABELS = {
+  ...CASE_STATUS_LABELS, ...CUSTODY_STATUS_LABELS,
+  in_progress: 'Em andamento', pending: 'Pendente', open: 'Aberto', closed: 'Encerrado',
+  dismissed: 'Arquivado', rejected: 'Rejeitado', approved: 'Aprovado', denied: 'Indeferido', granted: 'Deferido',
+  under_review: 'Em análise', filed: 'Protocolado', requested: 'Solicitado', scheduled: 'Agendado',
+  completed: 'Concluído', cancelled: 'Cancelado', canceled: 'Cancelado', active: 'Ativo', expired: 'Expirado',
+  executed: 'Cumprido', revoked: 'Revogado', issued: 'Emitido', paid: 'Pago', unpaid: 'Não pago',
+  overdue: 'Vencido', awaiting_payment: 'Aguardando pagamento', appealed: 'Em recurso',
+  annulled: 'Anulado', conviction: 'Condenação', legacy: 'Registro histórico',
+  admitted: 'Recebido', accepted: 'Aceito', awaiting_analysis: 'Aguardando análise',
+};
+export function justiceStatus(value, context = '') {
+  if (value === 'dismissed' && context === 'request') return 'Indeferido';
+  return JUSTICE_STATUS_LABELS[value] || (/[_]|^[a-z]+$/.test(value || '') ? 'Situação em atualização' : value || 'Não informado');
+}

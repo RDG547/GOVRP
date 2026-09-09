@@ -26,13 +26,13 @@ const GiftItemDialog = ({ isOpen, setIsOpen, onGiftSuccess }) => {
         setLoading(true);
         const { data, error } = await supabase
             .from('user_inventory')
-            .select('*, product:products(name, image_url)')
+            .select('*, product:products(name, image_url, residence_spec)')
             .eq('user_id', user.id)
             .gt('quantity', 0);
         if (error) {
             toast({ title: "Erro", description: "Não foi possível carregar seu inventário.", variant: "destructive" });
         } else {
-            setInventory(data || []);
+            setInventory((data || []).filter(item=>!item.product?.residence_spec));
         }
         setLoading(false);
     }, [user, toast]);
@@ -116,10 +116,10 @@ const GiftItemDialog = ({ isOpen, setIsOpen, onGiftSuccess }) => {
 
 const InventoryPage = () => {
     const [isGiftDialogOpen, setIsGiftDialogOpen] = useState(false);
-    const [refreshKey, setRefreshKey] = useState(0);
+
 
     const handleGiftSuccess = () => {
-        setRefreshKey(prev => prev + 1);
+        // Inventory observes the persisted change through its existing subscription.
     };
 
     return (
@@ -143,8 +143,8 @@ const InventoryPage = () => {
                         <Gift className="w-4 h-4 mr-2" /> Presentear
                     </Button>
                 </div>
-                
-                <Inventory key={refreshKey} />
+
+                <Inventory />
 
             </div>
             <GiftItemDialog isOpen={isGiftDialogOpen} setIsOpen={setIsGiftDialogOpen} onGiftSuccess={handleGiftSuccess} />

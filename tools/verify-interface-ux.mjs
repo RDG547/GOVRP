@@ -51,7 +51,7 @@ verify('Parlamento exibe proposta e cronologia com segundos', parliament.include
 verify('tabs do Parlamento rolam localmente no celular', parliament.includes('overflow-x-auto scroll-smooth') && parliament.includes('min-w-max flex-nowrap'));
 verify('eventos parlamentares futuros usam hora do servidor', historyMigration.includes('clock_timestamp()') && historyMigration.includes('new.status is distinct from old.status'));
 verify('datas históricas não são inventadas', historyMigration.includes('bill.updated_at > bill.created_at') && historyMigration.includes('historical_updated_at'));
-verify('PDF aguarda fontes e captura o documento real', documentCapture.includes('document.fonts.ready') && dic.includes("querySelector('[data-official-document]')") && officialDocument.includes('data-official-document'));
+verify('PDF aguarda fontes e captura o documento real', documentCapture.includes('document.fonts.ready') && dic.includes("captureElement(element") && dic.includes("padding: 20, width: 520") && officialDocument.includes('data-official-document'));
 verify('PDF aguarda imagens, corrige transformações e preserva escala do documento', documentCapture.includes('img.decode') && documentCapture.includes("parent.style.transform = 'none'") && documentCapture.includes('useCORS: true') && dic.includes('scale: 3'));
 verify('Home consulta exatamente as três publicações recentes do feed nacional', homeNews.includes("rpc('get_national_feed'") && homeNews.includes('p_limit: 3'));
 verify('carrossel possui loop de cinco segundos, navegação e swipe', homeNews.includes('5000') && homeNews.includes('% news.length') && homeNews.includes('handleTouchStart') && homeNews.includes('Notícia anterior'));

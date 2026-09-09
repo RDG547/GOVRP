@@ -689,7 +689,7 @@ const Elections = () => {
             </div>
 
             <Dialog open={isRegisterOpen} onOpenChange={setIsRegisterOpen}>
-                <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden p-0">
+                <DialogContent plain className="max-w-4xl max-h-[90dvh] overflow-hidden p-0 bg-card [&>button]:z-20">
                     <DialogHeader className="sr-only">
                         <DialogTitle>Registrar Candidatura</DialogTitle>
                         <DialogDescription>Preencha o formulário para registrar sua candidatura.</DialogDescription>

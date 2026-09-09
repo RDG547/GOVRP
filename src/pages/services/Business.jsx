@@ -1,3 +1,4 @@
+import { categoryIcon } from '@/lib/commerceIcons';
 import { useRef } from 'react';
 import { useDomainRealtime } from '@/hooks/use-domain-realtime';
 import { usePublicProfileChanges } from '@/hooks/use-public-profile-changes';
@@ -418,21 +419,7 @@ const Business = () => {
             </Button>
           </div>
         </div>
-        <Collapsible>
-          <CollapsibleTrigger asChild>
-            <Button variant="ghost" className="w-full md:w-auto">
-              Categorias <ChevronDown className="ml-2 h-4 w-4" />
-            </Button>
-          </CollapsibleTrigger>
-          <CollapsibleContent>
-            <div className="flex flex-wrap gap-2 p-4 bg-muted/50 rounded-lg mt-2">
-              <Button variant={selectedCategory === 'all' ? 'default' : 'secondary'} onClick={() => setSelectedCategory('all')}>Todas</Button>
-              {categories.map(cat => (
-                <Button key={cat} variant={selectedCategory === cat ? 'default' : 'secondary'} onClick={() => setSelectedCategory(cat)}>{cat}</Button>
-              ))}
-            </div>
-          </CollapsibleContent>
-        </Collapsible>
+        <Select value={selectedCategory} onValueChange={setSelectedCategory}><SelectTrigger aria-label="Categoria dos produtos" className="w-full md:w-72"><SelectValue /></SelectTrigger><SelectContent className="[&>div]:max-h-[192px]"><SelectItem value="all">Todas as categorias</SelectItem>{categories.map(category=>{const Icon=categoryIcon(category);return <SelectItem key={category} value={category}><span className="flex items-center gap-2"><Icon className="h-4 w-4" />{category}</span></SelectItem>;})}</SelectContent></Select>
       </div>
 
       {loading ? (

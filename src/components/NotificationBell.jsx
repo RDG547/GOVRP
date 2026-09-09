@@ -1,3 +1,4 @@
+import NotificationIcon from '@/components/NotificationIcon';
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Bell, MailCheck, Trash2 } from 'lucide-react';
@@ -40,7 +41,7 @@ const NotificationBell = () => {
       .eq('user_id', user.id)
       .order('created_at', { ascending: false })
       .limit(20);
-    
+
     if (error) {
       console.error("Error fetching all notifications:", error);
     } else {
@@ -56,7 +57,7 @@ const NotificationBell = () => {
     if (!user) return;
     const channel = supabase
       .channel(`notifications:${user.id}`)
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` },
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` },
         (payload) => {
           fetchNotifications();
           if(isOpen) fetchAllNotifications();
@@ -97,7 +98,7 @@ const NotificationBell = () => {
   return (
     <Popover open={isOpen} onOpenChange={handleOpenChange}>
       <PopoverTrigger asChild>
-        <button className="relative text-foreground hover:text-primary transition-colors">
+        <button aria-label="Notificações" className="relative text-foreground hover:text-primary transition-colors">
           <Bell className="w-6 h-6" />
           {unreadCount > 0 && (
             <motion.div
@@ -110,7 +111,7 @@ const NotificationBell = () => {
           )}
         </button>
       </PopoverTrigger>
-      <PopoverContent align="end" className="w-80 md:w-96 bg-popover/80 backdrop-blur-lg border-border shadow-2xl p-0">
+      <PopoverContent align="end" className="w-[min(24rem,calc(100vw-2rem))] bg-popover/80 backdrop-blur-lg border-border shadow-2xl p-0">
         <div className="p-4 flex justify-between items-center border-b border-border">
           <h3 className="font-semibold text-popover-foreground">Notificações</h3>
           {notifications.length > 0 && (
@@ -125,6 +126,7 @@ const NotificationBell = () => {
             notifications.map(notif => (
               <Link key={notif.id} to={notif.link || '#'} className="block hover:bg-accent transition-colors">
                 <div className="p-4 border-b border-border last:border-b-0 flex items-start gap-3">
+                  <NotificationIcon notification={notif} />
                   {notif.sender?.x_avatar_url && (
                     <img src={notif.sender.x_avatar_url} alt="sender avatar" className="w-8 h-8 rounded-full" />
                   )}

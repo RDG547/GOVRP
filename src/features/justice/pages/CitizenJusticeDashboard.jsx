@@ -1,3 +1,4 @@
+import { justiceStatus } from '@/lib/justice/constants';
 import { useSectionLoader } from '@/hooks/use-section-loader';
 import { CITIZEN_JUSTICE_SECTIONS, citizenJusticeSectionsForEvents } from '@/lib/justice/citizenData';
 import React, { useCallback, useEffect, useMemo, useState, useRef } from 'react';
@@ -494,7 +495,7 @@ const CitizenJusticeDashboard = () => {
                       <Badge variant="outline" className={PRIORITY_STYLES[occurrence.priority]}>
                         {PRIORITY_LABELS[occurrence.priority] || occurrence.priority}
                       </Badge>
-                      <Badge>{occurrence.status}</Badge>
+                      <Badge>{justiceStatus(occurrence.status)}</Badge>
                     </div>
                   </div>
                 </CardHeader>
@@ -532,7 +533,7 @@ const CitizenJusticeDashboard = () => {
                     <CardDescription className="mt-1">{criminalCase.case_number}</CardDescription>
                   </div>
                   <Badge variant="outline">
-                    {CASE_STATUS_LABELS[criminalCase.status] || criminalCase.status}
+                    {justiceStatus(criminalCase.status)}
                   </Badge>
                 </div>
               </CardHeader>
@@ -609,7 +610,7 @@ const CitizenJusticeDashboard = () => {
           </Card>
 
           {data.citizenRequests.map((request) => (
-            <Card key={request.id} className="border-cyan-500/20 bg-cyan-500/5"><CardHeader><div className="flex items-start justify-between gap-3"><div><CardTitle className="text-lg">{request.subject}</CardTitle><CardDescription>{request.protocol_number} · {request.request_type === 'formal_investigation' ? 'Investigação formal' : 'Liberação de bem'}</CardDescription></div><Badge variant="outline">{request.status}</Badge></div></CardHeader>{request.decision_notes ? <CardContent><p className="text-sm text-muted-foreground">{request.decision_notes}</p></CardContent> : null}</Card>
+            <Card key={request.id} className="border-cyan-500/20 bg-cyan-500/5"><CardHeader><div className="flex items-start justify-between gap-3"><div><CardTitle className="text-lg">{request.subject}</CardTitle><CardDescription>{request.protocol_number} · {request.request_type === 'formal_investigation' ? 'Investigação formal' : 'Liberação de bem'}</CardDescription></div><Badge variant="outline">{justiceStatus(request.status)}</Badge></div></CardHeader>{request.decision_notes ? <CardContent><p className="text-sm text-muted-foreground">{request.decision_notes}</p></CardContent> : null}</Card>
           ))}
 
           {data.requests.length ? data.requests.map((request) => (
@@ -625,7 +626,7 @@ const CitizenJusticeDashboard = () => {
                       Solicitado em {formatJusticeDate(request.created_at)}
                     </CardDescription>
                   </div>
-                  <Badge variant="outline">{request.status}</Badge>
+                  <Badge variant="outline">{justiceStatus(request.status)}</Badge>
                 </div>
               </CardHeader>
               <CardContent>
@@ -655,11 +656,11 @@ const CitizenJusticeDashboard = () => {
             const actionOpen = fineAction.fineId === fine.id;
             return (
               <Card key={fine.id} className="glass-effect">
-                <CardHeader><div className="flex flex-wrap items-start justify-between gap-3"><div><CardTitle className="flex items-center gap-2"><Banknote className="h-5 w-5 text-amber-300" />{fine.fine_code}</CardTitle><CardDescription>Emitida em {formatJusticeDate(fine.created_at)}{fine.due_date ? ` · vence em ${formatJusticeDate(fine.due_date)}` : ''}</CardDescription></div><Badge variant="outline">{fine.status}</Badge></div></CardHeader>
+                <CardHeader><div className="flex flex-wrap items-start justify-between gap-3"><div><CardTitle className="flex items-center gap-2"><Banknote className="h-5 w-5 text-amber-300" />{fine.fine_code}</CardTitle><CardDescription>Emitida em {formatJusticeDate(fine.created_at)}{fine.due_date ? ` · vence em ${formatJusticeDate(fine.due_date)}` : ''}</CardDescription></div><Badge variant="outline">{justiceStatus(fine.status)}</Badge></div></CardHeader>
                 <CardContent className="space-y-4">
                   <div className="grid gap-3 sm:grid-cols-3"><div><p className="text-xs uppercase text-muted-foreground">Valor</p><p className="text-xl font-bold">{money(fine.amount)}</p></div><div><p className="text-xs uppercase text-muted-foreground">Pontos</p><p className="text-xl font-bold">{fine.points || 0}</p></div><div><p className="text-xs uppercase text-muted-foreground">Motivo</p><p className="text-sm">{fine.reason}</p></div></div>
                   {fine.status === 'Paga' && fine.payment_snapshot ? <div className="rounded-lg border border-emerald-500/25 bg-emerald-500/10 p-3 text-sm text-emerald-100">Pagamento confirmado · total {money(fine.payment_snapshot.totalAmount)} · comprovante {fine.payment_snapshot.transactionId}</div> : null}
-                  {appeal ? <p className="text-sm text-cyan-200">Recurso: {appeal.status}</p> : null}{hearing ? <p className="text-sm text-violet-200">Audiência: {hearing.status}</p> : null}
+                  {appeal ? <p className="text-sm text-cyan-200">Recurso: {justiceStatus(appeal.status)}</p> : null}{hearing ? <p className="text-sm text-violet-200">Audiência: {justiceStatus(hearing.status)}</p> : null}
                   {canAct ? <div className="flex flex-wrap gap-2"><Button onClick={() => handlePayFine(fine.id)} disabled={Boolean(actionLoading)}>{actionLoading === `pay:${fine.id}` ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}Pagar</Button>{!appeal ? <Button variant="outline" onClick={() => setFineAction({ fineId: fine.id, type: 'appeal', reason: '' })}>Recorrer</Button> : null}{!hearing ? <Button variant="outline" onClick={() => setFineAction({ fineId: fine.id, type: 'hearing', reason: '' })}>Pedir audiência</Button> : null}</div> : null}
                   {actionOpen ? <form onSubmit={handleFineRequest} className="space-y-3 rounded-xl border border-white/10 bg-white/5 p-4"><Label htmlFor={`fine-reason-${fine.id}`}>{fineAction.type === 'appeal' ? 'Fundamentação do recurso' : 'Motivo do pedido de audiência'}</Label><Textarea id={`fine-reason-${fine.id}`} minLength={20} required value={fineAction.reason} onChange={(event) => setFineAction((current) => ({ ...current, reason: event.target.value }))} /><div className="flex gap-2"><Button type="submit" disabled={Boolean(actionLoading)}>Enviar</Button><Button type="button" variant="ghost" onClick={() => setFineAction({ fineId: '', type: '', reason: '' })}>Cancelar</Button></div></form> : null}
                 </CardContent>
@@ -670,8 +671,8 @@ const CitizenJusticeDashboard = () => {
 
         <TabsContent value="security" className="space-y-6">
           <div className="grid gap-4 md:grid-cols-2">
-            <Card className="glass-effect"><CardHeader><CardTitle className="flex items-center gap-2"><Search className="h-5 w-5 text-red-300" />Mandados em seu nome</CardTitle></CardHeader><CardContent>{data.security.warrants?.length ? data.security.warrants.map((item) => <div key={item.id} className="mb-3 rounded-lg border border-red-500/20 bg-red-500/5 p-3"><p className="font-medium">{item.number}</p><p className="text-sm text-muted-foreground">{item.type} · {item.status}</p></div>) : <p className="text-sm text-muted-foreground">Nenhum mandado ativo localizado.</p>}</CardContent></Card>
-            <Card className="glass-effect"><CardHeader><CardTitle className="flex items-center gap-2"><FileSearch className="h-5 w-5 text-violet-300" />Investigações relacionadas</CardTitle></CardHeader><CardContent>{data.security.investigations?.length ? data.security.investigations.map((item) => <div key={item.number} className="mb-3 rounded-lg border border-violet-500/20 bg-violet-500/5 p-3"><p className="font-medium">{item.number}</p><p className="text-sm text-muted-foreground">{item.status}</p></div>) : <p className="text-sm text-muted-foreground">Seu perfil não consta como investigado.</p>}</CardContent></Card>
+            <Card className="glass-effect"><CardHeader><CardTitle className="flex items-center gap-2"><Search className="h-5 w-5 text-red-300" />Mandados em seu nome</CardTitle></CardHeader><CardContent>{data.security.warrants?.length ? data.security.warrants.map((item) => <div key={item.id} className="mb-3 rounded-lg border border-red-500/20 bg-red-500/5 p-3"><p className="font-medium">{item.number}</p><p className="text-sm text-muted-foreground">{item.type} · {justiceStatus(item.status)}</p></div>) : <p className="text-sm text-muted-foreground">Nenhum mandado ativo localizado.</p>}</CardContent></Card>
+            <Card className="glass-effect"><CardHeader><CardTitle className="flex items-center gap-2"><FileSearch className="h-5 w-5 text-violet-300" />Investigações relacionadas</CardTitle></CardHeader><CardContent>{data.security.investigations?.length ? data.security.investigations.map((item) => <div key={item.number} className="mb-3 rounded-lg border border-violet-500/20 bg-violet-500/5 p-3"><p className="font-medium">{item.number}</p><p className="text-sm text-muted-foreground">{justiceStatus(item.status)}</p></div>) : <p className="text-sm text-muted-foreground">Seu perfil não consta como investigado.</p>}</CardContent></Card>
           </div>
           <Card className="border-emerald-500/25 bg-emerald-500/5"><CardHeader className="sm:flex-row sm:items-center sm:justify-between"><div><CardTitle className="flex items-center gap-2"><BadgeCheck className="h-5 w-5 text-emerald-300" />Atestado de antecedentes</CardTitle><CardDescription>O resultado é calculado no servidor e o documento verificável fica salvo no DIC por 90 dias.</CardDescription></div><Button className="mt-4 sm:mt-0" onClick={handleCertificate} disabled={actionLoading === 'certificate'}>{actionLoading === 'certificate' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ShieldCheck className="mr-2 h-4 w-4" />}Emitir atestado</Button></CardHeader></Card>
           <Card className="glass-effect"><CardHeader><CardTitle>Indicadores de eficiência policial</CardTitle></CardHeader><CardContent className="grid gap-3 sm:grid-cols-4"><div><p className="text-sm text-muted-foreground">Ocorrências</p><p className="text-2xl font-bold">{data.policeMetrics.reported || 0}</p></div><div><p className="text-sm text-muted-foreground">Em investigação</p><p className="text-2xl font-bold">{data.policeMetrics.inInvestigation || 0}</p></div><div><p className="text-sm text-muted-foreground">Resolvidas</p><p className="text-2xl font-bold">{data.policeMetrics.resolved || 0}</p></div><div><p className="text-sm text-muted-foreground">Taxa de resolução</p><p className="text-2xl font-bold">{data.policeMetrics.resolutionRate || 0}%</p></div></CardContent></Card>

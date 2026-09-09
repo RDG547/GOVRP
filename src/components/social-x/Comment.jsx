@@ -1,3 +1,4 @@
+import { fetchPublicProfiles } from '@/lib/publicProfiles';
 import React, { useState, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useToast } from "@/components/ui/use-toast";
@@ -35,7 +36,8 @@ const Comment = ({ comment, post, onCommentAction, level = 0 }) => {
     if (error) {
       toast({ title: 'Erro ao buscar respostas', variant: 'destructive' });
     } else {
-      setReplies(data);
+      const profiles = await fetchPublicProfiles((data || []).map(reply => reply.user_id));
+      setReplies((data || []).map(reply => ({ ...reply, author: profiles.get(reply.user_id) || reply.author })));
     }
     setLoadingReplies(false);
   }, [comment.id, toast]);
@@ -107,7 +109,7 @@ const Comment = ({ comment, post, onCommentAction, level = 0 }) => {
   };
 
   return (
-    <div className={`${level > 0 ? 'pl-2 sm:pl-4' : ''} mt-3 min-w-0`}>
+    <div className={`${level > 0 && level < 3 ? 'pl-2 sm:pl-4' : ''} mt-3 min-w-0`}>
       <div className="flex items-start space-x-3">
         <Link to={`/services/x/profile/${authorHandle}`}>
           <img src={comment.author?.x_avatar_url || `https://api.dicebear.com/7.x/micah/svg?seed=${authorHandle}`} alt={authorHandle} className="w-8 h-8 rounded-full" />
@@ -121,7 +123,7 @@ const Comment = ({ comment, post, onCommentAction, level = 0 }) => {
           <div className="text-xs text-muted-foreground mt-2 flex items-center justify-between">
             <span>{formatTime(comment.created_at)}</span>
             <div className="flex items-center gap-2">
-              <Button variant="ghost" size="sm" className="h-auto p-1 text-xs" onClick={() => setIsReplying(prev => !prev)}>Responder</Button>
+              <Button variant="ghost" size="sm" className="h-auto p-1 text-xs" onClick={() => { if (!isReplying && !replyContent) setReplyContent(`@${authorHandle} `); setIsReplying(prev => !prev); }}>Responder</Button>
               {comment.replies_count > 0 && (
                 <Button variant="ghost" size="sm" className="h-auto p-1 text-xs" onClick={handleToggleReplies}>
                   <CornerDownRight className="w-3 h-3 mr-1" />
@@ -143,7 +145,7 @@ const Comment = ({ comment, post, onCommentAction, level = 0 }) => {
         )}
       </AnimatePresence>
       {showReplies && (
-        <div className="mt-2 pl-4 border-l-2 border-border/50">
+        <div className={`mt-2 ${level < 2 ? 'pl-2 sm:pl-4 border-l-2 border-border/50' : ''}`}>
           {loadingReplies ? <Loader2 className="animate-spin w-4 h-4 ml-7 mt-2"/> : replies.map(reply => (
             <Comment key={reply.id} comment={reply} post={post} onCommentAction={handleChildCommentAction} level={level + 1} />
           ))}

@@ -23,16 +23,17 @@ export const PRESIDENTIAL_DECIDED_BILL_STATUSES = [
 export const EXECUTIVE_SPECIAL_OFFICES = [
   {
     key: 'federal_police_director',
-    label: 'Diretor da Polícia Federal',
-    description: 'Chefia a Polícia Federal e responde pela direção superior da corporação.',
+    label: 'Diretor-Geral de Polícia',
+    description: 'Chefia a Polícia do GOVRP e responde pela direção superior da corporação.',
     eligibleRoles: ['Policial', 'Cidadão'],
   },
   {
     key: 'armed_forces_commander',
-    label: 'Comandante das Forças Armadas',
+    label: 'Comandante-Geral das Forças Armadas',
     description: 'Coordena as Forças Armadas e executa a cadeia de comando militar.',
     eligibleRoles: ['Militar', 'Cidadão'],
   },
+  { key: 'intelligence_commander', label: 'Comandante da Agência de Inteligência', description: 'Coordena a Agência de Inteligência do GOVRP.', eligibleRoles: ['Agente Secreto', 'Cidadão'] },
   {
     key: 'national_bank_president',
     label: 'Presidente do Banco Nacional',
@@ -784,84 +785,16 @@ export const clearExecutiveOfficeVacancy = async (supabase) => {
   });
 };
 
-export const appointExecutiveSpecialOffice = async (
-  supabase,
-  { officeKey, userId, actorId, note = '' }
-) => {
-  const office = EXECUTIVE_SPECIAL_OFFICES.find((entry) => entry.key === officeKey);
-  if (!office) {
-    throw new Error('Cargo privativo não encontrado.');
-  }
-
-  const [settingsRow, profilesMap] = await Promise.all([
-    fetchExecutiveGovernanceSettings(supabase),
-    fetchProfilesMap(supabase, [userId]),
-  ]);
-
-  const selectedProfile = profilesMap[userId];
-  if (!selectedProfile) {
-    throw new Error('Servidor público selecionado não foi encontrado.');
-  }
-
-  const nextValue = {
-    ...settingsRow.value,
-    specialAppointments: {
-      ...(settingsRow.value.specialAppointments || {}),
-      [office.key]: {
-        user_id: userId,
-        appointed_at: todayIso(),
-        appointed_by: actorId,
-        note,
-      },
-    },
-  };
-
-  await saveExecutiveGovernanceSettings(supabase, nextValue);
-
-  await publishOfficialGazetteEntry(supabase, {
-    title: `Nomeação para ${office.label}`,
-    summary: `${selectedProfile.full_name || 'Servidor designado'} foi nomeado para ${office.label}.`,
-    content:
-      `${selectedProfile.full_name || 'Servidor designado'} passa a exercer o cargo de ${office.label}.` +
-      (note ? ` Observação: ${note}` : ''),
-    type: 'Nomeacao e Exoneracao',
-    sourceId: `${office.key}-${userId}-${Date.now()}`,
-  });
+export const appointExecutiveSpecialOffice = async (supabase, { officeKey, userId, note = '' }) => {
+  const { data, error } = await supabase.rpc('manage_executive_appointment', { p_office_key: officeKey, p_user_id: userId, p_note: note });
+  if (error) throw error;
+  return data;
 };
-
-export const dismissExecutiveSpecialOffice = async (
-  supabase,
-  { officeKey, actorId, note = '' }
-) => {
-  const office = EXECUTIVE_SPECIAL_OFFICES.find((entry) => entry.key === officeKey);
-  if (!office) {
-    throw new Error('Cargo privativo não encontrado.');
-  }
-
-  const settingsRow = await fetchExecutiveGovernanceSettings(supabase);
-  const currentAppointment = settingsRow.value.specialAppointments?.[office.key];
-  const currentUserId = currentAppointment?.user_id || currentAppointment?.userId || null;
-  const profilesMap = await fetchProfilesMap(supabase, currentUserId ? [currentUserId] : []);
-
-  const specialAppointments = { ...(settingsRow.value.specialAppointments || {}) };
-  delete specialAppointments[office.key];
-
-  await saveExecutiveGovernanceSettings(supabase, {
-    ...settingsRow.value,
-    specialAppointments,
-  });
-
-  await publishOfficialGazetteEntry(supabase, {
-    title: `Exoneração de ${office.label}`,
-    summary: `${profilesMap[currentUserId]?.full_name || 'O ocupante'} deixou o cargo de ${office.label}.`,
-    content:
-      `${profilesMap[currentUserId]?.full_name || 'O ocupante'} foi exonerado do cargo de ${office.label}.` +
-      (note ? ` Observação: ${note}` : ''),
-    type: 'Nomeacao e Exoneracao',
-    sourceId: `${office.key}-dismiss-${actorId}-${Date.now()}`,
-  });
+export const dismissExecutiveSpecialOffice = async (supabase, { officeKey, note = '' }) => {
+  const { data, error } = await supabase.rpc('manage_executive_appointment', { p_office_key: officeKey, p_user_id: null, p_note: note });
+  if (error) throw error;
+  return data;
 };
-
 export const createExecutiveProvisionalMeasure = async (
   supabase,
   { title, summary, content, authorId }

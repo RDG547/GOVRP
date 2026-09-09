@@ -28,6 +28,7 @@ try {
     const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
     const p = await context.newPage(); page = p;
     p.on('pageerror', error => console.error('Browser:', error.message));
+    p.on('console', message => {if(message.type()==='error' && message.text().includes('parlamento')) console.error('Painel:',message.text());});
     await p.goto(`${origin}/login`);
     await p.getByLabel('E-mail da conta', { exact: true }).fill(person.email);
     await p.getByLabel('Senha', { exact: true }).fill(person.password);
@@ -121,8 +122,8 @@ try {
   await pl.goto(`${origin}/services/parliament/panel`);
   await pl.getByRole('button',{name:'Modelos de Propostas',exact:true}).waitFor({timeout:30000});
   await pl.getByRole('button',{name:'Modelos de Propostas',exact:true}).click();
-  await pl.getByLabel('Modelo',{exact:true}).selectOption('sales-change');
-  assert.equal(await pl.getByLabel('Regra vigente',{exact:true}).inputValue(),'consumption_tax_rate');
+  await pl.getByLabel('Modelo',{exact:true}).click(); await pl.getByRole('option',{name:'Alterar Imposto Empresarial',exact:true}).click();
+  const salesRule=await request(service.from('government_rules').select('description').eq('rule_key','corporate_tax_rate').single());await waitFor(async()=>(await pl.getByLabel('Regra vigente',{exact:true}).innerText()).includes(salesRule.description),'modelo resolve a regra vigente');
   const proposalTitle=`Lei E2E ${crypto.randomUUID().slice(0,8)}`;
   await pl.getByLabel('Título',{exact:true}).fill(proposalTitle);
   for(const width of [320,360,375,390,412,430,768,1024,1440]) {

@@ -41,7 +41,6 @@ export const publishNewsArticle = async (supabase, { title, content, authorId, c
     author_id: authorId || null,
     category_id: categoryId,
     image_url: imageUrl || null,
-    published_at: new Date().toISOString(),
   });
 
   if (error) {

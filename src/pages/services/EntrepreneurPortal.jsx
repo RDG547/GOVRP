@@ -1,3 +1,4 @@
+import { businessTypeIcon } from '@/lib/commerceIcons';
 import { LEGAL_REALTIME_TABLES } from '@/lib/legalMeasures';
 import RegisterCompanyDialog from '@/components/business/RegisterCompanyDialog';
 import { useDomainRealtime } from '@/hooks/use-domain-realtime';
@@ -751,7 +752,7 @@ const EntrepreneurPortal = () => {
 
   const businessTypes = useMemo(() => catalogTypes.map(type => {
     const presentation = BUSINESS_TYPES.find(item => item.id === type.id) || BUSINESS_TYPES.find(item => item.id === 'consultoria') || BUSINESS_TYPES[0];
-    return { ...presentation, id: type.id, name: type.name, description: type.description, category: type.category,
+    return { ...presentation, icon: businessTypeIcon(type), id: type.id, name: type.name, description: type.description, category: type.category,
       registrationFee: Number(type.registration_fee),
       minEmployees: type.min_employees, monthlyCosts: type.monthly_costs || presentation.monthlyCosts,
       requirements: Array.isArray(type.requirements) ? type.requirements : presentation.requirements,

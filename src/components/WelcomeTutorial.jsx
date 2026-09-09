@@ -57,27 +57,44 @@ export default function WelcomeTutorial() {
   };
   const colors = ['text-amber-400 bg-amber-500/10', 'text-blue-400 bg-blue-500/10', 'text-emerald-400 bg-emerald-500/10', 'text-rose-400 bg-rose-500/10', 'text-violet-400 bg-violet-500/10', 'text-purple-400 bg-purple-500/10', 'text-yellow-400 bg-yellow-500/10'];
   const recommended = tutorialPath(user?.initial_aspiration);
-  const current = steps[index];
+  const areaSteps = {
+    parties: { title: 'Encontre seu partido', description: 'Conheça as propostas dos partidos, peça filiação e converse com a liderança. Participar da vida interna ajuda você a conquistar uma indicação eleitoral.', icon: Flag, color: 'text-red-400 bg-red-500/10' },
+    elections: { title: 'Prepare sua trajetória eleitoral', description: 'Acompanhe as inscrições e as votações. Para concorrer, confira os requisitos e a indicação do seu partido. Mandatos começam com a posse oficial.', icon: Flag, color: 'text-violet-400 bg-violet-500/10' },
+    parliament: { title: 'Participe da construção das leis', description: 'Acompanhe projetos, votações e a composição das Casas. Como cidadão, envie sugestões; com mandato, apresente propostas e participe das decisões.', icon: Landmark, color: 'text-indigo-400 bg-indigo-500/10' },
+    bank: { ...steps[2], color: colors[2] }, business: { ...steps[6], title: 'Seu primeiro negócio', description: 'Abra o Portal do Empreendedor, confira o custo de licenciamento e escolha um setor. Você pode administrar produtos e acompanhar receitas e despesas.', color: colors[6] },
+    market: { ...steps[6], title: 'Compre e venda no mercado', description: 'Compare ofertas no Negócios Livres. Você pode anunciar como pessoa física e vender consumíveis que ajudam a cuidar das necessidades dos cidadãos.', color: colors[6] },
+    economy: { ...steps[6], title: 'Entenda a economia do seu país', description: 'Acompanhe preços, atividade econômica e regras legais vigentes. Decisões do Governo e transações dos cidadãos mudam o mundo do RP.', color: colors[6] },
+    justice: { ...steps[5], color: user?.initial_aspiration === 'security' ? 'text-cyan-400 bg-cyan-500/10' : colors[5] },
+    cases: { ...steps[5], title: 'Acompanhe processos e defesas', description: 'Na visão cidadã da Justiça, consulte seus processos, prazos e intimações. Carreiras jurídicas possuem funções próprias e exigem nomeação autorizada.', color: colors[5] },
+    investigations: { ...steps[5], title: 'Da ocorrência à investigação', description: 'Cidadãos registram ocorrências. Policiais fazem a triagem e delegados conduzem investigações e remetem casos ao Ministério Público.', color: 'text-cyan-400 bg-cyan-500/10' },
+    careers: { ...steps[1], title: 'Construa sua carreira', description: 'Acompanhe oportunidades e as atribuições dos cargos. Sua aspiração orienta os primeiros passos e não bloqueia nenhuma outra trajetória.', color: colors[1] },
+    education: { ...steps[1], title: 'Conhecimento e progressão', description: 'Consulte os serviços de educação disponíveis e acompanhe as oportunidades de desenvolver seu cidadão.', color: colors[1] },
+    x: { ...steps[3], title: 'Entre na conversa na Rede X', description: 'Publique, responda comentários e conheça outros cidadãos. Interações válidas melhoram sua socialização; alcance e influência são construídos dentro do RP.', color: 'text-sky-400 bg-sky-500/10' },
+    news: { ...steps[3], title: 'Informação e imprensa', description: 'Leia o jornal, acompanhe o Diário Oficial e descubra os acontecimentos nacionais. Comunicação ajuda você a participar da vida pública.', color: colors[3] },
+    dashboard: { ...steps[1], color: colors[1] },
+  };
+  const orderedSteps = [steps[0], ...recommended.links.map(link => ({ ...areaSteps[link.key], to: link.to })), ...steps.slice(1).filter(step => !recommended.links.some(link => areaSteps[link.key]?.title === step.title))];
+  const current = orderedSteps[Math.min(index, orderedSteps.length - 1)];
   const Icon = current.icon;
   const firstName = user?.full_name?.split(' ')[0] || 'cidadão';
   return <Dialog open={open} onOpenChange={(next) => { if (!next) void finish(); }}>
     <DialogContent className="max-h-[90dvh] overflow-y-auto p-5 sm:max-w-2xl sm:p-8" onInteractOutside={event => event.preventDefault()}>
       <DialogHeader>
-        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Primeiros passos · {index + 1} de {steps.length}</p>
+        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Primeiros passos · {index + 1} de {orderedSteps.length}</p>
         <DialogTitle className="text-2xl">{index === 0 ? `Bem-vindo ao GOVRP, ${firstName}!` : current.title}</DialogTitle>
         <DialogDescription>Sua jornada começa com suas escolhas.</DialogDescription>
       </DialogHeader>
       <div className="mt-2 grid gap-5 sm:grid-cols-[64px_1fr]">
-        <div className={`flex h-16 w-16 items-center justify-center rounded-2xl ${colors[index]}`}><Icon className="h-8 w-8" /></div>
+        <div className={`flex h-16 w-16 items-center justify-center rounded-2xl ${current.color || colors[0]}`}><Icon className="h-8 w-8" /></div>
         <div><p className="text-base leading-relaxed">{current.description}</p><p className="mt-4 rounded-xl bg-secondary p-4 text-sm text-muted-foreground">{current.hint || paths[user?.initial_aspiration] || paths.civil_life}</p></div>
       </div>
       <aside className="rounded-xl border border-primary/20 p-4 space-y-3"><p className="text-sm">{recommended.description}</p><div className="flex flex-wrap gap-2">{recommended.links.map(link => <Button key={link.to} asChild size="sm" variant="outline"><Link to={link.to} onClick={() => { void finish(false); }}>{link.label}</Link></Button>)}</div></aside>
       <label className="flex items-center gap-3 text-sm cursor-pointer"><Checkbox checked={dontShowAgain} onCheckedChange={value => setDontShowAgain(value === true)} />Não mostrar novamente</label>
-      <div className="my-3 flex gap-1.5" aria-label={`Etapa ${index + 1} de ${steps.length}`}>{steps.map((step, i) => <span key={step.title} className={`h-1.5 flex-1 rounded-full ${i <= index ? 'bg-primary' : 'bg-secondary'}`} />)}</div>
+      <div className="my-3 flex gap-1.5" aria-label={`Etapa ${index + 1} de ${orderedSteps.length}`}>{orderedSteps.map((step, i) => <span key={step.title} className={`h-1.5 flex-1 rounded-full ${i <= index ? 'bg-primary' : 'bg-secondary'}`} />)}</div>
       <div className="flex flex-wrap justify-between gap-2">
         <Button variant="ghost" disabled={saving} onClick={() => finish(false)}><X className="mr-2 h-4 w-4" />Pular</Button>
         <div className="flex gap-2"><Button variant="outline" disabled={index === 0 || saving} onClick={() => setIndex(i => i - 1)}><ArrowLeft className="mr-2 h-4 w-4" />Voltar</Button>
-          {index < steps.length - 1 ? <Button onClick={() => setIndex(i => i + 1)}><ArrowRight className="mr-2 h-4 w-4" />Próximo</Button> : <Button disabled={saving} onClick={() => finish(true)}>{saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Check className="mr-2 h-4 w-4" />}Começar minha jornada</Button>}
+          {index < orderedSteps.length - 1 ? <Button onClick={() => setIndex(i => i + 1)}><ArrowRight className="mr-2 h-4 w-4" />Próximo</Button> : <Button disabled={saving} onClick={() => finish(true)}>{saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Check className="mr-2 h-4 w-4" />}Começar minha jornada</Button>}
         </div>
       </div>
     </DialogContent>

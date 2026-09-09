@@ -1,3 +1,4 @@
+import { canonicalRole, roleIcon } from '@/lib/roleIcons';
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabaseClient';
@@ -66,13 +67,13 @@ const ModifyBalanceDialog = ({ user, onFinish }) => {
     const formatCurrencyInput = (value) => {
         // Remove tudo que não é dígito
         const digits = value.replace(/\D/g, '');
-        
+
         // Se não há dígitos, retorna R$ 0,00
         if (!digits) return 'R$ 0,00';
-        
+
         // Converte para número e divide por 100 para obter os centavos
         const numericValue = parseInt(digits, 10) / 100;
-        
+
         // Formata como moeda brasileira
         return new Intl.NumberFormat('pt-BR', {
             style: 'currency',
@@ -94,7 +95,7 @@ const ModifyBalanceDialog = ({ user, onFinish }) => {
             .replace(/\./g, '')
             .replace(',', '.')
             .trim();
-        
+
         return parseFloat(numericString) || 0;
     };
 
@@ -123,7 +124,7 @@ const ModifyBalanceDialog = ({ user, onFinish }) => {
         }
         setIsProcessing(false);
     };
-    
+
     return (
         <DialogContent className="glass-effect max-h-[90vh] overflow-y-auto text-white">
             <DialogHeader>
@@ -147,11 +148,11 @@ const ModifyBalanceDialog = ({ user, onFinish }) => {
                 </div>
                 <div>
                     <Label htmlFor="amount">Valor</Label>
-                    <Input 
-                        id="amount" 
-                        value={amount} 
+                    <Input
+                        id="amount"
+                        value={amount}
                         onChange={handleAmountChange}
-                        placeholder="R$ 0,00" 
+                        placeholder="R$ 0,00"
                     />
                 </div>
                 <div>
@@ -184,7 +185,7 @@ const EditUserDialog = ({ user, onFinish, onUpdate }) => {
     const handleChange = (e) => {
         setFormData(prev => ({ ...prev, [e.target.id]: e.target.value }));
     };
-    
+
     const handleRoleChange = (newRole) => {
         setFormData(prev => ({...prev, role: newRole}));
     };
@@ -246,7 +247,7 @@ const EditUserDialog = ({ user, onFinish, onUpdate }) => {
         }
     };
 
-    const availableRoles = ['Usuário', 'Cidadão', 'Admin', 'Presidente', 'Vice-Presidente', 'Presidente da Câmara', 'Presidente da Câmara dos Deputados', 'Vice-Presidente da Câmara dos Deputados', 'Presidente do Senado', 'Vice-Presidente do Senado', 'Vice-Presidente do Senado Federal', 'Presidente do STF', 'Presidente do Banco Nacional', 'Deputado', 'Senador', 'Juiz', 'Policial', 'Ministro', 'Agente Secreto', 'Militar'];
+    const availableRoles = ['Usuário', 'Cidadão', 'Admin', 'Presidente', 'Vice-Presidente', 'Presidente da Câmara dos Deputados', 'Vice-Presidente da Câmara dos Deputados', 'Presidente do Senado', 'Vice-Presidente do Senado Federal', 'Presidente do STF', 'Presidente do Banco Nacional', 'Deputado', 'Senador', 'Juiz', 'Policial', 'Ministro', 'Agente Secreto', 'Militar', 'Diretor-Geral de Polícia', 'Comandante-Geral das Forças Armadas', 'Comandante da Agência de Inteligência'];
 
     return (
         <DialogContent className="glass-effect max-h-[90vh] overflow-y-auto text-white">
@@ -264,11 +265,11 @@ const EditUserDialog = ({ user, onFinish, onUpdate }) => {
                 <div><Label htmlFor="onboarding_step">Etapa da jornada de cidadania</Label><Select value={formData.onboarding_step} onValueChange={(value) => setFormData((current) => ({ ...current, onboarding_step: value }))}><SelectTrigger id="onboarding_step"><SelectValue /></SelectTrigger><SelectContent>{Object.entries(CITIZENSHIP_STEP_LABELS).map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}</SelectContent></Select></div>
                 <div>
                     <Label htmlFor="role">Cargo</Label>
-                    <Select value={formData.role} onValueChange={handleRoleChange}>
+                    <Select value={canonicalRole(formData.role)} onValueChange={handleRoleChange}>
                         <SelectTrigger id="role"><SelectValue /></SelectTrigger>
                         <SelectContent className="max-h-[200px] overflow-y-auto">
                             {availableRoles.map(role => (
-                                <SelectItem key={role} value={role}>{role}</SelectItem>
+                                <SelectItem key={role} value={role}><span className="flex items-center gap-2">{React.createElement(roleIcon(role), { className: 'h-4 w-4' })}{role}</span></SelectItem>
                             ))}
                         </SelectContent>
                     </Select>
@@ -298,13 +299,13 @@ const ChangePasswordDialog = ({ user, onFinish }) => {
 
         try {
             const { data, error } = await supabase.rpc('admin_change_user_password', {
-                p_user_id: user.id, 
-                p_new_password: newPassword 
+                p_user_id: user.id,
+                p_new_password: newPassword
             });
 
             if (error) throw error;
             if (!data.success) throw new Error(data.message);
-            
+
             toast({ title: 'Sucesso!', description: `A senha de ${user.full_name} foi alterada.` });
             onFinish();
 
@@ -445,7 +446,7 @@ const roleConfig = {
 
 const USERS_PER_PAGE = 12;
 const roleOrder = [
-    'Admin', 'Presidente', 'Vice-Presidente', 'Presidente da Câmara', 'Presidente da Câmara dos Deputados', 'Vice-Presidente da Câmara dos Deputados', 'Presidente do Senado', 'Vice-Presidente do Senado', 'Vice-Presidente do Senado Federal', 'Presidente do STF', 'Presidente do Banco Nacional', 'Ministro', 'Senador', 'Deputado',
+    'Admin', 'Presidente', 'Vice-Presidente', 'Presidente da Câmara dos Deputados', 'Vice-Presidente da Câmara dos Deputados', 'Presidente do Senado', 'Vice-Presidente do Senado Federal', 'Presidente do STF', 'Presidente do Banco Nacional', 'Ministro', 'Senador', 'Deputado',
     'Juiz', 'Policial', 'Agente Secreto', 'Militar', 'Cidadão', 'Usuário'
 ];
 
@@ -545,7 +546,7 @@ const UserManagement = () => {
             setLoading(false);
         }
     }, [fetchUsers, adminUser]);
-    
+
     const handleDeleteUser = async (userId, userName) => {
         setDeletingUserId(userId);
         try {
@@ -574,7 +575,7 @@ const UserManagement = () => {
             setDeletingUserId(null);
         }
     };
-    
+
     const handleBalanceModificationFinish = () => {
         setModifyingBalanceUser(null);
         fetchUsers();
@@ -653,7 +654,7 @@ const UserManagement = () => {
                                     <SelectTrigger><SelectValue /></SelectTrigger>
                                     <SelectContent>
                                         <SelectItem value="all">Todos</SelectItem>
-                                        {allRoles.map(role => <SelectItem key={role} value={role}>{role}</SelectItem>)}
+                                        {allRoles.map(role => <SelectItem key={role} value={role}><span className="flex items-center gap-2">{React.createElement(roleIcon(role), { className: 'h-4 w-4' })}{role}</span></SelectItem>)}
                                     </SelectContent>
                                 </Select>
                             </div>

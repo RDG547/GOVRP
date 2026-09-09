@@ -1,3 +1,7 @@
+import { CitizenNeedsProvider } from '@/contexts/CitizenNeedsContext';
+import PresidentialFormationGuide from '@/components/PresidentialFormationGuide';
+import CitizenNeedsHUD from '@/components/CitizenNeedsHUD';
+import NationalCitizenCommerce from '@/pages/services/NationalCitizenCommerce';
 import React from 'react';
 import { Routes, Route, useLocation, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
@@ -133,7 +137,7 @@ const MainLayout = ({ children }) => {
           className="h-[calc(4.75rem+env(safe-area-inset-bottom))] md:hidden"
         />
       )}
-      <ScrollToTop />
+      <ScrollToTop /><CitizenNeedsHUD />
     </>
   );
 };
@@ -174,7 +178,7 @@ const AppShell = ({ location, theme, isAuthCallback }) => {
       : location.pathname;
 
   return (
-    <CartProvider key={citizenScope} storageKey={`govrp_cart:${citizenScope}`}>
+    <CitizenNeedsProvider><CartProvider key={citizenScope} storageKey={`govrp_cart:${citizenScope}`}>
     <GlobalSiteAvailabilityGate pathname={location.pathname} isAdmin={isAdmin}>
       <div className={`${theme} min-h-screen bg-background text-foreground custom-scrollbar`}>
         <NativeRuntime />
@@ -223,6 +227,8 @@ const AppShell = ({ location, theme, isAuthCallback }) => {
 
                 <Route path="/services" element={<ServiceProtectedRoute><Services /></ServiceProtectedRoute>} />
                 <Route path="/services/justice" element={<ManagedServiceRoute serviceKey="/services/justice"><Justice /></ManagedServiceRoute>} />
+                <Route path="/services/national-market" element={<ManagedServiceRoute serviceKey="/services/national-market"><NationalCitizenCommerce /></ManagedServiceRoute>} />
+                <Route path="/services/national-housing" element={<ManagedServiceRoute serviceKey="/services/national-housing"><NationalCitizenCommerce housing /></ManagedServiceRoute>} />
                 <Route path="/services/bank" element={<ManagedServiceRoute serviceKey="/services/bank"><Bank /></ManagedServiceRoute>} />
                 <Route path="/services/business" element={<ManagedServiceRoute serviceKey="/services/business"><Business /></ManagedServiceRoute>} />
                 <Route path="/services/business/product/:productId" element={<ManagedServiceRoute serviceKey="/services/business"><ProductDetails /></ManagedServiceRoute>} />
@@ -292,11 +298,11 @@ const AppShell = ({ location, theme, isAuthCallback }) => {
           {!isAuthCallback && !isCitizenOnboarding && !onboardingRequired && <SalaryPaymentPopup />}
           {!isAuthCallback && !isCitizenOnboarding && !onboardingRequired && <BusinessBalancePopup />}
           {!isAuthCallback && !isCitizenOnboarding && !onboardingRequired && <ViceCandidacyDecisionPopup />}
-          {!isAuthCallback && !isCitizenOnboarding && !onboardingRequired && <ElectionOfficeAwardPopup />}
+          {!isAuthCallback && !isCitizenOnboarding && !onboardingRequired && <><ElectionOfficeAwardPopup /><PresidentialFormationGuide /></>}
         </div>
       </div>
     </GlobalSiteAvailabilityGate>
-    </CartProvider>
+    </CartProvider></CitizenNeedsProvider>
   );
 };
 

@@ -139,7 +139,7 @@ const PostCard = ({ post, onPostUpdate, onPostDelete, onRepostCreated }) => {
     const [commentContent, setCommentContent] = useState('');
     const [isSubmittingComment, setIsSubmittingComment] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
-    const [editedContent, setEditedContent] = useState(post.content);
+    const [editedContent, setEditedContent] = useState(post.original_post_id || post.original_post ? (post.quote_content || '') : post.content);
     const [isSavingEdit, setIsSavingEdit] = useState(false);
     const [isRepostModalOpen, setIsRepostModalOpen] = useState(false);
     const dropdownJustClosed = useRef(false);
@@ -223,7 +223,7 @@ const PostCard = ({ post, onPostUpdate, onPostDelete, onRepostCreated }) => {
     };
 
     const handleEdit = async () => {
-        if (editedContent === post.content) {
+        if (editedContent === (post.original_post_id || post.original_post ? (post.quote_content || '') : post.content)) {
             setIsEditing(false);
             return;
         }
@@ -237,7 +237,7 @@ const PostCard = ({ post, onPostUpdate, onPostDelete, onRepostCreated }) => {
             toast({ title: 'Erro ao editar', description: data?.message || error.message, variant: 'destructive' });
         } else {
             toast({ title: 'Sucesso', description: 'Post atualizado.' });
-            if (onPostUpdate) onPostUpdate(post.id, { content: editedContent, updated_at: new Date().toISOString() });
+            if (onPostUpdate) onPostUpdate(post.id, { ...(post.original_post_id || post.original_post ? { quote_content: editedContent } : { content: editedContent }), updated_at: new Date().toISOString() });
             setIsEditing(false);
         }
         setIsSavingEdit(false);
@@ -373,7 +373,7 @@ const PostCard = ({ post, onPostUpdate, onPostDelete, onRepostCreated }) => {
                         <DropdownMenu onOpenChange={handleDropdownOpenChange}>
                             <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="w-8 h-8 no-navigate"><MoreHorizontal className="w-5 h-5 text-muted-foreground" /></Button></DropdownMenuTrigger>
                             <DropdownMenuContent onClick={event => event.stopPropagation()}>
-                                {user.id === post.user_id && <DropdownMenuItem onClick={() => setIsEditing(true)}><Edit className="mr-2 h-4 w-4" />Editar</DropdownMenuItem>}
+                                {user.id === post.user_id && <DropdownMenuItem onClick={() => (setEditedContent(post.original_post_id || post.original_post ? (post.quote_content || '') : post.content), setIsEditing(true))}><Edit className="mr-2 h-4 w-4" />Editar</DropdownMenuItem>}
                                 <DropdownMenuItem onClick={handleDelete} className="text-destructive focus:text-destructive focus:bg-destructive/10"><Trash2 className="mr-2 h-4 w-4" />Excluir</DropdownMenuItem>
                             </DropdownMenuContent>
                         </DropdownMenu>

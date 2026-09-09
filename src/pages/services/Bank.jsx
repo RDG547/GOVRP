@@ -1,4 +1,3 @@
-import LiveLegalRules from '@/components/parliament/LiveLegalRules';
 import { useDomainRealtime } from '@/hooks/use-domain-realtime';
 import { bankRealtimeTables } from '@/lib/bankRealtime';
 import { BANK_SECTIONS, bankSectionsForEvents, fetchBankSections } from '@/lib/bankData';
@@ -100,7 +99,7 @@ const Bank = () => {
                 />
               </main>
             </div>
-            <LiveLegalRules basis="transfer" compact />
+
             <TransferDialog isOpen={isTransferDialogOpen} setIsOpen={setIsTransferDialogOpen} onTransferSuccess={() => refreshSections(['account', 'transactions'])} />
             <PayBillDialog isOpen={isPayBillDialogOpen} setIsOpen={setIsPayBillDialogOpen} onPaymentSuccess={() => refreshSections(['account', 'transactions'])} />
         </>

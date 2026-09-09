@@ -1,3 +1,6 @@
+import { useCitizenNeeds } from '@/contexts/CitizenNeedsContext';
+import { useDomainRealtime } from '@/hooks/use-domain-realtime';
+import { Utensils, Home } from 'lucide-react';
 import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -20,6 +23,14 @@ import {
 
 const Inventory = () => {
     const { user } = useAuth();
+    const needsContext = useCitizenNeeds();
+    const [consuming, setConsuming] = useState(null);
+    const consume = async item => {
+      if (consuming) return; setConsuming(item.id);
+      try { await needsContext.act('consume', item.id, crypto.randomUUID()); await fetchInventory(); toast({ title: 'Produto consumido', description: 'Suas necessidades foram atualizadas.' }); }
+      catch (error) { toast({ title: 'Não foi possível consumir', description: error.message, variant: 'destructive' }); }
+      finally { setConsuming(null); }
+    };
     const { toast } = useToast();
     const [inventory, setInventory] = useState([]);
     const [subscriptions, setSubscriptions] = useState([]);
@@ -30,7 +41,7 @@ const Inventory = () => {
 
     const fetchInventory = useCallback(async () => {
         if (!user) return;
-        setLoading(true);
+
 
         const { data: inventoryData, error: inventoryError } = await supabase
             .from('user_inventory')
@@ -54,6 +65,8 @@ const Inventory = () => {
     useEffect(() => {
         fetchInventory();
     }, [fetchInventory]);
+
+    useDomainRealtime('citizen-inventory', user?.id, [{ table: 'user_inventory', filter: `user_id=eq.${user?.id}` }, { table: 'user_subscriptions', filter: `user_id=eq.${user?.id}` }], fetchInventory, Boolean(user?.id));
 
     const handleCancelSubscription = async () => {
         if (!selectedSubscription) return;
@@ -82,7 +95,7 @@ const Inventory = () => {
         setSelectedSubscription(subscription);
         setDialogOpen(true);
     };
-    
+
     const handleResell = (item) => {
         toast({
             title: '🚧 Em construção',
@@ -121,14 +134,15 @@ const Inventory = () => {
                             {inventory.length > 0 ? (
                                 <div className="space-y-4 max-h-96 overflow-y-auto custom-scrollbar pr-2">
                                     {inventory.map(item => (
-                                        <div key={item.id} className="flex items-center gap-4 p-3 rounded-lg bg-secondary/50">
+                                        <div key={item.id} className="flex flex-wrap items-center gap-3 p-3 rounded-lg bg-secondary/50">
                                             <img src={item.product.image_url || 'https://via.placeholder.com/150'} alt={item.product.name} className="w-16 h-16 rounded-md object-cover" />
                                             <div className="flex-1">
                                                 <p className="font-semibold text-foreground">{item.product.name} <span className="text-muted-foreground font-normal">x{item.quantity}</span></p>
-                                                <p className="text-sm text-muted-foreground">Vendido por: @{item.product.seller.username}</p>
+                                                <p className="text-sm text-muted-foreground">Vendido por: @{(item.product.seller?.username || (item.product.state_enterprise_id ? 'Governo do RP' : 'Cidadão'))}</p>
                                                 <p className="text-xs text-muted-foreground">Adquirido em: {new Date(item.acquired_at).toLocaleDateString('pt-BR')}</p>
                                             </div>
-                                            <Button variant="outline" size="sm" onClick={() => handleResell(item)}><Repeat2 className="w-4 h-4 mr-2" /> Revender</Button>
+                                            {Object.keys(item.metadata?.consumable_effects || item.product.consumable_effects || {}).length > 0 && <Button size="sm" disabled={Boolean(consuming)} onClick={() => consume(item)}><Utensils className="mr-2 h-4 w-4" />{consuming === item.id ? 'Consumindo…' : 'Consumir'}</Button>}
+                                            {!item.product.residence_spec && <Button variant="outline" size="sm" onClick={() => handleResell(item)}><Repeat2 className="w-4 h-4 mr-2" /> Revender</Button>}
                                         </div>
                                     ))}
                                 </div>
@@ -146,7 +160,7 @@ const Inventory = () => {
                                             <img src={sub.product.image_url || 'https://via.placeholder.com/150'} alt={sub.product.name} className="w-16 h-16 rounded-md object-cover" />
                                             <div className="flex-1">
                                                 <p className="font-semibold text-foreground">{sub.product.name}</p>
-                                                <p className="text-sm text-muted-foreground">Vendido por: @{sub.product.seller.username}</p>
+                                                <p className="text-sm text-muted-foreground">Vendido por: @{sub.product.seller?.username || 'Cidadão'}</p>
                                                 <div className="text-xs mt-1 space-y-1">
                                                     <span className="flex items-center gap-1"><Info className="w-3 h-3" /> Status: <span className={`font-medium ${sub.status === 'active' ? 'text-green-400' : 'text-red-400'}`}>{sub.status === 'active' ? 'Ativa' : 'Cancelada'}</span></span>
                                                     {sub.status === 'active' && <span className="flex items-center gap-1"><Calendar className="w-3 h-3" /> Próx. Cobrança: {new Date(sub.next_payment_date).toLocaleDateString('pt-BR')}</span>}
@@ -157,7 +171,7 @@ const Inventory = () => {
                                                     <p className="font-bold text-primary">{formatCurrency(sub.product.price)}</p>
                                                     <p className="text-xs text-muted-foreground">/ {sub.product.subscription_interval === '7 days' ? 'semana' : 'mês'}</p>
                                                 </div>
-                                                {sub.status === 'active' && 
+                                                {sub.status === 'active' &&
                                                     <Button variant="destructive" size="sm" onClick={() => openCancelDialog(sub)}>
                                                         <Trash2 className="w-4 h-4 mr-2" /> Cancelar
                                                     </Button>

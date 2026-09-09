@@ -1,4 +1,7 @@
 const destinations = {
+ 'Diretor-Geral de Polícia': ['/services/justice','Ir para Segurança e Justiça','Você dirige a Polícia do GOVRP e acompanha ocorrências, investigações e cumprimento de mandados.'],
+ 'Comandante-Geral das Forças Armadas': ['/services/armed-forces','Conhecer as Forças Armadas','Você coordena o comando militar e suas atribuições institucionais.'],
+ 'Comandante da Agência de Inteligência': ['/services/agies','Conhecer a Agência de Inteligência','Você coordena a atuação institucional da Agência de Inteligência.'],
  Deputado: ['/services/parliament', 'Ir para o Parlamento', 'Você pode apresentar projetos e participar das votações da Câmara.'],
  Senador: ['/services/parliament', 'Ir para o Parlamento', 'Você pode participar das deliberações e votações do Senado.'],
  Presidente: ['/dashboard', 'Conhecer minhas novas funções', 'Acesse as atribuições do Executivo e acompanhe as medidas do governo.'],

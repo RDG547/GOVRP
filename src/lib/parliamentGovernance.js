@@ -223,8 +223,8 @@ export const getLeadershipElectionStatusMeta = (status = '') => {
   }
 };
 
-export const refreshParliamentGovernanceState = async (supabase) => {
-  await autoCloseExpiredVotings(supabase);
+export const refreshParliamentGovernanceState = async (supabase, houseId = null) => {
+  void autoCloseExpiredVotings(supabase, houseId);
 
   const { error } = await supabase.rpc('refresh_parliament_leadership_terms');
   if (error && !isGovernanceSchemaMissing(error)) {
@@ -456,7 +456,7 @@ export const fetchLeadershipGovernanceData = async (supabase, { houseId = null }
   try {
     let electionsQuery = supabase
       .from('parliament_leadership_elections')
-      .select('id, house_id, position, title, description, status, created_by, winner_member_id, start_at, end_at, concluded_at, created_at, updated_at')
+      .select('id, house_id, position, title, description, status, created_by, winner_member_id, start_at, nomination_end_at, end_at, concluded_at, created_at, updated_at')
       .order('created_at', { ascending: false });
     let termsQuery = supabase
       .from('parliament_leadership_terms')

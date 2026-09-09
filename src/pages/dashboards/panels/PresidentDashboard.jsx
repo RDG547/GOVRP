@@ -1,3 +1,6 @@
+import { roleIcon } from '@/lib/roleIcons';
+import { ScrollText } from 'lucide-react';
+import ExecutiveLevyManager from '@/components/parliament/ExecutiveLevyManager';
 import { LegalEffectsForSource } from '@/components/parliament/LegalEffectsSummary';
 import LegalMeasureStudio from '@/components/parliament/LegalMeasureStudio';
 import LiveLegalRules from '@/components/parliament/LiveLegalRules';
@@ -87,7 +90,7 @@ const MinisterManager = ({ ministers, ministries, onUpdate }) => {
 
     useEffect(() => {
         const fetchUsers = async () => {
-            const { data, error } = await supabase.from('profiles').select('id, full_name, username, avatar_url, role').eq('role', 'Cidadão');
+            const { data, error } = await supabase.from('public_citizen_profiles').select('id, full_name, username, avatar_url, role').eq('role', 'Cidadão');
             if (error) {
                 toast({ title: 'Erro ao buscar cidadãos', variant: 'destructive' });
             } else {
@@ -569,7 +572,7 @@ const BudgetManager = ({ budget, treasuryBalance, onUpdate, setActiveTab }) => {
     );
 };
 
-const TaxManager = ({ onUpdate }) => <div className="space-y-4"><LiveLegalRules /><LegalMeasureStudio onCreated={() => onUpdate(false)} /></div>;
+const TaxManager = () => <ExecutiveLevyManager />;
 
 const FinanceCard = ({ title, value, icon, isCurrency = true, colorClass = 'text-green-400' }) => {
     const Icon = icon;
@@ -897,7 +900,7 @@ const SpecialAppointmentsManager = ({ executiveState, onUpdate, actorId }) => {
                 const entries = await Promise.all(
                     EXECUTIVE_SPECIAL_OFFICES.map(async (office) => {
                         const { data, error } = await supabase
-                            .from('profiles')
+                            .from('public_citizen_profiles')
                             .select('id, full_name, username, avatar_url, role')
                             .in('role', office.eligibleRoles)
                             .order('full_name', { ascending: true });
@@ -967,7 +970,7 @@ const SpecialAppointmentsManager = ({ executiveState, onUpdate, actorId }) => {
             <CardContent className="space-y-4">
                 {EXECUTIVE_SPECIAL_OFFICES.map((office) => {
                     const appointment = executiveState?.settings?.specialAppointmentsDetailed?.[office.key];
-                    const officeIcon = office.key === 'armed_forces_commander' ? Anchor : office.key === 'national_bank_president' ? Landmark : Shield;
+                    const officeIcon = roleIcon(office.label);
                     const OfficeIcon = officeIcon;
 
                     return (
@@ -1439,7 +1442,7 @@ const EnterpriseDetailView = ({ enterprise, onBack, onUpdate }) => {
     const marketValue = getEnterpriseMarketValue(enterprise);
     const healthScore = getEnterpriseHealthScore(enterprise);
 
-    if (loadingData) return <div className="flex justify-center py-8"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
+    if (loadingData) return <div className="flex justify-start sm:justify-center py-8"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
 
     return (
         <div className="space-y-6">
@@ -1795,7 +1798,7 @@ const StateEnterpriseManager = ({ onUpdate }) => {
         setSavingPricesFor(null);
     };
 
-    if (loading) return <div className="flex justify-center py-8"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
+    if (loading) return <div className="flex justify-start sm:justify-center py-8"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
 
     if (selectedEnterprise) {
         return <EnterpriseDetailView enterprise={selectedEnterprise} onBack={() => setSelectedEnterprise(null)} onUpdate={() => { fetchEnterprises(); onUpdate?.(); }} />;
@@ -2246,7 +2249,7 @@ const PresidentDashboard = () => {
 
 
     if (loading) {
-        return <div className="flex justify-center items-center h-screen"><Loader2 className="animate-spin w-16 h-16" /></div>;
+        return <div className="flex justify-start sm:justify-center items-center h-screen"><Loader2 className="animate-spin w-16 h-16" /></div>;
     }
 
     const cardUsage = govFinances?.corporate_card_limit ? (govFinances.corporate_card_used / govFinances.corporate_card_limit) * 100 : 0;
@@ -2293,7 +2296,7 @@ const PresidentDashboard = () => {
                 />
 
                 <Tabs defaultValue="overview" value={activeTab} onValueChange={setActiveTab} className="w-full">
-                    <div className="overflow-x-auto custom-scrollbar -mx-4 px-4 pb-2 flex justify-center">
+                    <div className="overflow-x-auto custom-scrollbar -mx-4 px-4 pb-2 flex justify-start sm:justify-center">
                         <TabsList className="inline-flex min-w-max w-max gap-2">
                             <TabsTrigger value="overview" className="min-w-[9.5rem] shrink-0"><LayoutDashboard className="w-4 h-4 mr-2" />Visão Geral</TabsTrigger>
                             <TabsTrigger value="finances" className="min-w-[11rem] shrink-0"><Coins className="w-4 h-4 mr-2" />Gestão Financeira</TabsTrigger>
@@ -2454,11 +2457,10 @@ const PresidentDashboard = () => {
 
                     <TabsContent value="finances" className="mt-6">
                         <Tabs defaultValue="budget" className="w-full">
-                            <div className="overflow-x-auto custom-scrollbar -mx-4 px-4 pb-2 mb-6 flex justify-center">
+                            <div className="overflow-x-auto custom-scrollbar -mx-4 px-4 pb-2 mb-6 flex justify-start sm:justify-center">
                                 <TabsList className="inline-flex min-w-max w-max gap-2 border-b border-border/40 bg-transparent p-0">
                                     <TabsTrigger value="budget" className="min-w-[14rem] shrink-0 data-[state=active]:bg-card data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-t-lg px-6"><Building2 className="mr-2 h-4 w-4" />Orçamento Governamental</TabsTrigger>
-                                    <TabsTrigger value="taxes" className="min-w-[12rem] shrink-0 data-[state=active]:bg-card data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-t-lg px-6"><Receipt className="mr-2 h-4 w-4" />Gestão de Impostos</TabsTrigger>
-                                    <TabsTrigger value="prices" className="min-w-[14rem] shrink-0 data-[state=active]:bg-card data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-t-lg px-6"><DollarSign className="mr-2 h-4 w-4" />Valores de Tarifas Base</TabsTrigger>
+                                    <TabsTrigger value="taxes" className="min-w-[12rem] shrink-0 data-[state=active]:bg-card data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-t-lg px-6"><Receipt className="mr-2 h-4 w-4" />Gestão de Impostos e Tarifas</TabsTrigger>
                                     <TabsTrigger value="monetary" className="min-w-[12rem] shrink-0 data-[state=active]:bg-card data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-t-lg px-6"><Percent className="mr-2 h-4 w-4" />Política Monetária</TabsTrigger>
                                     <TabsTrigger value="actions" className="min-w-[11rem] shrink-0 data-[state=active]:bg-card data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-t-lg px-6"><Banknote className="mr-2 h-4 w-4" />Empréstimos/Cofre</TabsTrigger>
                                 </TabsList>
@@ -2500,7 +2502,7 @@ const PresidentDashboard = () => {
                                                     </CardDescription>
                                                 )}
                                             </CardHeader>
-                                            <CardContent className="flex justify-center pb-8">
+                                            <CardContent className="flex justify-start sm:justify-center pb-8">
                                                 <LoanManager onUpdate={fetchData} setActiveTab={setActiveTab} govFinances={govFinances} />
                                             </CardContent>
                                         </Card>
@@ -2512,11 +2514,12 @@ const PresidentDashboard = () => {
 
                     <TabsContent value="management" className="mt-6">
                         <Tabs defaultValue="constitutional" className="w-full">
-                            <div className="overflow-x-auto custom-scrollbar -mx-4 px-4 pb-2 mb-6 flex justify-center">
+                            <div className="overflow-x-auto custom-scrollbar -mx-4 px-4 pb-2 mb-6 flex justify-start sm:justify-center">
                                 <TabsList className="inline-flex min-w-max w-max gap-2 border-b border-border/40 bg-transparent p-0">
                                     <TabsTrigger value="constitutional" className="min-w-[12rem] shrink-0 data-[state=active]:bg-card data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-t-lg px-6"><Shield className="mr-2 h-4 w-4" />Estado Executivo</TabsTrigger>
                                     <TabsTrigger value="dynamics" className="min-w-[14rem] shrink-0 data-[state=active]:bg-card data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-t-lg px-6"><Activity className="mr-2 h-4 w-4" />Indicadores e Governo</TabsTrigger>
                                     <TabsTrigger value="ministers" className="min-w-[13rem] shrink-0 data-[state=active]:bg-card data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-t-lg px-6"><UserPlus className="mr-2 h-4 w-4" />Ministros e Nomeações</TabsTrigger>
+                                    <TabsTrigger value="proposals"><ScrollText className="mr-2 h-4 w-4" />Propostas</TabsTrigger>
                                     <TabsTrigger value="decrees" className="min-w-[13rem] shrink-0 data-[state=active]:bg-card data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-t-lg px-6"><FileCheck className="mr-2 h-4 w-4" />Atos Presidenciais</TabsTrigger>
                                     <TabsTrigger value="enterprises" className="min-w-[8rem] shrink-0 data-[state=active]:bg-card data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-t-lg px-6"><Building2 className="mr-2 h-4 w-4" />Estatais</TabsTrigger>
                                     <TabsTrigger value="resignation" className="min-w-[8rem] shrink-0 data-[state=active]:bg-card data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-t-lg px-6"><LogOut className="mr-2 h-4 w-4" />Renúncia</TabsTrigger>
@@ -2536,14 +2539,14 @@ const PresidentDashboard = () => {
 
                                 <TabsContent value="ministers" className="mt-0">
                                     <div className="space-y-6 max-w-5xl mx-auto">
-                                        <MinisterManager ministers={ministers} ministries={ministries} onUpdate={fetchData} />
-                                        <SpecialAppointmentsManager executiveState={executiveState} onUpdate={fetchData} actorId={user?.id} />
+                                        <Tabs defaultValue="cabinet"><TabsList className="flex h-auto flex-wrap gap-2"><TabsTrigger value="cabinet"><Briefcase className="mr-2 h-4 w-4" />Gabinete de Ministros</TabsTrigger><TabsTrigger value="executive"><UserPlus className="mr-2 h-4 w-4" />Nomeações do Executivo</TabsTrigger></TabsList><TabsContent value="cabinet"><MinisterManager ministers={ministers} ministries={ministries} onUpdate={() => fetchData(false)} /></TabsContent><TabsContent value="executive"><SpecialAppointmentsManager executiveState={executiveState} onUpdate={() => fetchData(false)} actorId={user?.id} /></TabsContent></Tabs>
                                     </div>
                                 </TabsContent>
 
+                                <TabsContent value="proposals"><Card><CardHeader><CardTitle>Propostas</CardTitle><CardDescription>Apresente medidas com efeitos definidos para o país.</CardDescription></CardHeader><CardContent><LegalMeasureStudio buttonLabel="Nova Proposta" onCreated={() => fetchData(false)} /></CardContent></Card></TabsContent>
                                 <TabsContent value="decrees" className="mt-0">
                                     <div className="space-y-6 max-w-5xl mx-auto">
-                                        <LegalMeasureStudio onCreated={() => fetchData(false)} /><DecreeManager decrees={decrees} onUpdate={() => fetchData(false)} />
+                                        <LegalMeasureStudio buttonLabel="Nova Proposta" onCreated={() => fetchData(false)} /><DecreeManager decrees={decrees} onUpdate={() => fetchData(false)} />
                                         <BillReviewManager executiveState={executiveState} onUpdate={fetchData} actorId={user?.id} />
                                         <ProvisionalMeasureManager executiveState={executiveState} onUpdate={fetchData} actorId={user?.id} />
                                     </div>

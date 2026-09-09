@@ -1,3 +1,4 @@
+import { roleIcon } from '@/lib/roleIcons';
 import React, { useCallback, useEffect, useState, useRef } from 'react';
 import { Crown, Loader2, Landmark, Check, ArrowRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -44,11 +45,11 @@ export default function ElectionOfficeAwardPopup() {
  };
  if (!user || !notification) return null;
  const info = roleEventPresentation(notification);
- const Icon = info.loss ? Landmark : Crown;
+ const Icon = roleIcon(info.role);
  return <Dialog open onOpenChange={open => { if (!open) void close(); }}>
-   <DialogContent className="max-w-md" onInteractOutside={event => event.preventDefault()}>
-     <DialogHeader>
-       <Icon className={`mb-3 h-10 w-10 ${info.loss ? 'text-slate-400' : 'text-amber-400'}`} />
+   <DialogContent className="max-w-md text-center" onInteractOutside={event => event.preventDefault()}>
+     <DialogHeader className="text-center sm:text-center">
+       <Icon className={`mx-auto mb-3 h-10 w-10 ${info.loss ? 'text-slate-400' : 'text-amber-400'}`} />
        <DialogTitle>{info.title}</DialogTitle>
        <DialogDescription>{notification.content}</DialogDescription>
      </DialogHeader>

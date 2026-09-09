@@ -3,6 +3,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { useSearchParams } from 'react-router-dom';
 import {
+  Scale,
   Building2,
   Landmark,
   LineChart,
@@ -39,6 +40,7 @@ const roleNames = (user) => new Set([
 ].filter(Boolean));
 
 const panelConfig = {
+  legal: { label: 'Regras Legais', icon: Scale },
   public: { label: 'Economia nacional', icon: LineChart, fetcher: fetchPublicEconomy },
   citizen: { label: 'Minha economia', icon: User, fetcher: fetchCitizenEconomy },
   business: { label: 'Minhas empresas', icon: Building2, fetcher: fetchBusinessEconomy },
@@ -57,7 +59,7 @@ const Economy = () => {
   const roles = useMemo(() => roleNames(user), [user]);
 
   const availablePanels = useMemo(() => {
-    const panels = ['public', 'citizen', 'business'];
+    const panels = ['public', 'citizen', 'business', 'legal'];
     if (['Admin', 'Presidente', 'Vice-Presidente', 'Ministro', 'Ministro da Fazenda', 'Ministro da Economia']
       .some((role) => roles.has(role))) panels.push('government');
     if (['Admin', 'Presidente', 'Presidente do Banco Central', 'Presidente do Banco Nacional', 'Banco Central']
@@ -71,7 +73,7 @@ const Economy = () => {
 
   const loadPanel = useCallback(async (panel, quiet = false) => {
     const config = panelConfig[panel];
-    if (!config) return;
+    if (!config?.fetcher) return;
     if (!quiet) setLoading((current) => ({ ...current, [panel]: true }));
     setErrors((current) => ({ ...current, [panel]: null }));
     try {
@@ -128,6 +130,7 @@ const Economy = () => {
   };
 
   const renderPanel = () => {
+    if (activePanel === 'legal') return <LiveLegalRules />;
     if (loading[activePanel] && !panelData[activePanel]) return <PanelLoading />;
     if (errors[activePanel]) {
       return <PanelError message={errors[activePanel]} onRetry={() => loadPanel(activePanel)} />;
@@ -186,7 +189,6 @@ const Economy = () => {
           </div>
         </div>
 
-        <div className="mb-6"><LiveLegalRules /></div>
         {renderPanel()}
       </div>
     </>

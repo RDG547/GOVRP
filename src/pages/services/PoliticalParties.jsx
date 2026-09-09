@@ -154,8 +154,8 @@ const PoliticalParties = () => {
                 <Button variant="destructive" className="w-full" disabled={actionLoading}><LogOut className="mr-2 h-4 w-4" /> Desfiliar-se</Button>
               </AlertDialogTrigger>
               <AlertDialogContent>
-                <AlertDialogHeader><AlertDialogTitle>Confirmar Desfiliação</AlertDialogTitle><AlertDialogDescription>Tem certeza que deseja sair do partido? {userAffiliation.role === 'Dono' && 'A liderança será transferida automaticamente.'}</AlertDialogDescription></AlertDialogHeader>
-                <AlertDialogFooter><AlertDialogCancel>Cancelar</AlertDialogCancel><AlertDialogAction onClick={handleDisaffiliate}>Confirmar Saída</AlertDialogAction></AlertDialogFooter>
+                <AlertDialogHeader className="items-center text-center sm:text-center"><LogOut className="h-8 w-8 text-destructive"/><AlertDialogTitle>Confirmar Desfiliação</AlertDialogTitle><AlertDialogDescription>Tem certeza que deseja sair do partido? {userAffiliation.role === 'Dono' && 'A liderança será transferida automaticamente.'}</AlertDialogDescription></AlertDialogHeader>
+                <AlertDialogFooter className="sm:justify-center"><AlertDialogCancel>Cancelar</AlertDialogCancel><AlertDialogAction onClick={handleDisaffiliate}><LogOut className="mr-2 h-4 w-4"/>Confirmar Saída</AlertDialogAction></AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
           );
@@ -173,8 +173,8 @@ const PoliticalParties = () => {
               <Button className="w-full" disabled={isLoading}>{isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <LogIn className="mr-2 h-4 w-4" />} Filiar-se</Button>
             </AlertDialogTrigger>
             <AlertDialogContent>
-              <AlertDialogHeader><AlertDialogTitle>Trocar de partido?</AlertDialogTitle><AlertDialogDescription>Você já é membro de "{userAffiliation.party.name}". Para entrar em "{party.name}", primeiro desfilie-se do partido atual. A solicitação não altera sua filiação automaticamente.</AlertDialogDescription></AlertDialogHeader>
-              <AlertDialogFooter><AlertDialogCancel>Cancelar</AlertDialogCancel><AlertDialogAction onClick={affiliateAction}>Continuar</AlertDialogAction></AlertDialogFooter>
+              <AlertDialogHeader className="items-center text-center sm:text-center"><LogIn className="h-8 w-8 text-primary"/><AlertDialogTitle>Trocar de partido?</AlertDialogTitle><AlertDialogDescription>Você já é membro de "{userAffiliation.party.name}". Para entrar em "{party.name}", primeiro desfilie-se do partido atual. A solicitação não altera sua filiação automaticamente.</AlertDialogDescription></AlertDialogHeader>
+              <AlertDialogFooter className="sm:justify-center"><AlertDialogCancel>Cancelar</AlertDialogCancel><AlertDialogAction onClick={affiliateAction}><LogIn className="mr-2 h-4 w-4"/>Continuar</AlertDialogAction></AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
         )

@@ -16,6 +16,9 @@ export const EFFECTIVE_ROLE_PRIORITY = [
   'Senador',
   'Deputado',
   'Juiz',
+  'Diretor-Geral de Polícia',
+  'Comandante-Geral das Forças Armadas',
+  'Comandante da Agência de Inteligência',
   'Policial',
   'Agente Secreto',
   'Militar',
@@ -168,5 +171,9 @@ export const filterCompatibleParliamentMembers = (members = [], syncState = null
       id: member.user_id,
     };
 
-    return Boolean(resolveLegislativeRoleForHouse(profile, syncState, member.house_id, houses));
+    // A persisted mandate is authoritative; public profiles intentionally omit private
+    // election override metadata and must not hide an active member.
+    return (!member.term_start_date || member.term_start_date <= todayDate()) &&
+      (!profile.role || resolveParliamentHouseIdFromRole(profile.role, houses) === member.house_id ||
+        getStoredTitles(profile).some(role => resolveParliamentHouseIdFromRole(role, houses) === member.house_id));
   });

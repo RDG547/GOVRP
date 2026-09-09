@@ -1,5 +1,6 @@
+import { GovSelect } from '@/components/ui/gov-select';
 import React, { useCallback, useEffect, useId, useRef, useState } from 'react';
-import { BookOpen, Loader2 } from 'lucide-react';
+import { BookOpen, Loader2, Coins, Shield, Scale, Newspaper, Landmark } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 import { useDomainRealtime } from '@/hooks/use-domain-realtime';
 import { useAuth } from '@/contexts/AuthContext';
@@ -10,13 +11,15 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { LEGAL_MEASURE_MODELS, LEGAL_REALTIME_TABLES, LEGAL_KIND_LABELS, LEGAL_BASIS_LABELS, createMeasureDraft, measurePayload, measureSummary } from '@/lib/legalMeasures';
+import { PROPOSAL_CATEGORIES, proposalCategory, applicableProposal, LEGAL_MEASURE_MODELS, LEGAL_REALTIME_TABLES, LEGAL_KIND_LABELS, LEGAL_BASIS_LABELS, createMeasureDraft, measurePayload, measureSummary } from '@/lib/legalMeasures';
 
 const selectClass = 'flex h-11 w-full min-w-0 rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring';
-export default function LegalMeasureStudio({ houseId = null, onCreated }) {
+export default function LegalMeasureStudio({ houseId = null, onCreated, buttonLabel = 'Modelos de Propostas' }) {
   const { user } = useAuth();
   const { toast } = useToast();
   const prefix = useId();
+  const [category, setCategory] = useState('economy');
+  const categoryIcons = { Coins, Shield, Scale, Newspaper, Landmark };
   const [open, setOpen] = useState(false);
   const [rules, setRules] = useState([]);
   const [authority, setAuthority] = useState([]);
@@ -47,10 +50,11 @@ export default function LegalMeasureStudio({ houseId = null, onCreated }) {
   }, []);
   useEffect(() => { if (open) void load(); }, [open, load]);
   useDomainRealtime('legal-rules', 'public', LEGAL_REALTIME_TABLES, load, open);
+  const availableModels = LEGAL_MEASURE_MODELS.filter(item => proposalCategory(item) === category && applicableProposal(item, rules));
   const template = LEGAL_MEASURE_MODELS.find(item => item.id === templateId);
   const selectTemplate = (id, currentRules = rules) => {
     const item = LEGAL_MEASURE_MODELS.find(entry => entry.id === id);
-    const current = currentRules.find(rule => item.ruleKey ? rule.rule_key === item.ruleKey : item.action !== 'create' && rule.rule_kind === item.kind);
+    const current = currentRules.find(rule => item.ruleKey ? rule.rule_key === item.ruleKey : item.action !== 'create' && rule.rule_kind === item.kind && rule.is_active);
     const value = createMeasureDraft(item, current);
     setTemplateId(id); setDraft(value); setTitle(item.title);
     setSummary(`${item.title}, com parâmetros e vigência definidos nesta proposta para o GOVRP.`);
@@ -60,7 +64,7 @@ export default function LegalMeasureStudio({ houseId = null, onCreated }) {
   useEffect(() => {
     if (open && rules.length && !initialized.current) {
       initialized.current = true;
-      selectTemplate(templateId, rules);
+      if (availableModels.length) selectTemplate(availableModels.find(item => item.id === templateId)?.id || availableModels[0].id, rules);
     }
   }, [open, rules]);
   const update = patch => { setDraft(current => ({ ...current, ...patch })); setReview(false); };
@@ -82,32 +86,34 @@ export default function LegalMeasureStudio({ houseId = null, onCreated }) {
     finally { setSaving(false); }
   };
   return <>
-    <Button variant="outline" onClick={() => { initialized.current = false; setDraft(null); setOpen(true); }}><BookOpen className="mr-2 h-4 w-4" />Modelos de Propostas</Button>
+    <Button variant="outline" onClick={() => { initialized.current = false; setDraft(null); setOpen(true); }}><BookOpen className="mr-2 h-4 w-4" />{buttonLabel}</Button>
     <Dialog open={open} onOpenChange={value => { if (!saving) setOpen(value); }}>
-      <DialogContent className="sm:max-w-3xl max-h-[90dvh] overflow-y-auto bg-slate-950">
+      <DialogContent className="sm:max-w-3xl max-h-[90dvh] overflow-y-auto bg-card">
         <DialogHeader><DialogTitle>Modelos de Propostas</DialogTitle><DialogDescription>30 modelos com consequências na economia, no comércio e na Justiça. O texto jurídico acompanha os parâmetros abaixo.</DialogDescription></DialogHeader>
+        <div className="flex flex-wrap gap-2" aria-label="Categorias de propostas">{PROPOSAL_CATEGORIES.map(item => { const Icon = categoryIcons[item.icon] || BookOpen; return <Button key={item.id} size="sm" variant={category === item.id ? 'default' : 'outline'} aria-pressed={category === item.id} onClick={() => { setCategory(item.id); const next = LEGAL_MEASURE_MODELS.find(model => proposalCategory(model) === item.id && applicableProposal(model, rules)); if (next) selectTemplate(next.id); else setDraft(null); }}><Icon className="mr-2 h-4 w-4" />{item.label}</Button>; })}</div>
+        {!availableModels.length && <p className="rounded-xl border p-4 text-sm text-muted-foreground">Nenhum modelo regulamentado disponível nesta área no momento.</p>}
         {loadError && <Button variant="outline" onClick={load}>Tentar carregar regras novamente</Button>}
         {draft && <div className="space-y-4 min-w-0">
-          {field('model', 'Modelo', <select className={selectClass} value={templateId} onChange={e => selectTemplate(e.target.value)}>{LEGAL_MEASURE_MODELS.map(item => <option key={item.id} value={item.id}>{item.title}</option>)}</select>)}
+          {field('model', 'Modelo', <GovSelect className={selectClass} value={templateId} onChange={e => selectTemplate(e.target.value)}>{availableModels.map(item => <option key={item.id} value={item.id}>{item.title}</option>)}</GovSelect>)}
           <div className="grid gap-3 sm:grid-cols-2">
-            {executive && field('source', 'Via institucional', <select className={selectClass} value={source} onChange={e => { setSource(e.target.value); setReview(false); }}><option value="bill">Projeto para votação no Parlamento</option><option value="decree">Decreto dentro da competência executiva</option></select>)}
-            {source === 'bill' && !houseId && field('house', 'Casa de tramitação', <select className={selectClass} value={selectedHouse} onChange={e => setSelectedHouse(e.target.value)}><option value="">Selecione a Casa</option>{houses.map(house => <option key={house.id} value={house.id}>{house.name}</option>)}</select>)}
-            {field('action', 'Ação', <select className={selectClass} value={draft.action} onChange={e => update({ action: e.target.value })}><option value="create">Criar</option><option value="change">Alterar</option><option value="revoke">Revogar</option></select>)}
-            {draft.action !== 'create' && field('rule', 'Regra vigente', <select className={selectClass} value={draft.rule_key} onChange={e => { const rule = rules.find(r => r.rule_key === e.target.value); update({ ...createMeasureDraft(template, rule), action: draft.action }); }}><option value="">Selecione a regra</option>{rules.filter(rule => rule.rule_kind === draft.kind).map(rule => <option key={rule.rule_key} value={rule.rule_key}>{rule.description}{rule.is_active ? '' : ' (revogada)'}</option>)}</select>)}
+            {executive && field('source', 'Via institucional', <GovSelect className={selectClass} value={source} onChange={e => { setSource(e.target.value); setReview(false); }}><option value="bill">Projeto para votação no Parlamento</option><option value="decree">Decreto dentro da competência executiva</option></GovSelect>)}
+            {source === 'bill' && !houseId && field('house', 'Casa de tramitação', <GovSelect className={selectClass} value={selectedHouse} onChange={e => setSelectedHouse(e.target.value)}><option value="">Selecione a Casa</option>{houses.map(house => <option key={house.id} value={house.id}>{house.name}</option>)}</GovSelect>)}
+            {field('action', 'Ação', <GovSelect className={selectClass} value={draft.action} onChange={e => update({ action: e.target.value })}>{!current?.is_active && <option value="create">Criar</option>}<option value="change">Alterar</option><option value="revoke">Revogar</option></GovSelect>)}
+            {draft.action !== 'create' && field('rule', 'Regra vigente', <GovSelect className={selectClass} value={draft.rule_key} onChange={e => { const rule = rules.find(r => r.rule_key === e.target.value); update({ ...createMeasureDraft(template, rule), action: draft.action }); }}><option value="">Selecione a regra</option>{rules.filter(rule => rule.rule_kind === draft.kind && rule.is_active).map(rule => <option key={rule.rule_key} value={rule.rule_key}>{rule.description}{rule.is_active ? '' : ' (revogada)'}</option>)}</GovSelect>)}
             {field('name', 'Nome da regra', <Input value={draft.name} onChange={e => update({ name: e.target.value })} />)}
             {draft.action !== 'revoke' && field('value', draft.definition.nature === 'percentage' ? 'Percentual (%)' : draft.kind === 'penalty' ? 'Pena de referência (anos RP)' : 'Valor (R$)', <Input type="number" min="0" step="0.01" value={draft.definition.nature === 'percentage' ? Number((draft.value * 100).toFixed(6)) : draft.value} onChange={e => update({ value: Number(e.target.value) / (draft.definition.nature === 'percentage' ? 100 : 1) })} />)}
           </div>
           {draft.action !== 'revoke' && <div className="grid gap-3 sm:grid-cols-2 rounded-lg border p-3">
-            {draft.kind !== 'penalty' && field('audience', 'Público afetado', <select className={selectClass} value={draft.definition.audience || 'all'} onChange={e => definition({ audience: e.target.value })}><option value="all">Todos</option><option value="citizen">Pessoa física</option><option value="business">Empresas</option></select>)}
-            {['tax', 'fee', 'restriction'].includes(draft.kind) && field('basis', 'Atividade / base de cálculo', <select className={selectClass} value={draft.definition.basis} onChange={e => definition({ basis: e.target.value, ...(e.target.value !== 'purchase' ? { payer: 'buyer', category: undefined } : {}), ...(['document','license'].includes(e.target.value) ? { nature: 'fixed' } : {}), ...(e.target.value === 'transfer' ? { sector_id: undefined } : {}) })}>{Object.entries(LEGAL_BASIS_LABELS).filter(([key]) => draft.kind !== 'restriction' || key !== 'document').map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select>)}
+            {draft.kind !== 'penalty' && field('audience', 'Público afetado', <GovSelect className={selectClass} value={draft.definition.audience || 'all'} onChange={e => definition({ audience: e.target.value })}><option value="all">Todos</option><option value="citizen">Pessoa física</option><option value="business">Empresas</option></GovSelect>)}
+            {['tax', 'fee', 'restriction'].includes(draft.kind) && field('basis', 'Atividade / base de cálculo', <GovSelect className={selectClass} value={draft.definition.basis} onChange={e => definition({ basis: e.target.value, ...(e.target.value !== 'purchase' ? { payer: 'buyer', category: undefined } : {}), ...(['document','license'].includes(e.target.value) ? { nature: 'fixed' } : {}), ...(e.target.value === 'transfer' ? { sector_id: undefined } : {}) })}>{Object.entries(LEGAL_BASIS_LABELS).filter(([key]) => draft.kind !== 'restriction' || key !== 'document').map(([key, label]) => <option key={key} value={key}>{label}</option>)}</GovSelect>)}
             {['tax', 'fee'].includes(draft.kind) && <>
-              {field('nature', 'Forma de cobrança', <select className={selectClass} value={draft.definition.nature} onChange={e => definition({ nature: e.target.value })}>{!['license','document'].includes(draft.definition.basis) && <option value="percentage">Percentual</option>}<option value="fixed">Valor fixo</option></select>)}
-              {field('payer', 'Quem paga', <select className={selectClass} value={draft.definition.payer} onChange={e => definition({ payer: e.target.value })}><option value="buyer">Comprador / solicitante, acrescido à operação</option>{draft.definition.basis === 'purchase' && <option value="seller">Vendedor, descontado do recebimento</option>}</select>)}
+              {field('nature', 'Forma de cobrança', <GovSelect className={selectClass} value={draft.definition.nature} onChange={e => definition({ nature: e.target.value })}>{!['license','document'].includes(draft.definition.basis) && <option value="percentage">Percentual</option>}<option value="fixed">Valor fixo</option></GovSelect>)}
+              {field('payer', 'Quem paga', <GovSelect className={selectClass} value={draft.definition.payer} onChange={e => definition({ payer: e.target.value })}><option value="buyer">Comprador / solicitante, acrescido à operação</option>{draft.definition.basis === 'purchase' && <option value="seller">Vendedor, descontado do recebimento</option>}</GovSelect>)}
               {['min_amount', 'max_amount', 'exempt_below'].map((key, index) => <React.Fragment key={key}>{field(key, ['Valor mínimo da operação (R$)', 'Valor máximo da operação (R$)', 'Isentar operações até (R$)'][index], <Input type="number" min="0" step="0.01" value={draft.definition[key] ?? ''} onChange={e => definition({ [key]: e.target.value === '' ? '' : Number(e.target.value) })} />)}</React.Fragment>)}
             </>}
-            {draft.kind !== 'penalty' && field('sector', templateId.startsWith('incentive') ? 'Setor beneficiado pelo desconto' : 'Setor (quando aplicável)', <select className={selectClass} value={draft.definition[templateId.startsWith('incentive') ? 'discount_sector_id' : 'sector_id'] || ''} onChange={e => definition({ [templateId.startsWith('incentive') ? 'discount_sector_id' : 'sector_id']: e.target.value })}><option value="">Todos os setores</option>{sectors.map(sector => <option key={sector.id} value={sector.id}>{sector.name}</option>)}</select>)}
+            {draft.kind !== 'penalty' && field('sector', templateId.startsWith('incentive') ? 'Setor beneficiado pelo desconto' : 'Setor (quando aplicável)', <GovSelect className={selectClass} value={draft.definition[templateId.startsWith('incentive') ? 'discount_sector_id' : 'sector_id'] || ''} onChange={e => definition({ [templateId.startsWith('incentive') ? 'discount_sector_id' : 'sector_id']: e.target.value })}><option value="">Todos os setores</option>{sectors.map(sector => <option key={sector.id} value={sector.id}>{sector.name}</option>)}</GovSelect>)}
             {draft.definition.basis === 'purchase' && field('category', 'Categoria de produto (opcional)', <Input value={draft.definition.category || ''} placeholder="Nome de uma categoria existente" onChange={e => definition({ category: e.target.value })} />)}
-            {draft.definition.basis === 'document' && field('document', 'Documento', <select className={selectClass} value={draft.definition.document_type || ''} onChange={e => definition({ document_type: e.target.value })}><option value="">Selecione</option>{['CNH', 'Passport', 'RG', 'CPF', 'CTD', 'CNPJ', 'Título de Eleitor', 'Certificado de Reservista', 'Certidão de Casamento', 'Registro Profissional'].map(type => <option key={type} value={type}>{type}</option>)}</select>)}
+            {draft.definition.basis === 'document' && field('document', 'Documento', <GovSelect className={selectClass} value={draft.definition.document_type || ''} onChange={e => definition({ document_type: e.target.value })}><option value="">Selecione</option>{['CNH', 'Passport', 'RG', 'CPF', 'CTD', 'CNPJ', 'Título de Eleitor', 'Certificado de Reservista', 'Certidão de Casamento', 'Registro Profissional'].map(type => <option key={type} value={type}>{type}</option>)}</GovSelect>)}
             {templateId.startsWith('incentive') && field('discount', 'Redução da cobrança (%)', <Input type="number" min="0" max="100" value={(draft.definition.discount_rate || 0) * 100} onChange={e => definition({ discount_rate: Number(e.target.value) / 100 })} />)}
             {draft.kind === 'penalty' && ['minimum', 'maximum', 'fine'].map((key, index) => <React.Fragment key={key}>{field(key, ['Pena mínima (anos RP)', 'Pena máxima (anos RP)', 'Multa prevista (R$)'][index], <Input type="number" min="0" step="0.01" value={draft.definition[key] ?? ''} onChange={e => definition({ [key]: Number(e.target.value) })} />)}</React.Fragment>)}
             {draft.kind === 'benefit' && <>{field('budget', 'Orçamento máximo total (R$)', <Input type="number" min="1" value={draft.definition.budget || ''} onChange={e => definition({ budget: Number(e.target.value) })} />)}{field('balance', 'Saldo máximo elegível (opcional)', <Input type="number" min="0" value={draft.definition.eligible_balance_max ?? ''} onChange={e => definition({ eligible_balance_max: e.target.value === '' ? '' : Number(e.target.value) })} />)}<p className="text-xs text-muted-foreground sm:col-span-2">Pagamento automático uma vez por cidadão neste programa, conforme elegibilidade, vigência, saldo do Tesouro e orçamento. Alterar a norma não repete pagamentos anteriores.</p></>}

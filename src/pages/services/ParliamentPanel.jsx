@@ -251,6 +251,8 @@ const ParliamentPanel = () => {
   const [votingOn, setVotingOn] = useState(null);
   const [commissionActionId, setCommissionActionId] = useState('');
   const [leadershipActionId, setLeadershipActionId] = useState('');
+  const [governanceClock,setGovernanceClock]=useState(Date.now());
+  useEffect(()=>{const timer=setInterval(()=>setGovernanceClock(Date.now()),10000);return ()=>clearInterval(timer);},[]);
   const [isCommissionDialogOpen, setIsCommissionDialogOpen] = useState(false);
   const [commissionForm, setCommissionForm] = useState({
     title: '',
@@ -338,9 +340,9 @@ const ParliamentPanel = () => {
 
   const resolveVotingTitles = useCallback(
     async (votingsData = []) => {
-      const billIds = votingsData.filter((item) => item.type === 'bill').map((item) => item.related_id);
-      const suggestionIds = votingsData.filter((item) => item.type === 'suggestion').map((item) => item.related_id);
-      const commissionIds = votingsData.filter((item) => item.type === 'commission').map((item) => item.related_id);
+      const billIds = votingsData.filter((item) => item.type === 'bill').map((item) => item.related_id).filter(Boolean);
+      const suggestionIds = votingsData.filter((item) => item.type === 'suggestion').map((item) => item.related_id).filter(Boolean);
+      const commissionIds = votingsData.filter((item) => item.type === 'commission').map((item) => item.related_id).filter(Boolean);
 
       const [billMapResponse, suggestionMapResponse, commissionMapResponse] = await Promise.all([
         billIds.length
@@ -451,7 +453,7 @@ const ParliamentPanel = () => {
       setParliamentMember(currentOperator);
       setHouse(currentHouse);
 
-      const governanceRefresh = quiet ? { schemaReady: true } : await refreshParliamentGovernanceState(supabase).catch((error) => {
+      const governanceRefresh = quiet ? { schemaReady: true } : await refreshParliamentGovernanceState(supabase, selectedHouseId).catch((error) => {
         if (isGovernanceSchemaMissing(error)) {
           return { schemaReady: false, error };
         }
@@ -556,10 +558,7 @@ const ParliamentPanel = () => {
       );
     } catch (error) {
       console.error('Erro ao carregar painel do parlamento:', error);
-      setAccessData({
-        hasAccess: false,
-        reason: userErrorMessage(error) || 'Não foi possível carregar o painel parlamentar.',
-      });
+      setAccessData(previous => previous?.hasAccess ? previous : { hasAccess: false, reason: userErrorMessage(error) || 'Não foi possível carregar o painel parlamentar.' });
       toast({
         title: 'Erro ao carregar dados',
         description: error.message,
@@ -780,7 +779,7 @@ const ParliamentPanel = () => {
           description: finalization.finalized ? finalization.message : data.message,
         });
 
-        fetchPanelData();
+        fetchPanelData({ quiet: true });
       }
     } catch (error) {
       toast({
@@ -1102,22 +1101,22 @@ const ParliamentPanel = () => {
         <Tabs value={activeMainTab} onValueChange={setActiveMainTab} className="w-full">
           <TabsList className="grid h-auto w-full grid-cols-2 items-stretch gap-2 md:grid-cols-6">
             <TabsTrigger className="h-full min-h-10 whitespace-normal px-2 py-2 text-center leading-tight" value="projects">
-              Projetos
+              <ScrollText className="mr-2 h-4 w-4 shrink-0" />Projetos
             </TabsTrigger>
             <TabsTrigger className="h-full min-h-10 whitespace-normal px-2 py-2 text-center leading-tight" value="votes">
-              Votações
+              <Vote className="mr-2 h-4 w-4 shrink-0" />Votações
             </TabsTrigger>
             <TabsTrigger className="h-full min-h-10 whitespace-normal px-2 py-2 text-center leading-tight" value="commissions">
-              Comissões
+              <Users className="mr-2 h-4 w-4 shrink-0" />Comissões
             </TabsTrigger>
             <TabsTrigger className="h-full min-h-10 whitespace-normal px-2 py-2 text-center leading-tight" value="leadership">
-              Mesa Diretora
+              <Landmark className="mr-2 h-4 w-4 shrink-0" />Mesa Diretora
             </TabsTrigger>
             <TabsTrigger className="h-full min-h-10 whitespace-normal px-2 py-2 text-center leading-tight" value="plebiscites">
-              Plebiscitos
+              <ClipboardCheck className="mr-2 h-4 w-4 shrink-0" />Plebiscitos
             </TabsTrigger>
             <TabsTrigger className="h-full min-h-10 whitespace-normal px-2 py-2 text-center leading-tight" value="members">
-              Membros
+              <Users className="mr-2 h-4 w-4 shrink-0" />Membros
             </TabsTrigger>
           </TabsList>
 
@@ -1703,7 +1702,7 @@ const ParliamentPanel = () => {
                       Abra eleições, registre candidaturas e apure a composição da mesa diretora.
                     </CardDescription>
                   </div>
-                  <Button onClick={() => setIsLeadershipDialogOpen(true)} disabled={!governanceSchemaReady || !canManageGovernance}>
+                  <Button onClick={() => setIsLeadershipDialogOpen(true)} disabled={!governanceSchemaReady || (!canParticipateInGovernance && user?.role!=='Admin')}>
                     <PlusCircle className="mr-2 h-4 w-4" />
                     Abrir eleição
                   </Button>
@@ -1711,7 +1710,9 @@ const ParliamentPanel = () => {
                 <CardContent className="space-y-4">
                   {leadershipElections.length ? (
                     leadershipElections.map((election) => {
-                      const statusMeta = getLeadershipElectionStatusMeta(election.status);
+                      const nominating = election.status==='open' && governanceClock < new Date(election.nomination_end_at || election.start_at).getTime();
+                      const votingOpen=election.status==='open' && !nominating && governanceClock<new Date(election.end_at).getTime();
+                      const statusMeta = nominating ? {label:'Candidaturas abertas',className:'text-cyan-300'} : getLeadershipElectionStatusMeta(election.status);
                       const userVote = (election.votes || []).find((vote) => vote.voter_member_id === parliamentMember?.id);
 
                       return (
@@ -1733,7 +1734,7 @@ const ParliamentPanel = () => {
                               <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-right">
                                 <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Prazo</p>
                                 <p className="mt-2 text-sm font-medium text-foreground">
-                                  {new Date(election.end_at).toLocaleString('pt-BR')}
+                                  {nominating ? 'Candidaturas até ' : 'Votação até '}{new Date(nominating ? election.nomination_end_at : election.end_at).toLocaleString('pt-BR')}
                                 </p>
                               </div>
                             </div>
@@ -1761,7 +1762,7 @@ const ParliamentPanel = () => {
                                         {candidate.manifesto}
                                       </p>
                                     ) : null}
-                                    {election.status === 'open' && canParticipateInGovernance && !userVote ? (
+                                    {votingOpen && canParticipateInGovernance && !userVote ? (
                                       <Button
                                         size="sm"
                                         className="mt-4 w-full"
@@ -1792,7 +1793,7 @@ const ParliamentPanel = () => {
                             ) : null}
                           </CardContent>
                           <CardFooter className="flex flex-wrap gap-2">
-                            {election.status === 'open' && canParticipateInGovernance ? (
+                            {nominating && canParticipateInGovernance ? (
                               <Button size="sm" variant="secondary" onClick={() => setNominationElection(election)}>
                                 <UserPlus className="mr-2 h-4 w-4" />
                                 Registrar candidatura
@@ -1803,7 +1804,7 @@ const ParliamentPanel = () => {
                               <p className="text-sm text-muted-foreground">Seu voto já foi registrado nesta eleição.</p>
                             ) : null}
 
-                            {election.status === 'open' && canManageGovernance ? (
+                            {election.status === 'open' && !nominating && (canParticipateInGovernance || user?.role==='Admin') ? (
                               <Button
                                 size="sm"
                                 variant="outline"
@@ -2194,7 +2195,7 @@ const ParliamentPanel = () => {
           <DialogHeader>
             <DialogTitle>Abrir Eleição Interna</DialogTitle>
             <DialogDescription>
-              Registre uma nova disputa para compor a mesa diretora da Casa.
+              Registre uma nova disputa para compor a mesa diretora da Casa. O primeiro quarto do prazo recebe candidaturas; depois abre a votação. A apuração acontece automaticamente ao término.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">

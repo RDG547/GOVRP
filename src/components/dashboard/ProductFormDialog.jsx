@@ -1,3 +1,4 @@
+import { categoryIcon } from '@/lib/commerceIcons';
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { useAuth } from '@/contexts/AuthContext';
@@ -34,6 +35,7 @@ const ProductFormDialog = ({ isOpen, setIsOpen, product, onSuccess }) => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
+  const [consumableEffects,setConsumableEffects]=useState({});
   const [imageFile, setImageFile] = useState(null);
   const [showPromotion, setShowPromotion] = useState(false);
   const [showCustomCategory, setShowCustomCategory] = useState(false);
@@ -127,6 +129,7 @@ const ProductFormDialog = ({ isOpen, setIsOpen, product, onSuccess }) => {
       setShowCustomCategory(false);
       setCustomCategory('');
     }
+    setConsumableEffects(product?.consumable_effects || {});
     setImageFile(null);
   }, [product, isOpen]);
 
@@ -243,6 +246,7 @@ const ProductFormDialog = ({ isOpen, setIsOpen, product, onSuccess }) => {
         p_product_type: formData.product_type,
         p_subscription_interval: formData.product_type === 'subscription' ? formData.subscription_interval : null,
         p_category: finalCategory,
+        p_consumable_effects: ['Alimentos','Bebidas'].includes(finalCategory) && formData.product_type==='one-time' ? Object.fromEntries(Object.entries(consumableEffects).filter(([,value])=>Number(value)>0).map(([key,value])=>[key,Number(value)])) : {},
         p_stock: formData.product_type === 'one-time' ? normalizedStock : null,
         p_promotion_price: showPromotion && normalizedPromotionPrice > 0 ? normalizedPromotionPrice : null,
         p_promotion_expires_at: showPromotion && normalizedPromotionPrice > 0 && formData.promotion_expires_at
@@ -275,7 +279,7 @@ const ProductFormDialog = ({ isOpen, setIsOpen, product, onSuccess }) => {
             <Label>Vender como</Label>
             <Select value={formData.business_id || 'citizen'} onValueChange={(value) => handleSelectChange('business_id', value === 'citizen' ? '' : value)}>
               <SelectTrigger><SelectValue placeholder="Pessoa Física" /></SelectTrigger>
-              <SelectContent>
+              <SelectContent className="[&>div]:max-h-[192px]">
                 <SelectItem value="citizen">Pessoa Física — {user?.full_name || 'Meu cidadão'}</SelectItem>
                 {businesses.map((business) => <SelectItem key={business.id} value={business.id}>{business.name}{business.status === 'pending' ? ' (aguardando ativação)' : ''}</SelectItem>)}
               </SelectContent>
@@ -304,12 +308,13 @@ const ProductFormDialog = ({ isOpen, setIsOpen, product, onSuccess }) => {
             <Label htmlFor="category">Categoria</Label>
             <Select onValueChange={(value) => handleSelectChange('category', value)} value={formData.category}>
               <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {PREDEFINED_CATEGORIES.map(cat => <SelectItem key={cat} value={cat}>{cat}</SelectItem>)}
+              <SelectContent className="[&>div]:max-h-[192px]">
+                {PREDEFINED_CATEGORIES.map(cat => {const Icon=categoryIcon(cat);return <SelectItem key={cat} value={cat}><span className="flex items-center gap-2"><Icon className="h-4 w-4" />{cat}</span></SelectItem>;})}
                 <SelectItem value="custom">Outra (Personalizada)</SelectItem>
               </SelectContent>
           </Select>
           </div>
+          {['Alimentos','Bebidas'].includes(formData.category) && formData.product_type==='one-time' && <fieldset className="space-y-3 rounded-xl border p-3"><legend>Recuperação ao consumir</legend><p className="text-xs text-muted-foreground">Defina de 0 a 60 pontos. Zero mantém o produto sem efeito nessa necessidade.</p>{[{key:'hunger',label:'Fome'},{key:'thirst',label:'Sede'}].map(({key,label})=><label key={key} className="block text-sm">{label}<Input type="number" min="0" max="60" step="1" value={consumableEffects[key]||0} onChange={e=>setConsumableEffects(previous=>({...previous,[key]:e.target.value}))}/></label>)}</fieldset>}
           {showCustomCategory && (
             <div><Label htmlFor="custom_category">Nome da Categoria Personalizada</Label><Input id="custom_category" value={customCategory} onChange={(e) => setCustomCategory(e.target.value)} required /></div>
           )}
@@ -317,7 +322,7 @@ const ProductFormDialog = ({ isOpen, setIsOpen, product, onSuccess }) => {
             <Label htmlFor="product_type">Tipo</Label>
             <Select onValueChange={(value) => handleSelectChange('product_type', value)} value={formData.product_type}>
               <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
+              <SelectContent className="[&>div]:max-h-[192px]">
                 <SelectItem value="one-time">Compra Única</SelectItem>
                 <SelectItem value="subscription">Assinatura</SelectItem>
               </SelectContent>
@@ -331,7 +336,7 @@ const ProductFormDialog = ({ isOpen, setIsOpen, product, onSuccess }) => {
                 value={formData.subscription_interval}
               >
                 <SelectTrigger id="subscription_interval"><SelectValue /></SelectTrigger>
-                <SelectContent>
+                <SelectContent className="[&>div]:max-h-[192px]">
                   {SUBSCRIPTION_INTERVALS.map((interval) => (
                     <SelectItem key={interval.value} value={interval.value}>
                       {interval.label}

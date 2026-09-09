@@ -60,3 +60,19 @@ export function measureSummary(draft, current) {
   const next = draft.action === 'revoke' ? 'Revogada: deixa de ser aplicada a novas operações' : legalRuleValue({ numeric_value: draft.value, definition: draft.definition, rule_kind: draft.kind });
   return `${draft.name}: ${legalRuleValue(current)} → ${next}. ${LEGAL_BASIS_LABELS[draft.definition.basis] || LEGAL_KIND_LABELS[draft.kind]}.`;
 }
+
+export const PROPOSAL_CATEGORIES = [
+  { id: 'economy', label: 'Economia', icon: 'Coins' },
+  { id: 'security', label: 'Segurança', icon: 'Shield' },
+  { id: 'justice', label: 'Justiça', icon: 'Scale' },
+  { id: 'media', label: 'Mídia', icon: 'Newspaper' },
+  { id: 'politics', label: 'Política', icon: 'Landmark' },
+];
+export const proposalCategory = template => template.category || (template.kind === 'penalty' ? 'justice' : template.kind === 'restriction' ? 'security' : 'economy');
+export function applicableProposal(template, rules) {
+  if (template.action !== 'create') return rules.some(rule => rule.is_active && (template.ruleKey ? rule.rule_key === template.ruleKey : rule.rule_kind === template.kind));
+  const canonicalKeys = { 'sales-create': 'consumption_tax_rate', 'corporate-create': 'corporate_tax_rate', 'transfer-create': 'transaction_tax', 'fee-create': 'business_license_fee' };
+  if (canonicalKeys[template.id]) return !rules.some(rule => rule.rule_key === canonicalKeys[template.id] && rule.is_active);
+  if (template.id === 'document-fee') return !rules.some(rule => rule.is_active && rule.rule_kind === 'fee' && rule.definition?.basis === 'document' && rule.definition?.document_type === template.definition.document_type);
+  return true;
+}

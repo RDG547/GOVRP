@@ -125,7 +125,7 @@ export const startBillVotingSessionWithNews = async (
   { billId, houseId, title, description, bill }
 ) => {
   const voting = await startBillVotingSession(supabase, { billId, houseId, title, description });
-  
+
   // Publish news about the voting start
   if (bill) {
     try {
@@ -249,7 +249,7 @@ const isBillApproved = (billType, voteTotals, seatCount) => {
  * Finalizes a voting session if conditions are met:
  * - All members voted, OR
  * - 24h has passed (non-voters count as abstention)
- * 
+ *
  * For PEC: After first house approval, creates voting in the other house.
  * Only fully approved when both houses approve with 2/3.
  */
@@ -344,7 +344,7 @@ export const finalizeParliamentVotingIfReady = async (
             p_new_status: 'Em votação (2ª Casa)',
           });
 
-          // Start voting in the other house  
+          // Start voting in the other house
           const { data: otherHouse } = await supabase
             .from('parliament_houses')
             .select('name')
@@ -490,12 +490,19 @@ export const finalizeParliamentVotingIfReady = async (
  * Also fixes legacy votings whose end_date was set beyond 24h from creation.
  * Should be called periodically (e.g., on page load).
  */
-export const autoCloseExpiredVotings = async (supabase) => {
+const expiryRefreshes = new WeakMap();
+export const autoCloseExpiredVotings = async (supabase, houseId = null) => {
+  if (!houseId) return;
+  const recent = expiryRefreshes.get(supabase) || new Map();
+  if (Date.now() - (recent.get(houseId) || 0) < 60000) return;
+  recent.set(houseId, Date.now()); expiryRefreshes.set(supabase, recent);
   try {
     const { data: expiredVotings, error } = await supabase
       .from('parliament_votings')
       .select('id, house_id, end_date, type, related_id, title, description, status')
       .eq('status', 'active')
+      .eq('house_id', houseId)
+      .not('related_id', 'is', null)
       .lte('end_date', new Date().toISOString());
 
     if (error || !expiredVotings || expiredVotings.length === 0) return;

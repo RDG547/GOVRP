@@ -123,7 +123,7 @@ const DocumentField = ({ label, value, className = '' }) => {
 
 const DocumentContainer = ({ children, className = '' }) => (
     <div data-official-document className={`relative box-border aspect-[47/33] w-full max-w-[470px] shrink-0 overflow-hidden rounded-lg border p-2.5 shadow-lg sm:p-3 ${className}`}>
-        <div className="relative z-10 flex h-full min-h-0 flex-col overflow-hidden">
+        <div className="absolute inset-2.5 z-10 flex min-h-0 flex-col sm:inset-3">
             {children}
         </div>
     </div>
@@ -233,16 +233,16 @@ const CNPJDocument = ({ user, doc, side }) => (
         {side === 'front' ? (
             <>
                 <header className="text-center border-b-2 border-black pb-1 sm:pb-2">
-                    <img src={SEAL_IMAGE} alt="Selo" className="mx-auto mb-2 h-10 w-10 object-contain sm:h-12 sm:w-12" />
+                    <img src={SEAL_IMAGE} alt="Selo" className="mx-auto mb-1 h-8 w-8 object-contain sm:h-10 sm:w-10" />
                     <p className="text-[0.5rem] sm:text-sm font-bold">REPÚBLICA FEDERATIVA DE GOV.RP</p>
-                    <p className="text-base sm:text-xl font-bold">CADASTRO NACIONAL DA PESSOA JURÍDICA</p>
+                    <p className="text-xs sm:text-base font-bold">CADASTRO NACIONAL DA PESSOA JURÍDICA</p>
                 </header>
-                <main className="space-y-1 sm:space-y-1.5 text-[0.6rem] sm:text-sm">
+                <main className="grid grid-cols-2 gap-x-2 gap-y-0.5 text-[0.6rem] sm:text-sm">
                     <DocumentField label="NÚMERO DE INSCRIÇÃO" value={doc.document_number} />
                     <DocumentField label="DATA DE ABERTURA" value={new Date(doc.issued_at).toLocaleDateString('pt-BR')} />
-                    <DocumentField label="NOME EMPRESARIAL" value={doc.metadata?.company_name?.toUpperCase() || 'N/A'} />
-                    <DocumentField label="TÍTULO DO ESTABELECIMENTO (NOME DE FANTASIA)" value={doc.metadata?.company_name?.toUpperCase() || 'N/A'} />
-                    <DocumentField label="CÓDIGO E DESCRIÇÃO DA ATIVIDADE ECONÔMICA PRINCIPAL" value="96.09-2-99 - OUTRAS ATIVIDADES DE SERVIÇOS PESSOAIS" />
+                    <DocumentField className="col-span-2" label="NOME EMPRESARIAL" value={doc.metadata?.company_name?.toUpperCase() || 'N/A'} />
+                    <DocumentField className="col-span-2" label="TÍTULO DO ESTABELECIMENTO (NOME DE FANTASIA)" value={doc.metadata?.company_name?.toUpperCase() || 'N/A'} />
+                    <DocumentField className="col-span-2" label="CÓDIGO E DESCRIÇÃO DA ATIVIDADE ECONÔMICA PRINCIPAL" value="96.09-2-99 - OUTRAS ATIVIDADES DE SERVIÇOS PESSOAIS" />
                     <DocumentField label="ENDEREÇO" value="GOV, RP" />
                     <DocumentField label="SITUAÇÃO CADASTRAL" value="ATIVA" />
                 </main>
@@ -518,9 +518,9 @@ const ProfessionalRegistryDocument = ({ user, doc, side }) => (
                     <img src={SEAL_IMAGE} alt="Selo" className="h-9 w-9 object-contain sm:h-12 sm:w-12" />
                 </header>
                 <p className="mt-2 text-center font-bold text-[0.76rem] sm:text-lg">CARTEIRA DE IDENTIDADE PROFISSIONAL</p>
-                <main className="mt-2 flex flex-grow gap-2 sm:mt-3 sm:gap-3">
-                    <img src={user.avatar_url} alt="Foto" className="w-1/3 aspect-[3/4] object-cover border-2 border-gray-400"/>
-                    <div className="w-2/3 space-y-1 sm:space-y-1.5 text-[0.5rem] sm:text-[11px] p-1">
+                <main className="mt-1 flex min-h-0 flex-grow gap-2 sm:gap-3">
+                    <img src={user.avatar_url} alt="Foto" className="h-full min-h-0 w-1/3 object-cover border-2 border-gray-400"/>
+                    <div className="w-2/3 space-y-0.5 text-[0.5rem] sm:text-[11px] p-1">
                         <DocumentField label="NOME COMPLETO" value={user.full_name?.toUpperCase()} />
                         <DocumentField label="PROFISSÃO" value={doc.metadata?.profession?.toUpperCase() || 'NÃO ESPECIFICADO'} />
                         <DocumentField label="Nº DE REGISTRO" value={doc.document_number} className="text-red-600 font-mono" />
@@ -545,18 +545,18 @@ const ReservistCertificateDocument = ({ user, doc, side }) => {
         {side === 'front' ? (
             <>
                 <header className="text-center mb-1">
-                    <img src={SEAL_IMAGE} alt="Brasão da República" className="w-12 h-12 mx-auto mb-1 object-contain" />
+                    <img src={SEAL_IMAGE} alt="Brasão da República" className="w-9 h-9 mx-auto mb-1 object-contain" />
                     <h1 className="text-[0.72rem] font-bold sm:text-sm">REPÚBLICA FEDERATIVA DE GOV.RP</h1>
                     <h2 className="text-[0.62rem] sm:text-xs">MINISTÉRIO DA DEFESA - FORÇAS ARMADAS</h2>
                 </header>
-                <h3 className="mb-2 text-center text-base font-bold sm:text-lg">CERTIFICADO DE RESERVISTA</h3>
-                <main className="space-y-1.5 text-xs sm:text-sm">
+                <h3 className="mb-1 text-center text-sm font-bold sm:text-base">CERTIFICADO DE RESERVISTA</h3>
+                <main className="space-y-0.5 text-[10px] sm:text-xs">
                     <DocumentField label="NOME" value={user.full_name?.toUpperCase()} />
                     <DocumentField label="NASCIMENTO" value={dateOfBirth} />
                     <DocumentField label="Nº DE REGISTRO" value={doc.document_number} />
                     <p className="leading-snug">Certificamos que o cidadão acima qualificado foi dispensado do serviço militar inicial por ter sido incluído no excesso de contingente.</p>
                 </main>
-                <footer className="mt-3 text-center text-[10px] sm:text-xs">
+                <footer className="mt-1 text-center text-[10px] sm:text-xs">
                     <p>Emitido em: {new Date(doc.issued_at).toLocaleDateString('pt-BR')}</p>
                 </footer>
             </>
@@ -592,7 +592,7 @@ export const OfficialDocument = ({ user, doc, onBack, side: initialSide = 'front
   if (!DocumentComponent) return null;
 
   const isFullPageDoc = documentIsFullPage(doc.type);
-  const controls = onBack && <div data-export-ignore className="absolute right-2 top-2 z-50 flex flex-col gap-1 pointer-events-auto">
+  const controls = onBack && <div data-export-ignore className="absolute right-0 top-0 z-50 flex flex-col gap-1 pointer-events-auto">
     <Button title="Fechar documento" variant="destructive" size="icon" aria-label="Fechar documento" type="button" onClick={onBack} className="min-h-11 min-w-11 touch-manipulation bg-red-600 text-white hover:bg-red-700 focus-visible:ring-2 focus-visible:ring-red-300"><X className="h-5 w-5" /></Button>
     {hasTwoSides && <Button title="Virar documento" size="icon" aria-label="Virar documento" type="button" onClick={() => setSide(s => s === 'front' ? 'back' : 'front')} className="min-h-11 min-w-11 touch-manipulation bg-cyan-700 text-white hover:bg-cyan-600 focus-visible:ring-2 focus-visible:ring-cyan-300"><RefreshCw className="h-5 w-5" /></Button>}
   </div>;
@@ -600,7 +600,7 @@ export const OfficialDocument = ({ user, doc, onBack, side: initialSide = 'front
   if (isFullPageDoc) {
     if (!onBack) return <DocumentComponent user={user} doc={doc} />;
     return (
-        <div className="relative w-full max-w-2xl mx-auto rounded-lg">
+        <div className="relative w-full max-w-2xl mx-auto rounded-lg pr-14">
             <div className="overflow-y-auto max-h-[80vh]">
                 <DocumentComponent user={user} doc={doc} />
             </div>
@@ -610,7 +610,7 @@ export const OfficialDocument = ({ user, doc, onBack, side: initialSide = 'front
   }
 
   return (
-    <div className="relative mx-auto w-full max-w-[470px] [&_[data-official-document]]:shadow-none">
+    <div className={`relative mx-auto w-full [&_[data-official-document]]:shadow-none ${onBack ? 'max-w-[526px] pr-14' : 'max-w-[470px]'}`}>
       <DocumentComponent user={user} doc={doc} side={side}/>
       {controls}
     </div>

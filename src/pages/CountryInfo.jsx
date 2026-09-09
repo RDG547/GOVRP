@@ -1,3 +1,4 @@
+import CitizenRankings from '@/components/CitizenRankings';
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Helmet } from 'react-helmet-async';
 import isoCountries from 'iso-3166-1';
@@ -518,6 +519,7 @@ const CountryInfo = () => {
             </TabsContent>
 
             <TabsContent value="demografia" className="mt-0 outline-none">
+              <CitizenRankings />
               <DetailedSection title="Dados Demográficos" icon={Users} description="Estatísticas populacionais e socioculturais.">
                 <DetailItem icon={User} label="População" value={economy?.population?.value ? `${formatPopulation(economy.population.value)} habitantes` : 'Indicador populacional em atualização.'} />
                 <DetailItem icon={Building} label="Cidadãos no GOV.RP" value={govFinances?.total_users != null ? formatPopulation(govFinances.total_users) : 'Contagem em atualização.'} />
