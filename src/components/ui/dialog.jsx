@@ -1,10 +1,11 @@
+import { withServiceSuspension } from '@/contexts/ServiceSuspensionContext'
 import * as React from "react"
 import * as DialogPrimitive from "@radix-ui/react-dialog"
 import { X } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 
-const Dialog = DialogPrimitive.Root
+const Dialog = withServiceSuspension(DialogPrimitive.Root)
 
 const DialogTrigger = DialogPrimitive.Trigger
 
@@ -23,9 +24,9 @@ const DialogOverlay = React.forwardRef(({ className, ...props }, ref) => (
 ))
 DialogOverlay.displayName = DialogPrimitive.Overlay.displayName
 
-const DialogContent = React.forwardRef(({ className, children, plain = false, ...props }, ref) => (
+const DialogContent = React.forwardRef(({ className, children, plain = false, overlayClassName, hideClose = false, ...props }, ref) => (
   <DialogPortal>
-    <DialogOverlay />
+    <DialogOverlay className={overlayClassName} />
     <DialogPrimitive.Content
       ref={ref}
       className={cn(
@@ -35,12 +36,12 @@ const DialogContent = React.forwardRef(({ className, children, plain = false, ..
       )}
       {...props}>
       {children}
-      <DialogPrimitive.Close
+      {!hideClose && <DialogPrimitive.Close
         aria-label="Fechar"
         className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground">
         <X className="h-4 w-4" />
         <span className="sr-only">Fechar</span>
-      </DialogPrimitive.Close>
+      </DialogPrimitive.Close>}
     </DialogPrimitive.Content>
   </DialogPortal>
 ))

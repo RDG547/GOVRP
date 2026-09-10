@@ -22,12 +22,12 @@ export const normalizeEconomicPolicy = (value = {}) => {
   return {
     ...DEFAULT_ECONOMIC_POLICY,
     ...safeValue,
-    selic_rate: toSafeRate(safeValue.selic_rate, DEFAULT_ECONOMIC_POLICY.selic_rate),
+    selic_rate: Number.isFinite(Number(safeValue.selic_rate)) ? roundRate(Math.max(-20, Math.min(100, Number(safeValue.selic_rate)))) : DEFAULT_ECONOMIC_POLICY.selic_rate,
   };
 };
 
 export const annualPercentToMonthlyPercent = (annualRate = 0) => {
-  const normalizedAnnualRate = Math.max(0, Number(annualRate || 0)) / 100;
+  const normalizedAnnualRate = Math.max(-20, Math.min(100, Number(annualRate || 0))) / 100;
 
   if (!Number.isFinite(normalizedAnnualRate) || normalizedAnnualRate === 0) {
     return 0;
@@ -96,7 +96,7 @@ export const normalizeBankPolicyForEconomicPolicy = (
 };
 
 export const buildInvestmentAnnualRate = (selicRate = 0, riskLevel = 'medium') => {
-  const normalizedSelic = toSafeRate(selicRate, DEFAULT_ECONOMIC_POLICY.selic_rate);
+  const normalizedSelic = normalizeEconomicPolicy({ selic_rate: selicRate }).selic_rate;
   const multipliers = {
     low: 0.9,
     medium: 1.05,
@@ -110,7 +110,7 @@ export const buildInvestmentAnnualRate = (selicRate = 0, riskLevel = 'medium') =
     'very-high': 4.5,
   };
   const annualPercent = Math.max(
-    0.5,
+    -95,
     normalizedSelic * (multipliers[riskLevel] || multipliers.medium) + (premiums[riskLevel] || 0)
   );
 
@@ -118,7 +118,7 @@ export const buildInvestmentAnnualRate = (selicRate = 0, riskLevel = 'medium') =
 };
 
 export const getEconomicPressureLabel = (selicRate = 0) => {
-  const normalizedSelic = toSafeRate(selicRate, DEFAULT_ECONOMIC_POLICY.selic_rate);
+  const normalizedSelic = normalizeEconomicPolicy({ selic_rate: selicRate }).selic_rate;
 
   if (normalizedSelic >= 14) {
     return 'Aperto monetário elevado: crédito mais caro e maior custo financeiro para governo e setor privado.';

@@ -58,7 +58,7 @@ try{
  check(forbidden.length===0,'terceiro também não lê a mensagem por consulta direta');
  await request(a.client.rpc('delete_x_conversation',{p_conversation_id:sent.conversation_id}));
  check((await request(b.client.from('x_messages').select('id').eq('id',sent.message.id))).length===0,'exclusão autorizada remove conversa e mensagens atomicamente');
- await request(b.client.from('comments').delete().eq('id',comment.id));
+ await request(b.client.rpc('remove_x_comment',{p_comment_id:comment.id}));
  await request(a.client.rpc('delete_post',{p_post_id:post.id}));
  await wait(()=>postEvents.some(event=>event.eventType==='DELETE'&&event.old.id===post.id),'exclusão do post');
  check(true,'exclusão do post chega à outra sessão');

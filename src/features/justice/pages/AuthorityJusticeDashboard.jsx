@@ -1,3 +1,4 @@
+import { justiceDeadline, justiceRequest } from '@/lib/justice/constants';
 import { justiceStatus } from '@/lib/justice/constants';
 import { executeArrestWarrant, archiveReferredInvestigation } from '@/lib/justice/api';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
@@ -486,7 +487,7 @@ const AuthorityJusticeDashboard = () => {
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
                     <CardTitle className="text-lg">
-                      {REQUEST_TYPE_LABELS[request.request_type] || request.request_type}
+                      {justiceRequest(request.request_type)}
                     </CardTitle>
                     <CardDescription className="mt-1">
                       Pedido em {formatJusticeDate(request.created_at)}
@@ -641,7 +642,7 @@ const AuthorityJusticeDashboard = () => {
                     </div>
                   </div>
                   <Badge variant="outline">
-                    {CUSTODY_STATUS_LABELS[term.custody_status] || term.custody_status}
+                    {justiceStatus(term.custody_status)}
                   </Badge>
                 </div>
               </CardHeader>

@@ -1,4 +1,4 @@
-import { User, Crown, Building2, Landmark, Gavel, Shield, Scale, Briefcase, ShieldCheck, Medal, Eye, GraduationCap } from 'lucide-react';
+import { User, Crown, Building2, Landmark, Gavel, Shield, Scale, Briefcase, ShieldCheck, Medal, Eye, GraduationCap, Vote } from 'lucide-react';
 
 export const ROLE_ALIASES = {
   'Presidente da Câmara': 'Presidente da Câmara dos Deputados',
@@ -8,6 +8,7 @@ export const ROLE_ALIASES = {
 };
 export const canonicalRole = role => ROLE_ALIASES[role] || role;
 export const ROLE_ICONS = {
+  'Presidente do Portal Eleitoral': Vote, 'Agente Penitenciário': Shield, 'Diretor Penitenciário': ShieldCheck,
   Admin: ShieldCheck, Presidente: Crown, 'Vice-Presidente': Crown, Deputado: Building2, Senador: Landmark,
   'Presidente da Câmara dos Deputados': Building2, 'Vice-Presidente da Câmara dos Deputados': Building2,
   'Presidente do Senado': Landmark, 'Vice-Presidente do Senado Federal': Landmark,

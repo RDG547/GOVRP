@@ -1,3 +1,4 @@
+import { withServiceSuspension } from '@/contexts/ServiceSuspensionContext'
 "use client";
 import * as React from "react"
 import * as SheetPrimitive from "@radix-ui/react-dialog"
@@ -6,7 +7,7 @@ import { X } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 
-const Sheet = SheetPrimitive.Root
+const Sheet = withServiceSuspension(SheetPrimitive.Root)
 
 const SheetTrigger = SheetPrimitive.Trigger
 

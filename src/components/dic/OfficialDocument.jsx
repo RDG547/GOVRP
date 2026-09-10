@@ -1,3 +1,4 @@
+import CitizenSignature from './CitizenSignature';
 import { documentCatalog as docInfo, documentHasTwoSides, documentIsFullPage } from '@/lib/documentCatalog';
 import { fingerprintPaths } from '@/lib/citizenFingerprint';
 import React, { useState, useMemo } from 'react';
@@ -270,7 +271,7 @@ const CTDDocument = ({ user, doc, side }) => {
                     </div>
                 </header>
                 <main className="flex items-center gap-2 sm:gap-4">
-                    <img src={user.avatar_url} alt="Foto" className="w-1/4 aspect-[3/4] object-cover border-2 border-white"/>
+                    <div className="w-1/4 shrink-0 self-start aspect-[3/4] overflow-hidden border-2 border-white bg-white/10"><img src={user.avatar_url} alt="Foto do cidadão" className="h-full w-full object-cover object-center" /></div>
                     <div className="text-[0.6rem] sm:text-sm flex-1 space-y-1">
                         <DocumentField label="NOME" value={user.full_name?.toUpperCase()} className="text-white" />
                         <DocumentField label="NASCIMENTO" value={dateOfBirth} className="text-white" />
@@ -282,7 +283,7 @@ const CTDDocument = ({ user, doc, side }) => {
                         <p>Nº: {doc.document_number.split(' ')[0]}</p>
                         <p>Série: {doc.document_number.split(' ')[1]}</p>
                     </div>
-                    <p className="font-serif text-base sm:text-xl">Assinatura do Portador</p>
+                    <CitizenSignature user={user} />
                 </footer>
             </div>
         ) : (
@@ -318,8 +319,8 @@ const TituloEleitorDocument = ({ user, doc, side }) => {
                         <DocumentField label="NOME" value={user.full_name?.toUpperCase()} />
                         <div className="flex gap-4 sm:gap-6">
                             <DocumentField label="DATA NASC." value={dateOfBirth} />
-                            <DocumentField label="ZONA" value="001" />
-                            <DocumentField label="SEÇÃO" value="0001" />
+                            <DocumentField label="ZONA" value={doc.metadata?.electoral_zone || "EM REGULARIZAÇÃO"} />
+                            <DocumentField label="SEÇÃO" value={doc.metadata?.electoral_section || "EM REGULARIZAÇÃO"} />
                         </div>
                         <DocumentField label="MUNICÍPIO / UF" value={getCitizenResidence(user).toUpperCase()} />
                         <DocumentField label="DATA DE EMISSÃO" value={new Date(doc.issued_at).toLocaleDateString('pt-BR')} />
@@ -371,7 +372,7 @@ const CNHDocument = ({ user, doc, side }) => {
                     </div>
                 </div>
                 <footer className="flex items-end justify-between mt-1 sm:mt-2">
-                    <p className="text-[0.5rem] sm:text-[10px] leading-tight -space-y-1">ASSINATURA DO<br/>PORTADOR</p>
+                    <CitizenSignature user={user} />
                     <QRCode value={doc.qr_code_data || 'gov.rp'} size={32} renderAs="svg" bgColor="transparent" fgColor="#000000" level="L" />
                 </footer>
             </>
@@ -529,7 +530,7 @@ const ProfessionalRegistryDocument = ({ user, doc, side }) => (
                     </div>
                 </main>
                 <footer className="mt-1 text-center text-[10px] sm:text-xs">
-                    <p className="font-serif text-sm sm:text-base">Assinatura do Portador</p>
+                    <CitizenSignature user={user} className="mx-auto" />
                 </footer>
             </>
         ) : (
@@ -592,7 +593,7 @@ export const OfficialDocument = ({ user, doc, onBack, side: initialSide = 'front
   if (!DocumentComponent) return null;
 
   const isFullPageDoc = documentIsFullPage(doc.type);
-  const controls = onBack && <div data-export-ignore className="absolute right-0 top-0 z-50 flex flex-col gap-1 pointer-events-auto">
+  const controls = onBack && <div data-export-ignore className="absolute right-2 top-2 z-50 flex flex-col gap-1 pointer-events-auto">
     <Button title="Fechar documento" variant="destructive" size="icon" aria-label="Fechar documento" type="button" onClick={onBack} className="min-h-11 min-w-11 touch-manipulation bg-red-600 text-white hover:bg-red-700 focus-visible:ring-2 focus-visible:ring-red-300"><X className="h-5 w-5" /></Button>
     {hasTwoSides && <Button title="Virar documento" size="icon" aria-label="Virar documento" type="button" onClick={() => setSide(s => s === 'front' ? 'back' : 'front')} className="min-h-11 min-w-11 touch-manipulation bg-cyan-700 text-white hover:bg-cyan-600 focus-visible:ring-2 focus-visible:ring-cyan-300"><RefreshCw className="h-5 w-5" /></Button>}
   </div>;
@@ -600,7 +601,7 @@ export const OfficialDocument = ({ user, doc, onBack, side: initialSide = 'front
   if (isFullPageDoc) {
     if (!onBack) return <DocumentComponent user={user} doc={doc} />;
     return (
-        <div className="relative w-full max-w-2xl mx-auto rounded-lg pr-14">
+        <div className="relative w-full max-w-2xl mx-auto rounded-lg">
             <div className="overflow-y-auto max-h-[80vh]">
                 <DocumentComponent user={user} doc={doc} />
             </div>
@@ -610,7 +611,7 @@ export const OfficialDocument = ({ user, doc, onBack, side: initialSide = 'front
   }
 
   return (
-    <div className={`relative mx-auto w-full [&_[data-official-document]]:shadow-none ${onBack ? 'max-w-[526px] pr-14' : 'max-w-[470px]'}`}>
+    <div className={`relative mx-auto w-full [&_[data-official-document]]:shadow-none max-w-[470px]`}>
       <DocumentComponent user={user} doc={doc} side={side}/>
       {controls}
     </div>

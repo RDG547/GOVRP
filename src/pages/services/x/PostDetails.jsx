@@ -6,13 +6,9 @@ import { Helmet } from 'react-helmet-async';
 import { supabase } from '@/lib/supabaseClient';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/components/ui/use-toast';
-import { Loader2, ArrowLeft, MessageCircle } from 'lucide-react';
+import { Loader2, ArrowLeft } from 'lucide-react';
 import PostCard from '@/components/social-x/PostCard';
-import Comment from '@/components/social-x/Comment';
-import CreatePostForm from '@/components/social-x/CreatePostForm';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { AnimatePresence, motion } from 'framer-motion';
 
 const PostDetails = () => {
   const { postId } = useParams();
@@ -24,7 +20,6 @@ const PostDetails = () => {
   const removed = useRef(false);
   const [failure, setFailure] = useState(false);
   const [post, setPost] = useState(null);
-  const [comments, setComments] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const fetchPostAndComments = useCallback(async () => {
@@ -45,24 +40,9 @@ const PostDetails = () => {
     }
     setFailure(false);
     if (!postData) {
-      removed.current = true; setPost(null); setComments([]); setLoading(false); return;
+      removed.current = true; setPost(null); setLoading(false); return;
     }
     setPost(postData);
-
-    // Fetch comments
-    const { data: commentsData, error: commentsError } = await supabase
-      .from('comments')
-      .select('*, author:profiles!comments_user_id_fkey(id,username,full_name,x_username,x_handle,x_avatar_url), replies_count')
-      .eq('post_id', postId)
-      .is('parent_comment_id', null)
-      .order('created_at', { ascending: true });
-
-    if (sequence !== request.current || removed.current) return;
-    if (commentsError) {
-      toast({ title: "Erro ao carregar comentários", variant: "destructive" });
-    } else {
-      setComments(commentsData || []);
-    }
 
     setLoading(false);
   }, [postId, user?.id, toast]);
@@ -75,29 +55,13 @@ const PostDetails = () => {
   }, [fetchPostAndComments]);
   useDomainRealtime('x-post-details', `${user?.id}:${postId}`, [
     { table: 'posts' },
-    { table: 'comments', filter: `post_id=eq.${postId}` },
     { table: 'likes', filter: `post_id=eq.${postId}` },
   ], events => {
     if (events.some(event => event.table === 'posts' && event.eventType === 'DELETE' && event.old?.id === postId)) {
-      removed.current = true; request.current++; setPost(null); setComments([]); setLoading(false);
+      removed.current = true; request.current++; setPost(null); setLoading(false);
     } else if (!removed.current) void fetchPostAndComments();
   }, Boolean(user?.id));
   usePublicProfileChanges(fetchPostAndComments);
-
-  const handleCommentAction = (action) => {
-    if (action.type === 'comment_added') {
-      setComments(prev => [...prev.filter(comment => comment.id !== action.newComment.id), action.newComment]);
-    } else if (action.type === 'comment_deleted') {
-      setComments(prev => prev.filter(c => c.id !== action.commentId));
-    } else if (action.type === 'reply_added') {
-      setComments(prev => prev.map(c =>
-          c.id === action.parentCommentId
-            ? { ...c, replies_count: (c.replies_count || 0) + 1 }
-            : c
-      ));
-    }
-  };
-
 
   const handlePostUpdate = (updatedPostId, updatedData) => {
     if (updatedPostId === post?.id) {
@@ -106,7 +70,7 @@ const PostDetails = () => {
   };
 
   const handlePostDelete = () => {
-    removed.current = true; request.current++; setPost(null); setComments([]);
+    removed.current = true; request.current++; setPost(null);
   };
 
   if (loading) {
@@ -134,27 +98,9 @@ const PostDetails = () => {
             <h2 className="text-xl font-bold">Post</h2>
         </div>
 
-        <PostCard post={post} onPostUpdate={handlePostUpdate} onPostDelete={handlePostDelete} />
+        <PostCard commentsAlwaysVisible post={post} onPostUpdate={handlePostUpdate} onPostDelete={handlePostDelete} />
 
-        <div className="p-4 border-b border-border">
-          <Card>
-             <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-lg"><MessageCircle className="w-5 h-5"/> Comentários</CardTitle>
-             </CardHeader>
-             <CardContent>
-                <AnimatePresence>
-                  {comments.map(comment => (
-                    <motion.div key={comment.id} layout initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-                      <Comment comment={comment} post={post} onCommentAction={handleCommentAction}/>
-                    </motion.div>
-                  ))}
-                </AnimatePresence>
-                {comments.length === 0 && (
-                    <p className="text-muted-foreground text-center py-4">Nenhum comentário ainda. Seja o primeiro!</p>
-                )}
-             </CardContent>
-          </Card>
-        </div>
+
     </div>
   );
 };

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Helmet } from 'react-helmet-async';
 import Inventory from '@/components/dashboard/Inventory';
 import PageHeader from '@/components/layout/PageHeader';
-import { Package, Gift, Loader2 } from 'lucide-react';
+import { Package, Gift, Loader2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -103,9 +103,9 @@ const GiftItemDialog = ({ isOpen, setIsOpen, onGiftSuccess }) => {
                     </div>
                 </div>
                 <DialogFooter>
-                    <Button variant="outline" onClick={() => setIsOpen(false)}>Cancelar</Button>
+                    <Button variant="outline" onClick={() => setIsOpen(false)}><X className="mr-2 h-4 w-4" />Cancelar</Button>
                     <Button onClick={handleGift} disabled={gifting || !selectedItem || !recipientCpf}>
-                        {gifting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                        {gifting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Gift className="w-4 h-4 mr-2" />}
                         Enviar Presente
                     </Button>
                 </DialogFooter>

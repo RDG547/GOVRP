@@ -749,15 +749,16 @@ const SelicManager = ({ economicPolicy, bankPolicy, onUpdate }) => {
                         <div className="w-32">
                             <Input
                                 type="number"
-                                min="0"
+                                aria-label="Taxa Selic anual"
+                                min="-20"
                                 max="100"
                                 step="0.01"
                                 value={selicRate}
-                                onChange={(event) => setSelicRate(Number(event.target.value || 0))}
+                                onChange={(event) => setSelicRate(Math.min(100, Math.max(-20, Number(event.target.value || 0))))}
                             />
                         </div>
                     </div>
-                    <Slider value={[Number(selicRate || 0)]} onValueChange={(value) => setSelicRate(Number(value[0] || 0))} max={40} step={0.05} />
+                    <Slider value={[Number(selicRate || 0)]} onValueChange={(value) => setSelicRate(Number(value[0] || 0))} min={-20} max={100} step={0.05} aria-label="Taxa Selic" />
                     <p className="text-sm text-muted-foreground">{getEconomicPressureLabel(selicRate)}</p>
                 </div>
 
@@ -2097,8 +2098,9 @@ const PresidentDashboard = () => {
     const [deficit, setDeficit] = useState(0);
     const [executiveState, setExecutiveState] = useState(null);
     const [activeTab, setActiveTab] = useState('overview');
+    const [financeTab, setFinanceTab] = useState('budget');
 
-    const fetchData = useCallback(async (showLoading = true) => {
+    const fetchData = useCallback(async (showLoading = false) => {
         if (showLoading) setLoading(true);
         try {
             const [ministersRes, ministriesRes, decreesRes, settingsRes, financesRes, economicStateRes, executiveStateRes] = await Promise.all([
@@ -2187,7 +2189,7 @@ const PresidentDashboard = () => {
     }, [toast]);
 
     useEffect(() => {
-        fetchData();
+        fetchData(true);
     }, [fetchData]);
 
     useEffect(() => {
@@ -2456,7 +2458,7 @@ const PresidentDashboard = () => {
                     </TabsContent>
 
                     <TabsContent value="finances" className="mt-6">
-                        <Tabs defaultValue="budget" className="w-full">
+                        <Tabs value={financeTab} onValueChange={setFinanceTab} className="w-full">
                             <div className="overflow-x-auto custom-scrollbar -mx-4 px-4 pb-2 mb-6 flex justify-start sm:justify-center">
                                 <TabsList className="inline-flex min-w-max w-max gap-2 border-b border-border/40 bg-transparent p-0">
                                     <TabsTrigger value="budget" className="min-w-[14rem] shrink-0 data-[state=active]:bg-card data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-t-lg px-6"><Building2 className="mr-2 h-4 w-4" />Orçamento Governamental</TabsTrigger>

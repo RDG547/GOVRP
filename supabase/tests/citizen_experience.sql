@@ -16,6 +16,13 @@ insert into public.accounts(id,user_id,account_number,agency_number,balance)
 select ('22000000-0000-0000-0000-00000000000'||right(id::text,1))::uuid,id,'TEST00'||right(id::text,1),'0001',10000 from public.profiles;
 insert into public.rp_time_settings(id) values(true) on conflict do nothing;
 insert into public.government_rules(rule_key,numeric_value,description) values('business_license_fee',100,'Taxa teste'),('consumption_tax_rate',0.1,'Consumo teste'),('corporate_tax_rate',0.2,'Empresa teste');
+update public.government_rules set rule_kind=case when rule_key='business_license_fee' then 'fee' else 'tax' end,
+ definition=jsonb_build_object('basis',case when rule_key='business_license_fee' then 'license' else 'purchase' end,
+ 'nature',case when rule_key='business_license_fee' then 'fixed' else 'percentage' end,
+ 'payer',case when rule_key='corporate_tax_rate' then 'seller' else 'buyer' end,
+ 'audience',case when rule_key='corporate_tax_rate' then 'business' else 'all' end),is_active=true
+where rule_key in('business_license_fee','consumption_tax_rate','corporate_tax_rate');
+
 insert into public.price_basket_items(code,name,category,weight,base_price,current_price) values('other','Outros','Outros',1,100,100);
 insert into public.business_types(id,name,category,description,registration_fee,min_employees,is_active)
 values('experience-shop','Loja teste','Comércio','Empresa de validação de comércio',100,1,true);

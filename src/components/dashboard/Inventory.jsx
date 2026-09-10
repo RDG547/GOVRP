@@ -127,8 +127,8 @@ const Inventory = () => {
                 <CardContent>
                     <Tabs defaultValue="products">
                         <TabsList className="grid w-full grid-cols-2">
-                            <TabsTrigger value="products">Produtos</TabsTrigger>
-                            <TabsTrigger value="subscriptions">Assinaturas</TabsTrigger>
+                            <TabsTrigger value="products"><Package className="mr-2 h-4 w-4" />Produtos</TabsTrigger>
+                            <TabsTrigger value="subscriptions"><Repeat className="mr-2 h-4 w-4" />Assinaturas</TabsTrigger>
                         </TabsList>
                         <TabsContent value="products" className="mt-4">
                             {inventory.length > 0 ? (

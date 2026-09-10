@@ -1,5 +1,3 @@
-import CitizenNeedsSettings from '@/components/admin/CitizenNeedsSettings';
-import EconomicMixControl from '../components/EconomicMixControl';
 import React, { useState } from 'react';
 import { AlertTriangle, CheckCircle2, Clock3, Database, RefreshCw } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
@@ -41,7 +39,7 @@ const AdminEconomyPanel = ({ data, toast, onRefresh }) => {
 
   return (
     <div className="space-y-6">
-      <EconomicMixControl /><CitizenNeedsSettings />
+      {data?.periods?.some(period => period.metadata?.causal_economy) && <Card><CardHeader><CardTitle>Fatores da atividade econômica</CardTitle></CardHeader><CardContent className="space-y-4">{data.periods.filter(period=>period.metadata?.causal_economy).slice(0,3).map(period=><div key={period.id} className="rounded-lg border p-3"><p className="mb-2 font-medium">{period.rp_month}/{period.rp_year} · ciclo mensal RP</p><dl className="grid grid-cols-2 gap-2 sm:grid-cols-3">{Object.entries({consumption:'Consumo',investment:'Investimento',government:'Gasto público',exports:'Exportações',imports:'Importações',demand_index:'Demanda agregada',real_growth_factor:'Variação real',selic:'Selic'}).map(([key,label])=><div key={key}><dt className="text-xs text-muted-foreground">{label}</dt><dd className="font-medium">{Number(period.metadata.causal_economy[key]).toLocaleString('pt-BR',{maximumFractionDigits:4})}{key==='selic'?'%':' ×'}</dd></div>)}</dl></div>)}</CardContent></Card>}
       <div className="grid gap-6 xl:grid-cols-2">
         <Card className="border-border/70 bg-card/75">
           <CardHeader>

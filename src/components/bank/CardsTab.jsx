@@ -32,7 +32,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { AnimatePresence, motion } from 'framer-motion';
-import { FaCcMastercard, FaCcVisa } from 'react-icons/fa';
+import CardBrandLogo from './CardBrandLogo';
 
 const INVOICES_PER_PAGE = 5;
 
@@ -44,12 +44,6 @@ const getCardBrandLabel = (brand) => {
   if (normalizedBrand === 'mastercard') return 'Mastercard';
   return brand || 'Cartão';
 };
-
-const CardBrandLogo = ({ brand, className = 'h-6 w-8' }) => (
-  normalizeCardBrand(brand) === 'mastercard'
-    ? <FaCcMastercard aria-label="Mastercard" className={`${className} text-orange-400`} />
-    : <FaCcVisa aria-label="Visa" className={`${className} text-blue-300`} />
-);
 
 // Componente para pagar a fatura (inalterado)
 const PayInvoiceDialog = ({ isOpen, setIsOpen, card, onPaymentSuccess }) => {
@@ -618,11 +612,11 @@ const CardsTab = ({ onUpdate }) => {
                     <CardContent className="flex flex-col sm:flex-row gap-4">
                         <Button onClick={() => handleRequestCard('visa')} disabled={isRequesting || cards.some(c => c.brand.toLowerCase() === 'visa') || pendingCardApplications.some(c => c.brand?.toLowerCase() === 'visa')}>
                             {isRequesting && <Loader2 className="animate-spin mr-2 h-4 w-4"/>}
-                            <FaCcVisa className="mr-2 h-5 w-7 text-blue-200"/> Solicitar Cartão Visa
+                            <CardBrandLogo brand="visa" className="mr-2 h-5 w-7" /> Solicitar Cartão Visa
                         </Button>
                          <Button onClick={() => handleRequestCard('mastercard')} disabled={isRequesting || cards.some(c => c.brand.toLowerCase() === 'mastercard') || pendingCardApplications.some(c => c.brand?.toLowerCase() === 'mastercard')}>
                             {isRequesting && <Loader2 className="animate-spin mr-2 h-4 w-4"/>}
-                            <FaCcMastercard className="mr-2 h-5 w-7 text-orange-300"/> Solicitar Cartão Mastercard
+                            <CardBrandLogo brand="mastercard" className="mr-2 h-5 w-7" /> Solicitar Cartão Mastercard
                         </Button>
                     </CardContent>
                 </Card>

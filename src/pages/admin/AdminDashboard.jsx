@@ -1,3 +1,6 @@
+import OfficialSalarySettings from '@/components/admin/OfficialSalarySettings';
+import CitizenNeedsSettings from '@/components/admin/CitizenNeedsSettings';
+import EconomicMixControl from '@/features/economy/components/EconomicMixControl';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
@@ -31,7 +34,11 @@ import JusticeSystem from '@/components/admin/JusticeSystem';
 import SupportManagement from '@/components/admin/SupportManagement';
 import ResetManagement from '@/components/admin/ResetManagement';
 
+const WorldSettings = () => <div className="space-y-6"><EconomicMixControl /><CitizenNeedsSettings /></div>;
+
 const tabs = [
+  { id: "salaries", label: "Remuneração", icon: Users, component: OfficialSalarySettings },
+  { id: "world", label: "Simulação e Sociedade", icon: Settings, component: WorldSettings },
   { id: 'analytics', label: 'Análises', icon: BarChart3, component: SiteAnalytics },
   { id: 'economy', label: 'Economia', icon: Activity, component: EconomySystems },
   { id: 'justice', label: 'Justiça', icon: Gavel, component: JusticeSystem },

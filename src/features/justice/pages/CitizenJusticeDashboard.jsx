@@ -1,3 +1,4 @@
+import { justiceDeadline, justiceRequest } from '@/lib/justice/constants';
 import { justiceStatus } from '@/lib/justice/constants';
 import { useSectionLoader } from '@/hooks/use-section-loader';
 import { CITIZEN_JUSTICE_SECTIONS, citizenJusticeSectionsForEvents } from '@/lib/justice/citizenData';
@@ -570,7 +571,7 @@ const CitizenJusticeDashboard = () => {
                 <div>
                   <CardTitle className="flex items-center gap-2 text-lg">
                     <CalendarClock className="h-5 w-5 text-amber-300" />
-                    {deadline.deadline_type === 'appeal' ? 'Prazo de recurso' : deadline.deadline_type}
+                    {justiceDeadline(deadline.deadline_type)}
                   </CardTitle>
                   <CardDescription className="mt-2">
                     Data RP: {formatJusticeDate(deadline.rp_due_at)}
@@ -620,7 +621,7 @@ const CitizenJusticeDashboard = () => {
                   <div>
                     <CardTitle className="flex items-center gap-2 text-lg">
                       <Gavel className="h-5 w-5 text-violet-300" />
-                      {REQUEST_TYPE_LABELS[request.request_type] || request.request_type}
+                      {justiceRequest(request.request_type)}
                     </CardTitle>
                     <CardDescription className="mt-2">
                       Solicitado em {formatJusticeDate(request.created_at)}
@@ -671,7 +672,7 @@ const CitizenJusticeDashboard = () => {
 
         <TabsContent value="security" className="space-y-6">
           <div className="grid gap-4 md:grid-cols-2">
-            <Card className="glass-effect"><CardHeader><CardTitle className="flex items-center gap-2"><Search className="h-5 w-5 text-red-300" />Mandados em seu nome</CardTitle></CardHeader><CardContent>{data.security.warrants?.length ? data.security.warrants.map((item) => <div key={item.id} className="mb-3 rounded-lg border border-red-500/20 bg-red-500/5 p-3"><p className="font-medium">{item.number}</p><p className="text-sm text-muted-foreground">{item.type} · {justiceStatus(item.status)}</p></div>) : <p className="text-sm text-muted-foreground">Nenhum mandado ativo localizado.</p>}</CardContent></Card>
+            <Card className="glass-effect"><CardHeader><CardTitle className="flex items-center gap-2"><Search className="h-5 w-5 text-red-300" />Mandados em seu nome</CardTitle></CardHeader><CardContent>{data.security.warrants?.length ? data.security.warrants.map((item) => <div key={item.id} className="mb-3 rounded-lg border border-red-500/20 bg-red-500/5 p-3"><p className="font-medium">{item.number}</p><p className="text-sm text-muted-foreground">{justiceRequest(item.type)} · {justiceStatus(item.status)}</p></div>) : <p className="text-sm text-muted-foreground">Nenhum mandado ativo localizado.</p>}</CardContent></Card>
             <Card className="glass-effect"><CardHeader><CardTitle className="flex items-center gap-2"><FileSearch className="h-5 w-5 text-violet-300" />Investigações relacionadas</CardTitle></CardHeader><CardContent>{data.security.investigations?.length ? data.security.investigations.map((item) => <div key={item.number} className="mb-3 rounded-lg border border-violet-500/20 bg-violet-500/5 p-3"><p className="font-medium">{item.number}</p><p className="text-sm text-muted-foreground">{justiceStatus(item.status)}</p></div>) : <p className="text-sm text-muted-foreground">Seu perfil não consta como investigado.</p>}</CardContent></Card>
           </div>
           <Card className="border-emerald-500/25 bg-emerald-500/5"><CardHeader className="sm:flex-row sm:items-center sm:justify-between"><div><CardTitle className="flex items-center gap-2"><BadgeCheck className="h-5 w-5 text-emerald-300" />Atestado de antecedentes</CardTitle><CardDescription>O resultado é calculado no servidor e o documento verificável fica salvo no DIC por 90 dias.</CardDescription></div><Button className="mt-4 sm:mt-0" onClick={handleCertificate} disabled={actionLoading === 'certificate'}>{actionLoading === 'certificate' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ShieldCheck className="mr-2 h-4 w-4" />}Emitir atestado</Button></CardHeader></Card>

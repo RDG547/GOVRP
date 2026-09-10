@@ -1,3 +1,4 @@
+import { useOfficialSalaries, currentSalary } from '@/hooks/use-official-salaries';
 import CitizenRankings from '@/components/CitizenRankings';
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Helmet } from 'react-helmet-async';
@@ -43,7 +44,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from '@/lib/supabaseClient';
 import { useToast } from '@/components/ui/use-toast';
 import { formatCurrency } from '@/lib/utils';
-import { SALARY_TABLE } from '@/lib/salary';
 import {
   buildInvestmentAnnualRate,
   DEFAULT_ECONOMIC_POLICY,
@@ -97,6 +97,7 @@ const DetailItem = ({ label, value, icon: Icon }) => (
 );
 
 const CountryInfo = () => {
+  const { roles: officialSalaries } = useOfficialSalaries();
   const { user } = useAuth();
   const { toast } = useToast();
   const [govFinances, setGovFinances] = useState(null);
@@ -461,7 +462,7 @@ const CountryInfo = () => {
                   <h2 className="text-3xl font-bold text-foreground">Salários dos Servidores Públicos</h2>
                   <p className="text-muted-foreground mt-2">
                     Consulte os valores salariais dos ocupantes de cargos públicos. Os salários são pagos semanalmente,
-                    toda <strong className="text-foreground">Segunda-feira às 10h da manhã</strong>, com recursos do Cofre da União.
+                    toda <strong className="text-foreground">Segunda-feira às 9h da manhã (Brasília)</strong>, com recursos do Cofre da União.
                   </p>
                 </div>
 
@@ -474,7 +475,7 @@ const CountryInfo = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {SALARY_TABLE.map((item, index) => (
+                      {officialSalaries.map((item, index) => (
                         <tr key={item.role} className={`border-b border-white/5 transition-colors hover:bg-white/5 ${index % 2 === 0 ? '' : 'bg-white/[0.02]'}`}>
                           <td className="px-6 py-4">
                             <div className="flex items-center gap-3">
@@ -483,16 +484,16 @@ const CountryInfo = () => {
                             </div>
                           </td>
                           <td className="px-6 py-4 text-right">
-                            <span className="font-bold text-emerald-400">{formatCurrency(item.salary)}</span>
+                            <span className="font-bold text-emerald-400">{formatCurrency(currentSalary(item))}</span>
                           </td>
                         </tr>
                       ))}
                     </tbody>
                     <tfoot>
                       <tr className="bg-white/5">
-                        <td className="px-6 py-4 font-semibold text-foreground">Total (caso todos estivessem preenchidos)</td>
+                        <td className="px-6 py-4 font-semibold text-foreground">Soma de uma remuneração por cargo</td>
                         <td className="px-6 py-4 text-right font-bold text-emerald-400">
-                          {formatCurrency(SALARY_TABLE.reduce((sum, item) => sum + item.salary, 0))}
+                          {formatCurrency(officialSalaries.reduce((sum, item) => sum + currentSalary(item), 0))}
                         </td>
                       </tr>
                     </tfoot>
@@ -503,7 +504,7 @@ const CountryInfo = () => {
                   <Landmark className="h-5 w-5 text-blue-400 flex-shrink-0 mt-0.5" />
                   <div className="text-sm text-muted-foreground">
                     <strong className="text-foreground">Nota:</strong> Todos os pagamentos são realizados automaticamente a cada segunda-feira e
-                    publicados no Diário Oficial da União para garantir total transparência com os cidadãos.
+                    registrados no histórico bancário e na auditoria pública, preservando o valor vigente de cada ciclo.
                   </div>
                 </div>
               </section>

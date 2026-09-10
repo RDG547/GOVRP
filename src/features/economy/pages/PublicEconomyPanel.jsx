@@ -94,11 +94,13 @@ const PublicEconomyPanel = ({ data }) => {
   const state = data?.state || {};
 
   const gdpHistory = useMemo(() => (data?.history || [])
-    .filter((item) => item.indicators?.gdp_total != null || item.indicators?.gdp_real != null)
+    .filter((item) => item.indicators?.gdp_total != null)
     .map((item) => ({
       label: periodLabel(item),
-      gdp: asNumber(item.indicators.gdp_total ?? item.indicators.gdp_real) / 1_000_000,
+      gdp: asNumber(item.indicators.gdp_total) / 1_000_000,
     })), [data]);
+
+  const localGdpHistory = useMemo(() => (data?.history || []).filter(item => item.indicators?.gdp_nominal != null && item.indicators?.gdp_real != null).map(item => ({ label: periodLabel(item), nominal: asNumber(item.indicators.gdp_nominal) / 1_000_000, real: asNumber(item.indicators.gdp_real) / 1_000_000 })), [data]);
 
   const priceHistory = useMemo(() => (data?.history || [])
     .filter((item) => (
@@ -128,11 +130,13 @@ const PublicEconomyPanel = ({ data }) => {
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <EconomyCard
-          label="PIB total"
+          label="PIB nominal em dólares"
           value={formatUsdCurrency(headline.gdp_total ?? headline.gdp_nominal, true)}
-          detail={state.country_rp_active ? 'estado nacional do GOV.RP em dólares' : 'valor em dólares'}
+          detail={headline.gdp_basis === 'annualized_latest_period' ? 'último período fechado, anualizado e convertido pelo câmbio vigente' : 'valor em dólares'}
           icon={BarChart3}
         />
+        {headline.gdp_nominal != null && <EconomyCard label="PIB nominal em reais" value={formatCurrency(headline.gdp_nominal, true)} detail="Produção a preços correntes · referência anualizada" icon={Factory} accent="text-emerald-300" />}
+        {headline.gdp_real != null && <EconomyCard label="PIB real em reais" value={formatCurrency(headline.gdp_real, true)} detail="Produção corrigida pela inflação · referência anualizada" icon={BarChart3} accent="text-violet-300" />}
         <EconomyCard
           label="Crescimento do PIB"
           value={formatPercent(
@@ -196,14 +200,15 @@ const PublicEconomyPanel = ({ data }) => {
 
       <div className="grid gap-6 xl:grid-cols-2">
         <EconomyChart
-          title="Evolução do PIB nacional"
+          title="Evolução do PIB nominal em dólares"
           description="US$ milhões desde o início do estado atual do RP."
           data={gdpHistory}
           series={[
-            { key: 'gdp', name: 'PIB total', color: '#22d3ee' },
+            { key: 'gdp', name: 'PIB nominal USD', color: '#22d3ee' },
           ]}
           type="area"
         />
+        {localGdpHistory.length > 0 && <EconomyChart title="Produção nominal e real" description="R$ milhões anualizados. Valores preservados em cada fechamento; o PIB real desconta a inflação." data={localGdpHistory} series={[{ key: 'nominal', name: 'PIB nominal BRL', color: '#22c55e' }, { key: 'real', name: 'PIB real BRL', color: '#a78bfa' }]} />}
         <EconomyChart
           title="Inflação e desemprego"
           description="Variações oficiais nos fechamentos mensais."
@@ -235,9 +240,9 @@ const PublicEconomyPanel = ({ data }) => {
           </CardHeader>
           <CardContent className="space-y-4">
             {(data?.sectors || []).length ? data.sectors.map((sector) => {
-              const sectorValue = sector.real_value_added ?? sector.value_added;
+              const sectorValue = sector.gdp_usd ?? sector.value_added;
               const maximum = Math.max(...data.sectors.map((item) => (
-                asNumber(item.real_value_added ?? item.value_added)
+                asNumber(item.gdp_usd ?? item.value_added)
               )), 1);
               const width = Math.max(2, asNumber(sectorValue) / maximum * 100);
               const SectorIcon = iconFor(sectorIconByName, sector.name, BarChart3);

@@ -10,6 +10,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
 import RepostModal from './RepostModal';
+import CommentThread from './CommentThread';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -76,57 +77,7 @@ const PoliticalSeal = ({ role }) => {
     );
 }
 
-const InlineComments = ({ postId, currentCount }) => {
-    const [comments, setComments] = useState([]);
-    const [loading, setLoading] = useState(true);
-
-    useEffect(() => {
-        const fetchComments = async () => {
-            if (currentCount === 0) { setComments([]); setLoading(false); return; }
-            setLoading(true);
-            const { data, error } = await supabase
-                .from('comments')
-                .select('*, author:profiles!comments_user_id_fkey(id,full_name,x_username,x_handle,x_avatar_url)')
-                .eq('post_id', postId)
-                .is('parent_comment_id', null)
-                .order('created_at', { ascending: true })
-                .limit(5); // Show only top 5 comments inline
-
-            if (!error && data) {
-                setComments(data);
-            }
-            setLoading(false);
-        };
-        fetchComments();
-    }, [postId, currentCount]);
-
-    if (loading) return <div className="flex justify-center p-2"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>;
-    if (comments.length === 0) return null;
-
-    return (
-        <div className="space-y-3 mt-2 max-h-60 overflow-y-auto custom-scrollbar no-navigate p-1">
-            {comments.map((comment) => (
-                <div key={comment.id} className="flex gap-2">
-                    <img src={comment.author?.x_avatar_url || `https://api.dicebear.com/7.x/micah/svg?seed=${comment.author?.x_handle}`} alt="Avatar" className="w-8 h-8 rounded-full bg-secondary" />
-                    <div className="flex-1 max-w-[calc(100%-2.5rem)]">
-                        <div className="bg-muted/30 p-2 rounded-lg break-words">
-                            <div className="flex items-center gap-1 text-xs mb-1">
-                                <span className="font-bold text-foreground truncate">{comment.author?.full_name}</span>
-                                <span className="text-muted-foreground truncate">@{comment.author?.x_handle}</span>
-                            </div>
-                            <p className="text-sm text-foreground whitespace-pre-wrap">{comment.content}</p>
-                        </div>
-                    </div>
-                </div>
-            ))}
-            {currentCount > 5 && (
-                <p className="text-xs text-primary font-medium text-center italic mt-2">Visite o post para ver mais comentários.</p>
-            )}
-        </div>
-    );
-};
-
-const PostCard = ({ post, onPostUpdate, onPostDelete, onRepostCreated }) => {
+const PostCard = ({ post, onPostUpdate, onPostDelete, onRepostCreated, commentsAlwaysVisible = false }) => {
     const { user } = useAuth();
     const { toast } = useToast();
     const navigate = useNavigate();
@@ -136,8 +87,6 @@ const PostCard = ({ post, onPostUpdate, onPostDelete, onRepostCreated }) => {
     const [repostsCount, setRepostsCount] = useState(post.reposts_count || 0);
     const [commentsCount, setCommentsCount] = useState(post.comments_count || 0);
     const [isCommenting, setIsCommenting] = useState(false);
-    const [commentContent, setCommentContent] = useState('');
-    const [isSubmittingComment, setIsSubmittingComment] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
     const [editedContent, setEditedContent] = useState(post.original_post_id || post.original_post ? (post.quote_content || '') : post.content);
     const [isSavingEdit, setIsSavingEdit] = useState(false);
@@ -164,7 +113,7 @@ const PostCard = ({ post, onPostUpdate, onPostDelete, onRepostCreated }) => {
             return;
         }
 
-        if (action === 'comment') { setIsCommenting(prev => !prev); return; }
+        if (action === 'comment') { if (commentsAlwaysVisible) document.getElementById(`comments-${post.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); else setIsCommenting(prev => !prev); return; }
         if (action === 'repost' && !isReposted) { setIsRepostModalOpen(true); return; }
         if (interactionBusy.current) return;
         interactionBusy.current = true;
@@ -180,27 +129,6 @@ const PostCard = ({ post, onPostUpdate, onPostDelete, onRepostCreated }) => {
             setIsReposted(previous.isReposted); setRepostsCount(previous.repostsCount);
             toast({ title: 'Não foi possível concluir', description: 'Sua alteração não foi salva. Tente novamente.', variant: 'destructive' });
         } finally { interactionBusy.current = false; }
-    };
-
-    const handleCommentSubmit = async (e) => {
-        e.preventDefault();
-        if (!commentContent.trim()) return;
-        setIsSubmittingComment(true);
-        const { error } = await supabase.from('comments').insert({
-            post_id: post.id,
-            user_id: user.id,
-            content: commentContent
-        });
-        setIsSubmittingComment(false);
-        if (error) {
-            toast({ title: "Erro ao comentar", description: error.message, variant: "destructive" });
-        } else {
-            setCommentContent('');
-            setIsCommenting(false);
-            setCommentsCount(prev => prev + 1);
-            toast({ title: "Sucesso!", description: "Seu comentário foi publicado." });
-            if(onPostUpdate) onPostUpdate(post.id, { comments_count: commentsCount + 1 });
-        }
     };
 
     const handleReposted = () => {
@@ -430,33 +358,15 @@ const PostCard = ({ post, onPostUpdate, onPostDelete, onRepostCreated }) => {
                 </div>
 
                 <AnimatePresence>
-                    {isCommenting && (
+                    {(commentsAlwaysVisible || isCommenting) && (
                         <motion.div
                             initial={{ opacity: 0, height: 0, marginTop: 0 }}
                             animate={{ opacity: 1, height: 'auto', marginTop: '1rem' }}
                             exit={{ opacity: 0, height: 0, marginTop: 0 }}
-                            className="overflow-hidden space-y-4"
+                            id={`comments-${post.id}`} className="overflow-hidden space-y-4"
                             onClick={(e) => e.stopPropagation()} // Prevent card click navigation
                         >
-                            <InlineComments postId={post.id} currentCount={commentsCount} />
-                            <form onSubmit={handleCommentSubmit} className="flex items-start gap-2 pt-2 border-t border-border mt-2">
-                                <img src={user.x_avatar_url || `https://api.dicebear.com/7.x/micah/svg?seed=${user.x_handle}`} alt="Seu avatar" className="w-8 h-8 rounded-full mt-1" />
-                                <div className="flex-1">
-                                  <Textarea
-                                      placeholder={`Respondendo a @${handle}`}
-                                      value={commentContent}
-                                      onChange={(e) => setCommentContent(e.target.value)}
-                                      className="w-full"
-                                      rows={2}
-                                  />
-                                  <div className="flex justify-end mt-2">
-                                      <Button type="submit" size="sm" disabled={isSubmittingComment || !commentContent.trim()}>
-                                          {isSubmittingComment ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Send className="w-4 h-4 mr-2" />}
-                                          Comentar
-                                      </Button>
-                                  </div>
-                                </div>
-                            </form>
+                            <CommentThread postId={post.id} />
                         </motion.div>
                     )}
                 </AnimatePresence>

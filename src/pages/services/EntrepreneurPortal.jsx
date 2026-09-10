@@ -399,7 +399,7 @@ const BusinessDetailModal = ({ business, onClose, onRegister, isRegistering }) =
           <p className="text-muted-foreground leading-relaxed">{business.description}</p>
 
           {/* Quick Stats Grid */}
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="rounded-xl border border-white/10 bg-white/5 p-4 text-center">
               <DollarSign className="w-5 h-5 mx-auto mb-2 text-emerald-400" />
               <p className="text-xs text-muted-foreground">Taxa de registro</p>
@@ -450,10 +450,11 @@ const BusinessDetailModal = ({ business, onClose, onRegister, isRegistering }) =
             </Badge>
             <Badge className="border text-sm px-3 py-1 bg-white/5 border-white/20 text-foreground">
               <TrendingUp className={`w-3.5 h-3.5 mr-1.5 ${PROFIT_COLOR[business.profitPotential]}`} />
-              Potencial: {business.profitPotential}
+              Potencial de lucro: {business.profitPotential}
             </Badge>
           </div>
 
+          <p className="text-sm text-muted-foreground">Estimativa qualitativa do setor. O resultado depende da demanda, dos preços, das vendas, dos impostos e dos custos operacionais; não representa lucro garantido.</p>
           {/* Register CTA */}
           <Button
             onClick={() => onRegister(business)}
@@ -523,7 +524,7 @@ const BusinessTypeCard = ({ business, index, onSelect }) => {
           </div>
           <div className="flex items-center justify-between text-sm pt-1">
             <span className="text-muted-foreground flex items-center gap-1.5"><Users className="w-3.5 h-3.5" /> {business.minEmployees}+ funcionários</span>
-            <span className={`font-medium ${PROFIT_COLOR[business.profitPotential]}`}>{business.profitPotential}</span>
+            <span className={`font-medium ${PROFIT_COLOR[business.profitPotential]}`}>Potencial de lucro: {business.profitPotential}</span>
           </div>
           <div className="flex items-center justify-end text-primary font-medium text-sm group-hover:translate-x-1 transition-transform">
             Ver detalhes <ChevronRight className="w-4 h-4 ml-1" />

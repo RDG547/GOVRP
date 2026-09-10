@@ -1,3 +1,5 @@
+import { canonicalRole } from '@/lib/roleIcons';
+import { useOfficialSalaries, currentSalary } from '@/hooks/use-official-salaries';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { AlertTriangle, Banknote, Briefcase, Clock3, X } from 'lucide-react';
@@ -6,8 +8,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabaseClient';
 import {
   getLatestSalaryPayment,
-  getSalaryInfoByRole,
-  resolveSalaryInfoFromRolePool,
 } from '@/lib/salary';
 import { formatCurrency } from '@/lib/utils';
 
@@ -58,30 +58,11 @@ const SalaryPaymentPopup = () => {
   const [failureNotification, setFailureNotification] = useState(null);
   const [isVisible, setIsVisible] = useState(false);
 
-  const rolePool = useMemo(() => {
-    if (Array.isArray(user?.effective_roles)) {
-      return user.effective_roles;
-    }
-
-    if (Array.isArray(user?.role)) {
-      return user.role.filter(Boolean);
-    }
-
-    return [user?.role].filter(Boolean);
-  }, [user?.effective_roles, user?.role]);
-
+  const { roles } = useOfficialSalaries();
   const popupStorageKey = user?.id ? `${POPUP_STORAGE_KEY_PREFIX}:${user.id}:${user.citizen_id || 'pending'}` : null;
-  const currentSalaryInfo = useMemo(
-    () => resolveSalaryInfoFromRolePool(rolePool),
-    [rolePool]
-  );
-
-  const salaryInfo = useMemo(
-    () =>
-      getSalaryInfoByRole(payment?.role || failureNotification?.metadata?.role) ||
-      currentSalaryInfo,
-    [currentSalaryInfo, failureNotification?.metadata?.role, payment?.role]
-  );
+  const role = canonicalRole(payment?.role || failureNotification?.metadata?.role || user?.role);
+  const configured = roles.find(item => item.role === role);
+  const salaryInfo = { role, title: payment?.title || payment?.salary_snapshot?.title || configured?.title || role, salary: configured ? currentSalary(configured) : 0 };
 
   const markPaymentAsSeen = useCallback(
     (entry) => {
@@ -248,7 +229,7 @@ const SalaryPaymentPopup = () => {
   const paymentAmount =
     popupMode === 'failure'
       ? Number(failureNotification?.metadata?.expected_amount || salaryInfo?.salary || 0)
-      : resolvePaymentAmount(payment) || salaryInfo?.salary || 0;
+      : resolvePaymentAmount(payment);
   const roleLabel =
     salaryInfo?.title ||
     salaryInfo?.role ||

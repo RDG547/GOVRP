@@ -1,3 +1,8 @@
+import CitizenFinancialSummary from './CitizenFinancialSummary';
+import CitizenLegalSummary from './CitizenLegalSummary';
+import { Link } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
+import { Package } from 'lucide-react';
 import React, { lazy, Suspense } from 'react';
 import { Building2, Landmark, LayoutDashboard, Loader2, Scale } from 'lucide-react';
 import CitizenDashboard from '@/components/dashboard/CitizenDashboard';
@@ -24,6 +29,7 @@ const IntegratedCitizenDashboard = () => (
         <p className="mt-1 text-sm text-muted-foreground">
           Sua rotina, poder de compra, empresas e vida jurídica agora fazem parte do mesmo painel.
         </p>
+        <Button asChild variant="outline" className="mt-3"><Link to="/services/inventory"><Package className="mr-2 h-4 w-4" />Meu Inventário</Link></Button>
       </div>
     </div>
 
@@ -35,15 +41,15 @@ const IntegratedCitizenDashboard = () => (
         </TabsTrigger>
         <TabsTrigger value="economy">
           <Landmark className="mr-2 h-4 w-4" />
-          Minha economia
+          Meu Financeiro
         </TabsTrigger>
         <TabsTrigger value="business">
           <Building2 className="mr-2 h-4 w-4" />
-          Empresas
+          Minhas Empresas
         </TabsTrigger>
         <TabsTrigger value="justice">
           <Scale className="mr-2 h-4 w-4" />
-          Justiça
+          Minha vida jurídica
         </TabsTrigger>
       </TabsList>
 
@@ -52,17 +58,17 @@ const IntegratedCitizenDashboard = () => (
       </TabsContent>
       <TabsContent value="economy" className="mt-6">
         <Suspense fallback={<PanelFallback />}>
-          <EmbeddedEconomyPanel view="citizen" />
+          <CitizenFinancialSummary />
         </Suspense>
       </TabsContent>
-      <TabsContent value="business" className="mt-6">
+      <TabsContent value="business" className="mt-6"><Button asChild variant="outline" className="mb-4"><Link to="/services/entrepreneur-portal">Administrar minhas empresas</Link></Button>
         <Suspense fallback={<PanelFallback />}>
           <EmbeddedEconomyPanel view="business" />
         </Suspense>
       </TabsContent>
       <TabsContent value="justice" className="mt-6">
         <Suspense fallback={<PanelFallback />}>
-          <CitizenJusticeDashboard />
+          <CitizenLegalSummary />
         </Suspense>
       </TabsContent>
     </Tabs>

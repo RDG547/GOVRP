@@ -1,4 +1,5 @@
 const asFiniteNumber = (value) => {
+  if (value == null || value === '') return null;
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : null;
 };
@@ -13,6 +14,9 @@ export const normalizeRpEconomicState = (value) => {
   const exchangeUsd = asFiniteNumber(economic.exchangeUsd);
   const localCurrency = String(economic.currency || 'BRL').toUpperCase();
   const gdpCurrency = String(economic.gdpCurrency || 'USD').toUpperCase();
+
+  const nominalLocal = economic.gdpNominalLocal == null ? null : asFiniteNumber(economic.gdpNominalLocal);
+  if (nominalLocal !== null && exchangeUsd > 0 && localCurrency === 'BRL') return { ...economic, gdp: nominalLocal / exchangeUsd, gdpCurrency: 'USD' };
 
   if (gdp !== null && gdpCurrency === localCurrency && gdpCurrency !== 'USD' && exchangeUsd !== null && exchangeUsd > 0) {
     return {
@@ -58,8 +62,8 @@ const normalizeSnapshotHistory = (snapshots, currentState) => {
     revision: revision ?? index,
     indicators: withoutNullishValues({
       gdp_total: asFiniteNumber(economic.gdp),
-      gdp_nominal: asFiniteNumber(economic.gdp),
-      gdp_real: asFiniteNumber(economic.gdp),
+      gdp_nominal: asFiniteNumber(economic.gdpNominalLocal),
+      gdp_real: asFiniteNumber(economic.gdpRealLocal),
       gdp_growth_year_over_year: asFiniteNumber(economic.growth),
       inflation_annual: asFiniteNumber(economic.inflation),
       unemployment_rate: asFiniteNumber(economic.unemployment),
@@ -74,7 +78,7 @@ const scaleSectorsToNationalGdp = (sectors, nationalGdp) => {
   if (gdp === null || !sectors?.length) return sectors ?? [];
 
   const total = sectors.reduce((sum, sector) => (
-    sum + Math.max(0, asFiniteNumber(sector.real_value_added ?? sector.value_added) ?? 0)
+    sum + Math.max(0, asFiniteNumber(sector.value_added ?? sector.real_value_added) ?? 0)
   ), 0);
 
   if (total <= 0) return sectors;
@@ -82,14 +86,13 @@ const scaleSectorsToNationalGdp = (sectors, nationalGdp) => {
   return sectors.map((sector) => {
     const sourceValue = Math.max(
       0,
-      asFiniteNumber(sector.real_value_added ?? sector.value_added) ?? 0,
+      asFiniteNumber(sector.value_added ?? sector.real_value_added) ?? 0,
     );
     const value = gdp * sourceValue / total;
 
     return {
       ...sector,
-      value_added: value,
-      real_value_added: value,
+      gdp_usd: value,
       national_share: sourceValue / total,
     };
   });
@@ -123,7 +126,7 @@ export const composeNationalEconomyDashboard = ({ dashboard, rpState, snapshots 
   const exchangeUsd = asFiniteNumber(economic.exchangeUsd);
   const exchangeEur = asFiniteNumber(economic.exchangeEur);
   const inflationTarget = asFiniteNumber(dashboard.state?.inflation_target);
-  const economicCycle = classifyEconomicCycle({
+  const economicCycle = dashboard.state?.economic_cycle || classifyEconomicCycle({
     growth,
     inflation,
     target: inflationTarget,
@@ -148,8 +151,10 @@ export const composeNationalEconomyDashboard = ({ dashboard, rpState, snapshots 
       ...(dashboard.headline || {}),
       ...(gdp !== null ? {
         gdp_total: gdp,
-        gdp_nominal: gdp,
-        gdp_real: gdp,
+        gdp_nominal: asFiniteNumber(economic.gdpNominalLocal),
+        gdp_real: asFiniteNumber(economic.gdpRealLocal),
+        gdp_basis: economic.gdpBasis,
+        gdp_period: economic.gdpPeriod,
         gdp_currency: economic.gdpCurrency || 'USD',
       } : {}),
       ...(growth !== null ? {

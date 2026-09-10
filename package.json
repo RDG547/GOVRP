@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite --host :: --port 3000",
-    "build": "node tools/generate-llms.js || true && vite build",
+    "build": "vite build",
     "preview": "vite preview --host :: --port 3000",
     "tunnel": "npx --yes cloudflared tunnel --url http://127.0.0.1:3000",
     "lint": "eslint . --quiet",
@@ -46,7 +46,9 @@
     "test:citizen-needs": "node tools/test-citizen-needs-world.mjs",
     "test:citizen-government": "node tools/test-citizen-government-world.mjs",
     "test:citizen-interface": "node tools/test-citizen-needs-interface.mjs",
-    "test:citizen-commerce-notifications": "node tools/test-citizen-commerce-notifications.mjs"
+    "test:citizen-commerce-notifications": "node tools/test-citizen-commerce-notifications.mjs",
+    "test:continuous-world": "node tools/test-continuous-world.mjs",
+    "test:pwa-update": "node tools/test-pwa-update.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.0",

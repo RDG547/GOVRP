@@ -1,3 +1,4 @@
+import { PwaInstallAction } from '@/components/PwaInstallPrompt';
 import CitizenNeedsHUD from '@/components/CitizenNeedsHUD';
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
@@ -197,6 +198,7 @@ const Navbar = () => {
                         <AnimatePresence>
                           {helpOpen && (
                             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }} className="absolute top-full left-1/2 -translate-x-1/2 mt-4 w-48 bg-popover border border-border rounded-lg shadow-2xl p-2">
+                                <PwaInstallAction onClick={() => setHelpOpen(false)} />
                                 {helpLinks.map((helpLink) => (
                                   <Link key={helpLink.path} to={helpLink.path} className="flex items-center space-x-3 px-2 py-2 text-sm hover:bg-accent transition-colors rounded-md text-popover-foreground">
                                     <helpLink.icon className={`w-4 h-4 ${helpLink.color}`}/><span>{helpLink.name}</span>
@@ -509,6 +511,7 @@ const MobileMenu = ({ isOpen, setIsOpen }) => {
                     {openSubmenu === 'help' && (
                       <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden pl-8">
                         <div className="pt-2 pb-2 space-y-1 border-l-2 border-border">
+                          <PwaInstallAction onClick={() => setIsOpen(false)} />
                           {helpLinks.map(s => <Link key={s.path} to={s.path} onClick={() => setIsOpen(false)} className="text-lg p-3 rounded-md hover:bg-accent flex items-center w-full text-foreground gap-3"><s.icon className={`w-5 h-5 ${s.color}`}/>{s.name}</Link>)}
                         </div>
                       </motion.div>

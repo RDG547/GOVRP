@@ -1,3 +1,4 @@
+import ElectoralManagement from '@/components/elections/ElectoralManagement';
 import React, { useState, useEffect, useCallback } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { useToast } from '@/components/ui/use-toast';
@@ -590,16 +591,19 @@ const Elections = () => {
                     centered={true}
                 />
 
-                <ExecutiveConstitutionCard executiveState={executiveState} />
 
                 <Tabs defaultValue="cidadao" className="w-full">
-                    <TabsList className="grid w-full grid-cols-2 md:grid-cols-3 h-auto">
+                    <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 h-auto">
                         {serviceSections.map((section) => (
                             <TabsTrigger key={section.value} value={section.value} className="flex flex-col sm:flex-row gap-2 items-center justify-center py-3">
                                 <section.icon className="w-5 h-5" /><span>{section.label}</span>
                             </TabsTrigger>
                         ))}
+                        <TabsTrigger value="how" className="flex gap-2 items-center py-3"><Info className="h-5 w-5" />Como funciona</TabsTrigger>
+                        {['Admin','Presidente do Portal Eleitoral'].includes(user?.role)&&<TabsTrigger value="management" className="flex gap-2 items-center py-3"><Vote className="h-5 w-5"/>Gestão eleitoral</TabsTrigger>}
                     </TabsList>
+                    <TabsContent value="how"><ExecutiveConstitutionCard executiveState={executiveState} /></TabsContent>
+                    {['Admin','Presidente do Portal Eleitoral'].includes(user?.role)&&<TabsContent value="management"><ElectoralManagement /></TabsContent>}
                     {serviceSections.map((section) => (
                         <TabsContent key={section.value} value={section.value}>
                             <Card className="glass-effect mt-6">

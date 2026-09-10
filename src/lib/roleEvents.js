@@ -1,4 +1,5 @@
 const destinations = {
+ 'Presidente do Portal Eleitoral': ['/services/elections','Ir para o Portal Eleitoral','Você organiza o calendário e analisa candidaturas conforme as regras eleitorais. Votos e resultados permanecem sob o processo eleitoral.'],
  'Diretor-Geral de Polícia': ['/services/justice','Ir para Segurança e Justiça','Você dirige a Polícia do GOVRP e acompanha ocorrências, investigações e cumprimento de mandados.'],
  'Comandante-Geral das Forças Armadas': ['/services/armed-forces','Conhecer as Forças Armadas','Você coordena o comando militar e suas atribuições institucionais.'],
  'Comandante da Agência de Inteligência': ['/services/agies','Conhecer a Agência de Inteligência','Você coordena a atuação institucional da Agência de Inteligência.'],

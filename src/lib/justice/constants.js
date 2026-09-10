@@ -119,3 +119,7 @@ export function justiceStatus(value, context = '') {
   if (value === 'dismissed' && context === 'request') return 'Indeferido';
   return JUSTICE_STATUS_LABELS[value] || (/[_]|^[a-z]+$/.test(value || '') ? 'Situação em atualização' : value || 'Não informado');
 }
+
+export const JUSTICE_DEADLINE_LABELS = { initial_defense: 'Prazo de defesa inicial', defense: 'Prazo de defesa', appeal: 'Prazo de recurso', evidence: 'Prazo de apresentação de provas', compliance: 'Prazo de cumprimento', response: 'Prazo de manifestação', investigation: 'Prazo de investigação' };
+export const justiceDeadline = value => JUSTICE_DEADLINE_LABELS[value] || 'Prazo processual';
+export const justiceRequest = value => REQUEST_TYPE_LABELS[value] || ({ arrest: 'Mandado de prisão', search: 'Mandado de busca', seizure: 'Mandado de apreensão' })[value] || 'Pedido judicial';

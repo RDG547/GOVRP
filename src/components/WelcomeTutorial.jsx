@@ -1,3 +1,4 @@
+import { ASPIRATIONS, ASPIRATION_TONES } from '@/lib/citizenOnboarding';
 import { Link } from 'react-router-dom';
 import { Checkbox } from '@/components/ui/checkbox';
 import { tutorialPath, shouldShowTutorial } from '@/lib/tutorial';
@@ -73,28 +74,31 @@ export default function WelcomeTutorial() {
     news: { ...steps[3], title: 'Informação e imprensa', description: 'Leia o jornal, acompanhe o Diário Oficial e descubra os acontecimentos nacionais. Comunicação ajuda você a participar da vida pública.', color: colors[3] },
     dashboard: { ...steps[1], color: colors[1] },
   };
-  const orderedSteps = [steps[0], ...recommended.links.map(link => ({ ...areaSteps[link.key], to: link.to })), ...steps.slice(1).filter(step => !recommended.links.some(link => areaSteps[link.key]?.title === step.title))];
+  const aspiration = ASPIRATIONS.find(item => item.key === user?.initial_aspiration) || ASPIRATIONS.find(item => item.key === 'civil_life');
+  const orientation = { title: `Sua aspiração é ${aspiration.title}`, description: recommended.description, icon: aspiration.icon, color: ASPIRATION_TONES[aspiration.tone].icon, links: recommended.links };
+  const orderedSteps = [{ ...steps[0], color: colors[0] }, orientation, ...recommended.links.map(link => ({ ...areaSteps[link.key], to: link.to })), ...steps.slice(1).map((step, i) => ({ ...step, color: colors[i + 1] })).filter(step => !recommended.links.some(link => areaSteps[link.key]?.title === step.title))];
   const current = orderedSteps[Math.min(index, orderedSteps.length - 1)];
   const Icon = current.icon;
   const firstName = user?.full_name?.split(' ')[0] || 'cidadão';
   return <Dialog open={open} onOpenChange={(next) => { if (!next) void finish(); }}>
-    <DialogContent className="max-h-[90dvh] overflow-y-auto p-5 sm:max-w-2xl sm:p-8" onInteractOutside={event => event.preventDefault()}>
-      <DialogHeader>
-        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Primeiros passos · {index + 1} de {orderedSteps.length}</p>
-        <DialogTitle className="text-2xl">{index === 0 ? `Bem-vindo ao GOVRP, ${firstName}!` : current.title}</DialogTitle>
-        <DialogDescription>Sua jornada começa com suas escolhas.</DialogDescription>
+    <DialogContent className="flex h-[min(620px,calc(100dvh-24px))] max-h-[calc(100dvh-24px)] flex-col gap-3 p-4 sm:max-w-xl sm:p-6" onInteractOutside={event => event.preventDefault()}>
+      <DialogHeader className="shrink-0 text-center sm:text-center pr-4">
+        <p className="text-[11px] font-semibold uppercase tracking-widest text-primary">Primeiros passos · {index + 1} de {orderedSteps.length}</p>
+        <DialogTitle className="text-lg sm:text-2xl">{index === 0 ? `Bem-vindo ao GOVRP, ${firstName}!` : current.title}</DialogTitle>
+        <DialogDescription className="sr-only">Sua jornada começa com suas escolhas.</DialogDescription>
       </DialogHeader>
-      <div className="mt-2 grid gap-5 sm:grid-cols-[64px_1fr]">
-        <div className={`flex h-16 w-16 items-center justify-center rounded-2xl ${current.color || colors[0]}`}><Icon className="h-8 w-8" /></div>
-        <div><p className="text-base leading-relaxed">{current.description}</p><p className="mt-4 rounded-xl bg-secondary p-4 text-sm text-muted-foreground">{current.hint || paths[user?.initial_aspiration] || paths.civil_life}</p></div>
+      <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 text-center">
+        <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl sm:h-16 sm:w-16 ${current.color}`}><Icon className="h-7 w-7 sm:h-8 sm:w-8" /></div>
+        <p className="text-sm leading-relaxed sm:text-base">{current.description}</p>
+        {current.links ? <div className="flex flex-wrap justify-center gap-2">{current.links.map(link => { const AreaIcon = areaSteps[link.key].icon; return <Button key={link.to} asChild size="sm" variant="outline"><Link to={link.to} onClick={() => { void finish(false); }}><AreaIcon className={`mr-2 h-4 w-4 ${areaSteps[link.key].color.split(' ')[0]}`} />{link.label}</Link></Button>; })}</div> : current.hint && <p className="rounded-xl bg-secondary p-3 text-xs text-muted-foreground sm:text-sm">{current.hint}</p>}
       </div>
-      <aside className="rounded-xl border border-primary/20 p-4 space-y-3"><p className="text-sm">{recommended.description}</p><div className="flex flex-wrap gap-2">{recommended.links.map(link => <Button key={link.to} asChild size="sm" variant="outline"><Link to={link.to} onClick={() => { void finish(false); }}>{link.label}</Link></Button>)}</div></aside>
-      <label className="flex items-center gap-3 text-sm cursor-pointer"><Checkbox checked={dontShowAgain} onCheckedChange={value => setDontShowAgain(value === true)} />Não mostrar novamente</label>
-      <div className="my-3 flex gap-1.5" aria-label={`Etapa ${index + 1} de ${orderedSteps.length}`}>{orderedSteps.map((step, i) => <span key={step.title} className={`h-1.5 flex-1 rounded-full ${i <= index ? 'bg-primary' : 'bg-secondary'}`} />)}</div>
-      <div className="flex flex-wrap justify-between gap-2">
-        <Button variant="ghost" disabled={saving} onClick={() => finish(false)}><X className="mr-2 h-4 w-4" />Pular</Button>
-        <div className="flex gap-2"><Button variant="outline" disabled={index === 0 || saving} onClick={() => setIndex(i => i - 1)}><ArrowLeft className="mr-2 h-4 w-4" />Voltar</Button>
-          {index < orderedSteps.length - 1 ? <Button onClick={() => setIndex(i => i + 1)}><ArrowRight className="mr-2 h-4 w-4" />Próximo</Button> : <Button disabled={saving} onClick={() => finish(true)}>{saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Check className="mr-2 h-4 w-4" />}Começar minha jornada</Button>}
+      <div className="shrink-0 space-y-3">
+        <label className="flex items-center justify-center gap-3 text-sm cursor-pointer"><Checkbox checked={dontShowAgain} onCheckedChange={value => setDontShowAgain(value === true)} />Não mostrar novamente</label>
+        <div className="flex gap-1" aria-label={`Etapa ${index + 1} de ${orderedSteps.length}`}>{orderedSteps.map((step, i) => <span key={`${i}-${step.title}`} className={`h-1 flex-1 rounded-full ${i <= index ? 'bg-primary' : 'bg-secondary'}`} />)}</div>
+        <div className="grid grid-cols-[auto_1fr_1fr] gap-1.5">
+          <Button className="px-2" variant="ghost" disabled={saving} onClick={() => finish(false)}>Pular</Button>
+          <Button className="px-2" variant="outline" disabled={index === 0 || saving} onClick={() => setIndex(i => i - 1)}><ArrowLeft className="mr-1 h-4 w-4" />Voltar</Button>
+          {index < orderedSteps.length - 1 ? <Button className="px-2" onClick={() => setIndex(i => i + 1)}>Próximo<ArrowRight className="ml-1 h-4 w-4" /></Button> : <Button className="px-2" disabled={saving} onClick={() => finish(true)}>{saving ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Check className="mr-1 h-4 w-4" />}Começar</Button>}
         </div>
       </div>
     </DialogContent>

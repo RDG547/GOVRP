@@ -63,11 +63,46 @@ try {
   await pa.locator('form').filter({has:pa.getByPlaceholder('O que está acontecendo?')}).getByRole('button',{name:'Postar',exact:true}).click();
   await pb.getByText(`Post E2E ${a.handle}`,{exact:true}).waitFor({timeout:20000});
   const post=await request(service.from('posts').select('id').eq('user_id',a.id).eq('content',`Post E2E ${a.handle}`).single());
+  // Feed and detail use the same conversation, preserving the root composer on incoming replies.
+  await pa.getByRole('button',{name:/^Comentar \(/}).first().click();
+  const feedThread=pa.getByRole('region',{name:'Conversa da publicação'}).first();
+  await feedThread.getByRole('textbox',{name:'Escrever comentário',exact:true}).fill('Conversa E2E em todos os níveis');
+  await feedThread.getByRole('button',{name:'Comentar',exact:true}).click();
+  await pb.goto(`${origin}/services/x/post/${post.id}`);
+  const detailThread=pb.getByRole('region',{name:'Conversa da publicação'});
+  await detailThread.getByText('Conversa E2E em todos os níveis',{exact:true}).waitFor();
+  const conversationLoad=await pb.evaluate(()=>performance.timeOrigin);
+  const rootComment=feedThread.getByRole('article').first();
+  for(let edit=1;edit<=2;edit++){
+    await rootComment.getByRole('button',{name:'Editar comentário',exact:true}).first().click();
+    await rootComment.getByRole('textbox',{name:'Editar comentário',exact:true}).fill(`Conversa alterada ${edit}`);
+    await rootComment.getByRole('button',{name:'Salvar',exact:true}).click();
+    await detailThread.getByText(`Editado ${edit}x`,{exact:true}).waitFor({timeout:20000});
+  }
+  for(let level=1;level<=5;level++){
+    const parent=detailThread.getByRole('article').last();
+    await parent.getByRole('button',{name:'Responder',exact:true}).first().click();
+    const replyBox=parent.getByRole('textbox',{name:'Escrever resposta',exact:true});
+    assert((await replyBox.inputValue()).startsWith('@'));
+    await replyBox.fill(`Resposta E2E nível ${level}`);
+    await parent.locator('form').getByRole('button',{name:'Responder',exact:true}).click();
+    await feedThread.getByText(`Resposta E2E nível ${level}`,{exact:true}).waitFor({timeout:20000});
+  }
+  await responsive(pb,'Conversa com cinco níveis de respostas');
+  await detailThread.getByRole('textbox',{name:'Escrever comentário',exact:true}).fill('Rascunho preservado na conversa');
+  await rootComment.getByRole('button',{name:'Remover comentário',exact:true}).first().click();
+  await detailThread.getByText('Este comentário foi removido.',{exact:true}).waitFor({timeout:20000});
+  assert(await detailThread.getByText('Resposta E2E nível 5',{exact:true}).isVisible());
+  assert.equal(await detailThread.getByRole('textbox',{name:'Escrever comentário',exact:true}).inputValue(),'Rascunho preservado na conversa');
+  assert.equal(await pb.evaluate(()=>performance.timeOrigin),conversationLoad);
+  await pb.goto(`${origin}/services/x/profile/${a.handle}`);
+  await pb.getByText(`Post E2E ${a.handle}`,{exact:true}).waitFor();
+  console.log('✓ Conversa compartilhada no Feed e detalhe: duas edições, cinco níveis, menções e remoção preservam respostas e formulário');
   await pa.getByPlaceholder('O que está acontecendo?').fill('Rascunho preservado durante eventos');
   await rpc(a.client,'delete_post',{p_post_id:post.id});
   await pb.getByText(`Post E2E ${a.handle}`,{exact:true}).waitFor({state:'detached',timeout:20000});
   assert.equal(await pa.getByPlaceholder('O que está acontecendo?').inputValue(),'Rascunho preservado durante eventos');
-  assert.equal(await pa.evaluate(()=>performance.timeOrigin),loadsA); assert.equal(await pb.evaluate(()=>performance.timeOrigin),loadsB);
+  assert.equal(await pa.evaluate(()=>performance.timeOrigin),loadsA);
   console.log('✓ Post criado e removido atualiza perfil; formulário e documento da página permanecem');
   await request(service.from('profiles').update({x_bio:'Bio atualizada com perfil aberto',x_username:`Nome atualizado ${a.handle}`}).eq('id',a.id));
   await pb.getByText('Bio atualizada com perfil aberto',{exact:true}).waitFor({timeout:20000});
@@ -86,6 +121,8 @@ try {
     await close.waitFor();
     await waitFor(async()=>Math.abs((await close.boundingBox()).width-44)<0.1,'fim da animação do documento');
     const c=await close.boundingBox(),f=await flip.boundingBox();
+    const card=await pa.getByRole('dialog').locator('[data-official-document]').first().boundingBox();
+    assert(c.x>=card.x&&c.y>=card.y&&f.x+f.width<=card.x+card.width&&f.y+f.height<=card.y+card.height, 'controles dentro do documento '+width);
 
     assert(c.width>=43.9 && c.height>=43.9 && f.width>=43.9 && f.height>=43.9 && c.y<f.y && c.x>=0 && c.x+c.width<=width,`controles DIC ${width}`);
     await flip.click(); await close.focus(); assert(await close.evaluate(el=>el===document.activeElement));
@@ -101,12 +138,14 @@ try {
   console.log('✓ Alteração de cargo abre modal online e registra ciência pela interface');
   const learner=await actor('tutorialpolitico','Cidadão',{tutorial_dont_show_again:false,initial_aspiration:'politics'});
   const pt=await login(learner);
-  await pt.getByText(/Como você demonstrou interesse pela política/).waitFor({timeout:20000});
+  await pt.getByRole('button',{name:'Próximo',exact:true}).click(); await pt.getByText(/Como você demonstrou interesse pela política/).waitFor({timeout:20000});
   await pt.setViewportSize({width:320,height:950}); await pt.screenshot({path:'/tmp/govrp-world-tutorial-320.png'});
   await responsive(pt,'Tutorial personalizado');
+  for(const width of widths){await pt.setViewportSize({width,height:640});const dialog=pt.getByRole('dialog');assert(await dialog.evaluate(el=>el.scrollHeight<=el.clientHeight+1),'tutorial sem scroll '+width);assert(await pt.getByRole('button',{name:'Próximo',exact:true}).evaluate(el=>{const r=el.getBoundingClientRect();return r.top>=0&&r.bottom<=innerHeight;}),'rodapé visível '+width);}
+  console.log('✓ Tutorial cabe em 640px de altura nas nove larguras, com rodapé visível');
   await pt.getByRole('button',{name:'Pular',exact:true}).click(); await pt.context().close();
   const pt2=await login(learner);
-  await pt2.getByText(/Como você demonstrou interesse pela política/).waitFor({timeout:20000});
+  await pt2.getByRole('button',{name:'Próximo',exact:true}).click(); await pt2.getByText(/Como você demonstrou interesse pela política/).waitFor({timeout:20000});
   await pt2.getByRole('checkbox',{name:'Não mostrar novamente',exact:true}).click();
   await pt2.getByRole('button',{name:'Pular',exact:true}).click(); await pt2.context().close();
   const pt3=await login(learner); await pt3.getByRole('heading',{name:/Bem-vindo ao GOVRP/}).waitFor({state:'hidden',timeout:10000});

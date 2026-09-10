@@ -12,6 +12,7 @@ export const EFFECTIVE_ROLE_PRIORITY = [
   'Vice-Presidente do Senado Federal',
   'Presidente do STF',
   'Presidente do Banco Nacional',
+  'Presidente do Portal Eleitoral',
   'Ministro',
   'Senador',
   'Deputado',

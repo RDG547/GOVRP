@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 
 const decayNames = { hunger: 'Fome', thirst: 'Sede', hygiene: 'Higiene', social: 'Socialização', sleep: 'Sono' };
 const settings = [
-  ['offline_decay_cap', 'Perda máxima offline', 0, 30], ['offline_floor', 'Piso de necessidades offline', 30, 100],
+  ['sleep_duration_real_minutes', 'Descanso completo (minutos reais)', 1, 100], ['offline_floor', 'Piso recuperável de necessidades', 0, 20],
   ['grace_rp_days', 'Carência inicial (dias RP)', 1, 100], ['bath_cooldown_rp_hours', 'Intervalo entre banhos (horas RP)', 1, 100],
   ['sleep_cooldown_rp_hours', 'Intervalo entre descansos (horas RP)', 1, 100], ['social_daily_cap', 'Recuperação social máxima por dia RP', 0, 20],
 ];

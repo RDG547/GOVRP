@@ -410,9 +410,7 @@ const CitizenDashboard = () => {
 
           <CitizenObjectives />
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-6">
-            <StatCard title="Saldo em Conta" value={formatCurrency(data.balance)} icon={Banknote} color="text-green-400" description="Disponível para uso imediato." />
-            <StatCard title="Total Investido" value={formatCurrency(data.investments)} icon={PiggyBank} color="text-blue-400" description="Seu patrimônio em crescimento." />
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
             <StatCard title="Reputação" value={data.reputation} icon={Star} color="text-yellow-400" description="Sua influência na comunidade." />
             <StatCard title="Pontos Políticos" value={data.politicalPoints} icon={Landmark} color="text-amber-400" description="Seu capital político institucional." />
             <StatCard title="Seguidores no X" value={data.followers} icon={Users} color="text-sky-400" description={`${data.following} seguindo`} />
@@ -546,25 +544,6 @@ const CitizenDashboard = () => {
                       </Button>
                     </>
                   )}
-                </CardContent>
-              </Card>
-
-               <Card className="glass-effect">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2"><TrendingUp /> Resumo Financeiro</CardTitle>
-                  <CardDescription>Distribuição do seu patrimônio.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div style={{ width: '100%', height: 200 }}>
-                    <ResponsiveContainer>
-                      <PieChart>
-                        <Pie data={chartData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} fill="#8884d8" labelLine={false} label={({ name, percent }) => chartData.length > 1 ? `${(percent * 100).toFixed(0)}%` : name}>
-                          {chartData.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
-                        </Pie>
-                        <RechartsTooltip formatter={(value) => formatCurrency(value)} wrapperClassName="!bg-popover/80 !border-border !rounded-lg" contentStyle={{backgroundColor: 'transparent', border: 'none'}} />
-                      </PieChart>
-                    </ResponsiveContainer>
-                  </div>
                 </CardContent>
               </Card>
 

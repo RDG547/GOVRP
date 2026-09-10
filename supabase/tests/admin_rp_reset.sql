@@ -256,8 +256,8 @@ exception when raise_exception then
 end $$;
 reset role;
 select pg_temp.assert_true((select count(*)=6 from public.government_rules where rule_key in('corporate_tax_rate','consumption_tax_rate','business_license_fee','public_safety_policy_index','social_welfare_policy_index','transaction_tax')) and public.get_government_rule('business_license_fee')=250 and (select rule_kind='fee' from public.government_rules where rule_key='business_license_fee') and (select count(*)=7 from public.legal_authority_rules) and exists(select 1 from public.legal_authority_rules where capability='executive_rate_adjustment' and decree_allowed),'initial government rules are ready for the next laws and businesses');
-update public.economic_state set exchange_rate=6 where id=true;
-select pg_temp.assert_true((select (economic_baseline->>'exchangeUsd')::numeric=5 and (economic_current->>'exchangeUsd')::numeric=6 from public.country_rp_states where country_code='BR'),'RP engine changes current economy without overwriting the real baseline');
+select public.recalculate_currency_market('BR','reset-test-market-cycle',true);
+select pg_temp.assert_true((select (economic_baseline->>'exchangeUsd')::numeric=5 and (economic_current->>'exchangeUsd')::numeric=(select brl_per_unit from public.country_rp_exchange_rates where country_code='BR' and currency_code='USD') and (economic_current->>'exchangeUsd')::numeric<>5 from public.country_rp_states where country_code='BR'),'RP engine changes current economy without overwriting the real baseline');
 select pg_temp.assert_true(not has_function_privilege('authenticated','private.build_rp_reset_plan(text,uuid[])','execute'),'private reset helpers cannot be called directly');
 select pg_temp.assert_true(current_setting('safeupdate.enabled')='on','API safeupdate protection remains enabled after every reset mode');
 rollback;

@@ -1,3 +1,4 @@
+import { documentCatalog } from '@/lib/documentCatalog';
 import BankWelcome from '@/components/bank/BankWelcome';
 import { prefetchMunicipalities } from '@/lib/brazilianLocations';
 import React, {
@@ -1522,6 +1523,7 @@ const CitizenOnboarding = () => {
                   <div className="mt-7 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                     {["CPF", "RG", "Título de Eleitor", "CTD"].map((type) => {
                       const document = getDocument(documents, type);
+                      const DocumentIcon = documentCatalog[type].icon;
                       return (
                         <button
                           type="button"
@@ -1529,7 +1531,7 @@ const CitizenOnboarding = () => {
                           onClick={() => setPreviewDocument(document)}
                           className="rounded-xl border border-white/10 bg-black/20 p-3 text-left"
                         >
-                          <span className="text-xs text-slate-400">{type}</span>
+                          <span className="flex items-center gap-2 text-xs text-slate-400"><DocumentIcon className="h-5 w-5 text-cyan-300" />{type}</span>
                           <span className="mt-1 block truncate text-sm font-medium">
                             {document?.document_number}
                           </span>
@@ -1545,10 +1547,6 @@ const CitizenOnboarding = () => {
                     >
                       Entrar no GOVRP <ArrowRight className="ml-2 h-5 w-5" />
                     </Button>
-                    <p className="mt-3 text-xs text-slate-400">
-                      Seu tutorial será personalizado para{" "}
-                      {selectedAspiration?.title || "sua jornada"}.
-                    </p>
                   </div>
                 </motion.div>
               </StepShell>
