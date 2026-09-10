@@ -9,6 +9,13 @@ export function useOfficialSalaries() {
     else { setRoles(result.data.value.roles || []); setError(''); }
   }, []);
   useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    const now = Date.now();
+    const next = Math.min(...roles.map(role => Date.parse(role.valid_from)).filter(at => at > now));
+    if (!Number.isFinite(next)) return;
+    const timer = setTimeout(() => setRoles(current => [...current]), Math.min(2147483647, next - now + 25));
+    return () => clearTimeout(timer);
+  }, [roles]);
   useDomainRealtime('official-salaries', 'public', [{ table: 'system_settings', filter: 'key=eq.official_salaries' }], load);
   return { roles, error, refresh: load };
 }

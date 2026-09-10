@@ -8,6 +8,24 @@ const sql=query=>execFileSync('docker',['exec','supabase_db_GOVRP','psql','-U','
 let checks=0;const check=(value,label)=>{assert(value,label);checks++;console.log(`OK ${label}`);};
 try{
  const a=await actor('continuous-author'),b=await actor('continuous-reader'),admin=await actor('continuous-admin','Admin');
+ const currency=sql(`begin;
+ delete from public.currency_market_cycles where country_code='BR' and cycle_key='operational:'||to_char(clock_timestamp() at time zone 'UTC','YYYY-MM-DD-HH24');
+ do $$ declare before_rate numeric; after_rate numeric; first_run jsonb; repeat_run jsonb; begin
+ update public.currency_market_states set current_strength=1 where country_code='BR';
+ perform public.recalculate_currency_market('BR','projection-only',false);
+ select brl_per_unit into before_rate from public.country_rp_exchange_rates where country_code='BR' and currency_code='USD';
+ first_run:=economy_private.run_operational_engine();
+ select brl_per_unit into after_rate from public.country_rp_exchange_rates where country_code='BR' and currency_code='USD';
+ if before_rate=after_rate or first_run->'currency'->'USD' is null then raise exception 'AUTONOMOUS_CURRENCY_NOT_ADVANCED';end if;
+ repeat_run:=economy_private.run_operational_engine();
+ if first_run->'currency'<>repeat_run->'currency' or after_rate<>(select brl_per_unit from public.country_rp_exchange_rates where country_code='BR' and currency_code='USD') then raise exception 'REPEATED_OPERATIONAL_HOUR_ADVANCED_TWICE';end if;
+ end $$; rollback;`);
+ check(currency.includes('ROLLBACK'),'motor automático avança cotação por fundamentos e repetir a hora não duplica o ciclo');
+ check(Boolean((await b.client.rpc('run_currency_market_cycle')).error),'cidadão não força ciclos cambiais');
+ const cycleKey=`concurrent-${crypto.randomUUID()}`;
+ const [currencyA,currencyB]=await Promise.all([rpc(admin.client,'run_currency_market_cycle',{p_cycle_key:cycleKey}),rpc(admin.client,'run_currency_market_cycle',{p_cycle_key:cycleKey})]);
+ check(JSON.stringify(currencyA)===JSON.stringify(currencyB),'ciclos cambiais simultâneos retornam o mesmo snapshot sem avançar duas vezes');
+
  const post=await request(a.client.from('posts').insert({user_id:a.id,content:'Publicação com conversa editável e persistente'}).select().single());
  const events=[];await subscribe(b.client.channel(`thread-${post.id}`).on('postgres_changes',{schema:'public',table:'comments',event:'*',filter:`post_id=eq.${post.id}`},event=>events.push(event)));await new Promise(resolve=>setTimeout(resolve,4000));
  const root=await request(a.client.from('comments').insert({post_id:post.id,user_id:a.id,content:'Comentário raiz persistente'}).select().single());
