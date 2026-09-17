@@ -1,3 +1,4 @@
+import { GOVRP_TIME_ZONE } from '../dateTime.js';
 const SECOND = 1000;
 const MINUTE = 60 * SECOND;
 const HOUR = 60 * MINUTE;
@@ -21,6 +22,7 @@ export const formatJusticeDate = (value, options = {}) => {
   if (Number.isNaN(date.getTime())) return 'Data inválida';
 
   return new Intl.DateTimeFormat('pt-BR', {
+    timeZone: GOVRP_TIME_ZONE,
     dateStyle: options.dateOnly ? 'medium' : 'short',
     ...(options.dateOnly ? {} : { timeStyle: 'short' }),
   }).format(date);
@@ -52,7 +54,7 @@ export const formatRpDate = (settings, realNow) => {
     year: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
-    timeZone: 'UTC',
+    timeZone: GOVRP_TIME_ZONE,
   }).format(rpNow);
 };
 

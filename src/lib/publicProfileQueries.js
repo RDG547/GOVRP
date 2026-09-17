@@ -11,3 +11,15 @@ export async function fetchPublicProfileRows(ids, client) {
   if (error) throw error;
   return new Map(results.flatMap((result) => result.data || []).map((profile) => [profile.id, { ...profile, full_name: profile.full_name || profile.username || 'Cidadão indisponível' }]));
 }
+
+export async function fetchCitizenDirectory(client) {
+  if (!client) client = (await import('@/lib/supabaseClient')).supabase;
+  const data = [];
+  for (let offset = 0; ; offset += 100) {
+    const result = await client.rpc('search_citizens', { p_limit: 100, p_offset: offset });
+    if (result.error) return { data: null, error: result.error };
+    data.push(...(result.data || []));
+    if (data.length >= Number(result.data?.[0]?.total_count || 0) || !result.data?.length) break;
+  }
+  return { data, error: null };
+}

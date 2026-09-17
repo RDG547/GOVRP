@@ -1,3 +1,4 @@
+import { fetchCitizenDirectory } from '@/lib/publicProfileQueries';
 import { fetchCitizenSections, CITIZEN_JUSTICE_SECTIONS } from './citizenData';
 import { justiceErrorMessage } from './errors';
 import { subscribeToDomain } from '@/lib/realtime';
@@ -41,6 +42,7 @@ export const fetchAuthorityJusticeData = async () => {
     casePartiesResult,
     penalCodesResult,
     chargesResult,
+    evidenceResult,
   ] = await Promise.all([
     supabase
       .from('police_occurrences')
@@ -81,7 +83,7 @@ export const fetchAuthorityJusticeData = async () => {
     supabase.from('public_integrity_cases').select('*').order('created_at', { ascending: false }).limit(100),
     supabase.rpc('get_server_now'),
     supabase.from('investigation_subjects').select('*, profile:profiles(id, full_name, username, avatar_url)').order('created_at', { ascending: false }).limit(300),
-    supabase.from('public_citizen_profiles').select('id, full_name, username, avatar_url').order('full_name').limit(500),
+    fetchCitizenDirectory(),
     supabase.from('case_timeline_events').select('*').order('created_at', { ascending: true }).limit(1000),
     supabase.from('case_documents').select('*').order('created_at', { ascending: false }).limit(500),
     supabase.from('hearings').select('*').order('scheduled_at', { ascending: false }).limit(300),
@@ -91,6 +93,7 @@ export const fetchAuthorityJusticeData = async () => {
     supabase.from('case_parties').select('*').order('created_at', { ascending: false }).limit(500),
     supabase.from('penal_code').select('*').order('code').limit(300),
     supabase.from('case_charges').select('*').order('created_at', { ascending: false }).limit(500),
+    supabase.from('case_evidence').select('*').order('created_at', { ascending: false }).limit(1000),
   ]);
 
   const errors = [];
@@ -123,6 +126,7 @@ export const fetchAuthorityJusticeData = async () => {
     investigationParties: readSection(partiesResult, 'investigationParties') || [],
     caseParties: readSection(casePartiesResult, 'caseParties') || [],
     caseCharges: readSection(chargesResult, 'caseCharges') || [],
+    evidence: readSection(evidenceResult, 'evidence') || [],
     penalCodes: readSection(penalCodesResult, 'penalCodes') || [],
   };
 };
@@ -206,7 +210,7 @@ export const recordInvestigationEvidence = async ({ investigationId, title, desc
     p_title: title,
     p_description: description,
     p_file_url: null,
-    p_evidence_hash: crypto.randomUUID().replaceAll('-', ''),
+    p_evidence_hash: null,
     p_seal: seal,
   })
 );
@@ -450,7 +454,7 @@ export const subscribeToJusticeChanges = (userId, onChange) => subscribeToDomain
   'prison_activity_runs', 'police_occurrences', 'police_fines', 'fine_appeals',
   'fine_hearing_requests', 'citizen_justice_requests', 'public_safety_campaigns',
   'public_integrity_cases', 'investigation_subjects', 'investigation_parties',
-  'penal_code', 'case_charges', 'case_parties', 'case_timeline_events', 'case_documents', 'hearings', 'appeals',
+  'case_evidence', 'penal_code', 'case_charges', 'case_parties', 'case_timeline_events', 'case_documents', 'hearings', 'appeals',
   'sentences', 'warrants', { table: 'notifications', filter: `user_id=eq.${userId}` },
 ], onChange);
 
@@ -467,3 +471,5 @@ export const executeArrestWarrant = async ({ warrantId, location, description })
 export const archiveReferredInvestigation = async ({ investigationId, reason }) => throwIfError(
   await supabase.rpc('archive_referred_investigation', { p_investigation_id: investigationId, p_reason: reason })
 );
+
+export const sealInvestigationEvidence = async ({ evidenceId, justification }) => throwIfError(await supabase.rpc('seal_case_evidence', { p_evidence_id: evidenceId, p_justification: justification }));

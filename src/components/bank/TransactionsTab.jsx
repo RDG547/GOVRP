@@ -1,3 +1,4 @@
+import { formatLocaleBR } from '@/lib/dateTime';
 import TransactionTaxBreakdown from './TransactionTaxBreakdown';
 import { transactionAmounts } from '@/lib/transactionAmounts';
 import React, { useState, useMemo } from 'react';
@@ -96,8 +97,8 @@ const TransactionRow = ({ transaction, onShowReceipt, loadingReceipt }) => {
             <TableCell className="p-0 sm:p-4 mt-2 sm:mt-0 flex justify-between items-center sm:table-cell sm:text-right text-muted-foreground">
                 <span className="sm:hidden text-muted-foreground text-xs">Data</span>
                 <div className="text-right">
-                    <div>{new Date(transaction.created_at).toLocaleDateString('pt-BR')}</div>
-                    <div className="text-xs text-muted-foreground">{new Date(transaction.created_at).toLocaleTimeString('pt-BR')}</div>
+                    <div>{formatLocaleBR(new Date(transaction.created_at), 'toLocaleDateString', 'pt-BR')}</div>
+                    <div className="text-xs text-muted-foreground">{formatLocaleBR(new Date(transaction.created_at), 'toLocaleTimeString', 'pt-BR')}</div>
                 </div>
             </TableCell>
              <TableCell className="p-0 sm:p-4 text-right hidden sm:table-cell">

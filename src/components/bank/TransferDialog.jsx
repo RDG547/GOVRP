@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader2, ArrowRight, User } from 'lucide-react';
+import { Loader2, ArrowRight, User, KeyRound, Fingerprint, Landmark } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from '@/lib/supabaseClient';
@@ -136,9 +136,9 @@ const TransferDialog = ({ isOpen, setIsOpen, onTransferSuccess }) => {
                             <form onSubmit={handleCheckRecipient} className="space-y-4 pt-4">
                                 <Tabs value={method} onValueChange={setMethod} className="w-full">
                                     <TabsList className="grid w-full grid-cols-3">
-                                        <TabsTrigger value="key">Chave</TabsTrigger>
-                                        <TabsTrigger value="cpf">CPF</TabsTrigger>
-                                        <TabsTrigger value="account">Conta</TabsTrigger>
+                                        <TabsTrigger value="key"><KeyRound className="mr-2 h-4 w-4"/>Chave</TabsTrigger>
+                                        <TabsTrigger value="cpf"><Fingerprint className="mr-2 h-4 w-4"/>CPF</TabsTrigger>
+                                        <TabsTrigger value="account"><Landmark className="mr-2 h-4 w-4"/>Conta</TabsTrigger>
                                     </TabsList>
                                     <TabsContent value="key" className="pt-2"><Input value={key} onChange={e => setKey(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))} placeholder="Chave de 5 dígitos" maxLength={5} /></TabsContent>
                                     <TabsContent value="cpf" className="pt-2"><Input value={cpf} onChange={e => setCpf(formatCPF(e.target.value))} placeholder="000.000.000-00" /></TabsContent>

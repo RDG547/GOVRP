@@ -1,3 +1,6 @@
+import AccountPasswordSettings from '@/components/AccountPasswordSettings';
+import { formatDateBR } from '@/lib/dateTime';
+import { formatLocaleBR } from '@/lib/dateTime';
 import React, { useEffect, useRef, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { motion } from 'framer-motion';
@@ -120,6 +123,7 @@ const Settings = () => {
                 </div>
                 <div className="mt-7 flex justify-end"><Button type="submit" disabled={accountLoading}>{accountLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}Salvar dados da conta</Button></div>
               </form>
+              <AccountPasswordSettings/>
             </TabsContent>
 
             <TabsContent value="citizen" className="mt-6">
@@ -131,7 +135,7 @@ const Settings = () => {
                 </div>
                 <div className="grid gap-6 md:grid-cols-2">
                   <ReadOnlyField label="Nome civil do cidadão" value={user?.full_name} icon={User} hint="Mudanças civis exigem procedimento próprio." />
-                  <ReadOnlyField label="Nascimento do cidadão" value={user?.date_of_birth ? new Date(`${user.date_of_birth}T00:00:00`).toLocaleDateString('pt-BR') : null} icon={Calendar} />
+                  <ReadOnlyField label="Nascimento do cidadão" value={user?.date_of_birth ? formatDateBR(user.date_of_birth) : null} icon={Calendar} />
                   <ReadOnlyField label="CPF do cidadão" value={user?.cpf ? formatCPF(user.cpf) : null} icon={FileText} />
                   <ReadOnlyField label="RG do cidadão" value={user?.rg ? formatRG(user.rg) : null} icon={FileText} />
                   <ReadOnlyField label="Residência" value={user?.residence_city_name ? `${user.residence_city_name}/${user.residence_state_code}` : user?.state_name} icon={User} />

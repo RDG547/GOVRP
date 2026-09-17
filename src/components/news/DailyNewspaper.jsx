@@ -1,3 +1,5 @@
+import { newsCategory } from '@/lib/newsCategories';
+import { formatLocaleBR } from '@/lib/dateTime';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, CalendarDays, Download, FileText, Share2, Loader2, Newspaper } from 'lucide-react';
@@ -11,7 +13,7 @@ import { brazilEditionDate, buildNewspaperPages, validEditionDate } from '@/lib/
 import './newspaper.css';
 
 const tables = ['news_articles', 'news_categories', 'dou_entries', 'national_media_briefs'];
-const formatDate = date => new Date(`${date}T12:00:00-03:00`).toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'America/Sao_Paulo' });
+const formatDate = date => formatLocaleBR(new Date(`${date}T12:00:00-03:00`), 'toLocaleDateString', 'pt-BR', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'America/Sao_Paulo' });
 function download(blob, name) {
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement('a'); anchor.href = url; anchor.download = name; anchor.click();
@@ -28,7 +30,7 @@ function NewspaperPage({ articles, date, number, count, teasers, exporting = fal
       {articles.map(article => <section key={article.key} className="newspaper-story">
         <p className="newspaper-category">{article.category || 'Notícias'}{article.part > 1 ? ` · Continuação ${article.part}/${article.parts}` : ''}</p>
         <h2>{article.article_id ? <Link to={`/news/${article.article_id}`}>{article.title}</Link> : article.title}</h2>
-        <p className="newspaper-byline">{article.author} · {new Date(article.published_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' })}</p>
+        <p className="newspaper-byline">{article.author} · {formatLocaleBR(new Date(article.published_at), 'toLocaleTimeString', 'pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' })}</p>
         {article.image_url && <figure><img src={article.image_url} alt={`Imagem da matéria: ${article.title}`} loading={exporting ? 'eager' : 'lazy'} crossOrigin="anonymous" /></figure>}
         <p className="newspaper-text">{article.text}</p>
         {article.part < article.parts && <p className="newspaper-continued">Esta matéria continua nesta edição.</p>}
@@ -76,13 +78,21 @@ export default function DailyNewspaper() {
   }, [date]);
   useEffect(() => { setLoading(true); setPage(0); setCategory('Todas'); void load(); return () => { request.current++; }; }, [load]);
   useDomainRealtime('daily-news', 'public', tables, load);
-  const items = edition?.date === date ? edition.items : [];
+  const items = edition?.date === date ? edition.items.map(item => ({...item,category:newsCategory(item.category).name})) : [];
   const categories = [...new Set(items.map(item => item.category).filter(Boolean))];
   const filtered = category === 'Todas' ? items : items.filter(item => item.category === category);
   const pages = useMemo(() => buildNewspaperPages(filtered), [filtered]);
   const selectedPage = Math.min(page, Math.max(0, pages.length - 1));
   const chooseDate = next => { const updated = new URLSearchParams(params); updated.set('edition', next); setParams(updated, { replace: false }); };
 
+  const shareEdition = async () => {
+    const payload={title:`Jornal Nacional GOVRP — ${formatDate(date)}`,text:`Acompanhe a edição de ${formatDate(date)} do Jornal Nacional.`,url:`${location.origin}/news?edition=${date}`};
+    try {
+      if(navigator.share){try{await navigator.share(payload);return;}catch(failure){if(failure.name==='AbortError')return;}}
+      await navigator.clipboard.writeText(`${payload.title}\n${payload.url}`);
+      toast({title:'Link da edição copiado',description:'Cole o link para compartilhar o jornal.'});
+    }catch{toast({title:'Não foi possível compartilhar',description:'Copie o endereço da edição na barra do navegador.',variant:'destructive'});}
+  };
   const exportEdition = async kind => {
     if (exportingRef.current || !pages.length) return;
     exportingRef.current = true; setExporting(kind);
@@ -108,17 +118,7 @@ export default function DailyNewspaper() {
       if (pdf) {
         const blob = pdf.output('blob');
         const filename = `jornal-govrp-${date}.pdf`;
-        const file = new File([blob], filename, { type: 'application/pdf' });
-        const url = `${location.origin}/news?edition=${date}`;
-        let shared = false;
-        if (kind === 'share' && navigator.canShare?.({ files: [file] })) {
-          try { await navigator.share({ title: `Jornal Nacional GOVRP — ${formatDate(date)}`, files: [file] }); shared = true; }
-          catch (failure) { if (failure.name === 'AbortError') return; }
-        }
-        if (!shared) {
-          download(blob, filename);
-          if (kind === 'share') { await navigator.clipboard?.writeText(url).catch(() => undefined); toast({ title: 'Edição baixada', description: 'Use o PDF para compartilhar. O link da edição também foi copiado, quando permitido pelo navegador.' }); }
-        }
+        download(blob, filename);
       }
       if (kind !== 'share') toast({ title: 'Jornal pronto', description: kind === 'png' ? 'Cada página foi salva como uma imagem PNG.' : 'A edição foi salva em PDF.' });
     } catch (failure) { toast({ title: 'Não foi possível exportar', description: failure.message || 'Tente novamente.', variant: 'destructive' }); }
@@ -139,12 +139,12 @@ export default function DailyNewspaper() {
       <div className="flex flex-wrap gap-2">
         <Button variant="outline" disabled={!pages.length || Boolean(exporting)} onClick={() => exportEdition('png')}><Download className="mr-2 h-4 w-4" />PNG</Button>
         <Button variant="outline" disabled={!pages.length || Boolean(exporting)} onClick={() => exportEdition('pdf')}><FileText className="mr-2 h-4 w-4" />PDF</Button>
-        <Button disabled={!pages.length || Boolean(exporting)} onClick={() => exportEdition('share')}><Share2 className="mr-2 h-4 w-4" />Compartilhar</Button>
+        <Button disabled={!pages.length || Boolean(exporting)} onClick={shareEdition}><Share2 className="mr-2 h-4 w-4" />Compartilhar</Button>
       </div>
     </div>
     {exporting && <p role="status" className="flex items-center gap-2 text-sm"><Loader2 className="h-4 w-4 animate-spin" />{progress || 'Preparando edição…'}</p>}
     {error && <div role="alert" className="rounded-lg border border-destructive/40 p-4">{error} <Button variant="link" onClick={load}>Tentar novamente</Button></div>}
-    {categories.length > 1 && <div className="flex flex-wrap gap-2" aria-label="Editorias">{['Todas', ...categories].map(value => <Button key={value} size="sm" variant={category === value ? 'default' : 'outline'} disabled={Boolean(exporting)} onClick={() => { setCategory(value); setPage(0); }}>{value}</Button>)}</div>}
+    {categories.length > 1 && <div className="flex flex-wrap gap-2" aria-label="Editorias">{['Todas', ...categories].map(value => <Button key={value} size="sm" variant={category === value ? 'default' : 'outline'} disabled={Boolean(exporting)} onClick={() => { setCategory(value); setPage(0); }}>{React.createElement(newsCategory(value).icon,{className:`mr-2 h-4 w-4 ${category===value?'':newsCategory(value).color}`})}{value}</Button>)}</div>}
     {loading && !items.length ? <div role="status" className="flex justify-center p-16"><Loader2 className="animate-spin" /><span className="sr-only">Carregando edição</span></div> : !pages.length ? <div className="rounded-lg border p-12 text-center"><Newspaper className="mx-auto mb-4 h-10 w-10" /><h2 className="text-xl font-bold">Nenhuma publicação nesta edição</h2><p className="mt-2 text-muted-foreground">Consulte uma edição anterior no arquivo.</p></div> : <>
       <NewspaperPage articles={pages[selectedPage]} date={date} number={selectedPage + 1} count={pages.length} teasers={filtered.slice(1, 4)} />
       <nav className="flex items-center justify-center gap-3" aria-label="Páginas da edição"><Button variant="outline" disabled={selectedPage === 0} onClick={() => setPage(selectedPage - 1)} aria-label="Página anterior"><ChevronLeft className="h-4 w-4" /></Button><span>Página {selectedPage + 1} de {pages.length}</span><Button variant="outline" disabled={selectedPage >= pages.length - 1} onClick={() => setPage(selectedPage + 1)} aria-label="Próxima página"><ChevronRight className="h-4 w-4" /></Button></nav>

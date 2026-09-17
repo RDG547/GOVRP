@@ -1,3 +1,5 @@
+import CitizenSelector from '@/components/CitizenSelector';
+import { politicalOrientations, orientationColors } from '@/lib/partyIdentity';
 import { fetchPublicProfiles, unavailablePublicProfile } from '@/lib/publicProfiles';
 import { useDomainRealtime } from '@/hooks/use-domain-realtime';
 import { PARTY_REALTIME_TABLES } from '@/lib/parties';
@@ -15,7 +17,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
-import { Loader2, Settings, UserCheck, UserX, Check, X, UserMinus, Building, User, Crown } from 'lucide-react';
+import { Loader2, Settings, Save, Pencil, Users, Inbox, UserCheck, UserX, Check, X, UserMinus, Building, User, Crown } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import ImageUploader from '@/components/ImageUploader';
@@ -24,7 +26,6 @@ import { Badge } from '@/components/ui/badge';
 import { buildStoragePath } from '@/lib/security';
 import UserSelectOption from '@/components/UserSelectOption';
 
-const politicalOrientations = ['Extrema Esquerda', 'Esquerda', 'Centro-Esquerda', 'Centro', 'Centro-Direita', 'Direita', 'Extrema-Direita'];
 const roleHierarchy = { 'Dono': 4, 'Presidente': 3, 'Vice-Presidente': 2, 'Membro': 1 };
 const leadershipFieldLabels = {
     owner_id: 'dono',
@@ -139,32 +140,23 @@ const EditPartyForm = ({ party, onAction, closeDialog, userRole, members }) => {
                 {userRole === 'Dono' && (
                     <div className="space-y-2">
                         <Label htmlFor="owner">Dono</Label>
-                        <Select onValueChange={(v) => setFormData(p => ({...p, owner_id: v}))} value={formData.owner_id || ''}>
-                          <SelectTrigger><SelectValue placeholder="Selecione um novo dono" /></SelectTrigger>
-                          <SelectContent>{members.map((member) => <SelectItem key={member.profile.id} value={member.profile.id}><UserSelectOption user={member.profile} detail={member.party_role_label} /></SelectItem>)}</SelectContent>
-                        </Select>
+                        <CitizenSelector label="Selecionar dono" value={formData.owner_id || ''} eligibleIds={members.map(member => member.profile.id)} onChange={id => setFormData(current => ({...current, owner_id: id}))} />
                     </div>
                 )}
                 <div className="space-y-2">
                     <Label htmlFor="president">Presidente</Label>
-                    <Select onValueChange={(v) => setFormData(p => ({...p, president_id: v}))} value={formData.president_id || ''}>
-                      <SelectTrigger><SelectValue placeholder="Selecione um presidente" /></SelectTrigger>
-                      <SelectContent>{members.map((member) => <SelectItem key={member.profile.id} value={member.profile.id}><UserSelectOption user={member.profile} detail={member.party_role_label} /></SelectItem>)}</SelectContent>
-                    </Select>
+                    <CitizenSelector label="Selecionar presidente" value={formData.president_id || ''} eligibleIds={members.map(member => member.profile.id)} onChange={id => setFormData(current => ({...current, president_id: id}))} />
                 </div>
                 <div className="space-y-2">
                     <Label htmlFor="vice_president">Vice-Presidente</Label>
-                    <Select onValueChange={(v) => setFormData(p => ({...p, vice_president_id: v}))} value={formData.vice_president_id || ''}>
-                      <SelectTrigger><SelectValue placeholder="Selecione um vice" /></SelectTrigger>
-                      <SelectContent>{members.map((member) => <SelectItem key={member.profile.id} value={member.profile.id}><UserSelectOption user={member.profile} detail={member.party_role_label} /></SelectItem>)}</SelectContent>
-                    </Select>
+                    <CitizenSelector label="Selecionar vice-presidente" value={formData.vice_president_id || ''} eligibleIds={members.map(member => member.profile.id)} onChange={id => setFormData(current => ({...current, vice_president_id: id}))} />
                 </div>
             </div>
             <div className="space-y-2">
                 <Label htmlFor="orientation">Orientação Política</Label>
                 <Select onValueChange={(v) => setFormData(p => ({...p, orientation: v}))} value={formData.orientation}>
                     <SelectTrigger><SelectValue placeholder="Selecione a orientação" /></SelectTrigger>
-                    <SelectContent>{politicalOrientations.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent>
+                    <SelectContent>{politicalOrientations.map(o => <SelectItem key={o} value={o}><span className={`rounded px-2 py-1 text-xs ${orientationColors[o]}`}>{o}</span></SelectItem>)}</SelectContent>
                 </Select>
             </div>
              <div className="space-y-2">
@@ -182,7 +174,7 @@ const EditPartyForm = ({ party, onAction, closeDialog, userRole, members }) => {
             <ImageUploader onUrlChange={(url) => setFormData(p=>({...p, logo_url: url}))} onFileChange={setLogoFile} initialUrl={formData.logo_url} label="Logo do Partido" />
             <DialogFooter>
                 <Button type="submit" disabled={loading}>
-                    {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4"/>}
                     Salvar Alterações
                 </Button>
             </DialogFooter>
@@ -333,10 +325,10 @@ const PartyManagementDialog = ({ party, onAction, isFromDetailsPage = false }) =
                 <DialogHeader><DialogTitle>Gerenciar {party.name}</DialogTitle></DialogHeader>
                 <Tabs value={currentTab} onValueChange={setCurrentTab} className="w-full">
                     <TabsList className="grid w-full grid-cols-4">
-                        <TabsTrigger value="edit">Editar</TabsTrigger>
-                        <TabsTrigger value="members">Membros</TabsTrigger>
-                        <TabsTrigger value="requests">Pedidos</TabsTrigger>
-                        <TabsTrigger value="settings">Ajustes</TabsTrigger>
+                        <TabsTrigger value="edit"><Pencil className="mr-2 h-4 w-4"/>Editar</TabsTrigger>
+                        <TabsTrigger value="members"><Users className="mr-2 h-4 w-4"/>Membros</TabsTrigger>
+                        <TabsTrigger value="requests"><Inbox className="mr-2 h-4 w-4"/>Pedidos</TabsTrigger>
+                        <TabsTrigger value="settings"><Settings className="mr-2 h-4 w-4"/>Ajustes</TabsTrigger>
                     </TabsList>
                     <TabsContent value="edit" className="pt-4">
                         <EditPartyForm party={party} onAction={onAction} closeDialog={() => setIsOpen(false)} userRole={userRole} members={members} />

@@ -1,3 +1,4 @@
+import { formatLocaleBR } from '@/lib/dateTime';
 import React, { useState, useEffect } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { motion } from 'framer-motion';
@@ -277,7 +278,7 @@ const AdminDashboard = () => {
                           <div className="flex items-center gap-2 mb-2">
                             <span className="font-medium text-white">{post.author?.full_name || post.author?.username}</span>
                             <span className="text-sm text-gray-400">•</span>
-                            <span className="text-sm text-gray-400">{post.created_at ? new Date(post.created_at).toLocaleString('pt-BR') : 'Data inválida'}</span>
+                            <span className="text-sm text-gray-400">{post.created_at ? formatLocaleBR(new Date(post.created_at), 'toLocaleString', 'pt-BR') : 'Data inválida'}</span>
                           </div>
                           <p className="text-gray-300 mb-2">{post.content}</p>
                           <div className="flex items-center gap-4 text-sm text-gray-400">

@@ -84,7 +84,7 @@ const ministerQueries = rootFile('src/lib/ministers.js');
 verify(
   'titular de ministério é carregado sem relacionamento incorporado ambíguo',
   ministerQueries.includes(".from('ministers')") &&
-    ministerQueries.includes(".from('profiles')") &&
+    ministerQueries.includes(".rpc('get_public_party_profiles'") &&
     !ministerQueries.includes('profiles!')
 );
 

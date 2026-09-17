@@ -1,3 +1,4 @@
+import { formatLocaleBR } from '@/lib/dateTime';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useToast } from "@/components/ui/use-toast";
@@ -174,7 +175,7 @@ const PostCard = React.memo(({ post, onDelete }) => {
       }
   };
 
-  const formatTime = (date) => new Date(date).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
+  const formatTime = (date) => formatLocaleBR(new Date(date), 'toLocaleString', 'pt-BR', { dateStyle: 'short', timeStyle: 'short' });
   
   return (
     <Card ref={postRef} className="border-border/50 overflow-hidden bg-card">

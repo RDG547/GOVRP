@@ -116,7 +116,7 @@ const PrisonExperience = () => {
   const total = data.term?.original_duration_seconds
     ? Number(data.term.original_duration_seconds) * 1000
     : 1;
-  const progress = clampProgress((elapsed / total) * 100);
+  const progress = data.term?.expected_release_at ? clampProgress((elapsed / total) * 100) : 0;
 
   const handleStart = async (activity) => {
     setActingId(activity.id);
@@ -225,7 +225,7 @@ const PrisonExperience = () => {
               <div className="rounded-xl border border-red-500/25 bg-slate-950/70 px-6 py-4 text-center">
                 <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Tempo restante</p>
                 <p className="mt-2 text-3xl font-bold text-red-200">
-                  {formatRealDuration(remaining)}
+                  {data.term.expected_release_at ? formatRealDuration(remaining) : 'Prazo indeterminado'}
                 </p>
               </div>
             </div>
@@ -447,7 +447,7 @@ const PrisonExperience = () => {
 
           <p className="text-center text-xs text-slate-500">
             Entrada: {formatJusticeDate(data.term.admitted_at)} · liberação prevista:{' '}
-            {formatJusticeDate(data.term.expected_release_at)}
+            {data.term.expected_release_at ? formatJusticeDate(data.term.expected_release_at) : 'mediante decisão da autoridade responsável'}
           </p>
         </div>
       </div>

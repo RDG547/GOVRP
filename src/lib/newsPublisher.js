@@ -1,3 +1,4 @@
+import { formatLocaleBR } from './dateTime.js';
 /**
  * News Publisher Utility
  * Handles creating news articles for various events in the platform.
@@ -86,7 +87,7 @@ export const publishPresidentPostNews = async (supabase, { post, authorName, aut
 
 "${post.content}"
 
-${post.created_at ? `Publicado em ${new Date(post.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}.` : ''}
+${post.created_at ? `Publicado em ${formatLocaleBR(new Date(post.created_at), 'toLocaleDateString', 'pt-BR', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}.` : ''}
 
 Este pronunciamento é de interesse público e foi automaticamente registrado no Portal de Notícias do GOV.RP.`;
 

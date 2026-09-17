@@ -1,3 +1,4 @@
+import { useDomainRealtime } from '@/hooks/use-domain-realtime';
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { useAuth } from '@/contexts/AuthContext';
@@ -31,7 +32,7 @@ const ProductCard = ({ product, onEdit, onDelete }) => {
           </div>
         </div>
         <CardTitle>{product.name}</CardTitle>
-        <CardDescription>{formatCurrency(product.price)}</CardDescription>
+        <CardDescription>{product.moderation_status === 'pending' ? 'Aguardando aprovação · ' : product.moderation_status === 'suspended' ? 'Anúncio suspenso · ' : ''}{formatCurrency(product.price)}</CardDescription>
       </CardHeader>
       <CardContent className="flex-grow">
         <p className="text-sm text-muted-foreground line-clamp-3">{product.description}</p>
@@ -62,11 +63,12 @@ const Products = () => {
 
   const fetchProducts = useCallback(async () => {
     if (!user) return;
-    setLoading(true);
     const { data, error } = await supabase
       .from('products')
       .select('*')
       .eq('seller_id', user.id)
+      .neq('moderation_status','removed')
+      .is('archived_at',null)
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -81,6 +83,7 @@ const Products = () => {
     fetchProducts();
   }, [fetchProducts]);
 
+  useDomainRealtime('seller-products',user?.id,[{table:'products',filter:`seller_id=eq.${user?.id}`}],fetchProducts);
   const handleFormSuccess = () => {
     setIsFormOpen(false);
     setEditingProduct(null);
@@ -104,7 +107,7 @@ const Products = () => {
 
   const handleConfirmDelete = async () => {
     if (!productToDelete) return;
-    const { error } = await supabase.from('products').delete().eq('id', productToDelete.id);
+    const { error } = await supabase.rpc('archive_my_product',{p_product_id:productToDelete.id});
     if (error) {
       toast({ title: "Erro ao excluir", description: error.message, variant: "destructive" });
     } else {

@@ -13,6 +13,7 @@ async function login(person){const context=await browser.newContext({viewport:{w
 try {
  await waitFor(async()=>{try{return (await fetch(origin)).ok;}catch{return false;}},'servidor local',30000);
  browser=await chromium.launch({headless:true,executablePath:process.env.GOVRP_CHROMIUM_PATH||'/opt/google/chrome/chrome',args:['--no-sandbox']});
+ if(!process.env.GOVRP_FORMATION_ONLY){
  const citizen=await actor('citizen-ui','Cidadão',{date_of_birth:'2000-01-01'});
  await request(service.from('accounts').insert({user_id:citizen.id,account_number:crypto.randomUUID().slice(0,18),agency_number:'0001',balance:100000}));
  const p=await login(citizen);
@@ -53,14 +54,12 @@ try {
  const homeCard=p.locator('div.rounded-lg').filter({has:p.getByText('Kitnet Cidadã',{exact:true})}).filter({has:p.getByRole('button',{name:'Comprar',exact:true})}).last();
  await homeCard.getByRole('button',{name:'Comprar',exact:true}).click();await p.getByRole('button',{name:'Confirmar compra',exact:true}).click();await p.getByRole('dialog').waitFor({state:'hidden'});
  await p.getByRole('button',{name:'Tomar banho',exact:true}).click();await request(service.from('citizen_needs').update({sleep:20}).eq('user_id',citizen.id));await p.getByRole('button',{name:'Dormir',exact:true}).click();await p.getByRole('heading',{name:'Seu cidadão está dormindo',exact:true}).waitFor();const housingUrl=p.url();
- await p.getByRole('button',{name:'Estado do cidadão',exact:true}).filter({visible:true}).click();
- await p.getByRole('link',{name:'Socializar',exact:true}).click();
+ await p.getByRole('link',{name:'Ir para outra área',exact:true}).click();
  await p.getByRole('button',{name:'Continuar dormindo',exact:true}).click();assert.equal(p.url(),housingUrl);
  await p.evaluate(()=>history.back());
  await p.getByRole('button',{name:'Continuar dormindo',exact:true}).click();assert.equal(p.url(),housingUrl);
- await p.getByRole('button',{name:'Estado do cidadão',exact:true}).filter({visible:true}).click();
- await p.getByRole('link',{name:'Socializar',exact:true}).click();
- await p.getByRole('button',{name:'Acordar e continuar',exact:true}).click();await p.waitForURL('**/services/x');
+ await p.getByRole('link',{name:'Ir para outra área',exact:true}).click();
+ await p.getByRole('button',{name:'Acordar e continuar',exact:true}).click();await p.waitForURL('**/dashboard');
  assert(!(await rpc(citizen.client,'get_citizen_needs')).sleep_started_at);
  console.log('OK sono bloqueia links e voltar do navegador, continua ou acorda antes de navegar');console.log('OK imóvel comprado e usado pela interface');
  for(const type of Object.keys(documentCatalog))await request(service.from('documents').insert({user_id:citizen.id,type,document_number:`DOC-${crypto.randomUUID().slice(0,8)}`,is_valid:true,issued_at:new Date().toISOString(),metadata:{result:'nothing_found'}}));
@@ -86,6 +85,7 @@ try {
  console.log('OK manutenção suspende ações em portais e preserva modal, Story e rascunho ao reativar');
  }finally{if(settingsBefore)await request(service.from('system_settings').upsert(settingsBefore));else await request(service.from('system_settings').delete().eq('key','service_availability'));}
  await p.context().close();
+ }
  governanceBefore=await request(service.from('system_settings').select('*').eq('key','executive_governance').maybeSingle());const formationSettings=structuredClone(governanceBefore?.value||{});if(formationSettings.specialAppointments)delete formationSettings.specialAppointments.intelligence_commander;await request(service.from('system_settings').upsert({key:'executive_governance',value:formationSettings}));await actor('formation-nominee','Cidadão',{full_name:'AAA Formação Cidadão'});const president=await actor('president-ui');await request(service.from('profiles').update({role:'Presidente'}).eq('id',president.id));const pp=await login(president);page=pp;
  const roleModal=pp.getByRole('button',{name:'Entendi',exact:true});await roleModal.waitFor({timeout:30000});await roleModal.click();await pp.getByRole('heading',{name:'Forme seu Governo',exact:true}).waitFor({timeout:30000});
  await responsive(pp,'Formação obrigatória do Governo');

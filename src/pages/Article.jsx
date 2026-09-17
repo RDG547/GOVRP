@@ -1,3 +1,4 @@
+import { formatLocaleBR } from '@/lib/dateTime';
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { supabase } from '@/lib/supabaseClient';
@@ -80,7 +81,7 @@ const Article = () => {
               <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-gray-400 text-sm">
                 <div className="flex items-center gap-2">
                   <Calendar className="w-4 h-4" />
-                  <span>{new Date(article.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}</span>
+                  <span>{formatLocaleBR(new Date(article.created_at), 'toLocaleDateString', 'pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}</span>
                 </div>
                 {article.author && (
                   <div className="flex items-center gap-2">

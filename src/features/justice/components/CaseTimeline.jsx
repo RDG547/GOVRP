@@ -7,7 +7,7 @@ import {
   CASE_STATUS_ORDER,
 } from '@/lib/justice/constants';
 
-const CaseTimeline = ({ status, events = [] }) => {
+const TimelineContent = ({ status, events = [] }) => {
   if (events.length) {
     return (
       <ol className="space-y-3 border-l border-cyan-400/25 pl-5">
@@ -70,4 +70,5 @@ const CaseTimeline = ({ status, events = [] }) => {
   );
 };
 
+const CaseTimeline = ({ status, events = [] }) => <details className="rounded-lg border p-3"><summary className="min-h-10 cursor-pointer py-2 font-medium focus-visible:outline focus-visible:outline-primary">Histórico do caso · {events.length} {events.length === 1 ? 'evento' : 'eventos'}</summary><div className="mt-3"><TimelineContent status={status} events={events}/></div></details>;
 export default CaseTimeline;

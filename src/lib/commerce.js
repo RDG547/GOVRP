@@ -1,4 +1,8 @@
 const PURCHASE_ERRORS = {
+  PRODUCT_NOT_AVAILABLE: 'Este anúncio está suspenso, removido ou aguardando aprovação.',
+  MARKETPLACE_UNAVAILABLE: 'O marketplace está temporariamente indisponível.',
+  MARKETPLACE_RECEIVING_ACCOUNT_REQUIRED: 'A gestão do marketplace precisa regularizar sua conta de recebimento.',
+  COMMISSION_EXCEEDS_PROCEEDS: 'A comissão e os tributos excedem o valor da venda. A operação não foi cobrada.',
   INSUFFICIENT_BALANCE: 'Seu saldo não é suficiente para esta compra.',
   INSUFFICIENT_CARD_LIMIT: 'O cartão não tem limite disponível para esta compra.',
   ACTIVITY_RESTRICTED_BY_LAW: 'Esta atividade está suspensa pela norma vigente.',

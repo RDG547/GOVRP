@@ -1,3 +1,4 @@
+import { formatLocaleBR } from '@/lib/dateTime';
 import CitizenSignature from './CitizenSignature';
 import { documentCatalog as docInfo, documentHasTwoSides, documentIsFullPage } from '@/lib/documentCatalog';
 import { fingerprintPaths } from '@/lib/citizenFingerprint';
@@ -21,7 +22,7 @@ const formatDocumentDate = (value) => {
     if (!value) return 'NÃO INFORMADA';
     const normalized = /^\d{4}-\d{2}-\d{2}$/.test(value) ? `${value}T12:00:00` : value;
     const date = new Date(normalized);
-    return Number.isNaN(date.getTime()) ? 'NÃO INFORMADA' : date.toLocaleDateString('pt-BR');
+    return Number.isNaN(date.getTime()) ? 'NÃO INFORMADA' : formatLocaleBR(date, 'toLocaleDateString', 'pt-BR');
 };
 
 const getCitizenNaturality = (user) => {
@@ -173,7 +174,7 @@ const RGDocument = ({ user, doc, side }) => {
                     </div>
                     <div className="grid min-h-0 w-3/4 grid-cols-2 content-start gap-x-2 gap-y-0.5 p-0.5 text-[0.5rem] sm:text-[11px]">
                         <DocumentField label="REGISTRO GERAL" value={formatRG(doc.document_number)} className="text-red-600 font-mono" />
-                        <DocumentField label="DATA DE EXPEDIÇÃO" value={new Date(doc.issued_at).toLocaleDateString('pt-BR')} />
+                        <DocumentField label="DATA DE EXPEDIÇÃO" value={formatLocaleBR(new Date(doc.issued_at), 'toLocaleDateString', 'pt-BR')} />
                         <DocumentField label="NOME" value={user.full_name?.toUpperCase()} className="col-span-2" />
                         <DocumentField label="FILIAÇÃO" value="NÃO INFORMADO" className="col-span-2" />
                         <DocumentField label="NATURALIDADE" value={getCitizenNaturality(user).toUpperCase()} />
@@ -189,6 +190,7 @@ const RGDocument = ({ user, doc, side }) => {
                 <p className="font-bold text-lg sm:text-xl">TERRITÓRIO NACIONAL</p>
                 <div className="h-px bg-black w-2/3 my-2 sm:my-3"></div>
                 <p className="text-[0.6rem] sm:text-sm">LEI Nº 7.116, DE 29 DE AGOSTO DE 1983</p>
+                <CitizenSignature user={user} className="mx-auto mt-2" />
             </div>
         )}
     </DocumentContainer>
@@ -220,7 +222,7 @@ const CPFDocument = ({ user, doc, side }) => {
                     <p className="font-semibold text-base sm:text-xl">{dateOfBirth}</p>
                 </main>
                 <footer className="text-right text-[0.5rem] sm:text-xs">
-                    <p>EMISSÃO: {new Date(doc.issued_at).toLocaleDateString('pt-BR')}</p>
+                    <p>EMISSÃO: {formatLocaleBR(new Date(doc.issued_at), 'toLocaleDateString', 'pt-BR')}</p>
                 </footer>
             </>
         ) : (
@@ -240,7 +242,7 @@ const CNPJDocument = ({ user, doc, side }) => (
                 </header>
                 <main className="grid grid-cols-2 gap-x-2 gap-y-0.5 text-[0.6rem] sm:text-sm">
                     <DocumentField label="NÚMERO DE INSCRIÇÃO" value={doc.document_number} />
-                    <DocumentField label="DATA DE ABERTURA" value={new Date(doc.issued_at).toLocaleDateString('pt-BR')} />
+                    <DocumentField label="DATA DE ABERTURA" value={formatLocaleBR(new Date(doc.issued_at), 'toLocaleDateString', 'pt-BR')} />
                     <DocumentField className="col-span-2" label="NOME EMPRESARIAL" value={doc.metadata?.company_name?.toUpperCase() || 'N/A'} />
                     <DocumentField className="col-span-2" label="TÍTULO DO ESTABELECIMENTO (NOME DE FANTASIA)" value={doc.metadata?.company_name?.toUpperCase() || 'N/A'} />
                     <DocumentField className="col-span-2" label="CÓDIGO E DESCRIÇÃO DA ATIVIDADE ECONÔMICA PRINCIPAL" value="96.09-2-99 - OUTRAS ATIVIDADES DE SERVIÇOS PESSOAIS" />
@@ -292,7 +294,7 @@ const CTDDocument = ({ user, doc, side }) => {
                 <div className="border-t border-b border-white/50 py-2 sm:py-3 space-y-1 sm:space-y-2">
                     <DocumentField label="EMPREGADOR" value="GOVERNO DE RP" className="text-white" />
                     <DocumentField label="FUNÇÃO" value={user.occupation || 'NÃO ESPECIFICADO'} className="text-white" />
-                    <DocumentField label="DATA DE ADMISSÃO" value={new Date(doc.issued_at).toLocaleDateString('pt-BR')} className="text-white" />
+                    <DocumentField label="DATA DE ADMISSÃO" value={formatLocaleBR(new Date(doc.issued_at), 'toLocaleDateString', 'pt-BR')} className="text-white" />
                 </div>
                 <p className="text-[0.5rem] sm:text-xs text-center">Este documento substitui a CTPS física. Válido em todo território nacional.</p>
             </div>
@@ -323,7 +325,7 @@ const TituloEleitorDocument = ({ user, doc, side }) => {
                             <DocumentField label="SEÇÃO" value={doc.metadata?.electoral_section || "EM REGULARIZAÇÃO"} />
                         </div>
                         <DocumentField label="MUNICÍPIO / UF" value={getCitizenResidence(user).toUpperCase()} />
-                        <DocumentField label="DATA DE EMISSÃO" value={new Date(doc.issued_at).toLocaleDateString('pt-BR')} />
+                        <DocumentField label="DATA DE EMISSÃO" value={formatLocaleBR(new Date(doc.issued_at), 'toLocaleDateString', 'pt-BR')} />
                     </div>
                     <div className="w-1/3 flex flex-col items-center">
                         <QRCode value={doc.qr_code_data || 'gov.rp'} size={64} renderAs="svg" />
@@ -366,8 +368,8 @@ const CNHDocument = ({ user, doc, side }) => {
                         </div>
                         <DocumentField label="N° REGISTRO" value={doc.document_number} />
                         <div className="flex justify-between">
-                            <DocumentField label="VALIDADE" value={doc.expires_at ? new Date(doc.expires_at).toLocaleDateString('pt-BR') : 'INDEFINIDA'} />
-                            <DocumentField label="1ª HABILITAÇÃO" value={new Date(doc.issued_at).toLocaleDateString('pt-BR')} />
+                            <DocumentField label="VALIDADE" value={doc.expires_at ? formatLocaleBR(new Date(doc.expires_at), 'toLocaleDateString', 'pt-BR') : 'INDEFINIDA'} />
+                            <DocumentField label="1ª HABILITAÇÃO" value={formatLocaleBR(new Date(doc.issued_at), 'toLocaleDateString', 'pt-BR')} />
                         </div>
                     </div>
                 </div>
@@ -434,8 +436,8 @@ const PassportDocument = ({ user, doc, side }) => {
                         <PassportField label="Nomes/Given Names" value={givenNames} className="col-span-2" />
                         <PassportField label="Nacionalidade" value="GOVERNIANA" />
                         <PassportField label="Data de Nasc." value={dateOfBirth} />
-                        <PassportField label="Data de Emissão" value={new Date(doc.issued_at).toLocaleDateString('pt-BR')} />
-                        <PassportField label="Data de Validade" value={doc.expires_at ? new Date(doc.expires_at).toLocaleDateString('pt-BR') : 'INDEFINIDA'} />
+                        <PassportField label="Data de Emissão" value={formatLocaleBR(new Date(doc.issued_at), 'toLocaleDateString', 'pt-BR')} />
+                        <PassportField label="Data de Validade" value={doc.expires_at ? formatLocaleBR(new Date(doc.expires_at), 'toLocaleDateString', 'pt-BR') : 'INDEFINIDA'} />
                     </div>
                  </div>
 
@@ -471,10 +473,10 @@ const MarriageCertificateDocument = ({ user, doc }) => {
                         <p className="font-bold">{doc.metadata?.spouse_name?.toUpperCase() || 'NÃO INFORMADO'}</p>
                     </div>
                 </div>
-                <p>Celebrado em <strong>{new Date(doc.issued_at).toLocaleDateString('pt-BR')}</strong>, sob o regime de <strong>COMUNHÃO PARCIAL DE BENS</strong>.</p>
+                <p>Celebrado em <strong>{formatLocaleBR(new Date(doc.issued_at), 'toLocaleDateString', 'pt-BR')}</strong>, sob o regime de <strong>COMUNHÃO PARCIAL DE BENS</strong>.</p>
             </main>
             <footer className="mt-8 text-center text-xs">
-                <p>GOV - RP, {new Date(doc.issued_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}.</p>
+                <p>GOV - RP, {formatLocaleBR(new Date(doc.issued_at), 'toLocaleDateString', 'pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}.</p>
             </footer>
         </div>
     );
@@ -526,7 +528,7 @@ const ProfessionalRegistryDocument = ({ user, doc, side }) => (
                         <DocumentField label="PROFISSÃO" value={doc.metadata?.profession?.toUpperCase() || 'NÃO ESPECIFICADO'} />
                         <DocumentField label="Nº DE REGISTRO" value={doc.document_number} className="text-red-600 font-mono" />
                         <DocumentField label="CPF" value={formatCPF(user.cpf)} />
-                        <DocumentField label="DATA DE EMISSÃO" value={new Date(doc.issued_at).toLocaleDateString('pt-BR')} />
+                        <DocumentField label="DATA DE EMISSÃO" value={formatLocaleBR(new Date(doc.issued_at), 'toLocaleDateString', 'pt-BR')} />
                     </div>
                 </main>
                 <footer className="mt-1 text-center text-[10px] sm:text-xs">
@@ -558,7 +560,7 @@ const ReservistCertificateDocument = ({ user, doc, side }) => {
                     <p className="leading-snug">Certificamos que o cidadão acima qualificado foi dispensado do serviço militar inicial por ter sido incluído no excesso de contingente.</p>
                 </main>
                 <footer className="mt-1 text-center text-[10px] sm:text-xs">
-                    <p>Emitido em: {new Date(doc.issued_at).toLocaleDateString('pt-BR')}</p>
+                    <p>Emitido em: {formatLocaleBR(new Date(doc.issued_at), 'toLocaleDateString', 'pt-BR')}</p>
                 </footer>
             </>
         ) : (

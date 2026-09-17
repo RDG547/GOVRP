@@ -1,3 +1,4 @@
+import { formatLocaleBR } from '@/lib/dateTime';
 import { userErrorMessage } from '@/lib/userErrors';
 import { fetchPublicProfiles } from '@/lib/publicProfiles';
 import DecreeOversight from '@/components/parliament/DecreeOversight';
@@ -1679,7 +1680,7 @@ const ParliamentPanel = () => {
                               </p>
 <PartyIdentity party={activeTerm.member?.party} className="text-sm" />
                               <p className="text-sm text-muted-foreground">
-                                Mandato até {new Date(`${activeTerm.term_end_date}T00:00:00`).toLocaleDateString('pt-BR')}
+                                Mandato até {formatLocaleBR(new Date(`${activeTerm.term_end_date}T00:00:00`), 'toLocaleDateString', 'pt-BR')}
                               </p>
                             </div>
                           </div>
@@ -1734,7 +1735,7 @@ const ParliamentPanel = () => {
                               <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-right">
                                 <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Prazo</p>
                                 <p className="mt-2 text-sm font-medium text-foreground">
-                                  {nominating ? 'Candidaturas até ' : 'Votação até '}{new Date(nominating ? election.nomination_end_at : election.end_at).toLocaleString('pt-BR')}
+                                  {nominating ? 'Candidaturas até ' : 'Votação até '}{formatLocaleBR(new Date(nominating ? election.nomination_end_at : election.end_at), 'toLocaleString', 'pt-BR')}
                                 </p>
                               </div>
                             </div>
@@ -1913,7 +1914,7 @@ const ParliamentPanel = () => {
                         <p className="mt-3 text-xs text-muted-foreground">
                           Encerramento registrado em{' '}
                           {member.term_end_date
-                            ? new Date(`${member.term_end_date}T00:00:00`).toLocaleDateString('pt-BR')
+                            ? formatLocaleBR(new Date(`${member.term_end_date}T00:00:00`), 'toLocaleDateString', 'pt-BR')
                             : 'data não informada'}
                         </p>
                       </Card>

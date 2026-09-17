@@ -1,3 +1,4 @@
+import { fetchCitizenDirectory } from './publicProfileQueries.js';
 import { mapBillTypeToGazetteType, publishOfficialGazetteEntry } from './officialGazette.js';
 import { PARLIAMENT_HOUSE_IDS } from './parliamentGovernance.js';
 import { fetchElectionOfficeSyncState } from './electionOfficeSync.js';
@@ -198,9 +199,7 @@ const fetchProfilesMap = async (supabase, profileIds = []) => {
   }
 
   const { data, error } = await supabase
-    .from('profiles')
-    .select('id, full_name, avatar_url, role, username, x_handle')
-    .in('id', ids);
+    .rpc('get_public_party_profiles', { p_ids: ids });
 
   if (error) {
     throw error;
@@ -427,10 +426,7 @@ export const canRunForPresidency = (elections = [], userId) =>
 
 const fetchFallbackSuccessionProfiles = async (supabase) => {
   const roleFilters = dedupe(Object.values(SUCCESSION_ROLE_FALLBACKS).flat());
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('id, full_name, avatar_url, role, username, x_handle')
-    .in('role', roleFilters);
+  const { data, error } = await supabase.rpc('search_citizens', { p_roles: roleFilters, p_limit: 100 });
 
   if (error) {
     throw error;
@@ -593,10 +589,7 @@ const attachProfilesToSettings = async (supabase, settingsValue) => {
 
 export const fetchPotentialRunningMates = async (supabase, { electionId = null, excludeUserId = null } = {}) => {
   const [{ data: profiles, error: profilesError }, { data: candidates, error: candidatesError }] = await Promise.all([
-    supabase
-      .from('profiles')
-      .select('id, full_name, avatar_url, role, username')
-      .order('full_name', { ascending: true }),
+    fetchCitizenDirectory(supabase),
     electionId
       ? supabase.from('candidates').select('user_id, vice_candidate_id').eq('election_id', electionId)
       : Promise.resolve({ data: [], error: null }),

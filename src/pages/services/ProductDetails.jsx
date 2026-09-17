@@ -1,3 +1,5 @@
+import BuyDialog from '@/components/business/PurchaseDialog';
+import { formatLocaleBR } from '@/lib/dateTime';
 import { useRef } from 'react';
 import { useDomainRealtime } from '@/hooks/use-domain-realtime';
 import { usePublicProfileChanges } from '@/hooks/use-public-profile-changes';
@@ -46,83 +48,6 @@ const StarRating = ({ rating, setRating, interactive = true }) => {
     );
 };
 
-const BuyDialog = ({ product, open, onOpenChange, onConfirm }) => {
-  const [paymentMethod, setPaymentMethod] = useState('balance');
-  const [cards, setCards] = useState([]);
-  const [selectedCard, setSelectedCard] = useState('');
-  const [loading, setLoading] = useState(false);
-  const { user } = useAuth();
-
-  useEffect(() => {
-    if (open && user) {
-      const fetchCards = async () => {
-        const { data } = await supabase.from('cards').select('*').eq('user_id', user.id).eq('is_active', true);
-        setCards(data || []);
-      };
-      fetchCards();
-    }
-  }, [open, user]);
-
-  const handleConfirm = () => {
-    setLoading(true);
-    onConfirm(paymentMethod, selectedCard).finally(() => setLoading(false));
-  };
-
-  if (!product) return null;
-
-  const finalPrice = product.final_price;
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Confirmar Compra</DialogTitle>
-          <DialogDescription>Você está prestes a adquirir "{product.name}".</DialogDescription>
-        </DialogHeader>
-        <div className="space-y-4 py-4">
-          <div className="flex justify-between items-center p-4 rounded-lg bg-muted">
-            <span className="font-semibold">{product.name}</span>
-            <span className="font-bold text-lg">{formatCurrency(finalPrice)}</span>
-          </div>
-          {product.seller?.activity_restricted && <p role="status" className="text-destructive">Esta atividade está suspensa pela norma vigente.</p>}
-          <div>
-            <label className="text-sm font-medium">Método de Pagamento</label>
-            <Select value={paymentMethod} onValueChange={setPaymentMethod}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="balance">Saldo em Conta</SelectItem>
-                <SelectItem value="card" disabled={cards.length === 0}>Cartão de Crédito</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          {paymentMethod === 'card' && (
-            <div>
-              <label className="text-sm font-medium">Selecione o Cartão</label>
-              <Select value={selectedCard} onValueChange={setSelectedCard}>
-                <SelectTrigger><SelectValue placeholder="Selecione um cartão" /></SelectTrigger>
-                <SelectContent>
-                  {cards.map(card => (
-                    <SelectItem key={card.id} value={card.id}>
-                      {card.brand} final {card.card_number.slice(-4)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-          <Button onClick={handleConfirm} disabled={loading || product.seller?.activity_restricted || (paymentMethod === 'card' && !selectedCard)}>
-            {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-            Confirmar e Pagar
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-};
-
 const ProductDetails = () => {
     const { productId } = useParams();
     const { user } = useAuth();
@@ -152,7 +77,7 @@ const ProductDetails = () => {
 
         if (!productData) {
             setProduct(null);
-            toast({ title: "Erro", description: "Produto não encontrado.", variant: "destructive" });
+            setIsBuyDialogOpen(false);
             setLoading(false);
             return;
         }
@@ -179,7 +104,7 @@ const ProductDetails = () => {
         setLoading(true);
         fetchProductDetails();
     }, [fetchProductDetails]);
-    useDomainRealtime('product-details', productId, [{ table: 'products', filter: `id=eq.${productId}` }, { table: 'product_reviews', filter: `product_id=eq.${productId}` }, 'government_rules'], fetchProductDetails);
+    useDomainRealtime('product-details', productId, [{ table: 'products', filter: `id=eq.${productId}` }, { table: 'product_reviews', filter: `product_id=eq.${productId}` }, 'government_rules', 'state_enterprises'], fetchProductDetails);
     usePublicProfileChanges(fetchProductDetails);
 
     const handleReviewSubmit = async () => {
@@ -352,7 +277,7 @@ const ProductDetails = () => {
                                                 <p className="font-semibold">{review.author.full_name}</p>
                                                 <StarRating rating={review.rating} interactive={false} />
                                             </div>
-                                            <p className="text-xs text-muted-foreground mb-2">{new Date(review.created_at).toLocaleDateString('pt-BR')}</p>
+                                            <p className="text-xs text-muted-foreground mb-2">{formatLocaleBR(new Date(review.created_at), 'toLocaleDateString', 'pt-BR')}</p>
                                             <p className="text-sm text-muted-foreground">{review.comment}</p>
                                         </div>
                                     </div>

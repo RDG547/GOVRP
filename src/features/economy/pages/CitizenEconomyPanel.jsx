@@ -1,3 +1,4 @@
+import { formatLocaleBR } from '@/lib/dateTime';
 import React, { useMemo, useState } from 'react';
 import { Briefcase, CreditCard, Gauge, PiggyBank, ShoppingCart, Wallet } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -28,7 +29,7 @@ const CitizenEconomyPanel = ({ data, onRefresh, toast }) => {
   });
 
   const history = useMemo(() => (data?.history || []).map((item) => ({
-    label: new Date(item.ends_at_rp).toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' }),
+    label: formatLocaleBR(new Date(item.ends_at_rp), 'toLocaleDateString', 'pt-BR', { month: 'short', year: '2-digit' }),
     poder: asNumber(item.purchasing_power_index),
     renda: asNumber(item.real_income),
     consumo: asNumber(item.consumption),

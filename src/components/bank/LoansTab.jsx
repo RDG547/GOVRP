@@ -98,7 +98,7 @@ const LoansTab = ({ loanApplications, onUpdate }) => {
                            <Coins className="h-6 w-6 text-yellow-400"/> Empréstimos
                         </div>
                         <Dialog open={isLoanModalOpen} onOpenChange={setIsLoanModalOpen}>
-                            <DialogTrigger asChild><Button size="sm">Solicitar Empréstimo</Button></DialogTrigger>
+                            <DialogTrigger asChild><Button size="sm"><Coins className="mr-2 h-4 w-4"/>Solicitar Empréstimo</Button></DialogTrigger>
                             <DialogContent>
                                 <DialogHeader>
                                     <DialogTitle>Solicitar Empréstimo</DialogTitle>

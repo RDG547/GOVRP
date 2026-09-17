@@ -1,3 +1,5 @@
+import { formatDateBR } from '@/lib/dateTime';
+import { formatLocaleBR } from '@/lib/dateTime';
 import { useDomainRealtime } from '@/hooks/use-domain-realtime';
 import { LEGAL_REALTIME_TABLES } from '@/lib/legalMeasures';
 import { documentCatalog as docInfo, documentHasTwoSides } from '@/lib/documentCatalog';
@@ -64,8 +66,8 @@ const DocumentCard = ({ doc, onVisualize, onGenerate, onDelete }) => {
             <CardContent className="flex-grow flex flex-col justify-between">
                 <div>
                     <div className="text-2xl font-bold font-mono">{formatValue(doc.type, doc.document_number)}</div>
-                    <p className="text-xs text-muted-foreground">Emissão: {new Date(doc.issued_at).toLocaleDateString()}</p>
-                    {doc.expires_at && <p className="text-xs text-muted-foreground">Validade: {new Date(doc.expires_at).toLocaleDateString()}</p>}
+                    <p className="text-xs text-muted-foreground">Emissão: {formatLocaleBR(new Date(doc.issued_at), 'toLocaleDateString')}</p>
+                    {doc.expires_at && <p className="text-xs text-muted-foreground">Validade: {formatLocaleBR(new Date(doc.expires_at), 'toLocaleDateString')}</p>}
                 </div>
                 <div className="mt-4 flex gap-2 flex-wrap">
                     <Button variant="outline" size="sm" onClick={() => onVisualize(doc)}><Eye className="w-4 h-4 mr-2" />Visualizar</Button>
@@ -414,7 +416,7 @@ const DIC = () => {
                                                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                                             <div className="p-3 rounded-xl bg-white/5 border border-white/10">
                                                                 <div className="flex items-center gap-2 mb-1"><CalendarDays className="w-3.5 h-3.5 text-purple-400" /><p className="text-xs text-muted-foreground">Nascimento do cidadão</p></div>
-                                                                <p className="text-sm font-medium text-foreground truncate">{displayProfile.date_of_birth ? new Date(`${displayProfile.date_of_birth}T00:00:00`).toLocaleDateString('pt-BR') : 'Não informado'}</p>
+                                                                <p className="text-sm font-medium text-foreground truncate">{displayProfile.date_of_birth ? formatDateBR(displayProfile.date_of_birth) : 'Não informado'}</p>
                                                             </div>
                                                             <div className="p-3 rounded-xl bg-white/5 border border-white/10">
                                                                 <div className="flex items-center gap-2 mb-1"><MapPin className="w-3.5 h-3.5 text-green-400" /><p className="text-xs text-muted-foreground">Residência</p></div>

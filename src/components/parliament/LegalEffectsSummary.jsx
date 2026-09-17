@@ -1,3 +1,4 @@
+import { formatLocaleBR } from '@/lib/dateTime';
 import React, { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { useDomainRealtime } from '@/hooks/use-domain-realtime';
@@ -25,7 +26,7 @@ export default function LegalEffectsSummary({ effects = [] }) {
         {definition.exempt_below != null && <p>Isenção para operações até R$ {Number(definition.exempt_below).toLocaleString('pt-BR')}.</p>}
         {definition.hour_from && <p>Horário RP: {definition.hour_from} às {definition.hour_until}.</p>}
         {definition.weekdays?.length > 0 && <p>Dias: {definition.weekdays.map(day => ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'][day]).join(', ')}.</p>}
-        <p className="text-xs text-muted-foreground">Vigência: {effect.valid_from ? new Date(effect.valid_from).toLocaleString('pt-BR') : 'A partir da publicação válida'}{effect.valid_until ? ` até ${new Date(effect.valid_until).toLocaleString('pt-BR')}` : ''}.</p>
+        <p className="text-xs text-muted-foreground">Vigência: {effect.valid_from ? formatLocaleBR(new Date(effect.valid_from), 'toLocaleString', 'pt-BR') : 'A partir da publicação válida'}{effect.valid_until ? ` até ${formatLocaleBR(new Date(effect.valid_until), 'toLocaleString', 'pt-BR')}` : ''}.</p>
       </div>;
     })}
   </section>;

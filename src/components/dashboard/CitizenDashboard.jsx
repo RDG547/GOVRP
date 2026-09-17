@@ -1,3 +1,4 @@
+import { formatLocaleBR } from '@/lib/dateTime';
 import React, { useState, useEffect, useCallback } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { motion } from 'framer-motion';
@@ -566,7 +567,7 @@ const CitizenDashboard = () => {
                       </div>
                       <div className="grid grid-cols-2 gap-x-4 gap-y-4 pt-4">
                           <ProfileInfoRow icon={MapPin} label="Residência" value={user?.residence_city_name ? `${user.residence_city_name}/${user.residence_state_code}` : user?.state_name} colorClass="text-green-400" />
-                          <ProfileInfoRow icon={User} label="Nascimento do cidadão" value={user?.date_of_birth ? new Date(`${user.date_of_birth}T00:00:00`).toLocaleDateString('pt-BR') : null} colorClass="text-purple-400" />
+                          <ProfileInfoRow icon={User} label="Nascimento do cidadão" value={user?.date_of_birth ? formatLocaleBR(new Date(`${user.date_of_birth}T00:00:00`), 'toLocaleDateString', 'pt-BR') : null} colorClass="text-purple-400" />
                           <ProfileInfoRow icon={Fingerprint} label="CPF" value={formatCPF(getDoc('CPF')?.document_number)} colorClass="text-sky-400" />
                           <ProfileInfoRow icon={Contact} label="RG" value={formatRG(getDoc('RG')?.document_number)} colorClass="text-sky-400" />
                           <ProfileInfoRow icon={Car} label="CNH" value={getDoc('CNH')?.document_number} colorClass="text-blue-400" />
@@ -574,7 +575,7 @@ const CitizenDashboard = () => {
                           <ProfileInfoRow icon={Building} label="CNPJ" value={formatCNPJ(getDoc('CNPJ')?.document_number)} colorClass="text-yellow-400" />
                           <ProfileInfoRow icon={Briefcase} label="CTD" value={getDoc('CTD')?.document_number} colorClass="text-indigo-400" />
                           <ProfileInfoRow icon={Briefcase} label="Cargo(s)" value={Array.isArray(user?.role) ? user.role.join(', ') : user?.role} colorClass="text-yellow-400" />
-                          <ProfileInfoRow icon={Calendar} label="Cidadão desde" value={user?.citizenship_created_at ? new Date(user.citizenship_created_at).toLocaleDateString('pt-BR') : null} colorClass="text-red-400" />
+                          <ProfileInfoRow icon={Calendar} label="Cidadão desde" value={user?.citizenship_created_at ? formatLocaleBR(new Date(user.citizenship_created_at), 'toLocaleDateString', 'pt-BR') : null} colorClass="text-red-400" />
                           {data.party ? (
                             <ProfileInfoRow icon={Flag} label="Filiação Partidária" value={`${data.party.name} (${data.party.acronym})`} colorClass="text-orange-400" />
                           ) : (

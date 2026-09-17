@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useLayoutEffect, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Landmark, Check, Loader2, Users, ArrowRight } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
@@ -15,15 +15,18 @@ export default function PresidentialFormationGuide() {
   const [formation,setFormation]=useState(null);const [candidates,setCandidates]=useState([]);
   const [pendingRole,setPendingRole]=useState(true);const [selected,setSelected]=useState('');const [saving,setSaving]=useState(false);
   const [dismissed,setDismissed]=useState(null);
+  const loadSequence = useRef(0);
   const [query,setQuery]=useState('');const [offset,setOffset]=useState(0);const [hasMore,setHasMore]=useState(false);const [searching,setSearching]=useState(false);const [searchError,setSearchError]=useState('');
   const load=useCallback(async()=>{
+    const sequence = ++loadSequence.current;
     if(user?.role!=='Presidente'){setFormation(null);return;}
     const [f,roles]=await Promise.all([
       supabase.rpc('get_presidential_formation'),
       supabase.from('notifications').select('id').eq('user_id',user.id).eq('type','role_changed').is('metadata->>popup_shown_at',null).limit(1),
     ]);
+    if(sequence !== loadSequence.current) return;
     if(f.error||roles.error){console.warn('Formação de governo:',f.error||roles.error);return;}
-    setFormation(f.data);setPendingRole(Boolean(roles.data?.length));
+    setFormation(current => JSON.stringify(current) === JSON.stringify(f.data) ? current : f.data);setPendingRole(Boolean(roles.data?.length));
   },[user?.id,user?.role]);
   useEffect(()=>{void load();},[load]);
   useDomainRealtime('presidential-formation',user?.id,[{table:'notifications',filter:`user_id=eq.${user?.id}`},'ministers','system_settings','presidential_formation','profiles'],load,user?.role==='Presidente');

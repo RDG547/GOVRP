@@ -1,3 +1,4 @@
+import { formatLocaleBR } from '@/lib/dateTime';
 import { useDomainRealtime } from '@/hooks/use-domain-realtime';
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '@/lib/supabaseClient';
@@ -146,14 +147,14 @@ const ExchangeTab = ({ onUpdate, account }) => {
       .filter((row) => row.currency_code === chartCurrency)
       .map((row) => ({
         timestamp: row.recorded_at,
-        label: new Date(row.recorded_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
+        label: formatLocaleBR(new Date(row.recorded_at), 'toLocaleDateString', 'pt-BR', { day: '2-digit', month: '2-digit' }),
         value: Number(row.brl_per_unit),
       }));
     const current = rateRows.find((row) => row.currency_code === chartCurrency);
     if (current && (!points.length || points.at(-1).value !== Number(current.brl_per_unit))) {
       points.push({
         timestamp: current.updated_at,
-        label: new Date(current.updated_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
+        label: formatLocaleBR(new Date(current.updated_at), 'toLocaleDateString', 'pt-BR', { day: '2-digit', month: '2-digit' }),
         value: Number(current.brl_per_unit),
       });
     }

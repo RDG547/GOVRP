@@ -1,9 +1,10 @@
 import assert from 'node:assert/strict';
-import { actor, service, request, subscribe, waitFor, cleanup } from './lib/world-test.mjs';
+import { ensureParliamentHouses, actor, service, request, subscribe, waitFor, cleanup } from './lib/world-test.mjs';
 import { fetchCommissionGovernanceData } from '../src/lib/parliamentGovernance.js';
 let checks=0;
 const check=(value,label)=>{assert(value,label);checks++;console.log(`✓ ${label}`);};
 try {
+ await ensureParliamentHouses();
  const [member,citizen]=await Promise.all([actor('partidodeputado','Deputado'),actor('partidoleitor')]);
  const houses=await request(service.from('parliament_houses').select('id,name'));
  const house=houses.find(h=>/c.mara/i.test(h.name)) || houses[0];

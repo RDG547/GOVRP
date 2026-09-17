@@ -314,9 +314,7 @@ const BankManagementPanel = () => {
     }
 
     const { data, error } = await supabase
-      .from('profiles')
-      .select('id, full_name, username, avatar_url')
-      .in('id', ids);
+      .rpc('get_public_party_profiles', { p_ids: ids });
 
     if (error) {
       throw error;

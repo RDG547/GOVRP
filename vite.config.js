@@ -8,6 +8,7 @@ import selectionModePlugin from './plugins/selection-mode/vite-plugin-selection-
 import donationApiPlugin from './plugins/vite-plugin-donation-api.js';
 import electionSyncApiPlugin from './plugins/vite-plugin-election-sync-api.js';
 import businessApiPlugin from './plugins/vite-plugin-business-api.js';
+import citizenApiPlugin from './plugins/vite-plugin-citizen-api.js';
 import { VitePWA } from 'vite-plugin-pwa';
 
 const isDev = process.env.NODE_ENV !== 'production';
@@ -312,6 +313,7 @@ export default defineConfig(({ mode }) => {
 					electionSyncApiPlugin(),
 					donationApiPlugin(),
 					businessApiPlugin(),
+					citizenApiPlugin(),
 			  ]
 				: []),
 			react(),
@@ -366,7 +368,6 @@ export default defineConfig(({ mode }) => {
 					cleanupOutdatedCaches: true,
 					clientsClaim: false,
 					skipWaiting: false,
-					clientsClaim: true,
 					navigateFallback: '/index.html',
 					navigateFallbackDenylist: [/^\/api\//],
 					maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,

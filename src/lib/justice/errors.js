@@ -1,4 +1,10 @@
 const messages = {
+  EVIDENCE_NOT_FOUND: 'Esta prova não está disponível.',
+  EVIDENCE_TITLE_TOO_SHORT: 'Identifique a prova com pelo menos 5 caracteres.',
+  EVIDENCE_DESCRIPTION_TOO_SHORT: 'Descreva a prova com pelo menos 10 caracteres.',
+  ONLY_DELEGATE_CAN_SEAL_EVIDENCE: 'O delegado deve conferir e lacrar esta prova.',
+  INVESTIGATION_NOT_EDITABLE: 'Esta investigação já foi encerrada ou remetida.',
+  JUSTIFICATION_REQUIRED: 'Informe a justificativa para esta ação.',
   INVALID_SENTENCE_VALUE: 'Informe uma pena positiva e um valor de multa válido.',
   CASE_NOT_READY_FOR_SENTENCE: 'Conclua a instrução e a audiência antes de proferir a sentença.',
   ONLY_ASSIGNED_APPEAL_JUDGE: 'O recurso cabe ao juiz designado para sua revisão.',

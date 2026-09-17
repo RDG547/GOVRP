@@ -1,5 +1,5 @@
 import { fetchPublicProfiles } from '@/lib/publicProfiles';
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useDomainRealtime } from '@/hooks/use-domain-realtime';
 import { usePublicProfileChanges } from '@/hooks/use-public-profile-changes';
 import { useToast } from '@/components/ui/use-toast';
@@ -19,6 +19,20 @@ const XMessages = () => {
     const navigate = useNavigate();
     const [conversations, setConversations] = useState([]);
     const [loading, setLoading] = useState(true);
+    const chatShell = useRef(null);
+    const [viewportHeight, setViewportHeight] = useState(null);
+    useEffect(() => {
+        const viewport = window.visualViewport;
+        const resize = () => {
+            const top = chatShell.current?.getBoundingClientRect().top || 0;
+            setViewportHeight(Math.max(200, (viewport?.height || window.innerHeight) + (viewport?.offsetTop || 0) - top - 12));
+        };
+        resize();
+        viewport?.addEventListener('resize', resize);
+        viewport?.addEventListener('scroll', resize);
+        window.addEventListener('resize', resize);
+        return () => { viewport?.removeEventListener('resize', resize); viewport?.removeEventListener('scroll', resize); window.removeEventListener('resize', resize); };
+    }, []);
 
     const fetchConversations = useCallback(async () => {
         if (!user) return;
@@ -76,12 +90,12 @@ const XMessages = () => {
     return (
         <>
             <Helmet><title>Mensagens - X</title></Helmet>
-            <div className="flex flex-col h-[calc(100dvh-8rem)] min-h-[420px] ">
+            <div ref={chatShell} style={viewportHeight ? { height: viewportHeight } : undefined} className="flex flex-col h-[calc(100dvh-8rem)] min-h-0 overflow-hidden">
                 {/* Conversation List */}
                 <div className={`
                     w-full
                     border-r border-border
-                    flex-shrink-0 flex flex-col
+                    flex-1 min-h-0 flex flex-col
                     ${conversationId ? 'hidden' : 'flex'}
                 `}>
                     <div className="p-4 border-b border-border">
@@ -98,22 +112,11 @@ const XMessages = () => {
 
                 {/* Chat Area */}
                 <div className={`
-                    flex-1 flex flex-col min-w-0
+                    flex-1 flex flex-col min-w-0 min-h-0
                     ${!conversationId ? 'hidden' : 'flex'}
                 `}>
                     {conversationId && selectedConversation ? (
                         <>
-                            {/* Mobile back button */}
-                            <div className="p-2 border-b border-border">
-                                <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => navigate('/services/x/messages')}
-                                    className="gap-2"
-                                >
-                                    <ArrowLeft className="w-4 h-4" /> Voltar
-                                </Button>
-                            </div>
                             <ChatWindow
                                 key={conversationId}
                                 conversation={selectedConversation}

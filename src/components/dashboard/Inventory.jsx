@@ -1,3 +1,4 @@
+import { formatLocaleBR } from '@/lib/dateTime';
 import { useCitizenNeeds } from '@/contexts/CitizenNeedsContext';
 import { useDomainRealtime } from '@/hooks/use-domain-realtime';
 import { Utensils, Home } from 'lucide-react';
@@ -5,6 +6,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/lib/supabaseClient';
+import { fetchPublicProfileRows } from '@/lib/publicProfileQueries';
 import { useAuth } from '@/contexts/AuthContext';
 import { Loader2, Package, Repeat, Calendar, Info, Trash2, Repeat2 } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
@@ -35,6 +37,7 @@ const Inventory = () => {
     const [inventory, setInventory] = useState([]);
     const [subscriptions, setSubscriptions] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [loadError, setLoadError] = useState('');
     const [dialogOpen, setDialogOpen] = useState(false);
     const [selectedSubscription, setSelectedSubscription] = useState(null);
     const [isCancelling, setIsCancelling] = useState(false);
@@ -45,20 +48,29 @@ const Inventory = () => {
 
         const { data: inventoryData, error: inventoryError } = await supabase
             .from('user_inventory')
-            .select('*, product:products(*, seller:profiles(username))')
+            .select('*, product:products(*)')
             .eq('user_id', user.id)
             .gt('quantity', 0);
 
         const { data: subscriptionsData, error: subscriptionsError } = await supabase
             .from('user_subscriptions')
-            .select('*, product:products(*, seller:profiles(username))')
+            .select('*, product:products(*)')
             .eq('user_id', user.id);
 
-        if (inventoryError) console.error('Error fetching inventory:', inventoryError);
-        if (subscriptionsError) console.error('Error fetching subscriptions:', subscriptionsError);
-
-        setInventory(inventoryData || []);
-        setSubscriptions(subscriptionsData || []);
+        if (inventoryError || subscriptionsError) {
+            console.error('inventory-load', inventoryError || subscriptionsError);
+            setLoadError('Não foi possível consultar seus itens. Tente novamente.');
+            setLoading(false);
+            return;
+        }
+        let sellers = new Map();
+        try {
+            sellers = await fetchPublicProfileRows([...(inventoryData || []), ...(subscriptionsData || [])].map(row => row.product?.seller_id), supabase);
+        } catch (error) { console.error('inventory-sellers', error); }
+        const withSeller = row => ({ ...row, product: { name: 'Produto indisponível', ...row.product, seller: sellers.get(row.product?.seller_id) } });
+        setInventory((inventoryData || []).map(withSeller));
+        setSubscriptions((subscriptionsData || []).map(withSeller));
+        setLoadError('');
         setLoading(false);
     }, [user]);
 
@@ -125,6 +137,7 @@ const Inventory = () => {
                     <CardDescription>Seus itens e assinaturas.</CardDescription>
                 </CardHeader>
                 <CardContent>
+                    {loadError && <div role="alert" className="mb-4 rounded-lg border p-3 text-sm">{loadError}<Button variant="link" onClick={fetchInventory}>Tentar novamente</Button></div>}
                     <Tabs defaultValue="products">
                         <TabsList className="grid w-full grid-cols-2">
                             <TabsTrigger value="products"><Package className="mr-2 h-4 w-4" />Produtos</TabsTrigger>
@@ -139,7 +152,7 @@ const Inventory = () => {
                                             <div className="flex-1">
                                                 <p className="font-semibold text-foreground">{item.product.name} <span className="text-muted-foreground font-normal">x{item.quantity}</span></p>
                                                 <p className="text-sm text-muted-foreground">Vendido por: @{(item.product.seller?.username || (item.product.state_enterprise_id ? 'Governo do RP' : 'Cidadão'))}</p>
-                                                <p className="text-xs text-muted-foreground">Adquirido em: {new Date(item.acquired_at).toLocaleDateString('pt-BR')}</p>
+                                                <p className="text-xs text-muted-foreground">Adquirido em: {formatLocaleBR(new Date(item.acquired_at), 'toLocaleDateString', 'pt-BR')}</p>
                                             </div>
                                             {Object.keys(item.metadata?.consumable_effects || item.product.consumable_effects || {}).length > 0 && <Button size="sm" disabled={Boolean(consuming)} onClick={() => consume(item)}><Utensils className="mr-2 h-4 w-4" />{consuming === item.id ? 'Consumindo…' : 'Consumir'}</Button>}
                                             {!item.product.residence_spec && <Button variant="outline" size="sm" onClick={() => handleResell(item)}><Repeat2 className="w-4 h-4 mr-2" /> Revender</Button>}
@@ -163,7 +176,7 @@ const Inventory = () => {
                                                 <p className="text-sm text-muted-foreground">Vendido por: @{sub.product.seller?.username || 'Cidadão'}</p>
                                                 <div className="text-xs mt-1 space-y-1">
                                                     <span className="flex items-center gap-1"><Info className="w-3 h-3" /> Status: <span className={`font-medium ${sub.status === 'active' ? 'text-green-400' : 'text-red-400'}`}>{sub.status === 'active' ? 'Ativa' : 'Cancelada'}</span></span>
-                                                    {sub.status === 'active' && <span className="flex items-center gap-1"><Calendar className="w-3 h-3" /> Próx. Cobrança: {new Date(sub.next_payment_date).toLocaleDateString('pt-BR')}</span>}
+                                                    {sub.status === 'active' && <span className="flex items-center gap-1"><Calendar className="w-3 h-3" /> Próx. Cobrança: {formatLocaleBR(new Date(sub.next_payment_date), 'toLocaleDateString', 'pt-BR')}</span>}
                                                 </div>
                                             </div>
                                             <div className="flex flex-col items-end gap-2">

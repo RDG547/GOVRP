@@ -40,7 +40,7 @@ try {
   check(Boolean((await vice.client.rpc('citizen_need_action', { p_action: 'consume', p_reference_id: received.id, p_idempotency_key: crypto.randomUUID() })).error), 'inventário indisponível também bloqueia o consumo no servidor');
   await request(service.from('system_settings').upsert(availability || { key: 'service_availability', value: {} }));
 
-  const party = await request(service.from('political_parties').insert({ name: `Partido ${crypto.randomUUID().slice(0,8)}`, acronym: 'TNC', founder_id: seller.id, owner_id: seller.id, president_id: buyer.id, vice_president_id: vice.id, registration_number: crypto.randomUUID(), is_active: false }).select('id').single());
+  const party = await request(service.from('political_parties').insert({ name: `Partido ${crypto.randomUUID().slice(0,8)}`, acronym: `T${crypto.randomUUID().slice(0,5)}`, founder_id: seller.id, owner_id: seller.id, president_id: buyer.id, vice_president_id: vice.id, registration_number: crypto.randomUUID(), is_active: false }).select('id').single());
   await request(service.from('political_parties').update({ is_active: true }).eq('id', party.id));
   await request(service.from('political_parties').update({ is_active: true }).eq('id', party.id));
   const notices = await request(service.from('notifications').select('*').eq('type', 'party_approved').eq('metadata->>party_id', party.id));

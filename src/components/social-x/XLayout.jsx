@@ -24,7 +24,7 @@ const XLayout = ({ children }) => {
           <XSidebar />
         </aside>
 
-        <main className={`md:col-span-3 ${messages ? 'lg:col-span-8' : 'lg:col-span-5'} min-w-0 min-h-screen`}>
+        <main className={`md:col-span-3 ${messages ? 'lg:col-span-8 min-h-0' : 'lg:col-span-5 min-h-screen'} min-w-0`}>
           {children}
         </main>
 

@@ -1,3 +1,5 @@
+import { electionNumberDigits } from '@/lib/electoralNumbers';
+import { formatLocaleBR } from '@/lib/dateTime';
 import React, { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -29,6 +31,7 @@ import { fetchWithSessionAuth } from '@/lib/apiAuth';
 import UserSelectOption from '@/components/UserSelectOption';
 
 const candidacySchema = z.object({
+  electoral_number: z.string().regex(/^[0-9]{2,4}$/, 'Defina um número eleitoral válido.'),
   election_id: z.string().uuid('Selecione uma eleição válida.'),
   party_id: z.string().uuid('Selecione um partido válido.').optional().nullable(),
   vice_candidate_id: z.string().uuid('Selecione um vice válido.').optional().nullable(),
@@ -88,6 +91,7 @@ const RegisterCandidacy = ({ onFinished }) => {
   const form = useForm({
     resolver: zodResolver(candidacySchema),
     defaultValues: {
+      electoral_number: '',
       election_id: '',
       party_id: null,
       vice_candidate_id: null,
@@ -97,10 +101,14 @@ const RegisterCandidacy = ({ onFinished }) => {
     },
   });
 
+  const selectedPartyId = form.watch('party_id');
   const selectedElectionId = form.watch('election_id');
   const selectedViceCandidateId = form.watch('vice_candidate_id');
   const selectedElection = elections.find((election) => election.id === selectedElectionId) || null;
   const requiresViceCandidate = isPresidentialTicketElection(selectedElection);
+  const numberDigits = electionNumberDigits(selectedElection);
+  const numberPrefix = parties.find(party => party.id === selectedPartyId)?.electoral_number || '0';
+  useEffect(() => { form.setValue('electoral_number', numberDigits === 2 && numberPrefix.length === 2 ? numberPrefix : ''); }, [selectedElectionId, numberPrefix, numberDigits, form]);
   const consecutivePresidentialWins = getConsecutivePresidentialWins(presidentialElections, user?.id);
   const presidentialRunBlocked = requiresViceCandidate && consecutivePresidentialWins >= 2;
   const presidentialViceMissing = requiresViceCandidate && !selectedViceCandidateId;
@@ -137,7 +145,7 @@ const RegisterCandidacy = ({ onFinished }) => {
             .select('id, name, election_type_id, election_types(name, requires_vice_candidate, voting_system)')
             .eq('status', 'Candidacy')
             .order('voting_start_date', { ascending: true }),
-          supabase.from('political_parties').select('id, name').eq('is_active', true),
+          supabase.from('political_parties').select('id, name, electoral_number').eq('is_active', true),
           user?.id
             ? supabase.from('party_members').select('party_id').eq('user_id', user.id).maybeSingle()
             : Promise.resolve({ data: null, error: null }),
@@ -379,6 +387,7 @@ const RegisterCandidacy = ({ onFinished }) => {
             bio: values.bio,
             proposals: values.proposals,
             campaignPhotoUrl: finalImageUrl,
+            electoralNumber: values.electoral_number,
           }),
         });
         const payload = await response.json().catch(() => ({}));
@@ -400,6 +409,7 @@ const RegisterCandidacy = ({ onFinished }) => {
         p_bio: values.bio,
         p_proposals: values.proposals,
         p_campaign_photo_url: finalImageUrl,
+        p_electoral_number: values.electoral_number,
       });
 
       if (error) {
@@ -496,7 +506,7 @@ const RegisterCandidacy = ({ onFinished }) => {
               Vice indicado: {pendingMetadata.vice_candidate_name || 'Aguardando resposta'}
             </p>
             <p className="text-xs text-muted-foreground">
-              Enviado em: {new Date(pendingViceInvitation.created_at).toLocaleString('pt-BR')}
+              Enviado em: {formatLocaleBR(new Date(pendingViceInvitation.created_at), 'toLocaleString', 'pt-BR')}
             </p>
           </div>
         </CardContent>
@@ -522,6 +532,8 @@ const RegisterCandidacy = ({ onFinished }) => {
             <CardDescription>Preencha todos os campos obrigatórios para registrar sua candidatura.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
+            {selectedElection && <FormField control={form.control} name="electoral_number" render={({ field }) => <FormItem><FormLabel>Número eleitoral · {numberDigits} dígitos</FormLabel><FormControl><Input {...field} inputMode="numeric" maxLength={numberDigits} readOnly={numberDigits === 2 && numberPrefix.length === 2} onChange={event => field.onChange(event.target.value.replace(/\D/g, '').slice(0, numberDigits))} /></FormControl><p className="text-xs text-muted-foreground">Começa por {numberPrefix}. O número será reservado nesta eleição.</p><FormMessage /></FormItem>} />}
+
             <FormField
               control={form.control}
               name="election_id"

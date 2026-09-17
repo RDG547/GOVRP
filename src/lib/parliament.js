@@ -257,6 +257,11 @@ export const finalizeParliamentVotingIfReady = async (
   supabase,
   { voting }
 ) => {
+  if (voting.type === 'bill') {
+    const result = await supabase.rpc('finalize_bill_voting', {p_voting_id:voting.id});
+    if (result.error) throw result.error;
+    return result.data;
+  }
   const [{ data: votes, error: votesError }, memberCountResponse] =
     await Promise.all([
       supabase

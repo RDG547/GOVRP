@@ -32,7 +32,7 @@ const XProfile = () => {
         setError(null);
         try {
             const { data: profile, error: profileError } = await supabase
-                .from('public_citizen_profiles').select('id,citizen_id,username,full_name,avatar_url,role,titles,x_handle,x_username,x_bio,x_avatar_url,x_header_url,citizenship_created_at').eq('x_handle', handle).single();
+                .rpc('get_public_x_profile', { p_handle: handle }).single();
 
             if (profileError || !profile) throw new Error("Perfil não encontrado.");
 

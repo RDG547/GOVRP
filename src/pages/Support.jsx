@@ -1,3 +1,4 @@
+import { formatLocaleBR } from '@/lib/dateTime';
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Helmet } from 'react-helmet-async';
@@ -368,7 +369,7 @@ const Support = () => {
                           <span className={`rounded-full border px-2 py-0.5 text-[0.68rem] ${status.className}`}>{status.label}</span>
                         </div>
                         <p className="mt-2 line-clamp-2 font-medium text-white">{ticket.subject}</p>
-                        <p className="mt-2 text-xs text-gray-400">Atualizado em {new Date(ticket.last_message_at).toLocaleDateString('pt-BR')}</p>
+                        <p className="mt-2 text-xs text-gray-400">Atualizado em {formatLocaleBR(new Date(ticket.last_message_at), 'toLocaleDateString', 'pt-BR')}</p>
                       </button>
                     );
                   }) : (

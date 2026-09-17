@@ -1,3 +1,7 @@
+import MarketplaceManagement from '@/components/business/MarketplaceManagement';
+import { useDomainRealtime } from '@/hooks/use-domain-realtime';
+import CitizenSelector from '@/components/CitizenSelector';
+import { formatLocaleBR } from '@/lib/dateTime';
 import { roleIcon } from '@/lib/roleIcons';
 import { ScrollText } from 'lucide-react';
 import ExecutiveLevyManager from '@/components/parliament/ExecutiveLevyManager';
@@ -72,7 +76,7 @@ const MINISTRY_INFO = {
 
 const MinisterManager = ({ ministers, ministries, onUpdate }) => {
     const { toast } = useToast();
-    const [allUsers, setAllUsers] = useState([]);
+    const [selectedCitizen, setSelectedCitizen] = useState(null);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [selectedUser, setSelectedUser] = useState('');
     const [selectedMinistry, setSelectedMinistry] = useState('');
@@ -87,18 +91,6 @@ const MinisterManager = ({ ministers, ministries, onUpdate }) => {
         (ministry) => !ministers.some((minister) => minister.ministry === ministry)
     );
 
-
-    useEffect(() => {
-        const fetchUsers = async () => {
-            const { data, error } = await supabase.from('public_citizen_profiles').select('id, full_name, username, avatar_url, role').eq('role', 'Cidadão');
-            if (error) {
-                toast({ title: 'Erro ao buscar cidadãos', variant: 'destructive' });
-            } else {
-                setAllUsers(data);
-            }
-        };
-        fetchUsers();
-    }, [toast]);
 
     const openAppointDialog = (ministry) => {
         setSelectedMinistry(ministry || '');
@@ -130,7 +122,7 @@ const MinisterManager = ({ ministers, ministries, onUpdate }) => {
         if (error || !data.success) {
             toast({ title: 'Erro ao nomear ministro', description: data?.message || error.message, variant: 'destructive' });
         } else {
-            const selectedProfile = allUsers.find((profile) => profile.id === selectedUser);
+            const selectedProfile = selectedCitizen;
 
             try {
                 await publishOfficialGazetteEntry(supabase, {
@@ -191,18 +183,7 @@ const MinisterManager = ({ ministers, ministries, onUpdate }) => {
                         <div className="grid gap-4 py-4">
                             <div className="grid gap-2">
                                 <Label htmlFor="user">Cidadão</Label>
-                                <Select value={selectedUser} onValueChange={setSelectedUser}>
-                                    <SelectTrigger><SelectValue placeholder="Selecione um cidadão" /></SelectTrigger>
-                                    <SelectContent>
-                                        <ScrollArea className="h-72">
-                                          {allUsers.map((currentUser) => (
-                                              <SelectItem key={currentUser.id} value={currentUser.id}>
-                                                  <UserSelectOption user={currentUser} detail={currentUser.username ? `@${currentUser.username}` : ''} />
-                                              </SelectItem>
-                                          ))}
-                                        </ScrollArea>
-                                    </SelectContent>
-                                </Select>
+                                <CitizenSelector value={selectedUser} onChange={setSelectedUser} onSelect={setSelectedCitizen} roles={['Cidadão']} label="Selecione um cidadão"/>
                             </div>
                             {!changingMinistry && (
                                 <div className="grid gap-2">
@@ -806,7 +787,7 @@ const ConstitutionalStatusCard = ({ executiveState }) => {
         : executiveState?.currentViceProfile?.full_name || 'Vice-Presidente não definido';
     const actingAuthority = executiveState?.actingAuthority?.profile?.full_name || executiveState?.actingAuthority?.label || 'Conselho dos Administradores (CDA)';
     const currentTermLabel = currentTerm
-        ? `${new Date(currentTerm.term_start_at).toLocaleString('pt-BR')} até ${new Date(currentTerm.term_end_at).toLocaleString('pt-BR')}`
+        ? `${formatLocaleBR(new Date(currentTerm.term_start_at), 'toLocaleString', 'pt-BR')} até ${formatLocaleBR(new Date(currentTerm.term_end_at), 'toLocaleString', 'pt-BR')}`
         : executiveState?.manualExecutiveOfficeActive
             ? 'Cargo executivo atribuído manualmente pelo admin, válido até nova eleição presidencial consolidada.'
             : 'Nenhum mandato ativo identificado no histórico eleitoral.';
@@ -891,37 +872,8 @@ const ConstitutionalStatusCard = ({ executiveState }) => {
 
 const SpecialAppointmentsManager = ({ executiveState, onUpdate, actorId }) => {
     const { toast } = useToast();
-    const [availableProfiles, setAvailableProfiles] = useState({});
     const [selectedProfiles, setSelectedProfiles] = useState({});
     const [savingOfficeKey, setSavingOfficeKey] = useState(null);
-
-    useEffect(() => {
-        const fetchProfiles = async () => {
-            try {
-                const entries = await Promise.all(
-                    EXECUTIVE_SPECIAL_OFFICES.map(async (office) => {
-                        const { data, error } = await supabase
-                            .from('public_citizen_profiles')
-                            .select('id, full_name, username, avatar_url, role')
-                            .in('role', office.eligibleRoles)
-                            .order('full_name', { ascending: true });
-
-                        if (error) {
-                            throw error;
-                        }
-
-                        return [office.key, data || []];
-                    })
-                );
-
-                setAvailableProfiles(Object.fromEntries(entries));
-            } catch (error) {
-                toast({ title: 'Erro ao carregar nomes para nomeação', description: error.message, variant: 'destructive' });
-            }
-        };
-
-        fetchProfiles();
-    }, [toast]);
 
     const handleAppoint = async (officeKey) => {
         const selectedUserId = selectedProfiles[officeKey];
@@ -990,18 +942,7 @@ const SpecialAppointmentsManager = ({ executiveState, onUpdate, actorId }) => {
                             </div>
 
                             <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_auto_auto] gap-3">
-                                <Select value={selectedProfiles[office.key] || ''} onValueChange={(value) => setSelectedProfiles((current) => ({ ...current, [office.key]: value }))}>
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Selecione um ocupante" />
-                                    </SelectTrigger>
-                                    <SelectContent className="max-h-80 overflow-y-auto">
-                                        {(availableProfiles[office.key] || []).map((profile) => (
-                                            <SelectItem key={profile.id} value={profile.id}>
-                                                <UserSelectOption user={profile} detail={profile.role} />
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
+                                <CitizenSelector value={selectedProfiles[office.key] || ''} onChange={value => setSelectedProfiles(current => ({...current,[office.key]:value}))} roles={office.eligibleRoles} label="Selecione um ocupante"/>
                                 <Button onClick={() => handleAppoint(office.key)} disabled={savingOfficeKey === office.key}>
                                     {savingOfficeKey === office.key ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UserPlus className="mr-2 h-4 w-4" />}
                                     Nomear
@@ -1125,7 +1066,7 @@ const BillReviewManager = ({ executiveState, onUpdate, actorId }) => {
                             <div key={action.id} className="rounded-xl border border-white/10 bg-black/20 p-4">
                                 <p className="font-semibold text-foreground">{action.bill_title}</p>
                                 <p className="text-sm text-muted-foreground">
-                                    Resultado: {action.resulting_status} • {new Date(action.created_at).toLocaleString('pt-BR')}
+                                    Resultado: {action.resulting_status} • {formatLocaleBR(new Date(action.created_at), 'toLocaleString', 'pt-BR')}
                                 </p>
                                 {action.reason ? <p className="text-sm text-muted-foreground mt-1">{action.reason}</p> : null}
                             </div>
@@ -1254,7 +1195,7 @@ const ProvisionalMeasureManager = ({ executiveState, onUpdate, actorId }) => {
                             <p className="font-semibold text-foreground">{measure.title}</p>
                             <p className="text-sm text-muted-foreground">{measure.summary}</p>
                             <p className="text-xs text-muted-foreground mt-2">
-                                Publicada em {new Date(measure.issued_at).toLocaleString('pt-BR')} • Expira em {new Date(measure.expires_at).toLocaleString('pt-BR')} • {measure.status === 'expired' ? 'Expirada' : 'Ativa'}
+                                Publicada em {formatLocaleBR(new Date(measure.issued_at), 'toLocaleString', 'pt-BR')} • Expira em {formatLocaleBR(new Date(measure.expires_at), 'toLocaleString', 'pt-BR')} • {measure.status === 'expired' ? 'Expirada' : 'Ativa'}
                             </p>
                         </div>
                     )) : (
@@ -1598,7 +1539,6 @@ const StateEnterpriseManager = ({ onUpdate }) => {
     const [privatizationPrice, setPrivatizationPrice] = useState('R$ 0,00');
 
     const fetchEnterprises = useCallback(async () => {
-        setLoading(true);
         const [entRes, pricesRes, costsRes] = await Promise.all([
             supabase.from('state_enterprises').select('*').order('created_at', { ascending: true }),
             supabase.from('system_settings').select('value').eq('key', 'basic_service_prices').single(),
@@ -1608,17 +1548,15 @@ const StateEnterpriseManager = ({ onUpdate }) => {
             toast({ title: 'Erro ao carregar estatais', description: entRes.error.message, variant: 'destructive' });
         } else {
             setEnterprises(entRes.data || []);
-            if (selectedEnterprise) {
-                const updated = (entRes.data || []).find(e => e.id === selectedEnterprise.id);
-                if (updated) setSelectedEnterprise(updated);
-            }
+            setSelectedEnterprise(current => current ? (entRes.data || []).find(e => e.id === current.id) || null : null);
         }
         if (pricesRes.data?.value) setServicePrices(pricesRes.data.value);
         setEnterpriseCostsMap(costsRes.data?.value || {});
         setLoading(false);
-    }, [toast, selectedEnterprise]);
+    }, [toast]);
 
-    useEffect(() => { fetchEnterprises(); }, []);
+    useEffect(() => { fetchEnterprises(); }, [fetchEnterprises]);
+    useDomainRealtime('state-enterprises',user?.id,['state_enterprises','system_settings'],fetchEnterprises);
 
     const openCreate = () => {
         setEditingEnterprise(null);
@@ -1750,18 +1688,7 @@ const StateEnterpriseManager = ({ onUpdate }) => {
     };
 
     const handleReactivate = async (enterprise) => {
-        const { error } = await supabase
-            .from('state_enterprises')
-            .update({
-                is_privatized: false,
-                is_active: true,
-                privatization_status: 'none',
-                privatization_price: null,
-                privatization_buyer_id: null,
-                privatized_at: null,
-                updated_at: new Date().toISOString(),
-            })
-            .eq('id', enterprise.id);
+        const { error } = await supabase.rpc('reactivate_state_enterprise', { p_enterprise_id: enterprise.id });
         if (error) {
             toast({ title: 'Erro ao reestatizar', description: error.message, variant: 'destructive' });
         } else {
@@ -1810,6 +1737,7 @@ const StateEnterpriseManager = ({ onUpdate }) => {
 
     return (
         <div className="space-y-6">
+            <MarketplaceManagement />
             <div className="flex items-center justify-between">
                 <div>
                     <h3 className="text-xl font-semibold flex items-center gap-2"><Building className="w-5 h-5 text-primary" /> Estatais do Governo</h3>

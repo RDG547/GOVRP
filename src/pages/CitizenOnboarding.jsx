@@ -1,3 +1,6 @@
+import AvatarCreator from '@/components/AvatarCreator';
+import { citizenAvatarDataUrl, citizenAvatarFile } from '@/lib/citizenAvatar';
+import { formatLocaleBR } from '@/lib/dateTime';
 import { documentCatalog } from '@/lib/documentCatalog';
 import BankWelcome from '@/components/bank/BankWelcome';
 import { prefetchMunicipalities } from '@/lib/brazilianLocations';
@@ -87,17 +90,6 @@ const panelMotion = {
   exit: { opacity: 0, y: -12 },
 };
 
-const CHARACTER_AVATARS = {
-  male: Array.from({ length: 25 }, (_, index) => ({
-    id: `male-${index + 1}`,
-    url: `https://api.dicebear.com/9.x/adventurer/svg?seed=GOVRP-masculino-${String(index + 1).padStart(2, "0")}&backgroundColor=0f172a,1e293b,164e63`,
-  })),
-  female: Array.from({ length: 25 }, (_, index) => ({
-    id: `female-${index + 1}`,
-    url: `https://api.dicebear.com/9.x/adventurer/svg?seed=GOVRP-feminino-${String(index + 1).padStart(2, "0")}&backgroundColor=312e81,4c1d95,831843`,
-  })),
-};
-
 const STATE_OPTIONS = BRAZIL_STATES.map((state) => ({
   value: state.code,
   label: state.name,
@@ -166,6 +158,7 @@ const CitizenOnboarding = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const avatarInputRef = useRef(null);
+  const [avatarConfig, setAvatarConfig] = useState(null);
   const avatarPreviewUrlRef = useRef("");
   const [state, setState] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -327,6 +320,7 @@ const CitizenOnboarding = () => {
     try {
       await callback();
     } catch (error) {
+      console.error(`citizen-onboarding:${key}`, error);
       toast({
         title: "Não foi possível concluir esta etapa",
         description: error.message,
@@ -376,6 +370,7 @@ const CitizenOnboarding = () => {
 
   const setUploadedAvatarPreview = (file) => {
     if (!file) return;
+    setAvatarConfig(null);
     const validation = validateSelectedFile(file, {
       allowedMimeTypes: ACCEPTED_IMAGE_MIME_TYPES,
       allowedExtensions: ACCEPTED_IMAGE_EXTENSIONS,
@@ -433,7 +428,7 @@ const CitizenOnboarding = () => {
       }
       let avatarUrl = identity.avatarUrl;
       let uploadedPath = null;
-      const avatarFile = avatarInputRef.current?.files?.[0];
+      const avatarFile = avatarConfig ? await citizenAvatarFile(avatarConfig) : avatarInputRef.current?.files?.[0];
       const previousAvatarUrl = profile.avatar_url || "";
       if (avatarFile) {
         const uploadedAvatar = await uploadAvatar(avatarFile);
@@ -447,6 +442,7 @@ const CitizenOnboarding = () => {
         p_character_bio: identity.bio || null,
         p_avatar_url: avatarUrl || null,
         p_character_gender: identity.gender,
+        p_avatar_config: avatarConfig,
       });
       if (error) {
         if (uploadedPath) await removeAvatarFile(uploadedPath);
@@ -922,32 +918,7 @@ const CitizenOnboarding = () => {
 
 
 
-                    {identity.gender ? (
-                      <div className="mt-5 text-left">
-                        <p className="mb-2 text-xs font-medium text-slate-300">
-                          Escolher avatar
-                        </p>
-                        <div className="grid max-h-56 grid-cols-4 gap-2 overflow-y-auto rounded-xl border border-white/10 bg-black/20 p-2 custom-scrollbar">
-                          {CHARACTER_AVATARS[identity.gender].map((avatar) => (
-                            <button
-                              key={avatar.id}
-                              type="button"
-                              onClick={() => selectProvidedAvatar(avatar.url)}
-                              aria-label={`Selecionar avatar ${avatar.id}`}
-                              aria-pressed={identity.avatarUrl === avatar.url}
-                              className={`aspect-square overflow-hidden rounded-lg border-2 transition ${identity.avatarUrl === avatar.url ? "border-emerald-400 ring-2 ring-emerald-400/20" : "border-transparent hover:border-white/40"}`}
-                            >
-                              <img
-                                src={avatar.url}
-                                alt=""
-                                loading="lazy"
-                                className="h-full w-full object-cover"
-                              />
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    ) : <p className="mt-4 text-center text-xs text-slate-400">Escolha o sexo do personagem para ver os avatares disponíveis.</p>}
+                    <div className="mt-4"><AvatarCreator gender={identity.gender} value={avatarConfig || profile.avatar_config} onConfirm={(config) => { setAvatarConfig(config); selectProvidedAvatar(citizenAvatarDataUrl(config)); }} /></div>
                   </div>
 
                   <div className="space-y-5">
@@ -1504,9 +1475,9 @@ const CitizenOnboarding = () => {
                       </h2>
                       <p className="mt-2 text-slate-300">
                         Nascimento:{" "}
-                        {new Date(
+                        {formatLocaleBR(new Date(
                           `${officialUser.date_of_birth}T00:00:00`,
-                        ).toLocaleDateString("pt-BR")}
+                        ), 'toLocaleDateString', "pt-BR")}
                       </p>
                       <p className="text-slate-300">
                         Residência: {officialUser.residence_city_name}/
@@ -1514,9 +1485,9 @@ const CitizenOnboarding = () => {
                       </p>
                       <p className="mt-3 text-sm text-emerald-200">
                         Concedida em{" "}
-                        {new Date(
+                        {formatLocaleBR(new Date(
                           officialUser.citizenship_created_at,
-                        ).toLocaleString("pt-BR")}
+                        ), 'toLocaleString', "pt-BR")}
                       </p>
                     </div>
                   </div>

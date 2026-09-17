@@ -1,9 +1,10 @@
+import MentionText from './MentionText';
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MessageCircle, Repeat2, Heart, Upload, MoreHorizontal, Trash2, Edit, Crown, Shield, Scale, Loader2, Check, Send, Copy, Share2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
-import { format } from 'date-fns';
+import { formatDateBR, formatDateTimeBR } from '@/lib/dateTime';
 import { ptBR } from 'date-fns/locale';
 import { supabase } from '@/lib/supabaseClient';
 import { useAuth } from '@/contexts/AuthContext';
@@ -105,7 +106,7 @@ const PostCard = ({ post, onPostUpdate, onPostDelete, onRepostCreated, commentsA
     const name = author?.x_username;
     const avatar = author?.x_avatar_url || `https://api.dicebear.com/7.x/micah/svg?seed=${handle}`;
 
-    const postDateTime = format(new Date(post.created_at), "dd/MM/yyyy, HH:mm", { locale: ptBR });
+    const postDateTime = formatDateTimeBR(post.created_at);
 
     const handleInteraction = async (action) => {
         if (!user) {
@@ -213,8 +214,7 @@ const PostCard = ({ post, onPostUpdate, onPostDelete, onRepostCreated, commentsA
           return <a key={index} href={safeUrl} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">{part}</a>;
         }
         if (part.match(mentionRegex)) {
-          const handle = part.substring(1);
-          return <Link key={index} to={`/services/x/profile/${handle}`} className="text-blue-400 font-semibold hover:underline">{part}</Link>;
+          return <MentionText key={index} text={part}/>;
         }
         if (part.match(hashtagRegex)) {
           const tag = part.substring(1);
@@ -231,7 +231,7 @@ const PostCard = ({ post, onPostUpdate, onPostDelete, onRepostCreated, commentsA
           <div className="flex items-center gap-1 text-sm text-muted-foreground">
             <span className="font-bold text-foreground truncate">{original.author.x_username}</span>
             <span className="truncate">@{original.author.x_handle}</span>
-            <span>· {format(new Date(original.created_at), "dd/MM/yy", { locale: ptBR })}</span>
+            <span>· {formatDateBR(original.created_at)}</span>
           </div>
           <p className="text-foreground text-sm whitespace-pre-wrap">{renderContent(original.content)}</p>
           {original.image_url && <img src={original.image_url} alt="Post media" className="mt-2 rounded-lg max-h-60 w-full object-cover" />}

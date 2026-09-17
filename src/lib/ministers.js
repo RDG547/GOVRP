@@ -21,9 +21,7 @@ export const fetchActiveMinistersWithProfiles = async (client) => {
   }
 
   const { data: profiles, error: profilesError } = await client
-    .from('profiles')
-    .select('id, full_name')
-    .in('id', profileIds);
+    .rpc('get_public_party_profiles', { p_ids: profileIds });
 
   const profilesById = new Map((profiles || []).map((profile) => [profile.id, profile]));
 

@@ -25,3 +25,7 @@ export async function waitFor(check, label, timeout = 15000) {
   while (!await check()) { if (Date.now() - start > timeout) throw new Error(`Tempo esgotado: ${label}`); await new Promise(resolve => setTimeout(resolve, 100)); }
 }
 export const cleanup = () => Promise.all(clients.map(client => client.removeAllChannels()));
+
+export async function ensureParliamentHouses() {
+  await request(service.from('parliament_houses').upsert([{id:'a1b2c3d4-e5f6-7890-1234-567890abcdef',name:'Câmara dos Deputados'},{id:'fedcba09-8765-4321-0987-654321fedcba',name:'Senado Federal'}], {onConflict:'id',ignoreDuplicates:true}));
+}

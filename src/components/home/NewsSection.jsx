@@ -1,3 +1,4 @@
+import { formatLocaleBR } from '@/lib/dateTime';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Megaphone, TrendingUp, Newspaper, Loader2, ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react';
@@ -154,7 +155,7 @@ const NewsSection = () => {
                   </div>
                   <p className="text-gray-300 mb-4 flex-grow line-clamp-3">{item.summary}</p>
                   <div className="flex justify-between items-center mt-auto">
-                    <p className="text-sm text-gray-400">{new Date(item.published_at).toLocaleDateString('pt-BR')}</p>
+                    <p className="text-sm text-gray-400">{formatLocaleBR(new Date(item.published_at), 'toLocaleDateString', 'pt-BR')}</p>
                     <Link to={itemLink} className="flex items-center text-blue-400 hover:underline">
                       {item.source_type === 'article' ? 'Ler mais' : 'Ver publicação'} <ArrowRight className="w-4 h-4 ml-1" />
                     </Link>

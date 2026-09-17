@@ -61,7 +61,8 @@ select public.buy_product('74000000-0000-0000-0000-000000000002','balance',null,
 select pg_temp.assert_true((select balance=9890 from public.accounts where user_id=auth.uid()),'repetição da compra restaurada continua idempotente');
 select pg_temp.assert_true((select count(*)=2 from public.get_public_party_profiles(array['71000000-0000-0000-0000-000000000002','71000000-0000-0000-0000-000000000003']::uuid[])),'dono, fundador, presidente e vice legados têm perfis públicos');
 select pg_temp.assert_true((select full_name='Nome RP 2' from public.get_public_party_profiles(array['71000000-0000-0000-0000-000000000002']::uuid[])),'perfil partidário retorna nome do RP');
-select pg_temp.assert_true((select count(*)=0 from public.get_public_party_profiles(array['71000000-0000-0000-0000-000000000004','71000000-0000-0000-0000-000000000005','71000000-0000-0000-0000-000000000006']::uuid[])),'consulta exclui novos/resetados, excluídos e legados sem atividade partidária');
+select pg_temp.assert_true((select count(*)=0 from public.get_public_party_profiles(array['71000000-0000-0000-0000-000000000004','71000000-0000-0000-0000-000000000005']::uuid[])),'consulta exclui novos/resetados e excluídos');
+select pg_temp.assert_true((select count(*)=1 from public.get_public_party_profiles(array['71000000-0000-0000-0000-000000000006']::uuid[])),'identidade pública legada também aparece no banco e seletores sem exigir filiação');
 select pg_temp.assert_true((select count(*)=1 from public.get_public_party_profiles(array[auth.uid(),auth.uid()])),'perfis confirmados continuam disponíveis sem duplicatas');
 select pg_temp.assert_true((select count(*)=0 from public.get_public_party_profiles(null)),'IDs nulos não abrem consulta de todos os perfis');
 select pg_temp.assert_true((select count(*)=0 from public.get_public_party_profiles('{}'::uuid[])),'lote vazio retorna vazio');
@@ -70,7 +71,7 @@ select pg_temp.assert_true(not exists(select 1 from public.public_citizen_profil
 do $$ begin
   perform public.get_public_party_profiles(array_fill(auth.uid(),array[101]));
   raise exception 'LARGE BATCH ACCEPTED';
-exception when others then if sqlerrm<>'PUBLIC_PROFILE_BATCH_LIMIT' then raise; end if;
+exception when others then if sqlerrm<>'Consulte até 100 perfis por vez.' then raise; end if;
   raise notice 'PASS: limite de 100 IDs é aplicado no servidor';
 end $$;
 reset role;

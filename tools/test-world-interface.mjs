@@ -91,7 +91,7 @@ try {
   await responsive(pb,'Conversa com cinco níveis de respostas');
   await detailThread.getByRole('textbox',{name:'Escrever comentário',exact:true}).fill('Rascunho preservado na conversa');
   await rootComment.getByRole('button',{name:'Remover comentário',exact:true}).first().click();
-  await detailThread.getByText('Este comentário foi removido.',{exact:true}).waitFor({timeout:20000});
+  await detailThread.getByText('Conversa alterada 2',{exact:true}).waitFor({state:'detached',timeout:20000});
   assert(await detailThread.getByText('Resposta E2E nível 5',{exact:true}).isVisible());
   assert.equal(await detailThread.getByRole('textbox',{name:'Escrever comentário',exact:true}).inputValue(),'Rascunho preservado na conversa');
   assert.equal(await pb.evaluate(()=>performance.timeOrigin),conversationLoad);
@@ -202,7 +202,7 @@ try {
   for(const dialog of [cartDialog,buyDialog]) await waitFor(async()=> (await dialog.innerText()).replace(/\s/g,' ').includes(money(original+5)),'compra aberta recebe nova taxa');
   assert.equal(await pa.evaluate(()=>performance.timeOrigin),cartOrigin);assert.equal(await pt3.evaluate(()=>performance.timeOrigin),buyOrigin);
   await responsive(pa,'Carrinho tributado');
-  await cartDialog.getByRole('button',{name:'Confirmar e Pagar',exact:true}).click();
+  await cartDialog.getByRole('button',{name:'Confirmar e pagar',exact:true}).click();
   await waitFor(async()=>!(await cartDialog.count()),'compra do carrinho confirmada');
   const paid=await request(service.from('transactions').select('metadata').eq('metadata->>product_id',item.id));
   assert(paid.some(tx=>Number(tx.metadata.total_debited)===original+5),'carrinho cobra o total vigente mostrado');

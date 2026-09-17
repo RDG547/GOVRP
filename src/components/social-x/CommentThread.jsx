@@ -31,19 +31,37 @@ export default function CommentThread({ postId }) {
         comments.push(...data);
         if (data.length < 500) break;
       }
+      const likes = [];
+      for (let offset = 0; offset < comments.length; offset += 100) {
+        for (let page = 0; ; page += 500) {
+          const result = await supabase.from('comment_likes').select('comment_id,user_id').in('comment_id', comments.slice(offset, offset + 100).map(row => row.id)).order('comment_id').order('user_id').range(page, page + 499);
+          if (result.error) throw result.error;
+          if (sequence !== request.current) return;
+          likes.push(...result.data);
+          if (result.data.length < 500) break;
+        }
+      }
       const profiles = await fetchPublicProfiles(comments.map(row => row.user_id));
       if (sequence !== request.current) return;
-      setRows(comments.map(row => ({ ...row, author: profiles.get(row.user_id) })));
+      setRows(comments.map(row => ({ ...row, author: profiles.get(row.user_id), likes_count: likes.filter(like => like.comment_id === row.id).length, is_liked: likes.some(like => like.comment_id === row.id && like.user_id === user?.id) })));
       setFailed(false);
     } catch (error) { if (sequence === request.current) { console.error('Falha ao carregar conversa', error); setFailed(true); } }
     finally { if (sequence === request.current) setLoading(false); }
-  }, [postId]);
+  }, [postId, user?.id]);
   useEffect(() => { setLoading(true); void load(); return () => { request.current++; }; }, [load]);
-  useDomainRealtime('x-comment-thread', postId, [{ table: 'comments', filter: `post_id=eq.${postId}` }], load, Boolean(postId));
+  useDomainRealtime('x-comment-thread', postId, [{ table: 'comments', filter: `post_id=eq.${postId}` }, 'comment_likes'], load, Boolean(postId));
   usePublicProfileChanges(load);
   const childrenByParent = useMemo(() => {
     const groups = new Map();
-    rows.forEach(row => { const key = row.parent_comment_id || null; if (!groups.has(key)) groups.set(key, []); groups.get(key).push(row); });
+    const byId = new Map(rows.map(row => [row.id, row]));
+    rows.filter(row => !row.deleted_at).forEach(row => {
+      let key = row.parent_comment_id || null;
+      const seen = new Set([row.id]);
+      while (key && byId.get(key)?.deleted_at && !seen.has(key)) { seen.add(key); key = byId.get(key).parent_comment_id; }
+      if (seen.has(key) || (key && !byId.has(key))) key = null;
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push(row);
+    });
     return groups;
   }, [rows]);
   const submit = async event => {

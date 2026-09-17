@@ -10,6 +10,7 @@ export function transactionAmounts(transaction) {
   const sellerTax = numeric(m.seller_tax) ?? numeric(m.corporate_tax) ?? 0;
   const total = numeric(m.total_debited) ?? (purchase ? amount : transaction.type === 'transfer' ? amount + buyerTax : amount);
   const net = numeric(m.net_amount) ?? numeric(m.seller_net) ?? (purchase ? gross - sellerTax : amount);
+  const commission = numeric(m.commission_amount) ?? 0;
   const sent = transaction.direction === 'sent';
-  return { gross, buyerTax, sellerTax, total, net, displayed: sent ? total : net, taxed: buyerTax > 0 || sellerTax > 0, sent, levies: Array.isArray(m.levies) ? m.levies : [] };
+  return { commission, gross, buyerTax, sellerTax, total, net, displayed: sent ? total : net, taxed: buyerTax > 0 || sellerTax > 0, sent, levies: Array.isArray(m.levies) ? m.levies : [] };
 }

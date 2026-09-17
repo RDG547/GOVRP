@@ -1,3 +1,4 @@
+import CitizenSleepPanel from './CitizenSleepPanel';
 import React, { useContext, useEffect, useRef, useState } from 'react';
 import { UNSAFE_NavigationContext, useLocation } from 'react-router-dom';
 import { useCitizenNeeds } from '@/contexts/CitizenNeedsContext';
@@ -45,5 +46,5 @@ export default function CitizenSleepGuard() {
   }, [navigator]);
   const stay = () => { pending.current = null; setOpen(false); setError(''); };
   const wake = async () => { if (busy) return; setBusy(true); try { await act('wake', null, crypto.randomUUID()); active.current = false; const next = pending.current; stay(); next?.(); } catch { setError('Não foi possível acordar. Tente novamente.'); } finally { setBusy(false); } };
-  return <Dialog open={open} onOpenChange={value => { if (!value && !busy) stay(); }}><DialogContent onInteractOutside={event => event.preventDefault()}><DialogHeader><DialogTitle>Seu cidadão está dormindo</DialogTitle><DialogDescription>Para continuar para outra área, acorde. O descanso recuperado até agora será preservado.</DialogDescription></DialogHeader>{error && <p role="alert">{error}</p>}<div className="flex flex-col gap-2 sm:flex-row"><Button variant="outline" disabled={busy} onClick={stay}>Continuar dormindo</Button><Button disabled={busy} onClick={wake}>{busy ? 'Acordando…' : 'Acordar e continuar'}</Button></div></DialogContent></Dialog>;
+  return <><CitizenSleepPanel immersive/><Dialog open={open} onOpenChange={value => { if (!value && !busy) stay(); }}><DialogContent onInteractOutside={event => event.preventDefault()}><DialogHeader><DialogTitle>Seu cidadão está dormindo</DialogTitle><DialogDescription>Para continuar para outra área, acorde. O descanso recuperado até agora será preservado.</DialogDescription></DialogHeader>{error && <p role="alert">{error}</p>}<div className="flex flex-col gap-2 sm:flex-row"><Button variant="outline" disabled={busy} onClick={stay}>Continuar dormindo</Button><Button disabled={busy} onClick={wake}>{busy ? 'Acordando…' : 'Acordar e continuar'}</Button></div></DialogContent></Dialog></>;
 }

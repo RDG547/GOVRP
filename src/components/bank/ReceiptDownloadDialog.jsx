@@ -1,15 +1,16 @@
+import { formatLocaleBR } from '@/lib/dateTime';
 import { X } from 'lucide-react';
 import TransactionTaxBreakdown from './TransactionTaxBreakdown';
 import { transactionAmounts } from '@/lib/transactionAmounts';
 import React, { useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogClose } from '@/components/ui/dialog';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Loader2, FileText, Image as ImageIcon, ArrowLeft, Share2 } from 'lucide-react';
 import { formatCurrency, formatCPF, formatAgency, formatAccount } from '@/lib/utils';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { useToast } from '../ui/use-toast';
-import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogTrigger } from '../ui/alert-dialog';
+import { AlertDialog, AlertDialogCancel, AlertDialogAction, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogTrigger } from '../ui/alert-dialog';
 
 const ReceiptInfoRow = ({ label, value, valueClass = '' }) => (
     <div className="flex justify-between items-start">
@@ -86,7 +87,7 @@ const ReceiptContent = React.forwardRef(({ receipt }, ref) => {
             <div className="space-y-4">
                 <div className="space-y-2">
                     <ReceiptInfoRow label="Tipo:" value={getTransactionTypeName(receipt.type)} />
-                    <ReceiptInfoRow label="Data:" value={new Date(receipt.created_at).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'medium' })} />
+                    <ReceiptInfoRow label="Data:" value={formatLocaleBR(new Date(receipt.created_at), 'toLocaleString', 'pt-BR', { dateStyle: 'short', timeStyle: 'medium' })} />
                     <ReceiptInfoRow label="ID Transação:" value={receipt.id} valueClass="font-mono text-xs break-all" />
                     {receipt.metadata?.purchase_location && <ReceiptInfoRow label="Local da compra:" value={receipt.metadata.purchase_location} />}
                 </div>
@@ -250,10 +251,10 @@ const ReceiptDownloadDialog = ({ receipt, onBack }) => {
                                         Escolha o formato em que deseja compartilhar o comprovante.
                                     </AlertDialogDescription>
                                 </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                    <DialogClose asChild><Button variant="outline">Cancelar</Button></DialogClose>
-                                    <DialogClose asChild><Button onClick={() => shareFile('png')} className="bg-gray-700 hover:bg-gray-600">PNG</Button></DialogClose>
-                                    <DialogClose asChild><Button onClick={() => shareFile('pdf')} className="bg-blue-600 hover:bg-blue-500">PDF</Button></DialogClose>
+                                <AlertDialogFooter className="gap-2 sm:space-x-0">
+                                    <AlertDialogCancel className="m-0"><X className="mr-2 h-4 w-4"/>Cancelar</AlertDialogCancel>
+                                    <AlertDialogAction onClick={() => shareFile('png')} className="bg-gray-700 hover:bg-gray-600"><ImageIcon className="mr-2 h-4 w-4"/>PNG</AlertDialogAction>
+                                    <AlertDialogAction onClick={() => shareFile('pdf')} className="bg-blue-600 hover:bg-blue-500"><FileText className="mr-2 h-4 w-4"/>PDF</AlertDialogAction>
                                 </AlertDialogFooter>
                             </AlertDialogContent>
                         </AlertDialog>

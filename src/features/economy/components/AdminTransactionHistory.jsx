@@ -53,7 +53,7 @@ const formatMoney = (amount, currency = 'BRL') => new Intl.NumberFormat('pt-BR',
   currency: currency || 'BRL',
 }).format(Number(amount || 0));
 
-const formatDateTime = (value) => new Intl.DateTimeFormat('pt-BR', {
+const formatDateTime = (value) => new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Sao_Paulo',
   day: '2-digit',
   month: '2-digit',
   year: 'numeric',

@@ -1,11 +1,12 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { actor, service, request, rpc, cleanup } from './lib/world-test.mjs';
+import { ensureParliamentHouses, actor, service, request, rpc, cleanup } from './lib/world-test.mjs';
 let checks=0;
 const check=(value,label)=>{assert(value,label);checks++;console.log(`OK ${label}`);};
 const sql=query=>execFileSync('docker',['exec','supabase_db_GOVRP','psql','-U','postgres','-d','postgres','-At','-v','ON_ERROR_STOP=1','-c',query],{encoding:'utf8'}).trim();
 let originalGovernance, originalMix, createdElection;
 try {
+ await ensureParliamentHouses();
  const citizen=await actor('government-citizen'); const president=await actor('government-president','Presidente');const admin=await actor('government-admin','Admin');
  originalGovernance=await request(service.from('system_settings').select('*').eq('key','executive_governance').maybeSingle());
  originalMix=await request(service.from('economic_state').select('metadata,player_share,simulated_share').eq('id',true).single());

@@ -40,8 +40,7 @@ const XProfile = () => {
         const target = profileLookup(handle, identity.current, currentUser.id);
         setError(null);
         try {
-            const { data: profile, error: profileError } = await supabase
-                .from('public_citizen_profiles').select('id,citizen_id,username,full_name,avatar_url,role,titles,x_handle,x_username,x_bio,x_avatar_url,x_header_url,citizenship_created_at').eq(target.column, target.value).single();
+            const { data: profile, error: profileError } = await supabase.rpc('get_public_x_profile', { p_id: target.column === 'id' ? target.value : null, p_handle: target.column === 'x_handle' ? target.value : null }).single();
 
             if (profileError || !profile) throw new Error("Perfil não encontrado.");
             if (sequence !== request.current) return;

@@ -1,3 +1,4 @@
+import CitizenCustodyControl from '@/components/admin/CitizenCustodyControl';
 import { canonicalRole, roleIcon } from '@/lib/roleIcons';
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -452,6 +453,16 @@ const roleOrder = [
 
 const getDisplayRole = (user) => user?.display_role || user?.role || 'Usuário';
 
+const fetchAdminUsers = async () => {
+    const users = [];
+    for (let offset = 0; ; offset += 200) {
+        const { data, error } = await supabase.rpc('admin_get_all_users').order('id').range(offset, offset + 199);
+        if (error) return { data: null, error };
+        users.push(...(data || []));
+        if (!data || data.length < 200) return { data: users, error: null };
+    }
+};
+
 const isMissingManualRoleMetadataError = (error) =>
     /manual_role_override|role_assigned_at|role_assigned_by/i.test(error?.message || '');
 
@@ -462,10 +473,15 @@ const fetchManualRoleMetadataByUserId = async (userIds = []) => {
         return {};
     }
 
-    const { data, error } = await supabase
-        .from('profiles')
-        .select('id, manual_role_override, role_assigned_at, role_assigned_by')
-        .in('id', ids);
+    const batches = [];
+    for (let offset = 0; offset < ids.length; offset += 100) {
+        batches.push(supabase.from('profiles')
+            .select('id, manual_role_override, role_assigned_at, role_assigned_by')
+            .in('id', ids.slice(offset, offset + 100)));
+    }
+    const results = await Promise.all(batches);
+    const error = results.find(result => result.error)?.error;
+    const data = results.flatMap(result => result.data || []);
 
     if (error) {
         if (isMissingManualRoleMetadataError(error)) {
@@ -497,8 +513,9 @@ const UserManagement = () => {
     const [deletingUserId, setDeletingUserId] = useState(null);
 
     const fetchUsers = useCallback(async () => {
+      try {
         const [{ data, error }, syncState] = await Promise.all([
-            supabase.rpc('admin_get_all_users'),
+            fetchAdminUsers(),
             fetchElectionOfficeSyncState(supabase).catch((syncError) => {
                 console.error('Erro ao carregar cargos eleitorais no admin:', syncError);
                 return null;
@@ -535,7 +552,12 @@ const UserManagement = () => {
             setMaxBalance(max);
             setFilters(f => ({ ...f, balance: [f.balance[0], max] }));
         }
+      } catch (error) {
+        console.error('admin-user-list', error);
+        toast({ title: 'Não foi possível atualizar os cidadãos', description: 'Tente novamente em instantes.', variant: 'destructive' });
+      } finally {
         setLoading(false);
+      }
     }, [toast]);
 
     useEffect(() => {
@@ -772,6 +794,7 @@ const UserActionButtons = ({ user, adminUser, setModifyingBalanceUser, setChangi
     const isDeleting = deletingUserId === user.id;
     return (
         <>
+            <CitizenCustodyControl citizen={user} />
             <Button variant="ghost" size="icon" onClick={() => navigate('/admin-dashboard/reset', { state: { resetUserId: user.id } })} title="Resetar cidadão" aria-label={`Resetar cidadão de ${user.full_name || user.username}`}>
                 <RotateCcw className="w-4 h-4 text-orange-400" />
             </Button>

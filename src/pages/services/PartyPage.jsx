@@ -1,3 +1,6 @@
+import PartyMemberActions from '@/components/parties/PartyMemberActions';
+import PartyRoleBadges from '@/components/parties/PartyRoleBadges';
+import { formatDateBR } from '@/lib/dateTime';
 import { useDomainRealtime } from '@/hooks/use-domain-realtime';
 import { fetchPublicParties, PARTY_REALTIME_TABLES } from '@/lib/parties';
 import React, { useState, useEffect, useCallback } from 'react';
@@ -325,19 +328,19 @@ const PartyPage = () => {
                         <aside className="space-y-8">
                             <Card className="glass-effect">
                                 <CardHeader><CardTitle>Informações Gerais</CardTitle></CardHeader>
-                                <CardContent className="space-y-3 text-sm">
+                                <CardContent className="space-y-3 text-sm"><div className="flex items-center gap-3"><Avatar><AvatarImage src={party.founder?.avatar_url} /><AvatarFallback>{party.founder?.full_name?.charAt(0) || '?'}</AvatarFallback></Avatar><div><p className="font-semibold">{party.founder?.full_name || 'Cidadão indisponível'}</p><p className="text-xs text-muted-foreground">Fundador</p></div></div>
                                     <div className="flex items-center gap-3"><Shield className="w-5 h-5 text-primary" /><Badge variant="outline">{party.orientation}</Badge></div>
-                                    <div className="flex items-center gap-3"><Calendar className="w-5 h-5 text-primary" /><span>Fundado em {format(new Date(party.created_at), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}</span></div>
+                                    <div className="flex items-center gap-3"><Calendar className="w-5 h-5 text-primary" /><span>Fundado em {formatDateBR(party.created_at,{long:true})}</span></div>
                                     <div className="flex items-center gap-3"><Users className="w-5 h-5 text-primary" /><span>{party.members.length} Membros</span></div>
                                 </CardContent>
                             </Card>
                             <Card className="glass-effect">
                                 <CardHeader><CardTitle>Lideranças</CardTitle></CardHeader>
                                 <CardContent className="space-y-4">
-                                    <div className="flex items-center gap-3"><Avatar><AvatarImage src={party.founder?.avatar_url} /><AvatarFallback>{party.founder?.full_name?.charAt(0) || '?'}</AvatarFallback></Avatar><div><p className="font-semibold">{party.founder?.full_name || 'Cidadão indisponível'}</p><p className="text-xs text-muted-foreground">Fundador</p></div></div>
-                                    {party.owner && <div className="flex items-center gap-3"><Avatar><AvatarImage src={party.owner.avatar_url} /><AvatarFallback>{party.owner.full_name.charAt(0)}</AvatarFallback></Avatar><div><p className="font-semibold">{party.owner.full_name}</p><p className="text-xs text-muted-foreground">Dono</p></div></div>}
-                                    {party.president && <div className="flex items-center gap-3"><Avatar><AvatarImage src={party.president.avatar_url} /><AvatarFallback>{party.president.full_name.charAt(0)}</AvatarFallback></Avatar><div><p className="font-semibold">{party.president.full_name}</p><p className="text-xs text-muted-foreground">Presidente</p></div></div>}
-                                    {party.vice_president && <div className="flex items-center gap-3"><Avatar><AvatarImage src={party.vice_president.avatar_url} /><AvatarFallback>{party.vice_president.full_name.charAt(0)}</AvatarFallback></Avatar><div><p className="font-semibold">{party.vice_president.full_name}</p><p className="text-xs text-muted-foreground">Vice-Presidente</p></div></div>}
+
+                                    {party.owner && <div className="flex items-center gap-3"><Avatar><AvatarImage src={party.owner.avatar_url} /><AvatarFallback>{party.owner.full_name.charAt(0)}</AvatarFallback></Avatar><div><p className="font-semibold">{party.owner.full_name}</p><PartyRoleBadges party={party} userId={party.owner_id}/></div><PartyMemberActions party={party} memberId={party.owner_id} onChange={fetchPartyData}/></div>}
+                                    {party.president && <div className="flex items-center gap-3"><Avatar><AvatarImage src={party.president.avatar_url} /><AvatarFallback>{party.president.full_name.charAt(0)}</AvatarFallback></Avatar><div><p className="font-semibold">{party.president.full_name}</p><PartyRoleBadges party={party} userId={party.president_id}/></div><PartyMemberActions party={party} memberId={party.president_id} onChange={fetchPartyData}/></div>}
+                                    {party.vice_president && <div className="flex items-center gap-3"><Avatar><AvatarImage src={party.vice_president.avatar_url} /><AvatarFallback>{party.vice_president.full_name.charAt(0)}</AvatarFallback></Avatar><div><p className="font-semibold">{party.vice_president.full_name}</p><PartyRoleBadges party={party} userId={party.vice_president_id}/></div><PartyMemberActions party={party} memberId={party.vice_president_id} onChange={fetchPartyData}/></div>}
                                 </CardContent>
                             </Card>
                             <Card className="glass-effect">
@@ -349,10 +352,11 @@ const PartyPage = () => {
                                             <div>
                                                 <p className="font-medium text-sm">{member.profile.full_name}</p>
                                                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                                    <Badge variant="secondary" className="flex items-center gap-1"><Crown size={12}/>{getMemberPartyRole(member)}</Badge>
+                                                    <PartyRoleBadges party={party} userId={member.user_id}/>
                                                     <Badge variant="outline" className="flex items-center gap-1"><User size={12}/>{member.profile.role}</Badge>
                                                 </div>
                                             </div>
+                                            <PartyMemberActions party={party} memberId={member.user_id} onChange={fetchPartyData}/>
                                         </div>
                                     ))}
                                 </CardContent>

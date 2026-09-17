@@ -1,3 +1,4 @@
+import { formatLocaleBR } from '@/lib/dateTime';
 import React, { useCallback, useEffect, useState } from 'react';
 import { Loader2, Vote, XCircle, CheckCircle2 } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
@@ -142,7 +143,7 @@ const ViceCandidacyDecisionPopup = () => {
               Nome político: {metadata.political_name || 'Não informado'}
             </p>
             <p className="text-xs text-muted-foreground">
-              Convite recebido em: {new Date(pendingInvitation.created_at).toLocaleString('pt-BR')}
+              Convite recebido em: {formatLocaleBR(new Date(pendingInvitation.created_at), 'toLocaleString', 'pt-BR')}
             </p>
           </div>
 

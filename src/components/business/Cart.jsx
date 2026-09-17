@@ -1,3 +1,4 @@
+import CheckoutDialog from '@/components/business/PurchaseDialog';
 import React, { useState, useRef } from 'react';
 import { useCart } from '@/contexts/CartContext';
 import { Button } from '@/components/ui/button';
@@ -34,79 +35,6 @@ const CartItem = ({ item, updateQuantity, removeFromCart }) => (
         <Button variant="ghost" size="icon" className="h-10 w-10 text-destructive" aria-label={`Remover ${item.name}`} onClick={() => removeFromCart(item.id)}><Trash2 className="h-4 w-4" /></Button>
     </div>
 );
-
-const CheckoutDialog = ({ open, onOpenChange, onConfirm, total, blocked, quoteReady }) => {
-    const [paymentMethod, setPaymentMethod] = useState('balance');
-    const [cards, setCards] = useState([]);
-    const [selectedCard, setSelectedCard] = useState('');
-    const [loading, setLoading] = useState(false);
-    const { user } = useAuth();
-
-    React.useEffect(() => {
-        if (open && user) {
-            const fetchCards = async () => {
-                const { data } = await supabase.from('cards').select('*').eq('user_id', user.id).eq('is_active', true);
-                setCards(data || []);
-            };
-            fetchCards();
-        }
-    }, [open, user]);
-
-    const handleConfirm = () => {
-        setLoading(true);
-        onConfirm(paymentMethod, selectedCard).finally(() => setLoading(false));
-    };
-
-    return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent>
-                <DialogHeader>
-                    <DialogTitle>Finalizar Compra</DialogTitle>
-                    <DialogDescription>Confirme os detalhes do seu pedido.</DialogDescription>
-                </DialogHeader>
-                <div className="space-y-4 py-4">
-                    <div className="flex justify-between items-center p-4 rounded-lg bg-muted">
-                        <span className="font-semibold">Total do Pedido</span>
-                        <span className="font-bold text-lg">{formatCurrency(total)}</span>
-                    </div>
-                    {(!quoteReady || blocked) && <p role="status" className="text-sm text-destructive">{!quoteReady ? 'Atualizando os valores vigentes…' : 'Há produtos indisponíveis ou suspensos por norma vigente no carrinho.'}</p>}
-                    <div>
-                        <label className="text-sm font-medium">Método de Pagamento</label>
-                        <Select value={paymentMethod} onValueChange={setPaymentMethod}>
-                            <SelectTrigger><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="balance">Saldo em Conta</SelectItem>
-                                <SelectItem value="card" disabled={cards.length === 0}>Cartão de Crédito</SelectItem>
-                            </SelectContent>
-                        </Select>
-                    </div>
-                    {paymentMethod === 'card' && (
-                        <div>
-                            <label className="text-sm font-medium">Selecione o Cartão</label>
-                            <Select value={selectedCard} onValueChange={setSelectedCard}>
-                                <SelectTrigger><SelectValue placeholder="Selecione um cartão" /></SelectTrigger>
-                                <SelectContent>
-                                    {cards.map(card => (
-                                        <SelectItem key={card.id} value={card.id}>
-                                            {card.brand} final {card.card_number.slice(-4)}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
-                    )}
-                </div>
-                <DialogFooter>
-                    <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-                    <Button onClick={handleConfirm} disabled={loading || blocked || !quoteReady || (paymentMethod === 'card' && !selectedCard)}>
-                        {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                        Confirmar e Pagar
-                    </Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
-    );
-};
 
 const Cart = () => {
     const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);

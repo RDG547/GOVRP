@@ -1,3 +1,4 @@
+import { formatLocaleBR } from '@/lib/dateTime';
 import { GovSelect } from '@/components/ui/gov-select';
 import React, { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { BookOpen, Loader2, Coins, Shield, Scale, Newspaper, Landmark } from 'lucide-react';
@@ -124,12 +125,12 @@ export default function LegalMeasureStudio({ houseId = null, onCreated, buttonLa
             </>}
           </div>}
           <div className="grid gap-3 sm:grid-cols-2">{field('start', 'Início da vigência (vazio = imediato)', <Input type="datetime-local" value={draft.valid_from} onChange={e => update({ valid_from: e.target.value })} />)}{field('until', 'Fim da vigência (obrigatório para benefício)', <Input type="datetime-local" value={draft.valid_until} onChange={e => update({ valid_until: e.target.value })} />)}</div>
-          <p className="text-xs text-muted-foreground">Datas acima no seu horário local. Restrições por hora e dia usam o relógio RP de Brasília.</p>
+          <p className="text-xs text-muted-foreground">Datas, horários e restrições usam o horário de Brasília.</p>
           {source === 'decree' && <p className="rounded-lg border p-3 text-sm" role="status">{competence?.description || 'Consultando competências...'}{!competence?.decree_allowed && ' Esta matéria exige aprovação legislativa.'}</p>}
           {field('title', 'Título', <Input value={title} onChange={e => { setTitle(e.target.value); setReview(false); }} />)}
           {field('summary', 'Ementa e explicação', <Textarea value={summary} onChange={e => { setSummary(e.target.value); setReview(false); }} />)}
           {field('text', 'Texto legal inicial', <Textarea rows={5} value={legalText} onChange={e => { setLegalText(e.target.value); setReview(false); }} />)}
-          <section className="rounded-lg bg-secondary p-4 space-y-2" aria-live="polite"><h3 className="font-semibold">O que esta medida fará se entrar em vigor?</h3><p className="text-sm">{measureSummary(draft, current)}</p><LegalEffectsSummary effects={[{effect_data:draft,previous_snapshot:current,valid_from:draft.valid_from,valid_until:draft.valid_until,status:'draft'}]} /><p className="text-sm">Vigência: {draft.valid_from ? new Date(draft.valid_from).toLocaleString('pt-BR') : 'A partir da publicação válida'}. {draft.valid_until && `Até ${new Date(draft.valid_until).toLocaleString('pt-BR')}.`}</p><p className="text-xs text-muted-foreground">{LEGAL_KIND_LABELS[draft.kind]} · Operações e sentenças anteriores preservam os valores registrados.</p></section>
+          <section className="rounded-lg bg-secondary p-4 space-y-2" aria-live="polite"><h3 className="font-semibold">O que esta medida fará se entrar em vigor?</h3><p className="text-sm">{measureSummary(draft, current)}</p><LegalEffectsSummary effects={[{effect_data:draft,previous_snapshot:current,valid_from:draft.valid_from,valid_until:draft.valid_until,status:'draft'}]} /><p className="text-sm">Vigência: {draft.valid_from ? formatLocaleBR(new Date(draft.valid_from), 'toLocaleString', 'pt-BR') : 'A partir da publicação válida'}. {draft.valid_until && `Até ${formatLocaleBR(new Date(draft.valid_until), 'toLocaleString', 'pt-BR')}.`}</p><p className="text-xs text-muted-foreground">{LEGAL_KIND_LABELS[draft.kind]} · Operações e sentenças anteriores preservam os valores registrados.</p></section>
           <label className="flex min-h-11 items-center gap-3 text-sm"><input type="checkbox" checked={review} onChange={e => setReview(e.target.checked)} />Revisei o texto, os parâmetros e os efeitos desta medida.</label>
           <Button className="w-full sm:w-auto" disabled={!review || saving || loadError || !authority.length || (source === 'decree' && !competence?.decree_allowed)} onClick={submit}>{saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}{source === 'decree' ? 'Salvar decreto para publicação' : 'Enviar proposta para tramitação'}</Button>
         </div>}

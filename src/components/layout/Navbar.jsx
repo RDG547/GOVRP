@@ -17,6 +17,8 @@ const serviceCategories = SERVICE_CATEGORIES;
 const SERVICE_INITIALS_IGNORED_WORDS = new Set(['a', 'as', 'da', 'das', 'de', 'do', 'dos', 'e', 'o', 'os']);
 
 const getServiceInitials = (name = '') => {
+  if (name === 'Parlamento') return 'PA';
+  if (name === 'Prisão') return 'PR';
   const words = name
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')

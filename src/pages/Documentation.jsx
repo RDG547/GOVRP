@@ -1,3 +1,4 @@
+import ServiceDocumentation from '@/components/ServiceDocumentation';
 import React, { useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -78,239 +79,23 @@ const SectionContent = ({ id }) => {
     tutorial: (
       <div>
         <h3 className="text-2xl font-bold text-foreground mb-4">Tutorial Guiado</h3>
-        <p className="mb-4">Para garantir que você comece com o pé direito, desenvolvemos um tutorial interativo que é exibido automaticamente no seu primeiro acesso. Este tour destaca os elementos mais importantes da interface e explica as funcionalidades básicas.</p>
+        <p className="mb-4">Para garantir que você comece com o pé direito, desenvolvemos um tutorial interativo personalizado pela aspiração do cidadão, exibido após a conclusão da cidadania. Este tour destaca os elementos mais importantes da interface e explica as funcionalidades básicas.</p>
         <h4 className="text-xl font-semibold text-foreground mb-3">Como funciona?</h4>
         <ul className="list-disc list-inside space-y-2 mb-4">
-          <li><strong>Aparição Automática:</strong> O tutorial inicia assim que você faz login pela primeira vez.</li>
+          <li><strong>Aparição Automática:</strong> Sem marcar “Não mostrar novamente”, o tutorial poderá reaparecer na próxima sessão apropriada.</li>
           <li><strong>"Não mostrar novamente":</strong> Durante o tutorial, você pode marcar uma caixa para que ele não apareça nos próximos logins.</li>
-          <li><strong>Reativando o Tutorial:</strong> Mudou de ideia? Você pode reativar o tutorial a qualquer momento. Vá até o seu <Link to="/dashboard" className="text-primary hover:underline">Dashboard</Link>, onde encontrará um interruptor para habilitar ou desabilitar a exibição do tutorial no próximo login.</li>
+          <li><strong>Reativando o Tutorial:</strong> Mudou de ideia? Você pode reativar o tutorial a qualquer momento. Use a opção de tutorial nas <Link to="/settings" className="text-primary hover:underline">Configurações</Link>.</li>
           <li><strong>Refazendo o Tour:</strong> Se quiser apenas rever o tutorial sem alterar suas configurações, clique no botão "Refazer Tutorial" no seu Dashboard.</li>
         </ul>
         <p>Recomendamos que todos os novos usuários completem o tutorial para uma melhor compreensão da plataforma.</p>
       </div>
     ),
-    servicos: (
-      <div>
-        <h3 className="text-2xl font-bold text-foreground mb-4">Nossos Serviços Integrados</h3>
-        <p className="mb-6">Clique em um serviço para saber mais detalhes.</p>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <ServiceCard icon={Landmark} title="Banco Nacional" description="Gerencie suas finanças, realize transferências e invista." color="text-green-400">
-            <p>O Banco Nacional é o pilar da economia do GOV.RP. Ao abrir sua conta, você recebe um saldo inicial para começar sua jornada. Use o banco para:</p>
-            <ul>
-              <li>Guardar seu dinheiro com segurança.</li>
-              <li>Realizar transferências para outros cidadãos.</li>
-              <li>Solicitar cartões de crédito.</li>
-              <li>Investir em fundos de rendimento para fazer seu dinheiro crescer.</li>
-            </ul>
-          </ServiceCard>
-          <ServiceCard icon={LineChart} title="Economia Nacional" description="Acompanhe a economia que nasce dos dados atuais e evolui com o RP." color="text-cyan-300">
-            <p>O painel reúne PIB, crescimento, inflação, desemprego, câmbio, setores produtivos e séries históricas. Quando um país entra no RP, os dados reais formam o ponto inicial; a partir desse momento, decisões de jogadores e o motor de simulação passam a determinar os valores seguintes.</p>
-            <ul><li>Indicadores e histórico nacional.</li><li>Política fiscal e monetária com efeitos graduais.</li><li>Portfólio de investimentos com compras, vendas e resultado.</li></ul>
-          </ServiceCard>
-          <ServiceCard icon={Building2} title="Portal do Empreendedor" description="Abra, administre e desenvolva empresas no país." color="text-cyan-400">
-            <p>O portal concentra criação empresarial, equipes, projetos, indicadores, balanços e acesso ao mercado. Empresas com CNPJ aparecem pelo nome fantasia e CNPJ nas vendas.</p>
-          </ServiceCard>
-          <ServiceCard icon={Store} title="Negócios Livres" description="Crie e administre sua empresa, e participe da economia." color="text-blue-400">
-            <p>O serviço de Negócios Livres é o marketplace do GOV.RP. Aqui, o empreendedorismo ganha vida. Você pode:</p>
-            <ul>
-              <li>Registrar sua própria empresa (através da emissão de CNPJ no DIC).</li>
-              <li>Anunciar produtos e serviços para toda a comunidade.</li>
-              <li>Comprar itens de outros jogadores.</li>
-              <li>Controlar estoque e vendas.</li>
-            </ul>
-          </ServiceCard>
-          <ServiceCard icon={FileText} title="DIC" description="Emita seus documentos oficiais, essenciais para a vida civil." color="text-purple-400">
-            <p>O Departamento de Identificação Civil (DIC) é onde você gerencia sua identidade como cidadão. É essencial manter seus documentos em dia para participar plenamente da vida política e econômica.</p>
-            <p>CPF e RG são emitidos durante o Registro Nacional de Cidadania. Título de Eleitor e CTD completam as etapas obrigatórias. Depois, você também pode solicitar:</p>
-            <ul>
-              <li>Carteira Nacional de Habilitação (CNH).</li>
-              <li>Passaporte para viagens internacionais.</li>
-              <li>Cadastro Nacional da Pessoa Jurídica (CNPJ) para suas empresas.</li>
-              <li>Carteira de Trabalho Digital (CTD) para registros empregatícios.</li>
-            </ul>
-          </ServiceCard>
-          <ServiceCard icon={MessageSquare} title="Rede Social X" description="Compartilhe suas ideias, noticie eventos e construa sua imagem." color="text-sky-400">
-            <p>X é a nossa rede social integrada, o principal canal de comunicação e debate público. Use o X para:</p>
-            <ul>
-              <li>Publicar suas opiniões e ideias.</li>
-              <li>Seguir outros cidadãos e figuras públicas.</li>
-              <li>Acompanhar as tendências e os assuntos mais comentados.</li>
-              <li>Construir sua imagem pública, seja como político, empresário ou ativista.</li>
-            </ul>
-          </ServiceCard>
-          <ServiceCard icon={Users} title="Partidos Políticos" description="Crie ou filie-se a um partido para participar da vida política." color="text-red-400">
-            <p>A política é o coração do GOV.RP. Os partidos são a principal forma de organização política. Através deles, você pode:</p>
-            <ul>
-              <li>Fundar seu próprio partido com uma ideologia única.</li>
-              <li>Filiar-se a um partido existente para apoiar uma causa.</li>
-              <li>Lançar sua candidatura a cargos públicos.</li>
-              <li>Participar de debates e formar alianças.</li>
-            </ul>
-          </ServiceCard>
-          <ServiceCard icon={Scale} title="Parlamento" description="Proponha, debata e vote em projetos de lei que moldam a nação." color="text-yellow-400">
-            <p>O Parlamento é o poder legislativo do nosso roleplay, dividido entre a Câmara dos Deputados e o Senado. Como parlamentar, você pode:</p>
-            <ul>
-              <li>Propor projetos de lei.</li>
-              <li>Debater e votar em propostas de outros membros.</li>
-              <li>Fiscalizar as ações do poder executivo.</li>
-              <li>Representar os interesses dos seus eleitores.</li>
-            </ul>
-            <p>O módulo legislativo também segue diretrizes institucionais específicas:</p>
-            <ul>
-              <li>Deputados e Senadores exercem mandato de 1 mês.</li>
-              <li>Cada Casa deve manter mesa diretora com Presidente e Vice-Presidente.</li>
-              <li>Comissões temporárias dependem de maioria simples em plenário.</li>
-              <li>CPI e CPMI dependem de requerimento de um terço dos membros.</li>
-              <li>Toda comissão de inquérito deve ter Relator e Relatório Final.</li>
-              <li>Compete privativamente ao Senado julgar Ministros do STF nos crimes de responsabilidade e impeachment.</li>
-            </ul>
-            <p>Cidadãos também podem participar sugerindo projetos aos parlamentares.</p>
-          </ServiceCard>
-          <ServiceCard icon={Gavel} title="Sistema Penal" description="Consulte registros criminais e o status do sistema prisional." color="text-amber-400">
-            <p>A justiça e a ordem são mantidas através do Sistema Penal. Este serviço permite:</p>
-            <ul>
-              <li>Consultar o registro criminal de qualquer cidadão.</li>
-              <li>Acompanhar o status de sentenças e penas.</li>
-              <li>Juízes e promotores podem gerenciar processos e condenações.</li>
-              <li>Solicitar audiências e recursos.</li>
-            </ul>
-          </ServiceCard>
-          <ServiceCard icon={Vote} title="Eleições" description="Exerça seu direito de voto e acompanhe os resultados eleitorais." color="text-teal-400">
-            <p>A democracia é exercida através do voto. No portal de Eleições, você pode:</p>
-            <ul>
-              <li>Verificar as eleições ativas.</li>
-              <li>Conhecer os candidatos e suas propostas.</li>
-              <li>Votar em seus representantes.</li>
-              <li>Acompanhar a apuração dos votos em tempo real.</li>
-            </ul>
-            <p>O módulo eleitoral e executivo também segue diretrizes constitucionais específicas:</p>
-            <ul>
-              <li>Presidente e Vice-Presidente são eleitos simultaneamente por voto direto, em chapa conjunta.</li>
-              <li>O mandato presidencial dura 1 mês.</li>
-              <li>É permitida apenas 1 reeleição presidencial consecutiva.</li>
-              <li>Na vacância, assumem sucessivamente o Presidente da Câmara, o Presidente do Senado e o Presidente do STF.</li>
-              <li>Esgotada a sucessão, o Conselho dos Administradores (CDA) assume excepcionalmente a reestruturação do Executivo.</li>
-            </ul>
-            <p>Compete privativamente ao Presidente nomear e exonerar ministros, dirigir a administração federal, sancionar, promulgar, publicar leis, vetar projetos e editar medidas provisórias com validade máxima de 1 semana.</p>
-          </ServiceCard>
-          <ServiceCard icon={Newspaper} title="Notícias e Diário Oficial" description="Imprensa plural, acontecimentos e atos oficiais." color="text-cyan-300">
-            <p>Notícias podem apresentar enquadramentos editoriais governista, de oposição, neutro ou sensacionalista. O Diário Oficial registra leis e decretos; decretos presidenciais exibem a data e o horário exatos fornecidos pelo servidor.</p>
-          </ServiceCard>
-          <ServiceCard icon={Tally5} title="Sistema Prisional" description="Execução penal, custódia e ressocialização." color="text-slate-400">
-            <p>A área prisional acompanha estabelecimento, regime, tempo restante, eventos da pena e atividades de trabalho, estudo, saúde e convivência. O servidor decide admissão, progressão e liberação; alterar o relógio do aparelho não muda a pena.</p>
-          </ServiceCard>
-          <ServiceCard icon={Siren} title="Central de Segurança e Justiça" description="Ocorrências, processos, multas, mandados e serviços civis." color="text-indigo-400">
-            <p>A central unifica Polícia, Ministério Público, Judiciário e execução penal. Cidadãos podem registrar ocorrências identificadas ou anônimas, consultar protocolos, multas, mandados e investigações permitidas, pedir investigação ou liberação de bens e emitir atestado de antecedentes. Autoridades atuam conforme o cargo:</p>
-            <ul>
-              <li>Gerenciar ocorrências e investigações.</li>
-              <li>Acessar o banco de dados de cidadãos para fins de segurança.</li>
-              <li>Emitir multas e mandados.</li>
-            </ul>
-          </ServiceCard>
-          <ServiceCard icon={Eye} title="AGIES" description="Agência de Inteligência e Espionagem Suprema (acesso restrito)." color="text-red-500">
-            <p>A AGIES atua nos bastidores para garantir a segurança nacional. O acesso é altamente restrito a agentes autorizados, que utilizam o painel para:</p>
-            <ul>
-              <li>Gerenciar operações de inteligência.</li>
-              <li>Monitorar ameaças internas e externas.</li>
-              <li>Coletar e analisar informações sigilosas.</li>
-            </ul>
-          </ServiceCard>
-          <ServiceCard icon={ShieldCheck} title="Forças Armadas" description="Painel de controle e informações das Forças Armadas (acesso restrito)." color="text-lime-400">
-            <p>As Forças Armadas são a defesa da nossa nação. Cidadãos podem se alistar, enquanto o painel exclusivo para militares permite:</p>
-            <ul>
-              <li>Planejar e acompanhar operações militares.</li>
-              <li>Gerenciar recursos e pessoal.</li>
-              <li>Coordenar a defesa do território nacional.</li>
-            </ul>
-          </ServiceCard>
-          <ServiceCard icon={Banknote} title="Renda Cidadã" description="Um benefício semanal para todos os cidadãos." color="text-emerald-400">
-            <p>A Renda Cidadã é um sistema de distribuição de renda para garantir um nível básico de bem-estar a todos os cidadãos. Funciona da seguinte forma:</p>
-            <ul>
-              <li>Todo cidadão com conta bancária ativa recebe um valor semanal.</li>
-              <li>O pagamento é automático e ocorre em um dia fixo da semana.</li>
-              <li>O valor e o dia do pagamento podem ser ajustados pela administração da plataforma para equilibrar a economia.</li>
-            </ul>
-          </ServiceCard>
-           <ServiceCard icon={Wifi} title="Internet" description="Contrate planos de internet para sua residência." color="text-cyan-400">
-            <p>A conectividade é essencial. Através deste serviço, você pode:</p>
-            <ul>
-              <li>Escolher entre diferentes planos de velocidade.</li>
-              <li>Contratar ou cancelar seu serviço de internet a qualquer momento.</li>
-              <li>As cobranças são feitas semanalmente de forma automática.</li>
-            </ul>
-          </ServiceCard>
-          <ServiceCard icon={Zap} title="Energia Elétrica" description="Gerencie seu fornecimento de energia." color="text-yellow-400">
-            <p>A energia que move o país. Este serviço permite:</p>
-            <ul>
-              <li>Contratar o plano padrão de fornecimento de energia.</li>
-              <li>Consultar histórico de consumo.</li>
-              <li>Solicitar manutenções na rede elétrica de sua propriedade.</li>
-            </ul>
-          </ServiceCard>
-          <ServiceCard icon={Droplet} title="Água e Saneamento" description="Acesso à água potável e saneamento básico." color="text-blue-400">
-            <p>Um serviço essencial para todos. Com ele você pode:</p>
-            <ul>
-              <li>Ativar o fornecimento de água para sua residência.</li>
-              <li>Consultar a qualidade da água em sua região.</li>
-              <li>Relatar vazamentos e problemas na rede.</li>
-            </ul>
-          </ServiceCard>
-          <ServiceCard icon={Smartphone} title="Telefonia" description="Serviços de telefonia móvel para se manter conectado." color="text-violet-400">
-            <p>Comunicação sem fronteiras. Oferecemos:</p>
-            <ul>
-              <li>Planos pós-pagos com diferentes pacotes de dados e ligações.</li>
-              <li>Contratação e cancelamento simplificados.</li>
-              <li>A cobrança semanal garante que você nunca fique sem sinal.</li>
-            </ul>
-          </ServiceCard>
-          <ServiceCard icon={Home} title="Aluguel" description="Encontre o imóvel ideal para morar ou para seu negócio." color="text-orange-400">
-            <p>O portal de aluguel conecta proprietários e inquilinos. Você pode:</p>
-            <ul>
-              <li>Buscar por apartamentos, casas e espaços comerciais.</li>
-              <li>Filtrar por localização, tipo de imóvel e preço.</li>
-              <li>Alugar um imóvel com um contrato semanal simples.</li>
-            </ul>
-          </ServiceCard>
-          <ServiceCard icon={Wrench} title="Manutenção" description="Solicite reparos e serviços de manutenção." color="text-gray-400">
-            <p>Problemas em casa ou no escritório? Chame um profissional:</p>
-            <ul>
-              <li>Solicite serviços de manutenção elétrica, hidráulica, pintura e mais.</li>
-              <li>Acompanhe o status de suas solicitações.</li>
-              <li>Os pagamentos são processados diretamente pela plataforma.</li>
-            </ul>
-          </ServiceCard>
-          <ServiceCard icon={Flame} title="Gás" description="Gerencie o fornecimento de gás encanado." color="text-red-500">
-            <p>Essencial para cozinhas e aquecimento, este serviço permite:</p>
-            <ul>
-              <li>Contratar o fornecimento de gás para sua residência.</li>
-              <li>O faturamento é semanal e automático.</li>
-              <li>Cancelar o serviço a qualquer momento.</li>
-            </ul>
-          </ServiceCard>
-          <ServiceCard icon={Library} title="Biblioteca Nacional" description="Acesso a um vasto acervo de livros e e-books." color="text-orange-400">
-            <p>Conhecimento é poder. A Biblioteca Nacional oferece:</p>
-            <ul>
-              <li>Um extenso catálogo de livros digitais sobre diversos temas.</li>
-              <li>Acesso gratuito para todos os cidadãos.</li>
-              <li>Leitura online diretamente no navegador.</li>
-            </ul>
-          </ServiceCard>
-          <ServiceCard icon={Archive} title="Acervo Digital" description="Links para jogos, softwares e cursos." color="text-rose-400">
-            <p>O Acervo Digital é um repositório de links parceiro, oferecendo acesso a:</p>
-            <ul>
-              <li>Uma vasta coleção de jogos.</li>
-              <li>Softwares úteis para diversas finalidades.</li>
-              <li>Cursos online para seu desenvolvimento pessoal e profissional.</li>
-            </ul>
-          </ServiceCard>
-        </div>
-      </div>
-    ),
+    servicos: <ServiceDocumentation />,
     seguranca: (
       <div>
         <h3 className="text-2xl font-bold text-foreground mb-4">Sua Segurança é Nossa Prioridade</h3>
-        <p className="mb-4">Levamos a segurança dos seus dados a sério. Todas as informações são criptografadas e armazenadas em servidores seguros.</p>
-        <p>Nossa <Link to="/privacy" className="text-primary hover:underline">Política de Privacidade</Link> detalha como coletamos e usamos seus dados. Recomendamos fortemente a ativação da <strong>autenticação de dois fatores (2FA)</strong> em sua conta para uma camada extra de proteção.</p>
+        <p className="mb-4">Levamos a segurança dos seus dados a sério. Dados privados da conta ficam separados da identidade pública do personagem, com acesso controlado no servidor.</p>
+        <p>Nossa <Link to="/privacy" className="text-primary hover:underline">Política de Privacidade</Link> detalha como coletamos e usamos seus dados. Mantenha sua senha segura e revise o acesso ao provedor usado no login social.</p>
       </div>
     ),
     regras: (

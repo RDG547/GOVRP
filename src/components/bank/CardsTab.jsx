@@ -1,3 +1,4 @@
+import { formatLocaleBR } from '@/lib/dateTime';
 import { useDomainRealtime } from '@/hooks/use-domain-realtime';
 import { bankRealtimeTables } from '@/lib/bankRealtime';
 import { CARD_SECTIONS, bankSectionsForEvents, fetchBankSections } from '@/lib/bankData';
@@ -182,7 +183,7 @@ const InvoiceItems = ({ invoiceId, revision }) => {
                 <TableBody>
                     {items.map(item => (
                         <TableRow key={item.id}>
-                            <TableCell>{new Date(item.created_at).toLocaleDateString('pt-BR')}</TableCell>
+                            <TableCell>{formatLocaleBR(new Date(item.created_at), 'toLocaleDateString', 'pt-BR')}</TableCell>
                             <TableCell>{item.description}</TableCell>
                             <TableCell className="text-right">{formatCurrency(item.amount)}</TableCell>
                         </TableRow>
@@ -505,7 +506,7 @@ const CardsTab = ({ onUpdate }) => {
                                     <React.Fragment key={invoice.id}>
                                         <TableRow>
                                             <TableCell>{card ? `${card.brand} final ${card.card_number.slice(-4)}` : '-'}</TableCell>
-                                            <TableCell>{new Date(invoice.due_date).toLocaleDateString('pt-BR')}</TableCell>
+                                            <TableCell>{formatLocaleBR(new Date(invoice.due_date), 'toLocaleDateString', 'pt-BR')}</TableCell>
                                             <TableCell>{formatCurrency(invoice.amount)}</TableCell>
                                             <TableCell><Badge variant={getStatusVariant(invoice.status)}>{getStatusText(invoice.status)}</Badge></TableCell>
                                             <TableCell className="text-right">
@@ -589,7 +590,7 @@ const CardsTab = ({ onUpdate }) => {
                                 <div>
                                     <p className="font-semibold capitalize">Cartão {application.brand}</p>
                                     <p className="text-xs text-muted-foreground">
-                                        Solicitado em {new Date(application.created_at).toLocaleDateString('pt-BR')}
+                                        Solicitado em {formatLocaleBR(new Date(application.created_at), 'toLocaleDateString', 'pt-BR')}
                                     </p>
                                     {application.feedback ? <p className="mt-1 text-xs text-muted-foreground">Feedback: {application.feedback}</p> : null}
                                 </div>

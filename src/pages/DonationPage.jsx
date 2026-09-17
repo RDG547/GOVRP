@@ -1,3 +1,4 @@
+import { formatLocaleBR } from '@/lib/dateTime';
 import React, { useEffect, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { motion } from 'framer-motion';
@@ -641,7 +642,7 @@ const DonationPage = () => {
 
                         <p className="text-xs text-muted-foreground">
                           Expira em:{' '}
-                          {pixCharge.expiresAt ? new Date(pixCharge.expiresAt).toLocaleString('pt-BR') : 'não informado'}
+                          {pixCharge.expiresAt ? formatLocaleBR(new Date(pixCharge.expiresAt), 'toLocaleString', 'pt-BR') : 'não informado'}
                         </p>
                       </div>
                     </>

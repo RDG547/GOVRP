@@ -1,9 +1,10 @@
 import assert from 'node:assert/strict';
-import { actor, service, request, rpc, subscribe, waitFor, cleanup } from './lib/world-test.mjs';
+import { ensureParliamentHouses, actor, service, request, rpc, subscribe, waitFor, cleanup } from './lib/world-test.mjs';
 import { filterCompatibleParliamentMembers } from '../src/lib/roleResolution.js';
 let checks = 0;
 const check = (value, label) => { assert(value, label); checks++; console.log(`OK ${label}`); };
 try {
+ await ensureParliamentHouses();
  const citizen = await actor('repair-citizen');
  const second = await actor('repair-second');
  const president = await actor('repair-president','Presidente');

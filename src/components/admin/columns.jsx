@@ -1,3 +1,4 @@
+import { formatLocaleBR } from '@/lib/dateTime';
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { ArrowUpDown, MoreHorizontal } from 'lucide-react';
@@ -35,7 +36,7 @@ export const columns = [
     header: "Cadastro",
     cell: ({ row }) => {
       const date = new Date(row.getValue("created_at"));
-      return date.toLocaleDateString('pt-BR');
+      return formatLocaleBR(date, 'toLocaleDateString', 'pt-BR');
     },
   },
   {

@@ -33,7 +33,7 @@ try {
  const type=await request(service.from('election_types').select('id,name').limit(1).single());await modal.getByRole('combobox',{name:'Tipo de eleição',exact:true}).click();await electionPage.getByRole('option',{name:type.name,exact:true}).click();
  const labels=['Início das candidaturas','Fim das candidaturas','Início da votação','Fim da votação'];for(let i=0;i<labels.length;i++)await modal.getByLabel(labels[i],{exact:true}).fill(new Date(Date.now()+(24+i)*3600000).toISOString().slice(0,16));
  await modal.getByRole('button',{name:'Salvar calendário',exact:true}).click();await modal.waitFor({state:'hidden'});assert((await request(service.from('elections').select('id').eq('name',name).single())).id);
- await electionPage.getByRole('tab',{name:'Como funciona',exact:true}).click();assert.equal(await electionPage.getByRole('tab',{name:'Como funciona',exact:true}).getAttribute('aria-selected'),'true');
+ await electionPage.getByRole('tab',{name:'Informações',exact:true}).click();assert.equal(await electionPage.getByRole('tab',{name:'Informações',exact:true}).getAttribute('aria-selected'),'true');
  console.log('OK gestor eleitoral agenda eleição futura pela interface e acessa a explicação institucional');
  assert(!errors.length,errors.join('\n'));
 }catch(error){if(page){await page.screenshot({path:'/tmp/govrp-government-interface-error.png'});console.error((await page.locator('body').innerText()).slice(-3500));}throw error;}

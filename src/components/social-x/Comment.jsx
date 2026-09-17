@@ -1,6 +1,8 @@
+import MentionText from './MentionText';
+import { formatLocaleBR } from '@/lib/dateTime';
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Pencil, Trash2, CornerDownRight, Loader2, Send, X } from 'lucide-react';
+import { Pencil, Heart, Trash2, CornerDownRight, Loader2, Send, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { useAuth } from '@/contexts/AuthContext';
@@ -32,6 +34,14 @@ export default function Comment({ comment, childrenByParent, onChange, level = 0
       toast({ title: 'Não foi possível salvar o comentário. Tente novamente.', variant: 'destructive' });
     } else { setMode(null); setExpanded(true); void onChange(); }
   };
+  const toggleLike = async () => {
+    if (busy) return;
+    setBusy(true);
+    const result = await supabase.rpc('set_x_comment_like', { p_comment_id: comment.id, p_liked: !comment.is_liked });
+    setBusy(false);
+    if (result.error) toast({title:'Não foi possível atualizar a curtida.',variant:'destructive'});
+    else void onChange();
+  };
   const remove = async () => {
     if (busy) return;
     setBusy(true);
@@ -48,11 +58,11 @@ export default function Comment({ comment, childrenByParent, onChange, level = 0
         <div className="flex flex-wrap items-baseline gap-x-2 text-xs">
           <Link className="font-semibold break-all" to={`/services/x/profile/${handle || comment.user_id}`}>{author.x_username || author.full_name || 'Cidadão'}</Link>
           {handle && <span className="text-muted-foreground break-all">@{handle}</span>}
-          <time dateTime={comment.created_at} className="text-muted-foreground">{new Date(comment.created_at).toLocaleString('pt-BR')}</time>
-          {comment.edit_count > 0 && !removed && <span title={comment.edited_at && new Date(comment.edited_at).toLocaleString('pt-BR')}>Editado {comment.edit_count}x</span>}
+          <time dateTime={comment.created_at} className="text-muted-foreground">{formatLocaleBR(new Date(comment.created_at), 'toLocaleString', 'pt-BR')}</time>
+          {comment.edit_count > 0 && !removed && <span title={comment.edited_at && formatLocaleBR(new Date(comment.edited_at), 'toLocaleString', 'pt-BR')}>Editado {comment.edit_count}x</span>}
         </div>
-        <p className={`text-sm whitespace-pre-wrap break-words [overflow-wrap:anywhere] ${removed ? 'italic text-muted-foreground' : ''}`}>{removed ? 'Este comentário foi removido.' : comment.content}</p>
-        {!removed && user && <div className="flex flex-wrap gap-1 mt-1">
+        <p className={`text-sm whitespace-pre-wrap break-words [overflow-wrap:anywhere] ${removed ? 'italic text-muted-foreground' : ''}`}>{removed ? 'Este comentário foi removido.' : <MentionText text={comment.content}/>}</p>
+        {!removed && user && <div className="flex flex-wrap gap-1 mt-1"><Button variant="ghost" size="sm" disabled={busy} aria-pressed={Boolean(comment.is_liked)} aria-label={comment.is_liked ? "Descurtir comentário" : "Curtir comentário"} onClick={toggleLike}><Heart className={`mr-1 h-4 w-4 ${comment.is_liked ? "fill-rose-500 text-rose-500" : ""}`}/>{comment.likes_count || 0}</Button>
           <Button variant="ghost" size="sm" onClick={() => { setMode('reply'); setText(handle ? `@${handle} ` : ''); }}><CornerDownRight className="h-4 w-4 mr-1" />Responder</Button>
           {own && <Button variant="ghost" size="sm" aria-label="Editar comentário" onClick={() => { setMode('edit'); setText(comment.content); }}><Pencil className="h-4 w-4" /></Button>}
           {(own || user.role === 'Admin') && <Button variant="ghost" size="sm" aria-label="Remover comentário" disabled={busy} onClick={remove}><Trash2 className="h-4 w-4 text-red-500" /></Button>}

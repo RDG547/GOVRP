@@ -1,3 +1,5 @@
+import ElectronicBallot from '@/components/elections/ElectronicBallot';
+import { formatDateBR, formatDateTimeBR } from '@/lib/dateTime';
 import ElectoralManagement from '@/components/elections/ElectoralManagement';
 import React, { useState, useEffect, useCallback } from 'react';
 import { Helmet } from 'react-helmet-async';
@@ -15,8 +17,6 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import RegisterCandidacy from './elections/RegisterCandidacy';
 import TrackCandidacy from './elections/TrackCandidacy';
 import { useAuth } from '@/contexts/AuthContext';
-import { format } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
 import { useDomainRealtime } from '@/hooks/use-domain-realtime';
 import { isCurrentElection } from '@/lib/currentElections';
 import { fetchExecutiveConstitutionalState } from '@/lib/executiveGovernance';
@@ -57,21 +57,19 @@ const ElectionOverviewCard = ({ election, onClick, type }) => {
                     </span>
                 )}
                 <p className="text-[10px] text-muted-foreground">
-                    {format(new Date(election.voting_start_date), 'dd/MM/yyyy', { locale: ptBR })}
+                    {formatDateBR(election.voting_start_date)}
                 </p>
             </button>
         </motion.div>
     );
 };
 
-const CandidatesList = ({ election, onVote, onNullVote, userVote }) => {
+const CandidatesList = ({ election, onRecorded, userVote }) => {
     const [candidates, setCandidates] = useState([]);
     const [loading, setLoading] = useState(true);
     const { toast } = useToast();
 
-    useEffect(() => {
-        const fetchCandidates = async () => {
-            setLoading(true);
+    const fetchCandidates = useCallback(async () => {
             let { data, error } = await supabase
                 .from('candidates')
                 .select('*, political_parties(name, acronym, logo_url, ideology), profiles!candidates_user_id_fkey(avatar_url), vice:profiles!candidates_vice_candidate_id_fkey(full_name, avatar_url)')
@@ -84,17 +82,19 @@ const CandidatesList = ({ election, onVote, onNullVote, userVote }) => {
                 setCandidates(data);
             }
             setLoading(false);
-        };
-        fetchCandidates();
     }, [election.id, toast]);
+    useEffect(() => { setLoading(true); fetchCandidates(); }, [fetchCandidates]);
+    useDomainRealtime('election-candidates', election.id, [{ table: 'candidates', filter: `election_id=eq.${election.id}` }, 'political_parties'], fetchCandidates);
 
     if (loading) return <div className="flex justify-center p-8"><Loader2 className="animate-spin" /></div>;
     if (candidates.length === 0) return <p className="text-center p-8 text-muted-foreground">Nenhum candidato encontrado para esta eleição.</p>;
 
-    const isNullVote = userVote === 'null_vote';
+
 
     return (
-        <div className="space-y-4">
+        <div className="space-y-6">
+            {election.status === 'Voting' && <ElectronicBallot election={election} candidates={candidates} hasVoted={Boolean(userVote)} onRecorded={onRecorded} />}
+            <h3 className="font-semibold">Candidaturas aprovadas</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {candidates.map(candidate => (
                     <Card key={candidate.id} className={`p-4 flex items-center justify-between gap-4 bg-background/70 ${userVote === candidate.id ? 'border-primary ring-2 ring-primary/30' : ''}`}>
@@ -137,39 +137,11 @@ const CandidatesList = ({ election, onVote, onNullVote, userVote }) => {
                                 )}
                             </div>
                         </div>
-                        {election.status === 'Voting' && (
-                            <Button
-                                onClick={() => onVote(candidate.id)}
-                                disabled={!!userVote}
-                                variant={userVote === candidate.id ? 'secondary' : 'default'}
-                            >
-                                {userVote === candidate.id ? 'Votado' : 'Votar'}
-                            </Button>
-                        )}
+                        <span className="rounded-lg bg-secondary p-2 font-mono text-xl font-bold">{candidate.electoral_number}</span>
                     </Card>
                 ))}
             </div>
-            {/* Voto Nulo */}
-            {election.status === 'Voting' && (
-                <Card className={`p-4 flex items-center justify-between gap-4 border-dashed ${isNullVote ? 'border-orange-500 ring-2 ring-orange-500/30 bg-orange-500/5' : 'bg-background/50'}`}>
-                    <div className="flex items-center gap-4">
-                        <div className={`w-12 h-12 rounded-full flex items-center justify-center ${isNullVote ? 'bg-orange-500/20' : 'bg-muted'}`}>
-                            <Ban className={`w-6 h-6 ${isNullVote ? 'text-orange-400' : 'text-muted-foreground'}`} />
-                        </div>
-                        <div>
-                            <p className="font-semibold">Voto Nulo</p>
-                            <p className="text-sm text-muted-foreground">Anular seu voto nesta eleição</p>
-                        </div>
-                    </div>
-                    <Button
-                        onClick={() => onNullVote()}
-                        disabled={!!userVote}
-                        variant={isNullVote ? 'secondary' : 'outline'}
-                    >
-                        {isNullVote ? 'Anulado' : 'Anular Voto'}
-                    </Button>
-                </Card>
-            )}
+
         </div>
     );
 };
@@ -305,8 +277,8 @@ const ElectoralCalendar = ({ elections }) => (
                             </div>
                             <p className="text-sm text-muted-foreground mt-1">{election.description}</p>
                             <ul className="list-['-_'] list-inside ml-4 text-sm text-muted-foreground mt-1">
-                                <li>Candidaturas: {format(new Date(election.candidacy_start_date), 'dd/MM/yyyy HH:mm', { locale: ptBR })} a {format(new Date(election.candidacy_end_date), 'dd/MM/yyyy HH:mm', { locale: ptBR })}</li>
-                                <li>Votação: {format(new Date(election.voting_start_date), 'dd/MM/yyyy HH:mm', { locale: ptBR })} a {format(new Date(election.voting_end_date), 'dd/MM/yyyy HH:mm', { locale: ptBR })}</li>
+                                <li>Candidaturas: {formatDateTimeBR(election.candidacy_start_date)} a {formatDateTimeBR(election.candidacy_end_date)}</li>
+                                <li>Votação: {formatDateTimeBR(election.voting_start_date)} a {formatDateTimeBR(election.voting_end_date)}</li>
                             </ul>
                         </li>
                     )
@@ -331,7 +303,7 @@ const ExecutiveConstitutionCard = ({ executiveState }) => {
     const presidentParty = executiveState.currentTerm?.winner?.party || null;
     const viceParty = presidentParty;
     const currentTermLabel = executiveState.currentTerm
-      ? `${format(new Date(executiveState.currentTerm.term_start_at), 'dd/MM/yyyy HH:mm', { locale: ptBR })} até ${format(new Date(executiveState.currentTerm.term_end_at), 'dd/MM/yyyy HH:mm', { locale: ptBR })}`
+      ? `${formatDateTimeBR(executiveState.currentTerm.term_start_at)} até ${formatDateTimeBR(executiveState.currentTerm.term_end_at)}`
       : executiveState.manualExecutiveOfficeActive
         ? 'Cargo executivo atribuído manualmente pelo admin, válido até nova eleição presidencial consolidada.'
       : 'Nenhum mandato presidencial mensal ativo foi identificado.';
@@ -515,35 +487,6 @@ const Elections = () => {
     }, [fetchElectionsAndVotes]);
     useDomainRealtime('elections', user?.id, ['elections', 'candidates', { table: 'votes', filter: `voter_id=eq.${user?.id}` }], () => fetchElectionsAndVotes());
 
-    const handleVote = async (candidateId) => {
-        const { data, error } = await supabase.rpc('cast_vote', { p_election_id: selectedElection, p_candidate_id: candidateId });
-        if (error || !data.success) {
-            toast({ title: "Erro ao votar", description: data?.message || error.message, variant: "destructive" });
-        } else {
-            toast({ title: "Voto computado!", description: data.message });
-            fetchElectionsAndVotes();
-        }
-    };
-
-    const handleNullVote = async () => {
-        // Insert a null vote (candidate_id = null) directly
-        const { data, error } = await supabase
-            .from('votes')
-            .insert({ election_id: selectedElection, voter_id: user.id, candidate_id: null });
-
-        if (error) {
-            // Check if it's a unique constraint violation (already voted)
-            if (error.code === '23505') {
-                toast({ title: "Erro", description: "Você já votou nesta eleição.", variant: "destructive" });
-            } else {
-                toast({ title: "Erro ao anular voto", description: error.message, variant: "destructive" });
-            }
-        } else {
-            toast({ title: "Voto nulo registrado!", description: "Seu voto foi anulado com sucesso." });
-            fetchElectionsAndVotes();
-        }
-    };
-
     const serviceSections = [
         {
             value: "cidadao", label: "Eleitor", icon: Users,
@@ -599,13 +542,12 @@ const Elections = () => {
                                 <section.icon className="w-5 h-5" /><span>{section.label}</span>
                             </TabsTrigger>
                         ))}
-                        <TabsTrigger value="how" className="flex gap-2 items-center py-3"><Info className="h-5 w-5" />Como funciona</TabsTrigger>
                         {['Admin','Presidente do Portal Eleitoral'].includes(user?.role)&&<TabsTrigger value="management" className="flex gap-2 items-center py-3"><Vote className="h-5 w-5"/>Gestão eleitoral</TabsTrigger>}
                     </TabsList>
-                    <TabsContent value="how"><ExecutiveConstitutionCard executiveState={executiveState} /></TabsContent>
                     {['Admin','Presidente do Portal Eleitoral'].includes(user?.role)&&<TabsContent value="management"><ElectoralManagement /></TabsContent>}
                     {serviceSections.map((section) => (
                         <TabsContent key={section.value} value={section.value}>
+                            {section.value === 'info' && <ExecutiveConstitutionCard executiveState={executiveState} />}
                             <Card className="glass-effect mt-6">
                                 <CardHeader>
                                     <CardTitle className="flex items-center gap-3 text-2xl"><section.icon className="w-8 h-8 text-teal-400" />{section.label}</CardTitle>
@@ -660,7 +602,7 @@ const Elections = () => {
                                     </div>
                                 </CardHeader>
                                 <CardContent>
-                                    {activeDisplay === 'candidatos' && currentElection && <CandidatesList election={currentElection} onVote={handleVote} onNullVote={handleNullVote} userVote={userVotes[selectedElection]} />}
+                                    {activeDisplay === 'candidatos' && currentElection && <CandidatesList election={currentElection} onRecorded={() => fetchElectionsAndVotes()} userVote={userVotes[selectedElection]} />}
                                     {activeDisplay === 'candidatos' && selectedElection === 'all' && (
                                         currentElections.length > 0 ? (
                                             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">

@@ -1,3 +1,6 @@
+import { formatDateTimeBR } from '@/lib/dateTime';
+import { formatDateBR } from '@/lib/dateTime';
+import { formatLocaleBR } from '@/lib/dateTime';
 import LegalEffectsSummary from '@/components/parliament/LegalEffectsSummary';
 import PartyIdentity from '@/components/parliament/PartyIdentity';
 import { fetchPublicProfiles } from '@/lib/publicProfiles';
@@ -63,7 +66,6 @@ import {
 import { filterCompatibleParliamentMembers, resolveLegislativeRoleForHouse } from '@/lib/roleResolution';
 import { useDomainRealtime } from '@/hooks/use-domain-realtime';
 import { usePublicProfileChanges } from '@/hooks/use-public-profile-changes';
-import { formatDateTimeBR } from '@/lib/dateTime';
 
 const PARLIAMENT_RULE_ICON_MAP = {
   commissions: Users,
@@ -460,7 +462,7 @@ const ParliamentMembersList = ({ members = [] }) => {
               )}
               <p className="text-sm text-muted-foreground"><PartyIdentity party={member.party} /></p>
               <p className="mt-1 text-xs text-muted-foreground">
-                Mandato parlamentar com duração constitucional de {PARLIAMENT_MANDATE_DURATION_LABEL}.
+                Mandato de {PARLIAMENT_MANDATE_DURATION_LABEL}.<br/>Início: {member.term_start_at ? formatDateTimeBR(member.term_start_at) : formatDateBR(member.term_start_date)}<br/>Fim: {member.term_end_at ? formatDateTimeBR(member.term_end_at) : formatDateBR(member.term_end_date)}{(member.term_start_at||member.term_end_at)&&' · Brasília'}
               </p>
             </div>
           </CardContent>
@@ -974,7 +976,7 @@ const LeadershipList = ({ houseId, houses = [], terms = [], elections = [], gove
                   </div>
                   <CardTitle>{getLeadershipPositionLabel(term.house?.name || '', term.position)}</CardTitle>
                   <CardDescription>
-                    Mandato até {new Date(`${term.term_end_date}T00:00:00`).toLocaleDateString('pt-BR')}
+                    Mandato até {formatDateBR(term.term_end_date)}
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="flex items-center gap-4">
@@ -1124,7 +1126,7 @@ const Parliament = () => {
       }
       const publicProfiles = await fetchPublicProfiles((membersData || []).map(member => member.user_id));
       setAllMembers(
-        filterCompatibleParliamentMembers((membersData || []).map(member => ({ ...member, profile: publicProfiles.get(member.user_id) || member.profile })), syncState, housesData || [])
+        filterCompatibleParliamentMembers((membersData || []).map(member => (() => {const assignment=syncState?.active_assignments?.find(item=>item.user_id===member.user_id);return {...member,profile:publicProfiles.get(member.user_id)||member.profile,term_start_at:assignment?.term_start_at,term_end_at:assignment?.term_end_at};})()), syncState, housesData || [])
       );
 
       }

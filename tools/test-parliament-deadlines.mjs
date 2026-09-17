@@ -1,0 +1,44 @@
+import assert from 'node:assert/strict';
+import {actor,service,request,rpc,waitFor,cleanup} from './lib/world-test.mjs';
+let checks=0;const check=(v,l)=>{assert(v,l);checks++;console.log('✓ '+l);};
+try {
+ const [member,outsider]=await Promise.all([actor('deadline-member','Deputado'),actor('deadline-outsider')]);
+ const house=await request(service.from('parliament_houses').insert({name:`Casa prazo ${crypto.randomUUID().slice(0,8)}`}).select('id').single());
+ const mandate=await request(service.from('parliament_members').insert({user_id:member.id,house_id:house.id,term_start_date:new Date(Date.now()-86400000).toISOString().slice(0,10),term_end_date:new Date(Date.now()+86400000).toISOString().slice(0,10)}).select('id').single());
+ const create=async(type='PL')=>{
+  const bill=await request(service.from('bills').insert({house_id:house.id,author_id:member.id,title:'Projeto integrado de prazo',summary:'Verificação do encerramento automático e das abstenções.',full_text:'Art. 1º. Regula-se o cenário integrado de teste.',type,status:'Em votação'}).select('*').single());
+  const voting=await request(service.from('parliament_votings').insert({house_id:house.id,type:'bill',related_id:bill.id,title:bill.title,status:'active',end_date:new Date(Date.now()+3600000).toISOString()}).select('*').single());
+  return{bill,voting};
+ };
+ const {bill,voting}=await create();
+ check((await request(member.client.from('notifications').select('id').eq('type','parliament_voting_open').eq('metadata->>voting_id',voting.id))).length===1,'abrir votação notifica o membro uma vez');
+ check(!(await rpc(member.client,'finalize_bill_voting',{p_voting_id:voting.id})).finalized,'prazo aberto não encerra sem todos os votos');
+ check(Boolean((await outsider.client.rpc('finalize_bill_voting',{p_voting_id:voting.id})).error),'cidadão não força resultado parlamentar');
+ await request(service.from('parliament_votings').update({end_date:new Date(Date.now()-1000).toISOString()}).eq('id',voting.id));
+ await waitFor(async()=>(await request(service.from('parliament_votings').select('status').eq('id',voting.id).single())).status==='closed','cron encerra votação sem sessão aberta',20000);
+ check((await request(service.from('bills').select('status').eq('id',bill.id).single())).status==='Rejeitado','ausência vira abstenção e proposta sem votos favoráveis é rejeitada');
+ const n=await request(member.client.from('notifications').select('metadata').eq('type','parliament_voting_result').eq('metadata->>voting_id',voting.id).single());
+ check(n.metadata.abstain===1,'resultado inclui abstenção do ausente');
+ await Promise.all([rpc(member.client,'finalize_bill_voting',{p_voting_id:voting.id}),rpc(member.client,'finalize_bill_voting',{p_voting_id:voting.id})]);
+ check((await request(member.client.from('notifications').select('id').eq('type','parliament_voting_result').eq('metadata->>voting_id',voting.id))).length===1,'finalização concorrente não duplica resultado ou notificação');
+ const ordinary=await create();
+ await rpc(member.client,'cast_parliament_vote',{p_voting_id:ordinary.voting.id,p_member_id:mandate.id,p_vote:'Aprovar'});
+ check((await rpc(member.client,'finalize_bill_voting',{p_voting_id:ordinary.voting.id})).approved,'todos os membros podem concluir antes do prazo');
+ check((await request(service.from('bills').select('status').eq('id',ordinary.bill.id).single())).status==='Aguardando sanção presidencial','aprovação segue para sanção sem aplicar norma prematuramente');
+ await request(service.from('bills').update({status:'Sancionado'}).eq('id',ordinary.bill.id));
+ await request(service.from('parliament_votings').update({status:'active',end_date:new Date(Date.now()-1000).toISOString()}).eq('id',ordinary.voting.id));
+ await rpc(member.client,'finalize_bill_voting',{p_voting_id:ordinary.voting.id});
+ check((await request(service.from('bills').select('status').eq('id',ordinary.bill.id).single())).status==='Sancionado','votação remanescente não reabre norma já sancionada');
+ const constitutional=await create('PEC');
+ await rpc(member.client,'cast_parliament_vote',{p_voting_id:constitutional.voting.id,p_member_id:mandate.id,p_vote:'Aprovar'});
+ await rpc(member.client,'finalize_bill_voting',{p_voting_id:constitutional.voting.id});
+ const second=await request(service.from('parliament_votings').select('*').eq('related_id',constitutional.bill.id).neq('id',constitutional.voting.id).single());
+ check(second.house_id!==house.id&&second.status==='active','PEC aprovada abre votação na segunda Casa automaticamente');
+ const senator=await actor('deadline-senator','Senador');
+ const secondMandate=await request(service.from('parliament_members').insert({user_id:senator.id,house_id:second.house_id,term_start_date:new Date(Date.now()-86400000).toISOString().slice(0,10),term_end_date:new Date(Date.now()+86400000).toISOString().slice(0,10)}).select('id').single());
+ await rpc(senator.client,'cast_parliament_vote',{p_voting_id:second.id,p_member_id:secondMandate.id,p_vote:'Rejeitar'});
+ await request(service.from('parliament_votings').update({end_date:new Date(Date.now()-1000).toISOString()}).eq('id',second.id));
+ await waitFor(async()=>(await request(service.from('bills').select('status').eq('id',constitutional.bill.id).single())).status==='Rejeitado','PEC sem dois terços rejeitada na segunda Casa',20000);
+ check(true,'PEC exige aprovação qualificada em ambas as Casas');
+ console.log(`\n${checks} verificações reais de prazos e quórum aprovadas.`);
+} finally {await cleanup();}

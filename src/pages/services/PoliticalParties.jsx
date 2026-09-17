@@ -1,3 +1,5 @@
+import CitizenSelector from '@/components/CitizenSelector';
+import { orientationColors, politicalOrientations as partyOrientations } from '@/lib/partyIdentity';
 import { useDomainRealtime } from '@/hooks/use-domain-realtime';
 import { fetchPublicParties, PARTY_REALTIME_TABLES } from '@/lib/parties';
 import React, { useState, useEffect, useCallback } from 'react';
@@ -21,18 +23,9 @@ import { Link } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 
-const politicalOrientations = ['Todos', 'Extrema Esquerda', 'Esquerda', 'Centro-Esquerda', 'Centro', 'Centro-Direita', 'Direita', 'Extrema Direita'];
+const politicalOrientations = ['Todos',...partyOrientations];
 
-const orientationColors = {
-  'Extrema Esquerda': 'bg-red-900 hover:bg-red-800 text-white',
-  'Esquerda': 'bg-red-600 hover:bg-red-500 text-white',
-  'Centro-Esquerda': 'bg-red-400 hover:bg-red-300 text-black',
-  'Centro': 'bg-gray-500 hover:bg-gray-400 text-white',
-  'Centro-Direita': 'bg-blue-500 hover:bg-blue-400 text-white',
-  'Direita': 'bg-blue-600 hover:bg-blue-500 text-white',
-  'Extrema Direita': 'bg-blue-900 hover:bg-blue-800 text-white',
-  'Não definido': 'bg-gray-700 hover:bg-gray-600 text-white'
-};
+
 
 const PARTY_LEADERSHIP_FIELDS = ['owner', 'president', 'vice_president'];
 
@@ -113,12 +106,13 @@ const PoliticalParties = () => {
         setActionLoading(null);
     }
 
+    const [nextOwner,setNextOwner] = useState('');
     const handleDisaffiliate = async () => {
         if (!userAffiliation) return;
 
         setActionLoading('disaffiliate');
         const { data, error } = await supabase.rpc('disaffiliate_from_party', {
-            p_party_id: userAffiliation.party_id
+            p_party_id: userAffiliation.party_id, p_new_founder_id: nextOwner || null
         });
 
         if(error || !data?.success) {
@@ -154,8 +148,8 @@ const PoliticalParties = () => {
                 <Button variant="destructive" className="w-full" disabled={actionLoading}><LogOut className="mr-2 h-4 w-4" /> Desfiliar-se</Button>
               </AlertDialogTrigger>
               <AlertDialogContent>
-                <AlertDialogHeader className="items-center text-center sm:text-center"><LogOut className="h-8 w-8 text-destructive"/><AlertDialogTitle>Confirmar Desfiliação</AlertDialogTitle><AlertDialogDescription>Tem certeza que deseja sair do partido? {userAffiliation.role === 'Dono' && 'A liderança será transferida automaticamente.'}</AlertDialogDescription></AlertDialogHeader>
-                <AlertDialogFooter className="sm:justify-center"><AlertDialogCancel>Cancelar</AlertDialogCancel><AlertDialogAction onClick={handleDisaffiliate}><LogOut className="mr-2 h-4 w-4"/>Confirmar Saída</AlertDialogAction></AlertDialogFooter>
+                <AlertDialogHeader className="items-center text-center sm:text-center"><LogOut className="h-8 w-8 text-destructive"/><AlertDialogTitle>Confirmar Desfiliação</AlertDialogTitle><AlertDialogDescription>{userAffiliation.party.members.length === 1 ? 'Você é o último integrante. Ao sair, o partido será encerrado e seu histórico será preservado.' : 'Confirme sua saída. O fundador histórico permanece registrado.'}</AlertDialogDescription></AlertDialogHeader>
+                {userAffiliation.role==='Dono'&&userAffiliation.party.members.length>1&&<CitizenSelector value={nextOwner} onChange={setNextOwner} eligibleIds={userAffiliation.party.members.filter(member=>member.user_id!==user.id).map(member=>member.user_id)} label="Escolha o próximo dono"/>}<AlertDialogFooter className="gap-2 sm:justify-center"><AlertDialogCancel>Cancelar</AlertDialogCancel><AlertDialogAction disabled={userAffiliation.role==='Dono'&&userAffiliation.party.members.length>1&&!nextOwner} onClick={handleDisaffiliate}><LogOut className="mr-2 h-4 w-4"/> {userAffiliation.party.members.length===1?'Sair e encerrar partido':'Confirmar saída'}</AlertDialogAction></AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
           );

@@ -1,3 +1,5 @@
+import MentionText from '../MentionText';
+import { formatLocaleBR } from '@/lib/dateTime';
 import React, { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/components/ui/use-toast';
@@ -164,12 +166,12 @@ const ProfileHeader = ({ profile, followers, following, isFollowingInitial, onFo
                     </div>
                     <p className="text-gray-400">@{profile.x_handle}</p>
 
-                    {profile.x_bio && <p className="mt-4 text-white whitespace-pre-wrap">{profile.x_bio}</p>}
+                    {profile.x_bio && <p className="mt-4 text-white whitespace-pre-wrap"><MentionText text={profile.x_bio}/></p>}
 
                     <div className="mt-4 text-gray-400 space-y-2">
                         <p className="flex items-center gap-2">
                             <Calendar className="w-4 h-4" />
-                            <span>Ingressou em {new Date(profile.citizenship_created_at || profile.created_at).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}</span>
+                            <span>Ingressou em {formatLocaleBR(new Date(profile.citizenship_created_at || profile.created_at), 'toLocaleDateString', 'pt-BR', { month: 'long', year: 'numeric' })}</span>
                         </p>
                         <div className="flex gap-4">
                             <button onClick={() => openFollowModal('following')} className="hover:underline"><span className="font-bold text-white">{following}</span> Seguindo</button>

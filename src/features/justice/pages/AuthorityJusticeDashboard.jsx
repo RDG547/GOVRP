@@ -1,3 +1,7 @@
+import { Archive, FileWarning } from 'lucide-react';
+import CaseEvidence from '@/features/justice/components/CaseEvidence';
+import { fromBrasiliaInput } from '@/lib/dateTime';
+import CitizenSelector from '@/components/CitizenSelector';
 import { justiceDeadline, justiceRequest } from '@/lib/justice/constants';
 import { justiceStatus } from '@/lib/justice/constants';
 import { executeArrestWarrant, archiveReferredInvestigation } from '@/lib/justice/api';
@@ -16,6 +20,7 @@ import {
   Scale,
   Search,
   Siren,
+  Shield,
   Users,
   XCircle,
 } from 'lucide-react';
@@ -40,6 +45,7 @@ import {
   decideFineAppeal,
   decideFineHearing,
   fetchAuthorityJusticeData,
+  sealInvestigationEvidence,
   fileCriminalCharges,
   issueCaseAcquittal,
   issueCriminalSentence,
@@ -87,7 +93,7 @@ const AuthorityJusticeDashboard = () => {
     integrityCases: [],
     serverNow: null,
     investigationSubjects: [],
-    profiles: [], timeline: [], caseDocuments: [], caseHearings: [], caseAppeals: [], sentences: [], investigationParties: [], caseParties: [], penalCodes: [], caseCharges: [],
+    evidence: [], profiles: [], timeline: [], caseDocuments: [], caseHearings: [], caseAppeals: [], sentences: [], investigationParties: [], caseParties: [], penalCodes: [], caseCharges: [],
   });
   const [loading, setLoading] = useState(true);
   const [acting, setActing] = useState(false);
@@ -210,20 +216,22 @@ const AuthorityJusticeDashboard = () => {
       } else if (action.type === 'revoke-warrant') {
         await revokeJudicialWarrant({ warrantId: action.item.id, reason });
       } else if (action.type === 'issue-fine') {
-        await issueJusticeFine({ userId: action.userId, reason, amount: action.amount, dueDate: new Date(scheduledAt).toISOString() });
+        await issueJusticeFine({ userId: action.userId, reason, amount: action.amount, dueDate: fromBrasiliaInput(scheduledAt) });
       } else if (action.type === 'fine-appeal') {
         await decideFineAppeal({ appealId: action.item.id, approved: action.approved, reason });
       } else if (action.type === 'fine-hearing') {
         await decideFineHearing({
           hearingId: action.item.id,
           status: action.status,
-          scheduledAt: scheduledAt ? new Date(scheduledAt).toISOString() : null,
+          scheduledAt: scheduledAt ? fromBrasiliaInput(scheduledAt) : null,
           notes: reason,
         });
       } else if (action.type === 'citizen-request') {
         await decideCitizenJusticeRequest({ requestId: action.item.id, status: action.status, notes: reason });
       } else if (action.type === 'integrity') {
         await transitionIntegrityCase({ caseId: action.item.id, status: action.status, summary: reason });
+      } else if (action.type === 'seal-evidence') {
+        await sealInvestigationEvidence({ evidenceId: action.item.id, justification: reason });
       } else if (action.type === 'evidence') {
         await recordInvestigationEvidence({ investigationId: action.item.id, title: action.title, description: reason, seal: action.seal });
       } else if (action.type === 'execute-warrant') {
@@ -245,7 +253,7 @@ const AuthorityJusticeDashboard = () => {
       } else if (action.type === 'admission') {
         await decideChargeAdmission({ caseId: action.item.id, admitted: action.admitted, reason });
       } else if (action.type === 'schedule-case-hearing') {
-        await scheduleCaseHearing({ caseId: action.item.id, scheduledAt: new Date(scheduledAt).toISOString(), location: action.location });
+        await scheduleCaseHearing({ caseId: action.item.id, scheduledAt: fromBrasiliaInput(scheduledAt), location: action.location });
       } else if (action.type === 'complete-case-hearing') {
         await completeCaseHearing({ hearingId: action.hearing.id, minutes: reason });
       } else if (action.type === 'acquit') {
@@ -318,6 +326,7 @@ const AuthorityJusticeDashboard = () => {
     'citizen-request': 'Decidir pedido do cidadão',
     integrity: 'Movimentar caso de integridade',
     evidence: 'Registrar prova na investigação',
+    'seal-evidence': 'Lacrar prova registrada',
     'resolve-investigation': action?.outcome === 'indict' ? 'Indiciar e remeter ao MP' : 'Arquivar sem indiciamento',
     'complement-investigation': 'Solicitar novas diligências',
     'file-charge': 'Oferecer denúncia criminal',
@@ -415,14 +424,7 @@ const AuthorityJusticeDashboard = () => {
                   {occurrence.description || occurrence.details}
                 </p>
                 <div className="flex flex-wrap gap-2">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setAction({ type: 'triage', item: occurrence })}
-                  >
-                    <ClipboardList className="mr-2 h-4 w-4" />
-                    Aceitar para triagem
-                  </Button>
+
                   <Button
                     size="sm"
                     onClick={() => setAction({ type: 'investigate', item: occurrence })}
@@ -458,13 +460,14 @@ const AuthorityJusticeDashboard = () => {
                 <p><span className="text-muted-foreground">Policial responsável:</span><br />{investigation.lead_officer_id ? 'Designado' : 'Não designado'}</p>
                 <p><span className="text-muted-foreground">Delegado:</span><br />{investigation.delegate_id ? 'Designado' : 'Aguardando'}</p>
                 <div className="sm:col-span-3 flex flex-wrap items-center justify-between gap-3 border-t border-white/10 pt-3">
-                  <span className="text-muted-foreground">{data.investigationSubjects.filter((subject) => subject.investigation_id === investigation.id).length} pessoa(s) vinculada(s)</span>
+                  <details className="w-full rounded-lg border p-3"><summary className="cursor-pointer font-medium">Pessoas vinculadas ({data.investigationSubjects.filter(subject => subject.investigation_id === investigation.id).length})</summary><div className="mt-3 space-y-2">{data.investigationSubjects.filter(subject => subject.investigation_id === investigation.id).map(subject => <div key={subject.id} className="rounded border p-2"><UserSelectOption user={data.profiles.find(profile => profile.id === subject.profile_id) || subject.profile} detail={justiceStatus(subject.subject_status)}/>{subject.notes && <p className="mt-2 text-xs text-muted-foreground">{subject.notes}</p>}</div>)}</div></details>
+                  <CaseEvidence evidence={data.evidence.filter(evidence => evidence.investigation_id === investigation.id)} onSeal={isDelegate ? item => setAction({type:'seal-evidence',item}) : undefined} />
                   <div className="flex flex-wrap gap-2">
                     {isPolice && ['open', 'in_progress', 'delegate_review', 'complement_requested'].includes(investigation.status) ? <Button size="sm" variant="outline" onClick={() => setAction({ type: 'evidence', item: investigation, title: '', seal: isDelegate })}>Registrar prova</Button> : null}
-                    {isProsecutor && investigation.status === 'sent_to_prosecutor' && <Button size="sm" variant="outline" onClick={() => setAction({ type: 'archive-referred', item: investigation })}>Arquivar no Ministério Público</Button>}
+                    {isProsecutor && investigation.status === 'sent_to_prosecutor' && <Button size="sm" variant="outline" onClick={() => setAction({ type: 'archive-referred', item: investigation })}><Archive className="mr-2 h-4 w-4 text-slate-400"/>Arquivar no Ministério Público</Button>}
                     {isPolice ? <Button size="sm" variant="outline" onClick={() => setSubjectForm({ investigationId: investigation.id, investigationNumber: investigation.investigation_number, profileId: '', subjectStatus: 'under_review', notifySubject: false, notes: '' })}><Users className="mr-2 h-4 w-4" />Vincular pessoa</Button> : null}
                     {isDelegate && ['open', 'in_progress', 'delegate_review', 'complement_requested'].includes(investigation.status) ? <><Button size="sm" onClick={() => setAction({ type: 'resolve-investigation', item: investigation, outcome: 'indict' })}>Indiciar e remeter</Button><Button size="sm" variant="destructive" onClick={() => setAction({ type: 'resolve-investigation', item: investigation, outcome: 'no_indictment' })}>Arquivar sem indiciar</Button></> : null}
-                    {isProsecutor && investigation.status === 'sent_to_prosecutor' ? <><Button size="sm" variant="outline" onClick={() => setAction({ type: 'complement-investigation', item: investigation })}>Pedir diligências</Button><Button size="sm" onClick={() => setAction({ type: 'file-charge', item: investigation, title: '', defendantId: '', penalCodeId: '' })}>Oferecer denúncia</Button></> : null}
+                    {isProsecutor && investigation.status === 'sent_to_prosecutor' ? <><Button size="sm" variant="outline" onClick={() => setAction({ type: 'complement-investigation', item: investigation })}><Search className="mr-2 h-4 w-4 text-cyan-400"/>Pedir diligências</Button><Button size="sm" onClick={() => setAction({ type: 'file-charge', item: investigation, title: '', defendantId: '', penalCodeId: '' })}><FileWarning className="mr-2 h-4 w-4 text-amber-300"/>Oferecer denúncia</Button></> : null}
                   </div>
                 </div>
               </CardContent>
@@ -587,7 +590,7 @@ const AuthorityJusticeDashboard = () => {
                 <div className="rounded-lg border border-border/70 p-3">
                   <BadgeCheck className="mb-2 h-5 w-5 text-violet-300" />
                   <p className="text-muted-foreground">Promotor</p>
-                  <p>{criminalCase.prosecutor_id ? 'Designado' : 'Pendente'}</p>
+                  <p>{data.profiles.find(profile => profile.id === criminalCase.prosecutor_id)?.full_name || (criminalCase.prosecutor_id ? 'Designado' : 'Pendente')}</p>
                 </div>
                 <div className="rounded-lg border border-border/70 p-3">
                   <Gavel className="mb-2 h-5 w-5 text-amber-300" />
@@ -600,6 +603,7 @@ const AuthorityJusticeDashboard = () => {
                   <p>{formatJusticeDate(criminalCase.updated_at)}</p>
                 </div>
                 <div className="space-y-4 md:col-span-3">
+                  <CaseEvidence evidence={data.evidence.filter(evidence => evidence.criminal_case_id === criminalCase.id || (criminalCase.investigation_id && evidence.investigation_id === criminalCase.investigation_id))} onSeal={isJudge || isProsecutor ? item => setAction({type:'seal-evidence',item}) : undefined} />
                   <CaseTimeline status={criminalCase.status} events={data.timeline.filter((event) => event.case_id === criminalCase.id || (criminalCase.investigation_id && event.investigation_id === criminalCase.investigation_id))} />
                   <div className="flex flex-wrap gap-2">
                     {canDecideCase(criminalCase) && criminalCase.status === 'judicial_review' ? <><Button size="sm" onClick={() => setAction({ type: 'admission', item: criminalCase, admitted: true })}>Receber denúncia</Button><Button size="sm" variant="destructive" onClick={() => setAction({ type: 'admission', item: criminalCase, admitted: false })}>Rejeitar denúncia</Button></> : null}
@@ -702,10 +706,10 @@ const AuthorityJusticeDashboard = () => {
             {action?.type === 'execute-warrant' && <div><Label htmlFor="arrest-location">Local do cumprimento</Label><Input id="arrest-location" value={action.location} onChange={event => updateAction({ location: event.target.value })} /></div>}
             {action?.type === 'evidence' ? <><Label htmlFor="evidence-title">Identificação da prova</Label><Input id="evidence-title" value={action.title} onChange={(event) => updateAction({ title: event.target.value })} placeholder="Ex.: Laudo pericial nº 14" /><label className="flex items-center gap-2 py-2 text-sm"><input type="checkbox" checked={Boolean(action.seal)} disabled={!isDelegate} onChange={(event) => updateAction({ seal: event.target.checked })} />Lacrar prova ao registrar</label></> : null}
             {action?.type === 'file-charge' ? <><Label htmlFor="charge-title">Título da ação penal</Label><Input id="charge-title" value={action.title} onChange={(event) => updateAction({ title: event.target.value })} /><Label>Acusado</Label><Select value={action.defendantId} onValueChange={(value) => updateAction({ defendantId: value })}><SelectTrigger><SelectValue placeholder="Selecione o investigado" /></SelectTrigger><SelectContent>{data.investigationParties.filter((party) => party.investigation_id === action.item.id && party.party_type === 'suspect').map((party) => { const profile = data.profiles.find((item) => item.id === party.profile_id); return <SelectItem key={party.id} value={party.profile_id}><UserSelectOption user={profile || { id: party.profile_id, full_name: party.profile_id }} /></SelectItem>; })}</SelectContent></Select><Label>Tipo penal</Label><Select value={action.penalCodeId} onValueChange={(value) => updateAction({ penalCodeId: value })}><SelectTrigger><SelectValue placeholder="Selecione o enquadramento" /></SelectTrigger><SelectContent>{data.penalCodes.map((code) => <SelectItem key={code.id} value={code.id}>{code.code} — {code.name}</SelectItem>)}</SelectContent></Select></> : null}
-            {action?.type === 'schedule-case-hearing' ? <><Label htmlFor="case-hearing-date">Data e hora</Label><Input id="case-hearing-date" type="datetime-local" value={scheduledAt} onChange={(event) => setScheduledAt(event.target.value)} /><Label htmlFor="case-hearing-location">Local ou sala virtual</Label><Input id="case-hearing-location" value={action.location} onChange={(event) => updateAction({ location: event.target.value })} /></> : null}
+            {action?.type === 'schedule-case-hearing' ? <><Label htmlFor="case-hearing-date">Data e hora (Brasília)</Label><Input id="case-hearing-date" type="datetime-local" value={scheduledAt} onChange={(event) => setScheduledAt(event.target.value)} /><Label htmlFor="case-hearing-location">Local ou sala virtual</Label><Input id="case-hearing-location" value={action.location} onChange={(event) => updateAction({ location: event.target.value })} /></> : null}
             {action?.type === 'convict' ? <div className="grid grid-cols-2 gap-3"><div><Label htmlFor="sentence-units">Pena (anos RP)</Label><Input id="sentence-units" type="number" min="0.1" step="0.1" value={action.sentenceUnits} onChange={(event) => updateAction({ sentenceUnits: event.target.value })} /></div><div><Label htmlFor="sentence-fine">Multa</Label><Input id="sentence-fine" type="number" min="0" step="0.01" value={action.fineAmount} onChange={(event) => updateAction({ fineAmount: event.target.value })} /></div><div className="col-span-2"><Label>Regime</Label><Select value={action.prisonRegime} onValueChange={(value) => updateAction({ prisonRegime: value })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="open">Aberto</SelectItem><SelectItem value="semi_open">Semiaberto</SelectItem><SelectItem value="closed">Fechado</SelectItem><SelectItem value="maximum_security">Segurança máxima</SelectItem></SelectContent></Select></div></div> : null}
-            {action?.type === 'fine-hearing' && action.status === 'scheduled' ? <><Label htmlFor="hearing-date">Data e hora</Label><Input id="hearing-date" type="datetime-local" value={scheduledAt} onChange={(event) => setScheduledAt(event.target.value)} /></> : null}
-            {action?.type === 'issue-fine' && <><Label>Cidadão</Label><Select value={action.userId} onValueChange={value => updateAction({ userId: value })}><SelectTrigger><SelectValue placeholder="Selecione o cidadão" /></SelectTrigger><SelectContent>{data.profiles.map(profile => <SelectItem key={profile.id} value={profile.id}><UserSelectOption user={profile} /></SelectItem>)}</SelectContent></Select><Label htmlFor="fine-amount">Valor da multa (R$)</Label><Input id="fine-amount" type="number" min="0.01" step="0.01" value={action.amount} onChange={event => updateAction({ amount: event.target.value })} /><Label htmlFor="fine-due-date">Vencimento</Label><Input id="fine-due-date" type="datetime-local" value={scheduledAt} onChange={event => setScheduledAt(event.target.value)} /></>}
+            {action?.type === 'fine-hearing' && action.status === 'scheduled' ? <><Label htmlFor="hearing-date">Data e hora (Brasília)</Label><Input id="hearing-date" type="datetime-local" value={scheduledAt} onChange={(event) => setScheduledAt(event.target.value)} /></> : null}
+            {action?.type === 'issue-fine' && <><Label>Cidadão</Label><CitizenSelector value={action.userId} onChange={value => updateAction({userId:value})}/><Label htmlFor="fine-amount">Valor da multa (R$)</Label><Input id="fine-amount" type="number" min="0.01" step="0.01" value={action.amount} onChange={event => updateAction({ amount: event.target.value })} /><Label htmlFor="fine-due-date">Vencimento (Brasília)</Label><Input id="fine-due-date" type="datetime-local" value={scheduledAt} onChange={event => setScheduledAt(event.target.value)} /></>}
             <Label htmlFor="authority-reason">Fundamentação (mínimo de {actionReasonMinimum} caracteres)</Label>
             <Textarea
               id="authority-reason"
@@ -729,7 +733,7 @@ const AuthorityJusticeDashboard = () => {
                 || (action?.type === 'evidence' && action.title?.trim().length < 5)
                 || (action?.type === 'file-charge' && (!action.defendantId || !action.penalCodeId || action.title?.trim().length < 5))
                 || (action?.type === 'convict' && !action.defendantId)
-                || (action?.type === 'issue-fine' && (!action.userId || !Number.isFinite(Number(action.amount)) || Number(action.amount) <= 0 || !scheduledAt || new Date(scheduledAt).getTime() <= now))}
+                || (action?.type === 'issue-fine' && (!action.userId || !Number.isFinite(Number(action.amount)) || Number(action.amount) <= 0 || !scheduledAt || new Date(fromBrasiliaInput(scheduledAt)).getTime() <= now))}
             >
               {acting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Briefcase className="mr-2 h-4 w-4" />}
               Confirmar ação
@@ -741,7 +745,7 @@ const AuthorityJusticeDashboard = () => {
 
 
       <Dialog open={Boolean(subjectForm)} onOpenChange={(open) => !open && !acting && setSubjectForm(null)}>
-        <DialogContent><DialogHeader><DialogTitle>Vincular pessoa à investigação</DialogTitle><DialogDescription>{subjectForm?.investigationNumber}. Investigações sigilosas não aparecem para o investigado até uma notificação formal.</DialogDescription></DialogHeader>{subjectForm ? <div className="grid gap-4"><div className="space-y-2"><Label>Pessoa</Label><Select value={subjectForm.profileId} onValueChange={(value) => setSubjectForm((current) => ({ ...current, profileId: value }))}><SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger><SelectContent>{data.profiles.map((profile) => <SelectItem key={profile.id} value={profile.id}><UserSelectOption user={profile} detail={profile.username ? `@${profile.username}` : ''} /></SelectItem>)}</SelectContent></Select></div><div className="space-y-2"><Label>Situação</Label><Select value={subjectForm.subjectStatus} onValueChange={(value) => setSubjectForm((current) => ({ ...current, subjectStatus: value }))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="under_review">Em verificação preliminar</SelectItem><SelectItem value="investigated">Investigado</SelectItem><SelectItem value="cleared">Inocentado/retirado</SelectItem><SelectItem value="indicted">Indiciado</SelectItem></SelectContent></Select></div><div className="space-y-2"><Label>Fundamentação interna</Label><Textarea value={subjectForm.notes} onChange={(event) => setSubjectForm((current) => ({ ...current, notes: event.target.value }))} /></div><label className="flex items-start gap-3 rounded-lg border border-white/10 p-3"><input type="checkbox" className="mt-1" checked={subjectForm.notifySubject} onChange={(event) => setSubjectForm((current) => ({ ...current, notifySubject: event.target.checked }))} /><span><span className="block font-medium">Notificar formalmente o cidadão</span><span className="text-xs text-muted-foreground">Ao marcar, a investigação deixa de ficar oculta para esta pessoa.</span></span></label></div> : null}<DialogFooter><Button variant="outline" onClick={() => setSubjectForm(null)}>Cancelar</Button><Button onClick={persistSubject} disabled={acting || !subjectForm?.profileId}>{acting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}Vincular</Button></DialogFooter></DialogContent>
+        <DialogContent><DialogHeader><DialogTitle>Vincular pessoa à investigação</DialogTitle><DialogDescription>{subjectForm?.investigationNumber}. Investigações sigilosas não aparecem para o investigado até uma notificação formal.</DialogDescription></DialogHeader>{subjectForm ? <div className="grid gap-4"><div className="space-y-2"><Label>Pessoa</Label><CitizenSelector value={subjectForm.profileId} onChange={value => setSubjectForm(current => ({...current,profileId:value}))}/></div><div className="space-y-2"><Label>Situação</Label><Select value={subjectForm.subjectStatus} onValueChange={(value) => setSubjectForm((current) => ({ ...current, subjectStatus: value }))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="under_review">Em verificação preliminar</SelectItem><SelectItem value="investigated">Investigado</SelectItem><SelectItem value="cleared">Inocentado/retirado</SelectItem><SelectItem value="indicted">Indiciado</SelectItem></SelectContent></Select></div><div className="space-y-2"><Label>Fundamentação interna</Label><Textarea value={subjectForm.notes} onChange={(event) => setSubjectForm((current) => ({ ...current, notes: event.target.value }))} /></div><label className="flex items-start gap-3 rounded-lg border border-white/10 p-3"><input type="checkbox" className="mt-1" checked={subjectForm.notifySubject} onChange={(event) => setSubjectForm((current) => ({ ...current, notifySubject: event.target.checked }))} /><span><span className="block font-medium">Notificar formalmente o cidadão</span><span className="text-xs text-muted-foreground">Ao marcar, a investigação deixa de ficar oculta para esta pessoa.</span></span></label></div> : null}<DialogFooter><Button variant="outline" onClick={() => setSubjectForm(null)}>Cancelar</Button><Button onClick={persistSubject} disabled={acting || !subjectForm?.profileId}>{acting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}Vincular</Button></DialogFooter></DialogContent>
       </Dialog>
     </div>
   );

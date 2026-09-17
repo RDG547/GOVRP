@@ -1,3 +1,4 @@
+import { toBrasiliaInput, fromBrasiliaInput } from '@/lib/dateTime';
 import { categoryIcon } from '@/lib/commerceIcons';
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabaseClient';
@@ -104,7 +105,7 @@ const ProductFormDialog = ({ isOpen, setIsOpen, product, onSuccess }) => {
         subscription_interval: product.subscription_interval || '30 days',
         image_url: product.image_url || '',
         promotion_price: product.promotion_price ? formatCurrency(product.promotion_price, true) : '',
-        promotion_expires_at: product.promotion_expires_at ? new Date(product.promotion_expires_at).toISOString().slice(0, 16) : '',
+        promotion_expires_at: product.promotion_expires_at ? toBrasiliaInput(product.promotion_expires_at) : '',
       });
       setShowPromotion(!!product.promotion_price);
       setShowCustomCategory(!isPredefined);
@@ -236,7 +237,7 @@ const ProductFormDialog = ({ isOpen, setIsOpen, product, onSuccess }) => {
         uploadedPath = uploadData.path;
       }
 
-      const { error } = await supabase.rpc('save_business_product', {
+      const { data: savedProduct, error } = await supabase.rpc('save_business_product', {
         p_product_id: product?.id || null,
         p_business_id: formData.business_id || null,
         p_name: formData.name,
@@ -250,7 +251,7 @@ const ProductFormDialog = ({ isOpen, setIsOpen, product, onSuccess }) => {
         p_stock: formData.product_type === 'one-time' ? normalizedStock : null,
         p_promotion_price: showPromotion && normalizedPromotionPrice > 0 ? normalizedPromotionPrice : null,
         p_promotion_expires_at: showPromotion && normalizedPromotionPrice > 0 && formData.promotion_expires_at
-          ? new Date(formData.promotion_expires_at).toISOString()
+          ? fromBrasiliaInput(formData.promotion_expires_at)
           : null,
       });
 
@@ -258,7 +259,7 @@ const ProductFormDialog = ({ isOpen, setIsOpen, product, onSuccess }) => {
 
       saved = true;
       if (uploadedPath && oldFilePath && uploadedPath !== oldFilePath) await supabase.storage.from('product-images').remove([oldFilePath]);
-      toast({ title: `Produto ${product ? 'atualizado' : 'criado'} com sucesso!` });
+      toast({ title: `Produto ${product ? 'atualizado' : 'criado'} com sucesso!`, description: savedProduct?.moderation_status === 'pending' ? 'O anúncio aguarda aprovação da gestão do marketplace.' : 'A alteração já está disponível.' });
       onSuccess();
     } catch (error) {
       toast({ title: 'Erro ao salvar produto', description: userErrorMessage(error), variant: 'destructive' });
@@ -365,7 +366,7 @@ const ProductFormDialog = ({ isOpen, setIsOpen, product, onSuccess }) => {
                     placeholder="R$ 0,00"
                   />
                 </div>
-                <div><Label htmlFor="promotion_expires_at">Fim da Promoção</Label><Input id="promotion_expires_at" type="datetime-local" value={formData.promotion_expires_at} onChange={handleChange} /></div>
+                <div><Label htmlFor="promotion_expires_at">Fim da Promoção (Brasília)</Label><Input id="promotion_expires_at" type="datetime-local" value={formData.promotion_expires_at} onChange={handleChange} /></div>
               </div>
             )}
           </div>

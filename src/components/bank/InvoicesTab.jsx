@@ -1,3 +1,4 @@
+import { formatLocaleBR } from '@/lib/dateTime';
 import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -55,7 +56,7 @@ const PayInvoiceDialog = ({ isOpen, setIsOpen, invoice, onPaymentSuccess }) => {
             <DialogContent>
                 <DialogHeader>
                     <DialogTitle>Pagar Fatura</DialogTitle>
-                    <DialogDescription>Fatura com vencimento em {new Date(invoice.due_date).toLocaleDateString('pt-BR')}</DialogDescription>
+                    <DialogDescription>Fatura com vencimento em {formatLocaleBR(new Date(invoice.due_date), 'toLocaleDateString', 'pt-BR')}</DialogDescription>
                 </DialogHeader>
                 <form onSubmit={handlePay} className="space-y-4 pt-4">
                     <div className="flex items-center space-x-2">
@@ -206,8 +207,8 @@ const InvoicesTab = ({ cards, onUpdate }) => {
                                     <TableBody>
                                         {invoices.map(invoice => (
                                             <TableRow key={invoice.id}>
-                                                <TableCell>{new Date(invoice.due_date).toLocaleDateString('pt-BR')}</TableCell>
-                                                <TableCell>{new Date(invoice.closing_date).toLocaleDateString('pt-BR')}</TableCell>
+                                                <TableCell>{formatLocaleBR(new Date(invoice.due_date), 'toLocaleDateString', 'pt-BR')}</TableCell>
+                                                <TableCell>{formatLocaleBR(new Date(invoice.closing_date), 'toLocaleDateString', 'pt-BR')}</TableCell>
                                                 <TableCell>{formatCurrency(invoice.amount)}</TableCell>
                                                 <TableCell><Badge variant={getStatusVariant(invoice.status)}>{getStatusText(invoice.status)}</Badge></TableCell>
                                                 <TableCell>

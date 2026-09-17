@@ -1,3 +1,5 @@
+import { fetchCitizenDirectory } from '@/lib/publicProfileQueries';
+import CitizenSelector from '@/components/CitizenSelector';
 import React, { useState, useEffect, useCallback } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { supabase } from '@/lib/supabaseClient';
@@ -108,7 +110,7 @@ const IssueFineDialog = ({ onFineIssued }) => {
     useEffect(() => {
         if(isOpen) {
             const fetchUsers = async () => {
-                const { data, error } = await supabase.from('profiles').select('id, full_name, username, avatar_url');
+                const { data, error } = await fetchCitizenDirectory(supabase);
                 if (error) {
                     toast({ title: 'Erro ao buscar usuários', variant: 'destructive' });
                 } else {
@@ -155,37 +157,7 @@ const IssueFineDialog = ({ onFineIssued }) => {
                 <form onSubmit={handleSubmit} className="grid gap-4 py-4">
                     <div className="grid gap-2">
                         <Label>Selecionar Usuário</Label>
-                        <Popover open={isUsersComboboxOpen} onOpenChange={setIsUsersComboboxOpen}>
-                            <PopoverTrigger asChild>
-                                <Button variant="outline" role="combobox" aria-expanded={isUsersComboboxOpen} className="w-full justify-between">
-                                    {selectedUser ? users.find(u => u.id === selectedUser)?.full_name : "Selecione um usuário..."}
-                                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                                </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-full p-0">
-                                <Command>
-                                    <CommandInput placeholder="Procurar usuário..." />
-                                    <CommandEmpty>Nenhum usuário encontrado.</CommandEmpty>
-                                    <ScrollArea className="h-48">
-                                        <CommandGroup>
-                                            {users.map((user) => (
-                                                <CommandItem
-                                                    key={user.id}
-                                                    value={user.full_name}
-                                                    onSelect={() => {
-                                                        setSelectedUser(user.id);
-                                                        setIsUsersComboboxOpen(false);
-                                                    }}
-                                                >
-                                                    <Check className={cn("mr-2 h-4 w-4", selectedUser === user.id ? "opacity-100" : "opacity-0")} />
-                                                    <UserSelectOption user={user} detail={user.username ? `@${user.username}` : ''} />
-                                                </CommandItem>
-                                            ))}
-                                        </CommandGroup>
-                                    </ScrollArea>
-                                </Command>
-                            </PopoverContent>
-                        </Popover>
+                        <CitizenSelector value={selectedUser} onChange={setSelectedUser} />
                     </div>
                     <div className="grid gap-2"><Label htmlFor="reason">Motivo</Label><Input id="reason" value={reason} onChange={e => setReason(e.target.value)} required /></div>
                     <div className="grid gap-2"><Label htmlFor="amount">Valor</Label><Input id="amount" type="number" step="0.01" value={amount} onChange={e => setAmount(e.target.value)} required /></div>

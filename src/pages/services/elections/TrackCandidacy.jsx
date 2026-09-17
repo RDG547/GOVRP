@@ -1,3 +1,4 @@
+import { formatLocaleBR } from '@/lib/dateTime';
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { useAuth } from '@/contexts/AuthContext';
@@ -161,7 +162,7 @@ const TrackCandidacy = () => {
                         : 'O convite foi enviado ao vice indicado. Assim que ele aceitar, a candidatura seguirá automaticamente para análise.'}
                     </p>
                     <p className="text-xs text-muted-foreground mt-2">
-                      Registrado em: {new Date(request.created_at).toLocaleString('pt-BR')}
+                      Registrado em: {formatLocaleBR(new Date(request.created_at), 'toLocaleString', 'pt-BR')}
                     </p>
                   </div>
                   {!isRejected && (
@@ -201,7 +202,7 @@ const TrackCandidacy = () => {
                           {candidacy.status === 'Pendente' && 'Sua candidatura está em análise. Aguarde a avaliação do Tribunal Eleitoral.'}
                       </p>
                       <p className="text-xs text-muted-foreground mt-2">
-                          Registrado em: {new Date(candidacy.created_at).toLocaleDateString('pt-BR')}
+                          Registrado em: {formatLocaleBR(new Date(candidacy.created_at), 'toLocaleDateString', 'pt-BR')}
                       </p>
                   </div>
                   {(candidacy.status === 'Pendente' || candidacy.status === 'Approved') && (

@@ -49,7 +49,16 @@
     "test:citizen-commerce-notifications": "node tools/test-citizen-commerce-notifications.mjs",
     "test:continuous-world": "node tools/test-continuous-world.mjs",
     "test:pwa-update": "node tools/test-pwa-update.mjs",
-    "test:government-interface": "node tools/test-government-interface.mjs"
+    "test:government-interface": "node tools/test-government-interface.mjs",
+    "test:commerce-expansion": "node tools/test-commerce-expansion.mjs",
+    "test:social-ballot-custody": "node tools/test-social-ballot-custody.mjs",
+    "test:marketplace-governance": "node tools/test-marketplace-governance.mjs",
+    "test:commerce-interface": "node tools/test-commerce-interface.mjs",
+    "test:parliament-deadlines": "node tools/test-parliament-deadlines.mjs",
+    "test:fine-appeal-recovery": "node tools/test-fine-appeal-recovery.mjs",
+    "test:party-leadership-lifecycle": "node tools/test-party-leadership-lifecycle.mjs",
+    "test:avatar-interface": "node tools/test-avatar-interface.mjs",
+    "test:administration-interface": "node tools/test-administration-interface.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.0",

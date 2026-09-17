@@ -1,3 +1,4 @@
+import { fromBrasiliaInput } from './dateTime.js';
 // These models only configure effects implemented by the authoritative RPCs.
 const model = (id, title, kind, action, definition = {}, ruleKey = null, preset = {}) => ({ id, title, kind, action, definition, ruleKey, preset });
 export const LEGAL_MEASURE_MODELS = [
@@ -52,8 +53,8 @@ export function createMeasureDraft(template, rule, key = `norma_${crypto.randomU
 export function measurePayload(draft) {
   const definition = Object.fromEntries(Object.entries(draft.definition).filter(([, value]) => value !== '' && value != null));
   return { ...draft, value: draft.action === 'revoke' ? 0 : Number(draft.value), definition,
-    valid_from: draft.valid_from ? new Date(draft.valid_from).toISOString() : null,
-    valid_until: draft.valid_until ? new Date(draft.valid_until).toISOString() : null,
+    valid_from: draft.valid_from ? fromBrasiliaInput(draft.valid_from) : null,
+    valid_until: draft.valid_until ? fromBrasiliaInput(draft.valid_until) : null,
   };
 }
 export function measureSummary(draft, current) {

@@ -1,3 +1,4 @@
+import { formatLocaleBR } from '@/lib/dateTime';
 import React, { useState, useRef } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { Button } from '@/components/ui/button';
@@ -94,7 +95,7 @@ const FinesList = ({ fines, onPay }) => (
                         <p>Valor Original: <span className="font-bold">{formatCurrency(fine.amount)}</span></p>
                         {isOverdue && fine.status === 'Pendente' && <p className="text-red-400">Juros por atraso ({daysOverdue} dias): {formatCurrency(interest)}</p>}
                         <p className="font-bold">Valor Total: <span className="font-bold">{formatCurrency(totalAmount)}</span></p>
-                        <p>Vencimento: {new Date(fine.due_date).toLocaleDateString()}</p>
+                        <p>Vencimento: {formatLocaleBR(new Date(fine.due_date), 'toLocaleDateString')}</p>
                     </CardContent>
                     {fine.status === 'Pendente' && (
                         <CardFooter>
@@ -111,7 +112,7 @@ const CertificateDocument = ({ doc, user }) => {
     if (!doc) return null;
     const title = 'Certidão Negativa de Débitos Criminais';
     const hasRecord = doc.metadata?.hasCriminalRecord;
-    const dateOfBirth = new Date(user.date_of_birth.replace(/-/g, '\/')).toLocaleDateString('pt-BR');
+    const dateOfBirth = formatLocaleBR(new Date(user.date_of_birth.replace(/-/g, '\/')), 'toLocaleDateString', 'pt-BR');
 
     return (
         <div className="p-6 bg-white rounded-lg text-black font-serif max-w-2xl mx-auto border-4 border-blue-900">
@@ -129,7 +130,7 @@ const CertificateDocument = ({ doc, user }) => {
                 <p>A presente certidão refere-se exclusivamente a informações constantes na base de dados do Departamento de Polícia de GOV.RP. Não abrange informações de outros órgãos.</p>
             </div>
             <footer className="mt-8 text-center">
-                <p>Emitido em: {new Date(doc.issued_at).toLocaleString('pt-BR')}</p>
+                <p>Emitido em: {formatLocaleBR(new Date(doc.issued_at), 'toLocaleString', 'pt-BR')}</p>
                 <p className="text-xs mt-2">Documento Nº: {doc.document_number}</p>
             </footer>
         </div>

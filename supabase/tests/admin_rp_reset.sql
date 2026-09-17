@@ -66,6 +66,11 @@ insert into public.system_settings(key,value) values
 ('citizen_onboarding','{"version":2,"initial_bank_balance":1000}'),
 ('service_availability','{"bank":true}');
 insert into public.security_audit_log(action,target_table,target_id) values('test_security','profile','preserve');
+insert into public.comment_likes(comment_id,user_id) values('35000000-0000-0000-0000-000000000003','10000000-0000-0000-0000-000000000002');
+insert into public.products(id,seller_id,name,description,price,stock,product_type) values('36000000-0000-0000-0000-000000000004','10000000-0000-0000-0000-000000000004','Produto preservado','Produto de cidadão não selecionado',10,5,'one-time');
+insert into public.marketplace_reports(product_id,reporter_id,reason) values('36000000-0000-0000-0000-000000000004','10000000-0000-0000-0000-000000000002','Denúncia da vida anterior para verificar o reset.');
+update public.state_enterprises set manager_id='10000000-0000-0000-0000-000000000002',commission_value=4,publication_mode='approval' where service_key='marketplace';
+update public.profiles set avatar_config='{"hair":"curly"}' where id='10000000-0000-0000-0000-000000000002';
 create temporary table before_profiles as select * from public.profiles;
 do $$ declare t record; begin for t in select * from test_trigger_modes loop
 execute format('alter table public.%I %s trigger %I',t.relname,case t.tgenabled when 'A' then 'enable always' when 'R' then 'enable replica' else 'enable' end,t.tgname); end loop; end $$;
@@ -130,6 +135,9 @@ select pg_temp.assert_true((select count(*) from public.accounts)=2 and (select 
 select pg_temp.assert_true((select count(*) from public.transactions)=1,'only related transfers removed');
 select pg_temp.assert_true((select count(*) from public.posts)=1,'old posts and dependent replies removed');
 select pg_temp.assert_true((select comments_count=1 and likes_count=0 from public.posts where id='30000000-0000-0000-0000-000000000004') and (select replies_count=0 from public.comments where id='35000000-0000-0000-0000-000000000003'),'remaining comment, reply and like counters match surviving content');
+select pg_temp.assert_true((select count(*) from public.comment_likes)=0 and (select count(*) from public.marketplace_reports)=0,'reset clears new comment likes and marketplace reports for selected citizen');
+select pg_temp.assert_true((select avatar_config is null from public.profiles where id='10000000-0000-0000-0000-000000000002'),'reset clears saved avatar configuration');
+select pg_temp.assert_true(exists(select 1 from public.products where id='36000000-0000-0000-0000-000000000004'),'reset preserves product belonging to unselected citizen');
 select pg_temp.assert_true((select count(*) from public.documents)=0 and (select count(*) from public.criminal_records)=0,'documents and legal consequences removed');
 select pg_temp.assert_true((select count(*) from public.political_parties)=0 and (select party_affiliation is null from public.profiles where id='10000000-0000-0000-0000-000000000003'),'party dependencies cleared without deleting another citizen');
 select pg_temp.assert_true((select count(*) from public.economic_events)=0,'immutable economic ledger reset through protected path');
@@ -260,4 +268,5 @@ select public.recalculate_currency_market('BR','reset-test-market-cycle',true);
 select pg_temp.assert_true((select (economic_baseline->>'exchangeUsd')::numeric=5 and (economic_current->>'exchangeUsd')::numeric=(select brl_per_unit from public.country_rp_exchange_rates where country_code='BR' and currency_code='USD') and (economic_current->>'exchangeUsd')::numeric<>5 from public.country_rp_states where country_code='BR'),'RP engine changes current economy without overwriting the real baseline');
 select pg_temp.assert_true(not has_function_privilege('authenticated','private.build_rp_reset_plan(text,uuid[])','execute'),'private reset helpers cannot be called directly');
 select pg_temp.assert_true(current_setting('safeupdate.enabled')='on','API safeupdate protection remains enabled after every reset mode');
+select pg_temp.assert_true((select manager_id is null and operating_business_id is null and commission_value=0 and publication_mode='automatic' and not is_privatized from public.state_enterprises where service_key='marketplace'),'full reset restores public marketplace without private management or old commission');
 rollback;

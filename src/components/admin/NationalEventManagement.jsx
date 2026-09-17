@@ -1,3 +1,4 @@
+import { formatLocaleBR } from '@/lib/dateTime';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, CheckCircle2, Clock3, Loader2, PlusCircle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
@@ -246,7 +247,7 @@ const NationalEventManagement = () => {
                     </Badge>
                   </div>
                   <p className="mt-3 text-sm text-muted-foreground">{event.description}</p>
-                  {event.status === 'active' && event.ends_at ? <p className="mt-3 text-xs text-amber-200">Prazo: {new Date(event.ends_at).toLocaleString('pt-BR')}</p> : null}
+                  {event.status === 'active' && event.ends_at ? <p className="mt-3 text-xs text-amber-200">Prazo: {formatLocaleBR(new Date(event.ends_at), 'toLocaleString', 'pt-BR')}</p> : null}
                   {response ? (
                     <div className="mt-3 rounded-lg bg-muted/40 p-3 text-xs">
                       <p className="font-medium text-foreground">{selectedOption?.label || (response.was_automatic ? 'Consequência automática' : 'Resposta oficial')}</p>

@@ -1,3 +1,4 @@
+import { formatLocaleBR } from '@/lib/dateTime';
 import React, { useState, useEffect } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -210,7 +211,7 @@ const Maintenance = () => {
                                                                 <div className="space-y-2 mt-2 pt-3 border-t border-white/5">
                                                                     <p className="text-sm text-gray-300 line-clamp-2">{req.metadata?.description}</p>
                                                                     <div className="flex justify-between items-center text-xs mt-2">
-                                                                        <span className="text-muted-foreground">{new Date(req.contracted_at).toLocaleDateString('pt-BR')}</span>
+                                                                        <span className="text-muted-foreground">{formatLocaleBR(new Date(req.contracted_at), 'toLocaleDateString', 'pt-BR')}</span>
                                                                         <span className="font-bold text-gray-300 bg-black/50 px-2 py-1 rounded">{formatCurrency(req.price)}</span>
                                                                     </div>
                                                                 </div>

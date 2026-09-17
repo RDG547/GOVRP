@@ -1,3 +1,4 @@
+import { formatLocaleBR } from '@/lib/dateTime';
 import { useOfficialSalaries, currentSalary } from '@/hooks/use-official-salaries';
 import CitizenRankings from '@/components/CitizenRankings';
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
@@ -342,7 +343,7 @@ const CountryInfo = () => {
                   <p className="mt-2 text-sm text-muted-foreground">{event.description}</p>
                   {event.ends_at ? (
                     <p className="mt-3 text-xs text-amber-100/80">
-                      Resposta até {new Date(event.ends_at).toLocaleString('pt-BR')}
+                      Resposta até {formatLocaleBR(new Date(event.ends_at), 'toLocaleString', 'pt-BR')}
                     </p>
                   ) : null}
                   {(event.decision_options || []).length ? (
@@ -515,7 +516,7 @@ const CountryInfo = () => {
                 <DetailItem icon={Waves} label="País de referência" value={`${country.info.flag} ${country.info.name} (${country.info.alpha2})`} />
                 <DetailItem icon={Cloud} label="Área Territorial" value={economy?.area?.value ? formatArea(economy.area.value) : 'Indicador territorial em atualização.'} />
                 <DetailItem icon={Mountain} label="Origem dos dados" value={rpContext?.hasGameplayData ? 'Estado persistente do GOV.RP, iniciado a partir de indicadores reais.' : 'Indicadores públicos do país selecionado.'} />
-                <DetailItem icon={Sun} label="Atualização" value={rpContext?.updatedAt ? `Última mudança do RP em ${new Date(rpContext.updatedAt).toLocaleString('pt-BR')}.` : 'Atualizado conforme a disponibilidade das fontes nacionais.'} />
+                <DetailItem icon={Sun} label="Atualização" value={rpContext?.updatedAt ? `Última mudança do RP em ${formatLocaleBR(new Date(rpContext.updatedAt), 'toLocaleString', 'pt-BR')}.` : 'Atualizado conforme a disponibilidade das fontes nacionais.'} />
               </DetailedSection>
             </TabsContent>
 

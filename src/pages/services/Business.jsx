@@ -1,3 +1,7 @@
+import MarketplaceManagement from '@/components/business/MarketplaceManagement';
+import ReportProduct from '@/components/business/ReportProduct';
+import { useMarketplace } from '@/hooks/use-marketplace';
+import BuyDialog from '@/components/business/PurchaseDialog';
 import { categoryIcon } from '@/lib/commerceIcons';
 import { useRef } from 'react';
 import { useDomainRealtime } from '@/hooks/use-domain-realtime';
@@ -50,7 +54,7 @@ const StockBadge = ({ stock }) => {
   return null;
 };
 
-const ProductCard = ({ product, onAddToCart, onBuy, onEdit, onDelete, isOwner }) => {
+const ProductCard = ({ now, product, onAddToCart, onBuy, onEdit, onDelete, isOwner }) => {
   const navigate = useNavigate();
 
   const hasPromotion = product.promotion_price && new Date(product.promotion_expires_at) > new Date();
@@ -99,7 +103,7 @@ const ProductCard = ({ product, onAddToCart, onBuy, onEdit, onDelete, isOwner })
             {product.category && (
               <Badge variant="secondary" className="absolute top-2 left-2">{product.category}</Badge>
             )}
-            <StockBadge stock={product.stock} />
+            <StockBadge stock={product.stock} />{product.stock<=0&&now<Date.parse(product.metadata?.stock_depleted_at)+5000&&<span role="status" className="absolute bottom-2 right-2 flex h-11 w-11 items-center justify-center rounded-full border-4 border-red-400 bg-background font-bold" aria-label="Movendo para esgotados">{Math.max(1,Math.ceil((Date.parse(product.metadata.stock_depleted_at)+5000-now)/1000))}</span>}
             {isOwner && (
               <div className="absolute bottom-2 right-2 no-navigate z-20">
                 <DropdownMenu>
@@ -166,6 +170,7 @@ const ProductCard = ({ product, onAddToCart, onBuy, onEdit, onDelete, isOwner })
                 <Button className="w-full" onClick={(e) => { e.stopPropagation(); onBuy(product); }} disabled={isOutOfStock || isRestricted}>
                     {isRestricted ? 'Atividade suspensa por norma vigente' : isOutOfStock ? 'Esgotado' : (product.product_type === 'subscription' ? <><Star className="w-4 h-4 mr-2" /> Assinar</> : <><ShoppingBag className="w-4 h-4 mr-2" />Comprar</>)}
                 </Button>
+                <ReportProduct product={product} />
                 {product.product_type !== 'subscription' && (
                     <Button variant="outline" className="w-full" onClick={(e) => { e.stopPropagation(); onAddToCart(product); }} disabled={isOutOfStock || isRestricted}>
                         <ShoppingCart className="w-4 h-4 mr-2" /> Adicionar ao Carrinho
@@ -179,88 +184,15 @@ const ProductCard = ({ product, onAddToCart, onBuy, onEdit, onDelete, isOwner })
   );
 };
 
-const BuyDialog = ({ product, open, onOpenChange, onConfirm }) => {
-  const [paymentMethod, setPaymentMethod] = useState('balance');
-  const [cards, setCards] = useState([]);
-  const [selectedCard, setSelectedCard] = useState('');
-  const [loading, setLoading] = useState(false);
-  const { user } = useAuth();
-
-  useEffect(() => {
-    if (open && user) {
-      const fetchCards = async () => {
-        const { data } = await supabase.from('cards').select('*').eq('user_id', user.id).eq('is_active', true);
-        setCards(data || []);
-      };
-      fetchCards();
-    }
-  }, [open, user]);
-
-  const handleConfirm = () => {
-    setLoading(true);
-    onConfirm(paymentMethod, selectedCard).finally(() => setLoading(false));
-  };
-
-  if (!product) return null;
-
-  const finalPrice = Number(product.final_price);
-
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Confirmar Compra</DialogTitle>
-          <DialogDescription>Você está prestes a adquirir "{product.name}".</DialogDescription>
-        </DialogHeader>
-        <div className="space-y-4 py-4">
-          <div className="flex justify-between items-center p-4 rounded-lg bg-muted">
-            <span className="font-semibold">{product.name}</span>
-            <span className="font-bold text-lg">{formatCurrency(finalPrice)}</span>
-          </div>
-          {(product.unavailable || product.seller?.activity_restricted) && <p role="status" className="text-destructive">Este produto não está disponível para compra pela regra vigente.</p>}
-          <div>
-            <label className="text-sm font-medium">Método de Pagamento</label>
-            <Select value={paymentMethod} onValueChange={setPaymentMethod}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="balance">Saldo em Conta</SelectItem>
-                <SelectItem value="card" disabled={cards.length === 0}>Cartão de Crédito</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          {paymentMethod === 'card' && (
-            <div>
-              <label className="text-sm font-medium">Selecione o Cartão</label>
-              <Select value={selectedCard} onValueChange={setSelectedCard}>
-                <SelectTrigger><SelectValue placeholder="Selecione um cartão" /></SelectTrigger>
-                <SelectContent>
-                  {cards.map(card => (
-                    <SelectItem key={card.id} value={card.id}>
-                      {card.brand} final {card.card_number.slice(-4)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-          <Button onClick={handleConfirm} disabled={loading || product.unavailable || product.seller?.activity_restricted || (paymentMethod === 'card' && !selectedCard)}>
-            {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-            Confirmar e Pagar
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-};
-
 const Business = () => {
+  const { enterprise } = useMarketplace();
+  const [serverOffset,setServerOffset] = useState(0);
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [stockTab,setStockTab] = useState('available');
+  const [now,setNow] = useState(Date.now);
+  useEffect(()=>{const timer=setInterval(()=>setNow(Date.now()+serverOffset),250);return()=>clearInterval(timer);},[serverOffset]);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [productToEdit, setProductToEdit] = useState(null);
   const [productToDelete, setProductToDelete] = useState(null);
@@ -278,7 +210,9 @@ const Business = () => {
   const fetchProductsAndCategories = useCallback(async () => {
     const version = ++requestVersion.current;
 
-    const { data, error } = await supabase.rpc('get_products_with_final_price');
+    const [result, clock] = await Promise.all([supabase.rpc('get_products_with_final_price'),supabase.rpc('get_server_now')]);
+    const {data,error}=result;
+    if(clock.data&&!clock.error)setServerOffset(Date.parse(clock.data)-Date.now());
 
     if (version !== requestVersion.current) return;
     if (error) {
@@ -301,9 +235,10 @@ const Business = () => {
     return () => clearTimeout(debounce);
   }, [fetchProductsAndCategories]);
 
-  useDomainRealtime('marketplace', 'public', ['products', 'businesses', 'government_rules'], fetchProductsAndCategories);
+  useDomainRealtime('marketplace', 'public', ['products', 'businesses', 'government_rules', 'state_enterprises'], fetchProductsAndCategories);
   usePublicProfileChanges(fetchProductsAndCategories);
-  const visibleProducts = products.filter(product => (!searchTerm || product.name.toLocaleLowerCase('pt-BR').includes(searchTerm.toLocaleLowerCase('pt-BR'))) && (selectedCategory === 'all' || product.category === selectedCategory));
+  const inStockTab = product => {const depleted=product.product_type==='one-time'&&product.stock<=0;const moved=depleted&&(!product.metadata?.stock_depleted_at||now>=Date.parse(product.metadata.stock_depleted_at)+5000);return stockTab==='sold-out'?moved:!moved;};
+  const visibleProducts = products.filter(product => inStockTab(product) && (!searchTerm || product.name.toLocaleLowerCase('pt-BR').includes(searchTerm.toLocaleLowerCase('pt-BR'))) && (selectedCategory === 'all' || product.category === selectedCategory));
 
   const handleBuyClick = (product) => {
     if (!user) {
@@ -355,7 +290,7 @@ const Business = () => {
 
   const handleConfirmDelete = async () => {
     if (!productToDelete) return;
-    const { error } = await supabase.from('products').delete().eq('id', productToDelete.id);
+    const { error } = await supabase.rpc('archive_my_product',{p_product_id:productToDelete.id});
     if (error) {
       toast({ title: "Erro ao excluir", description: error.message, variant: "destructive" });
     } else {
@@ -398,6 +333,7 @@ const Business = () => {
         centered={true}
       />
 
+      {enterprise && <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border p-4"><p className="text-sm">{enterprise.is_privatized ? 'Marketplace privatizado' : 'Marketplace estatal'} · Comissão do vendedor: {enterprise.commission_type === 'percentage' ? `${enterprise.commission_value}%` : formatCurrency(enterprise.commission_value)} por venda · {enterprise.publication_mode === 'approval' ? 'Anúncios sujeitos à aprovação' : 'Publicação automática'}{!enterprise.is_active ? ' · Operação suspensa' : ''}</p><MarketplaceManagement /></div>}
       <div className="mb-8 space-y-4">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div className="relative w-full md:max-w-sm">
@@ -422,6 +358,7 @@ const Business = () => {
         <Select value={selectedCategory} onValueChange={setSelectedCategory}><SelectTrigger aria-label="Categoria dos produtos" className="w-full md:w-72"><SelectValue /></SelectTrigger><SelectContent className="[&>div]:max-h-[192px]"><SelectItem value="all">Todas as categorias</SelectItem>{categories.map(category=>{const Icon=categoryIcon(category);return <SelectItem key={category} value={category}><span className="flex items-center gap-2"><Icon className="h-4 w-4" />{category}</span></SelectItem>;})}</SelectContent></Select>
       </div>
 
+      <div role="tablist" aria-label="Disponibilidade de produtos" className="mb-5 flex gap-2"><Button role="tab" aria-selected={stockTab==='available'} variant={stockTab==='available'?'default':'outline'} className="gap-2 text-emerald-400" onClick={()=>setStockTab('available')}><CheckCircle className="h-4 w-4"/>Disponíveis</Button><Button role="tab" aria-selected={stockTab==='sold-out'} variant={stockTab==='sold-out'?'default':'outline'} className="gap-2 text-red-400" onClick={()=>setStockTab('sold-out')}><Package className="h-4 w-4"/>Esgotados</Button></div>
       {loading ? (
         <div className="flex justify-center items-center py-20">
           <Loader2 className="w-12 h-12 animate-spin text-primary" />
@@ -433,6 +370,7 @@ const Business = () => {
               {visibleProducts.map(product => (
                 <ProductCard
                   key={product.id}
+                  now={now}
                   product={product}
                   onAddToCart={handleAddToCart}
                   onBuy={handleBuyClick}

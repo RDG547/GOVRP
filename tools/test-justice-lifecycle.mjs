@@ -159,6 +159,16 @@ const evidence = await rpc(delegate.client, 'record_investigation_evidence', {
   p_seal: true,
 });
 assert(evidence?.status === 'sealed', 'prova é lacrada e preservada');
+assert(/^[0-9a-f]{64}$/.test(evidence.evidence_hash), 'servidor calcula hash SHA-256 da prova');
+const custody = await admin.from('evidence_custody_events').select('id').eq('evidence_id', evidence.id);
+assert(!custody.error && custody.data.length === 1, 'coleta lacrada registra cadeia de custódia');
+const unsealed = await rpc(delegate.client, 'record_investigation_evidence', {p_investigation_id:investigation.id,p_evidence_type:'document',p_title:'Prova para lacre posterior',p_description:'Documento registrado para validar lacre posterior e idempotência.',p_seal:false});
+const deniedSeal = await citizen.client.rpc('seal_case_evidence',{p_evidence_id:unsealed.id,p_justification:'Tentativa sem autoridade institucional.'});
+assert(Boolean(deniedSeal.error), 'cidadão não lacra prova de uma investigação');
+await rpc(delegate.client,'seal_case_evidence',{p_evidence_id:unsealed.id,p_justification:'Lacre pela autoridade responsável pela investigação.'});
+await rpc(delegate.client,'seal_case_evidence',{p_evidence_id:unsealed.id,p_justification:'Repetição da confirmação sem duplicar custódia.'});
+const sealedEvents=await admin.from('evidence_custody_events').select('id').eq('evidence_id',unsealed.id).eq('event_type','sealed');
+assert(sealedEvents.data?.length===1, 'lacre idempotente preserva uma única transição');
 
 const resolvedInvestigation = await rpc(delegate.client, 'resolve_investigation', {
   p_investigation_id: investigation.id,
@@ -181,6 +191,8 @@ const criminalCase = await rpc(prosecutor.client, 'file_criminal_charges', {
   }],
 });
 assert(Boolean(criminalCase?.id && criminalCase?.judge_id), 'MP oferece denúncia e processo recebe juiz imparcial');
+const forwardedProof=await prosecutor.client.from('case_evidence').select('id,investigation_id,evidence_hash').eq('id',evidence.id).single();
+assert(!forwardedProof.error && forwardedProof.data.investigation_id===criminalCase.investigation_id && forwardedProof.data.evidence_hash===evidence.evidence_hash, 'MP e processo consultam a mesma prova sem cópia ou perda de hash');
 
 const assignedJudge = actorsById.get(criminalCase.judge_id);
 assert(Boolean(assignedJudge), 'juiz distribuído pertence ao quadro elegível');

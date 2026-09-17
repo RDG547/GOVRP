@@ -432,7 +432,7 @@ const fetchPartyById = async (supabase, partyId) => {
 
   const { data, error } = await supabase
     .from('political_parties')
-    .select('id, name, acronym')
+    .select('id, name, acronym, electoral_number')
     .eq('id', partyId)
     .maybeSingle();
 
@@ -2089,6 +2089,10 @@ export const submitPresidentialCandidacyHandler = async (request, response) => {
     }
 
     const party = await fetchPartyById(supabase, requesterPartyId);
+    const electoralNumber = trimString(payload.electoralNumber);
+    if (electoralNumber && (!/^[0-9]{2}$/.test(electoralNumber) || (party ? electoralNumber !== party.electoral_number : !electoralNumber.startsWith('0')))) {
+      throw createHttpError('Confira o número eleitoral da chapa e o prefixo partidário.', 400);
+    }
     const candidateName = resolveProfileDisplayName(requesterProfile, 'Candidato');
     const viceName = resolveProfileDisplayName(viceProfile, 'Vice indicado');
     const nowIso = new Date().toISOString();
@@ -2109,6 +2113,7 @@ export const submitPresidentialCandidacyHandler = async (request, response) => {
       bio,
       proposals,
       campaign_photo_url: campaignPhotoUrl,
+      electoral_number: electoralNumber || null,
     };
 
     const trackerMetadata = {
@@ -2307,6 +2312,7 @@ export const respondViceCandidacyInvitationHandler = async (request, response) =
         bio: trimString(invitationMetadata.bio),
         proposals: trimString(invitationMetadata.proposals),
         campaign_photo_url: trimString(invitationMetadata.campaign_photo_url),
+        electoral_number: invitationMetadata.electoral_number || null,
         status: 'Pendente',
       })
       .select('id')

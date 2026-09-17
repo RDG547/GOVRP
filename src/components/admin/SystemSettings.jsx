@@ -1,3 +1,6 @@
+import { fetchCitizenDirectory } from '@/lib/publicProfileQueries';
+import CitizenSelector from '@/components/CitizenSelector';
+import { formatLocaleBR } from '@/lib/dateTime';
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { useToast } from '@/components/ui/use-toast';
@@ -413,7 +416,7 @@ const PayUserInvoiceManager = ({ onUpdate }) => {
                             <SelectContent>
                                 {invoices.map(inv => (
                                     <SelectItem key={inv.id} value={inv.id}>
-                                        Vencimento: {new Date(inv.closing_date).toLocaleDateString()} - Valor: {formatCurrency(inv.amount)}
+                                        Vencimento: {formatLocaleBR(new Date(inv.closing_date), 'toLocaleDateString')} - Valor: {formatCurrency(inv.amount)}
                                     </SelectItem>
                                 ))}
                             </SelectContent>
@@ -461,7 +464,7 @@ const AssetManager = ({ onUpdate, assetType }) => {
 
     useEffect(() => {
         const fetchUsers = async () => {
-            const { data, error } = await supabase.from('profiles').select('id, full_name, username, avatar_url');
+            const { data, error } = await fetchCitizenDirectory(supabase);
             if (error) {
                 toast({ title: "Erro ao buscar usuários", variant: "destructive" });
             } else {
@@ -547,18 +550,7 @@ const AssetManager = ({ onUpdate, assetType }) => {
             <CardContent className="space-y-4">
                  <div>
                     <Label>Usuário</Label>
-                    <Select onValueChange={setSelectedUser} value={selectedUser}>
-                        <SelectTrigger><SelectValue placeholder="Selecione um usuário..." /></SelectTrigger>
-                        <SelectContent>
-                             <ScrollArea className="h-72">
-                                {users.map((currentUser) => (
-                                    <SelectItem key={currentUser.id} value={currentUser.id}>
-                                        <UserSelectOption user={currentUser} detail={currentUser.username ? `@${currentUser.username}` : ''} />
-                                    </SelectItem>
-                                ))}
-                            </ScrollArea>
-                        </SelectContent>
-                    </Select>
+                    <CitizenSelector value={selectedUser} onChange={setSelectedUser} />
                 </div>
                  {selectedUser && (
                     <div className="text-sm text-muted-foreground">
