@@ -1,3 +1,4 @@
+import { CheckCircle2 } from 'lucide-react';
 import CaseEvidence from '@/features/justice/components/CaseEvidence';
 import { justiceDeadline, justiceRequest } from '@/lib/justice/constants';
 import { justiceStatus } from '@/lib/justice/constants';
@@ -659,7 +660,7 @@ const CitizenJusticeDashboard = () => {
             const actionOpen = fineAction.fineId === fine.id;
             return (
               <Card key={fine.id} className="glass-effect">
-                <CardHeader><div className="flex flex-wrap items-start justify-between gap-3"><div><CardTitle className="flex items-center gap-2"><Banknote className="h-5 w-5 text-amber-300" />{fine.fine_code}</CardTitle><CardDescription>Emitida em {formatJusticeDate(fine.created_at)}{fine.due_date ? ` · vence em ${formatJusticeDate(fine.due_date)}` : ''}</CardDescription></div><Badge variant="outline">{justiceStatus(fine.status)}</Badge></div></CardHeader>
+                <CardHeader><div className="flex flex-wrap items-start justify-between gap-3"><div><CardTitle className="flex items-center gap-2"><Banknote className="h-5 w-5 text-amber-300" />{fine.fine_code}</CardTitle><CardDescription>Emitida em {formatJusticeDate(fine.created_at)}{fine.due_date ? ` · vence em ${formatJusticeDate(fine.due_date)}` : ''}</CardDescription></div><Badge variant="outline" className={fine.status === 'Paga' ? 'gap-1 border-emerald-500/40 bg-emerald-500/10 text-emerald-400' : undefined}>{fine.status === 'Paga' ? <><CheckCircle2 className="h-4 w-4"/>Multa paga</> : justiceStatus(fine.status)}</Badge></div></CardHeader>
                 <CardContent className="space-y-4">
                   <div className="grid gap-3 sm:grid-cols-3"><div><p className="text-xs uppercase text-muted-foreground">Valor</p><p className="text-xl font-bold">{money(fine.amount)}</p></div><div><p className="text-xs uppercase text-muted-foreground">Pontos</p><p className="text-xl font-bold">{fine.points || 0}</p></div><div><p className="text-xs uppercase text-muted-foreground">Motivo</p><p className="text-sm">{fine.reason}</p></div></div>
                   {fine.status === 'Paga' && fine.payment_snapshot ? <div className="rounded-lg border border-emerald-500/25 bg-emerald-500/10 p-3 text-sm text-emerald-100">Pagamento confirmado · total {money(fine.payment_snapshot.totalAmount)} · comprovante {fine.payment_snapshot.transactionId}</div> : null}

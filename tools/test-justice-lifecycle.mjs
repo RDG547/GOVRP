@@ -228,6 +228,21 @@ await rpc(assignedJudge.client, 'complete_case_hearing', {
   p_minutes: 'Audiência realizada com presença das partes, produção da prova requerida e encerramento regular da instrução processual.',
 });
 
+const outsideArgs = {
+  p_case_id: criminalCase.id, p_defendant_id: citizen.id, p_result: 'conviction',
+  p_legal_reasoning: 'Fundamentação individualizada da condenação, com prova submetida ao contraditório e análise da defesa.',
+  p_final_sentence_units: 6, p_fine_amount: 100, p_prison_regime: 'closed', p_special_justification: 'J'.repeat(39),
+};
+const shortJustification = await assignedJudge.client.rpc('issue_criminal_sentence', outsideArgs);
+assert(Boolean(shortJustification.error), 'justificativa especial de 39 caracteres é rejeitada fora dos limites');
+// The accepted 40-character boundary is checked in a rollback to retain the normal sentence lifecycle below.
+const { execFileSync: runSql } = await import('node:child_process');
+runSql('docker', ['exec', '-i', 'supabase_db_GOVRP', 'psql', '-U', 'postgres', '-d', 'postgres', '-v', 'ON_ERROR_STOP=1'], {
+ input: `begin; select set_config('request.jwt.claim.sub','${assignedJudge.id}',true);
+ select public.issue_criminal_sentence('${criminalCase.id}','${citizen.id}','conviction','${outsideArgs.p_legal_reasoning}',6,100,'closed',repeat('J',40)); rollback;`, encoding: 'utf8', stdio: ['pipe','pipe','pipe'],
+});
+assert(true, 'justificativa especial de 40 caracteres permite a sentença fora dos limites');
+
 const sentence = await rpc(assignedJudge.client, 'issue_criminal_sentence', {
   p_case_id: criminalCase.id,
   p_defendant_id: citizen.id,

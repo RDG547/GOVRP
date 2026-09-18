@@ -1,3 +1,4 @@
+import BillAuthorParty from '@/components/parliament/BillAuthorParty';
 import { formatDateTimeBR } from '@/lib/dateTime';
 import { formatDateBR } from '@/lib/dateTime';
 import { formatLocaleBR } from '@/lib/dateTime';
@@ -587,7 +588,7 @@ const BillList = ({ bills = [] }) => {
                       <div className="flex-1">
                         <CardTitle className="text-foreground">{bill.title}</CardTitle>
                         <CardDescription>
-                          Autor: {bill.author?.full_name || 'Desconhecido'} | {bill.house?.name}
+                          Autor: {bill.author?.full_name || 'Cidadão indisponível'} | {bill.house?.name}
                         </CardDescription>
                       </div>
                     </div>
@@ -595,6 +596,7 @@ const BillList = ({ bills = [] }) => {
                   <CardContent className="flex-grow">
                     <p className="line-clamp-3 text-sm text-muted-foreground">{bill.summary}</p>
                     <p className="mt-3 text-xs text-muted-foreground">
+                      <BillAuthorParty bill={bill}/>
                       Proposto em <span className="font-medium text-foreground">{formatDateTimeBR(bill.created_at)}</span>
                     </p>
                     <div className="mt-4 flex flex-wrap items-center gap-2">
@@ -1193,9 +1195,11 @@ const Parliament = () => {
         }
       }
 
+      const billAuthors = await fetchPublicProfiles((billsData || []).map(bill => bill.author_id));
       setBills(
         (billsData || []).map((bill) => ({
           ...bill,
+          author: billAuthors.get(bill.author_id) || bill.author,
           votings: votingsMap[bill.id] || [],
           status_history: historyMap[bill.id] || [],
           legal_effects: effectsMap[bill.id] || [],

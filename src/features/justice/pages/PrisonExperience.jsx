@@ -8,7 +8,7 @@ import {
   Clock3,
   HeartPulse,
   Loader2,
-  LockKeyhole,
+  Tally5,
   RefreshCw,
   Scale,
   Shield,
@@ -245,7 +245,7 @@ const PrisonExperience = () => {
               tone="red"
             />
             <JusticeStatCard
-              icon={LockKeyhole}
+              icon={Tally5}
               label="Cela"
               value={data.term.cell?.code || 'Triagem'}
               tone="amber"

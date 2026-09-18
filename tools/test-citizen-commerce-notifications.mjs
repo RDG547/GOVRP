@@ -61,16 +61,18 @@ try {
   sql(`begin;
     insert into public.country_rp_states(country_code,country_name) values('ZZ','País isolado de teste') on conflict do nothing;
     insert into public.country_rp_exchange_rates(country_code,currency_code,brl_per_unit,source) values('ZZ','USD',5,'test');
-    update public.country_rp_exchange_rates set brl_per_unit=5.5 where country_code='ZZ';
-    do $$ begin if not exists(select 1 from public.get_rp_exchange_quotes('ZZ') where change_percent=10 and day_open_rate=5) then raise exception 'Variação diária incorreta'; end if; end $$;
+    delete from public.country_rp_exchange_history where country_code='ZZ';
+    insert into public.country_rp_exchange_history(country_code,currency_code,brl_per_unit,source,recorded_at) values('ZZ','USD',5,'test',now()-interval '24 hours 1 minute');
+    update public.country_rp_exchange_rates set brl_per_unit=5.2 where country_code='ZZ';
+    do $$ begin if not exists(select 1 from public.get_rp_exchange_quotes('ZZ') where change_percent=4 and day_open_rate=5) then raise exception 'Variação de 24h incorreta'; end if; end $$;
     alter table public.country_rp_exchange_rates disable trigger capture_exchange_day_open;
     update public.country_rp_exchange_rates set rp_day=rp_day-1 where country_code='ZZ';
     alter table public.country_rp_exchange_rates enable trigger capture_exchange_day_open;
-    do $$ begin if not exists(select 1 from public.get_rp_exchange_quotes('ZZ') where change_percent=0 and day_open_rate=5.5) then raise exception 'Dia RP novo não reiniciou comparação'; end if; end $$;
-    update public.country_rp_exchange_rates set brl_per_unit=6.05 where country_code='ZZ';
-    do $$ begin if not exists(select 1 from public.get_rp_exchange_quotes('ZZ') where change_percent=10 and day_open_rate=5.5) then raise exception 'Preço anterior ao dia não foi preservado'; end if; end $$;
+    do $$ begin if not exists(select 1 from public.get_rp_exchange_quotes('ZZ') where change_percent=4 and day_open_rate=5) then raise exception 'Virada RP alterou janela de horas reais'; end if; end $$;
+    update public.country_rp_exchange_rates set brl_per_unit=4.9 where country_code='ZZ';
+    do $$ begin if not exists(select 1 from public.get_rp_exchange_quotes('ZZ') where change_percent=-2 and day_open_rate=5) then raise exception 'Queda não registrada'; end if; end $$;
     rollback;`);
-  check(true, 'câmbio compara o dia RP, reinicia na virada e usa a cotação anterior sem dados externos');
+  check(true, 'câmbio compara 24 horas reais, preserva a janela na virada RP e registra altas e quedas');
   console.log(`\n${checks} verificações reais de consumo, serviços, notificações e câmbio aprovadas.`);
 } finally {
   if (availability) await request(service.from('system_settings').upsert(availability));

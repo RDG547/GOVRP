@@ -50,7 +50,6 @@ export default function Comment({ comment, childrenByParent, onChange, level = 0
     if (error) { console.error('Falha ao remover comentário', error); toast({ title: 'Não foi possível remover este comentário.', variant: 'destructive' }); }
     else { setMode(null); void onChange(); }
   };
-  if (removed && children.length === 0) return null;
   return <article className="min-w-0 py-2" aria-label={removed ? 'Comentário removido' : `Comentário de ${author.x_username || author.full_name || 'cidadão'}`}>
     <div className="flex items-start gap-2 min-w-0">
       <img src={author.x_avatar_url || author.avatar_url || '/icon-192x192.png'} alt="" className="h-8 w-8 shrink-0 rounded-full object-cover" />

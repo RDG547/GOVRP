@@ -1,3 +1,4 @@
+import ParliamentInstitutionalSettings from '@/components/admin/ParliamentInstitutionalSettings';
 import OfficialSalarySettings from '@/components/admin/OfficialSalarySettings';
 import CitizenNeedsSettings from '@/components/admin/CitizenNeedsSettings';
 import EconomicMixControl from '@/features/economy/components/EconomicMixControl';
@@ -34,22 +35,22 @@ import JusticeSystem from '@/components/admin/JusticeSystem';
 import SupportManagement from '@/components/admin/SupportManagement';
 import ResetManagement from '@/components/admin/ResetManagement';
 
-const WorldSettings = () => <div className="space-y-6"><EconomicMixControl /><CitizenNeedsSettings /></div>;
+const WorldSettings = () => <div className="space-y-6"><EconomicMixControl /><CitizenNeedsSettings /><ParliamentInstitutionalSettings /></div>;
 
 const tabs = [
-  { id: "salaries", label: "Remuneração", icon: Users, component: OfficialSalarySettings },
+  { id: 'users', label: 'Usuários', icon: Users, component: UserManagement },
+  { id: 'settings', label: 'Sistema e Serviços', icon: Settings, component: SystemSettings },
   { id: "world", label: "Simulação e Sociedade", icon: Settings, component: WorldSettings },
+  { id: 'reset', label: 'Resets', icon: RotateCcw, component: ResetManagement },
+  { id: "salaries", label: "Remuneração", icon: Users, component: OfficialSalarySettings },
   { id: 'analytics', label: 'Análises', icon: BarChart3, component: SiteAnalytics },
   { id: 'economy', label: 'Economia', icon: Activity, component: EconomySystems },
   { id: 'justice', label: 'Justiça', icon: Gavel, component: JusticeSystem },
-  { id: 'users', label: 'Usuários', icon: Users, component: UserManagement },
-  { id: 'reset', label: 'Resets', icon: RotateCcw, component: ResetManagement },
   { id: 'candidacies', label: 'Candidaturas', icon: ShieldCheck, component: CandidacyManagement },
   { id: 'elections', label: 'Eleições', icon: Vote, component: ElectionManagement },
   { id: 'parties', label: 'Partidos', icon: Flag, component: PartyManagement },
   { id: 'content', label: 'Conteúdo', icon: Newspaper, component: ContentModeration },
   { id: 'support', label: 'Suporte', icon: Headphones, component: SupportManagement },
-  { id: 'settings', label: 'Sistema e Serviços', icon: Settings, component: SystemSettings },
 ];
 
 const AdminDashboard = () => {

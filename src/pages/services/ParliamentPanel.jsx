@@ -1,4 +1,6 @@
-import { formatLocaleBR } from '@/lib/dateTime';
+import BillAuthorParty from '@/components/parliament/BillAuthorParty';
+import InstitutionalProceedings, { ParliamentResignation } from '@/components/parliament/InstitutionalProceedings';
+import { formatDateTimeBR, formatLocaleBR } from '@/lib/dateTime';
 import { userErrorMessage } from '@/lib/userErrors';
 import { fetchPublicProfiles } from '@/lib/publicProfiles';
 import DecreeOversight from '@/components/parliament/DecreeOversight';
@@ -473,7 +475,7 @@ const ParliamentPanel = () => {
       ] = await Promise.all([
         supabase
           .from('bills')
-          .select('id, title, summary, full_text, status, type, created_at, author_id, house_id, author:profiles(id, full_name, avatar_url, role)')
+          .select('id, title, summary, full_text, status, type, created_at, author_id, house_id, author_party_snapshot, institutional_data, author:profiles(id, full_name, avatar_url, role)')
           .eq('house_id', selectedHouseId)
           .order('created_at', { ascending: false }),
         supabase
@@ -519,7 +521,8 @@ const ParliamentPanel = () => {
 
       const enrichedVotings = await resolveVotingTitles(votingsResponse.data || []);
 
-      setBills(billsResponse.data || []);
+      const billAuthors = await fetchPublicProfiles((billsResponse.data || []).map(bill => bill.author_id));
+      setBills((billsResponse.data || []).filter(bill => bill.type !== 'IMPEACHMENT').map(bill => ({...bill,author:billAuthors.get(bill.author_id)||bill.author})));
       setSuggestions(suggestionsResponse.data || []);
       setPlebisciteRequests(plebiscitesResponse.data || []);
       const visibleProfiles = await fetchPublicProfiles((membersResponse.data || []).map(member => member.user_id));
@@ -1099,8 +1102,9 @@ const ParliamentPanel = () => {
           </div>
         )}
 
+        <div className="mb-4 flex justify-end"><ParliamentResignation houseId={house?.id} member={parliamentMember} onUpdated={() => fetchPanelData({ quiet: true })}/></div>
         <Tabs value={activeMainTab} onValueChange={setActiveMainTab} className="w-full">
-          <TabsList className="grid h-auto w-full grid-cols-2 items-stretch gap-2 md:grid-cols-6">
+          <TabsList className={`grid h-auto w-full grid-cols-2 items-stretch gap-2 ${house?.name?.toLocaleLowerCase('pt-BR').includes('câmara') ? 'md:grid-cols-7' : 'md:grid-cols-6'}`}>
             <TabsTrigger className="h-full min-h-10 whitespace-normal px-2 py-2 text-center leading-tight" value="projects">
               <ScrollText className="mr-2 h-4 w-4 shrink-0" />Projetos
             </TabsTrigger>
@@ -1116,6 +1120,7 @@ const ParliamentPanel = () => {
             <TabsTrigger className="h-full min-h-10 whitespace-normal px-2 py-2 text-center leading-tight" value="plebiscites">
               <ClipboardCheck className="mr-2 h-4 w-4 shrink-0" />Plebiscitos
             </TabsTrigger>
+            {house?.name?.toLocaleLowerCase('pt-BR').includes('câmara') && <TabsTrigger className="h-full min-h-10 whitespace-normal px-2 py-2 text-center leading-tight" value="institutional"><Gavel className="mr-2 h-4 w-4 shrink-0"/>Impeachment</TabsTrigger>}
             <TabsTrigger className="h-full min-h-10 whitespace-normal px-2 py-2 text-center leading-tight" value="members">
               <Users className="mr-2 h-4 w-4 shrink-0" />Membros
             </TabsTrigger>
@@ -1128,6 +1133,7 @@ const ParliamentPanel = () => {
             transition={{ duration: 0.3 }}
             className="mt-6"
           >
+            {house?.name?.toLocaleLowerCase('pt-BR').includes('câmara') && <TabsContent value="institutional"><InstitutionalProceedings houseId={house.id} memberId={parliamentMember?.id || parliamentMember?.parliament_member_id}/></TabsContent>}
             <TabsContent value="projects" className="space-y-6">
               <LegalMeasureStudio houseId={house?.id} onCreated={() => fetchPanelData({ quiet: true })} />
               <DecreeOversight houseId={house?.id} onUpdated={() => fetchPanelData({ quiet: true })} />
@@ -1208,7 +1214,7 @@ const ParliamentPanel = () => {
                                       {bill.title}{' '}
                                       <span className="text-sm font-normal text-muted-foreground">({bill.type})</span>
                                     </CardTitle>
-                                    <CardDescription>Autor: {bill.author?.full_name || 'Desconhecido'}</CardDescription>
+                                    <CardDescription>Autor: {bill.author?.full_name || 'Cidadão indisponível'}</CardDescription><BillAuthorParty bill={bill}/><p className="text-xs text-muted-foreground">Proposto em {formatDateTimeBR(bill.created_at)}</p>
                                   </div>
                                   <Badge variant="outline" className={billStatusMeta[bill.status] || ''}>
                                     {bill.status}
@@ -1805,7 +1811,7 @@ const ParliamentPanel = () => {
                               <p className="text-sm text-muted-foreground">Seu voto já foi registrado nesta eleição.</p>
                             ) : null}
 
-                            {election.status === 'open' && !nominating && (canParticipateInGovernance || user?.role==='Admin') ? (
+                            {election.status === 'open' && !nominating && user?.role==='Admin' ? (
                               <Button
                                 size="sm"
                                 variant="outline"
@@ -2263,7 +2269,7 @@ const ParliamentPanel = () => {
                   <SelectValue placeholder="Selecione o candidato" />
                 </SelectTrigger>
                 <SelectContent>
-                  {members.map((member) => (
+                  {members.filter(member => user?.role === 'Admin' || member.id === user?.id || member.user_id === user?.id).map((member) => (
                     <SelectItem key={member.parliament_member_id} value={member.parliament_member_id}>
                       <UserSelectOption user={member} detail={<PartyIdentity party={member.party} />} />
                     </SelectItem>

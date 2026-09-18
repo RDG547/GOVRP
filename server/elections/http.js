@@ -868,181 +868,21 @@ const resolveElectionAssignments = async (supabase, election) => {
   const termStartAt = election.voting_end_date;
   const termEndAt = addOneMonth(termStartAt);
   const termActive = isTermActive(termEndAt);
-  const approvedCandidates = await fetchApprovedCandidates(supabase, election.id);
-  const results = await fetchElectionResults(supabase, election.id);
-  const candidateMap = approvedCandidates.reduce((accumulator, candidate) => {
-    accumulator[candidate.id] = candidate;
-    return accumulator;
-  }, {});
-  const impactedProfileIds = dedupe(
-    approvedCandidates.flatMap((candidate) => [candidate.user_id, candidate.vice_candidate_id])
-  );
+  // Election results are historical. Current appointments are authoritative, including
+  // resignations, impeachment and succession recorded after the original election.
+  const [{ data: rows, error }, { data: settlement, error: settlementError }] = await Promise.all([
+    supabase.from('election_office_assignments').select('*').eq('election_id', election.id),
+    supabase.from('election_settlements').select('status').eq('election_id', election.id).maybeSingle(),
+  ]);
+  if (error || settlementError) throw error || settlementError;
+  const assignments = (rows || []).filter(row => row.status === 'active' && new Date(row.term_starts_at).getTime() <= Date.now() && new Date(row.term_ends_at).getTime() > Date.now()).map(row => ({
+    userId: row.profile_id, officeRole: row.office_role, electionId: row.election_id,
+    electionName: election.name, termStartAt: row.term_starts_at, termEndAt: row.term_ends_at,
+  }));
+  return { electionId: election.id, officeRole, termStartAt, termEndAt, termActive,
+    impactedProfileIds: dedupe((rows || []).map(row => row.profile_id)), assignments,
+    status: termActive ? settlement?.status || 'no_votes' : 'expired' };
 
-  if (!officeRole || !TRACKED_OFFICE_ROLES.includes(officeRole)) {
-    return {
-      electionId: election.id,
-      officeRole,
-      termStartAt,
-      termEndAt,
-      termActive,
-      impactedProfileIds,
-      assignments: [],
-      status: 'unsupported',
-    };
-  }
-
-  if (!results.length) {
-    return {
-      electionId: election.id,
-      officeRole,
-      termStartAt,
-      termEndAt,
-      termActive,
-      impactedProfileIds,
-      assignments: [],
-      status: 'no_votes',
-    };
-  }
-
-  if (officeRole === 'Deputado' || officeRole === 'Senador') {
-    // O parlamento opera com múltiplos mandatos legislativos ativos por eleição.
-    // Para manter a posse automática consistente entre Câmara e Senado,
-    // consideramos eleitos todos os candidatos aprovados com ao menos um voto válido.
-    const legislativeWinners = results
-      .filter((result) => Number(result.vote_count || 0) > 0)
-      .map((result) => candidateMap[result.candidate_id])
-      .filter((candidate) => candidate?.user_id);
-
-    return {
-      electionId: election.id,
-      officeRole,
-      termStartAt,
-      termEndAt,
-      termActive,
-      impactedProfileIds,
-      assignments: termActive
-        ? legislativeWinners.map((candidate) => ({
-            userId: candidate.user_id,
-            officeRole,
-            electionId: election.id,
-            electionName: election.name,
-            termStartAt,
-            termEndAt,
-          }))
-        : [],
-      status: legislativeWinners.length ? (termActive ? 'settled' : 'expired') : 'no_votes',
-    };
-  }
-
-  if (electionType?.voting_system === 'majoritarian') {
-    const sortedResults = [...results].sort(
-      (left, right) => Number(right.vote_count || 0) - Number(left.vote_count || 0)
-    );
-    const topVoteCount = Number(sortedResults[0]?.vote_count || 0);
-
-    if (topVoteCount <= 0) {
-      return {
-        electionId: election.id,
-        officeRole,
-        termStartAt,
-        termEndAt,
-        termActive,
-        impactedProfileIds,
-        assignments: [],
-        status: 'no_votes',
-      };
-    }
-
-    const tiedLeaders = sortedResults.filter(
-      (result) => Number(result.vote_count || 0) === topVoteCount
-    );
-
-    if (tiedLeaders.length !== 1) {
-      return {
-        electionId: election.id,
-        officeRole,
-        termStartAt,
-        termEndAt,
-        termActive,
-        impactedProfileIds,
-        assignments: [],
-        status: 'tied',
-      };
-    }
-
-    const winningCandidate = candidateMap[tiedLeaders[0].candidate_id];
-
-    if (!winningCandidate?.user_id || !termActive) {
-      return {
-        electionId: election.id,
-        officeRole,
-        termStartAt,
-        termEndAt,
-        termActive,
-        impactedProfileIds,
-        assignments: [],
-        status: termActive ? 'missing_candidate' : 'expired',
-      };
-    }
-
-    const assignments = [
-      {
-        userId: winningCandidate.user_id,
-        officeRole,
-        electionId: election.id,
-        electionName: election.name,
-        termStartAt,
-        termEndAt,
-      },
-    ];
-
-    if (officeRole === 'Presidente' && winningCandidate.vice_candidate_id) {
-      assignments.push({
-        userId: winningCandidate.vice_candidate_id,
-        officeRole: 'Vice-Presidente',
-        electionId: election.id,
-        electionName: election.name,
-        termStartAt,
-        termEndAt,
-      });
-    }
-
-    return {
-      electionId: election.id,
-      officeRole,
-      termStartAt,
-      termEndAt,
-      termActive,
-      impactedProfileIds,
-      assignments,
-      status: 'settled',
-    };
-  }
-
-  const proportionalWinners = results
-    .filter((result) => Number(result.vote_count || 0) > 0)
-    .map((result) => candidateMap[result.candidate_id])
-    .filter((candidate) => candidate?.user_id);
-
-  return {
-    electionId: election.id,
-    officeRole,
-    termStartAt,
-    termEndAt,
-    termActive,
-    impactedProfileIds,
-    assignments: termActive
-      ? proportionalWinners.map((candidate) => ({
-          userId: candidate.user_id,
-          officeRole,
-          electionId: election.id,
-          electionName: election.name,
-          termStartAt,
-          termEndAt,
-        }))
-      : [],
-    status: proportionalWinners.length ? (termActive ? 'settled' : 'expired') : 'no_votes',
-  };
 };
 
 const buildNotificationKey = ({ userId, electionId, officeRole }) =>
@@ -1709,6 +1549,11 @@ const clearMinistersWhenExecutiveTermChanges = async (supabase, { previousState,
   const previousPresident = Array.isArray(previousState?.active_assignments)
     ? previousState.active_assignments.find((assignment) => assignment.office_role === 'Presidente') || null
     : null;
+  // A change of holder within the same mandate preserves the cabinet.
+  // Manual appointments and institutional vacancies also have no new electoral mandate.
+  if ((!currentPresident && !previousPresident) ||
+      (currentPresident && previousPresident?.election_id === currentPresident.electionId)) return [];
+
   const executiveTermChanged =
     !currentPresident ||
     previousPresident?.election_id !== currentPresident.electionId ||

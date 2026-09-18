@@ -68,7 +68,7 @@ const ExchangeTab = ({ onUpdate, account }) => {
         .select('currency_code, brl_per_unit, recorded_at')
         .eq('country_code', effectiveCountryCode)
         .gte('recorded_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString())
-        .order('recorded_at', { ascending: true })
+        .order('recorded_at', { ascending: false })
         .limit(1000);
 
       if (historyResponse.error && !missingExchangeSchemaCodes.has(historyResponse.error.code)) {
@@ -78,7 +78,7 @@ const ExchangeTab = ({ onUpdate, account }) => {
       const quotes = await supabase.rpc('get_rp_exchange_quotes', { p_country_code: effectiveCountryCode });
       if (quotes.error) throw quotes.error;
       setRateRows(quotes.data || currentResponse.data);
-      setRateHistory(historyResponse.data || []);
+      setRateHistory((historyResponse.data || []).slice().reverse());
       setRates(Object.fromEntries(currentResponse.data.map((row) => [
         row.currency_code,
         1 / Number(row.brl_per_unit),
@@ -108,7 +108,7 @@ const ExchangeTab = ({ onUpdate, account }) => {
     fetchBankPolicy();
   }, [fetchRates, fetchBankPolicy]);
 
-  useDomainRealtime('bank-exchange', countryCode, ['country_rp_exchange_rates', 'rp_time_settings'], () => fetchRates({ silent: true }));
+  useDomainRealtime('bank-exchange', countryCode, ['country_rp_exchange_rates', 'country_rp_exchange_history'], () => fetchRates({ silent: true }));
   useDomainRealtime('bank-policy', 'public', [{ table: 'system_settings', filter: `key=eq.${BANK_POLICY_SETTINGS_KEY}` }], fetchBankPolicy);
 
   useEffect(() => {
@@ -140,7 +140,7 @@ const ExchangeTab = ({ onUpdate, account }) => {
     setResult({ convertedAmount, feeAmount, netAmount, feeRate, feeMode });
   }, [amount, fromCurrency, toCurrency, rates, bankPolicy]);
 
-  const variations = useMemo(() => Object.fromEntries(rateRows.map(row => [row.currency_code, Number(row.change_percent || 0)])), [rateRows]);
+  const variations = useMemo(() => Object.fromEntries(rateRows.map(row => [row.currency_code, row.change_percent == null ? null : Number(row.change_percent)])), [rateRows]);
 
   const chartData = useMemo(() => {
     const points = rateHistory
@@ -232,7 +232,7 @@ const ExchangeTab = ({ onUpdate, account }) => {
               <ul className="space-y-2">
                 {foreignCurrencies.map((currency) => {
                   const row = rateRows.find((item) => item.currency_code === currency.code);
-                  const variation = variations[currency.code] || 0;
+                  const variation = variations[currency.code];
                   const TrendIcon = variation < 0 ? TrendingDown : TrendingUp;
                   return (
                     <li key={currency.code} className="flex items-center justify-between gap-3 rounded-md p-2 hover:bg-white/5">
@@ -240,7 +240,7 @@ const ExchangeTab = ({ onUpdate, account }) => {
                       <span className="text-right">
                         <span className="block font-mono text-primary">R$ {Number(row?.brl_per_unit || 0).toFixed(4)}</span>
                         <span className={`inline-flex items-center text-xs ${variation < 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
-                          <TrendIcon className="mr-1 h-3 w-3" />{variation >= 0 ? '+' : ''}{variation.toFixed(2)}% no dia RP
+                          {variation == null ? 'Histórico de 24h indisponível' : <><TrendIcon className="mr-1 h-3 w-3" />{variation >= 0 ? '+' : ''}{variation.toFixed(2)}% nas últimas 24h</>}
                         </span>
                       </span>
                     </li>

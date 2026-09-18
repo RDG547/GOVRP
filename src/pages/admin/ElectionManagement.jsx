@@ -1,3 +1,4 @@
+import { AlignLeft, CalendarClock, Save } from 'lucide-react';
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { useToast } from '@/components/ui/use-toast';
@@ -8,8 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Loader2, PlusCircle, Edit, Trash2, Calendar, Vote, RefreshCw, ChevronLeft, ChevronRight } from 'lucide-react';
-import { format } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
+import { toBrasiliaInput, fromBrasiliaInput, formatDateTimeBR } from '@/lib/dateTime';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const statusTranslations = {
@@ -27,15 +27,15 @@ const ElectionForm = ({ election, onFinish }) => {
         name: election?.name || '',
         description: election?.description || '',
         election_type_id: election?.election_type_id || '',
-        candidacy_start_date: election?.candidacy_start_date ? format(new Date(election.candidacy_start_date), "yyyy-MM-dd'T'HH:mm") : '',
-        candidacy_end_date: election?.candidacy_end_date ? format(new Date(election.candidacy_end_date), "yyyy-MM-dd'T'HH:mm") : '',
-        voting_start_date: election?.voting_start_date ? format(new Date(election.voting_start_date), "yyyy-MM-dd'T'HH:mm") : '',
-        voting_end_date: election?.voting_end_date ? format(new Date(election.voting_end_date), "yyyy-MM-dd'T'HH:mm") : '',
+        candidacy_start_date: toBrasiliaInput(election?.candidacy_start_date),
+        candidacy_end_date: toBrasiliaInput(election?.candidacy_end_date),
+        voting_start_date: toBrasiliaInput(election?.voting_start_date),
+        voting_end_date: toBrasiliaInput(election?.voting_end_date),
     });
     const [electionTypes, setElectionTypes] = useState([]);
     const [loading, setLoading] = useState(false);
     const { toast } = useToast();
-    const minDateTime = format(new Date(), "yyyy-MM-dd'T'HH:mm");
+    const minDateTime = toBrasiliaInput(new Date());
 
     useEffect(() => {
         const fetchTypes = async () => {
@@ -60,6 +60,10 @@ const ElectionForm = ({ election, onFinish }) => {
 
         const payload = {
             ...formData,
+            voting_end_date: fromBrasiliaInput(formData.voting_end_date),
+            voting_start_date: fromBrasiliaInput(formData.voting_start_date),
+            candidacy_end_date: fromBrasiliaInput(formData.candidacy_end_date),
+            candidacy_start_date: fromBrasiliaInput(formData.candidacy_start_date),
             election_type_id: formData.election_type_id === '' ? null : formData.election_type_id,
         };
 
@@ -83,10 +87,10 @@ const ElectionForm = ({ election, onFinish }) => {
 
     return (
         <form onSubmit={handleSubmit} className="space-y-4">
-            <div><Label htmlFor="name">Nome da Eleição</Label><Input id="name" value={formData.name} onChange={handleChange} required /></div>
-            <div><Label htmlFor="description">Descrição</Label><Textarea id="description" value={formData.description} onChange={handleChange} /></div>
+            <div><Label htmlFor="name" className="mb-1 flex items-center gap-2"><Vote className="h-4 w-4 text-primary"/>Nome da Eleição</Label><Input id="name" value={formData.name} onChange={handleChange} required /></div>
+            <div><Label htmlFor="description" className="mb-1 flex items-center gap-2"><AlignLeft className="h-4 w-4 text-primary"/>Descrição</Label><Textarea id="description" value={formData.description} onChange={handleChange} /></div>
             <div>
-                <Label htmlFor="election_type_id">Tipo de Eleição</Label>
+                <Label htmlFor="election_type_id" className="mb-1 flex items-center gap-2"><Vote className="h-4 w-4 text-primary"/>Tipo de Eleição</Label>
                 <Select onValueChange={handleSelectChange} value={formData.election_type_id}>
                     <SelectTrigger><SelectValue placeholder="Selecione o tipo" /></SelectTrigger>
                     <SelectContent>
@@ -95,15 +99,15 @@ const ElectionForm = ({ election, onFinish }) => {
                 </Select>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div><Label htmlFor="candidacy_start_date">Início das Candidaturas</Label><Input id="candidacy_start_date" type="datetime-local" value={formData.candidacy_start_date} onChange={handleChange} required min={minDateTime} /></div>
-                <div><Label htmlFor="candidacy_end_date">Fim das Candidaturas</Label><Input id="candidacy_end_date" type="datetime-local" value={formData.candidacy_end_date} onChange={handleChange} required min={formData.candidacy_start_date || minDateTime} /></div>
+                <div><Label htmlFor="candidacy_start_date" className="mb-1 flex items-center gap-2"><CalendarClock className="h-4 w-4 text-primary"/>Início das Candidaturas</Label><Input id="candidacy_start_date" type="datetime-local" value={formData.candidacy_start_date} onChange={handleChange} required min={minDateTime} /></div>
+                <div><Label htmlFor="candidacy_end_date" className="mb-1 flex items-center gap-2"><CalendarClock className="h-4 w-4 text-primary"/>Fim das Candidaturas</Label><Input id="candidacy_end_date" type="datetime-local" value={formData.candidacy_end_date} onChange={handleChange} required min={formData.candidacy_start_date || minDateTime} /></div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div><Label htmlFor="voting_start_date">Início da Votação</Label><Input id="voting_start_date" type="datetime-local" value={formData.voting_start_date} onChange={handleChange} required min={formData.candidacy_end_date || minDateTime} /></div>
-                <div><Label htmlFor="voting_end_date">Fim da Votação</Label><Input id="voting_end_date" type="datetime-local" value={formData.voting_end_date} onChange={handleChange} required min={formData.voting_start_date || minDateTime} /></div>
+                <div><Label htmlFor="voting_start_date" className="mb-1 flex items-center gap-2"><CalendarClock className="h-4 w-4 text-primary"/>Início da Votação</Label><Input id="voting_start_date" type="datetime-local" value={formData.voting_start_date} onChange={handleChange} required min={formData.candidacy_end_date || minDateTime} /></div>
+                <div><Label htmlFor="voting_end_date" className="mb-1 flex items-center gap-2"><CalendarClock className="h-4 w-4 text-primary"/>Fim da Votação</Label><Input id="voting_end_date" type="datetime-local" value={formData.voting_end_date} onChange={handleChange} required min={formData.voting_start_date || minDateTime} /></div>
             </div>
-            <DialogFooter>
-                <Button type="submit" disabled={loading}>{loading ? <Loader2 className="animate-spin" /> : 'Salvar Eleição'}</Button>
+            <DialogFooter className="sm:justify-center">
+                <Button type="submit" disabled={loading}>{loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4"/>}Salvar Eleição</Button>
             </DialogFooter>
         </form>
     );
@@ -204,8 +208,8 @@ const ElectionManagement = () => {
                                 <CardDescription>{election.election_types?.name || 'Tipo não definido'} - {election.description}</CardDescription>
                             </CardHeader>
                             <CardContent className="space-y-2 text-sm">
-                                <p className="flex items-center gap-2"><Calendar className="w-4 h-4 text-muted-foreground" /> <strong>Candidaturas:</strong> {format(new Date(election.candidacy_start_date), 'dd/MM/yy HH:mm', { locale: ptBR })} - {format(new Date(election.candidacy_end_date), 'dd/MM/yy HH:mm', { locale: ptBR })}</p>
-                                <p className="flex items-center gap-2"><Vote className="w-4 h-4 text-muted-foreground" /> <strong>Votação:</strong> {format(new Date(election.voting_start_date), 'dd/MM/yy HH:mm', { locale: ptBR })} - {format(new Date(election.voting_end_date), 'dd/MM/yy HH:mm', { locale: ptBR })}</p>
+                                <p className="flex items-center gap-2"><Calendar className="w-4 h-4 text-muted-foreground" /> <strong>Candidaturas:</strong> {formatDateTimeBR(election.candidacy_start_date)} - {formatDateTimeBR(election.candidacy_end_date)}</p>
+                                <p className="flex items-center gap-2"><Vote className="w-4 h-4 text-muted-foreground" /> <strong>Votação:</strong> {formatDateTimeBR(election.voting_start_date)} - {formatDateTimeBR(election.voting_end_date)}</p>
                                 {/* O 'status' virá da VIEW e vai funcionar */}
                                 <p><strong>Status:</strong> {statusTranslations[election.status] || election.status}</p>
                             </CardContent>

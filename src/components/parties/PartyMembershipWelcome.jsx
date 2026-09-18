@@ -81,9 +81,9 @@ export default function PartyMembershipWelcome() {
   const steps=founding ? [
     ['Seu partido foi fundado!',`O ${welcome?.party.name} (${welcome?.party.acronym}) começa sua história no GOVRP.`],
     ['Em fundação','O partido precisa de 5 integrantes para se tornar ativo. A ativação acontece automaticamente quando o quinto membro se filia.'],
-    ['Você é o dono e o presidente','O dono administra a propriedade e pode transferi-la. A presidência organiza os membros, as candidaturas e a vida política.'],
+    ['Você é o dono do partido','Como dono, você administra a propriedade e pode transferi-la. A presidência e a vice-presidência são funções políticas separadas, atribuídas na gestão de liderança.'],
     ['O fundador é parte da história','O registro do fundador permanece mesmo após uma transferência de propriedade ou saída do partido.'],
-    ['Organize sua liderança','Nomeie um vice-presidente, personalize a identidade do partido e escolha se as filiações são automáticas ou analisadas pela liderança.'],
+    ['Organize sua liderança','O Presidente conduz a vida política, as candidaturas e os integrantes. O Vice-Presidente auxilia essa condução conforme suas permissões internas. Como Dono, você pode nomear e substituir essas lideranças.'],
     ['Convide cidadãos','Compartilhe o endereço público do partido, receba novos integrantes e construa sua participação nas eleições e no Parlamento.'],
   ] : roleChange ? [
     [loss?'Sua função partidária foi encerrada':`Você assumiu como ${welcome?.metadata?.new_role}`,loss?`A função de ${welcome?.metadata?.old_role} foi encerrada. Suas permissões foram atualizadas.`:`Sua nova função no ${welcome?.party.name} já está em vigor.`],
@@ -98,7 +98,7 @@ export default function PartyMembershipWelcome() {
         <DialogDescription>{steps.length?steps[step][1]:welcome?.type === 'party_approved' ? `O ${welcome.party.name} (${welcome.party.acronym}) está oficialmente ativo. Como liderança, você já pode organizar a participação do partido na vida política.` : `Você faz parte do ${welcome?.party.name} (${welcome?.party.acronym}). Sua filiação está confirmada.`}</DialogDescription>
       </DialogHeader>
       <div className="relative space-y-4 py-2">
-        <p className="text-sm leading-relaxed">Participe das decisões internas, converse com a presidência e a liderança e conquiste espaço na hierarquia partidária. Você poderá construir influência, buscar indicação e disputar eleições pelo partido, traçando seu caminho até o Parlamento ou a Presidência.</p>
+        {steps.length === 0 && <p className="text-sm leading-relaxed">Participe das decisões internas, converse com a presidência e a liderança e conquiste espaço na hierarquia partidária. Você poderá construir influência, buscar indicação e disputar eleições pelo partido, traçando seu caminho até o Parlamento ou a Presidência.</p>}
         <div className="rounded-lg bg-secondary p-3 text-sm">
           <p><strong>Dono:</strong> {welcome?.party.owner?.full_name || 'Não informado'}</p>
           <p><strong>Fundador:</strong> {welcome?.party.founder?.full_name || 'Não informado'}</p>

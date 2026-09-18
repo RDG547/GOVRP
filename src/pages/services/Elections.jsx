@@ -536,7 +536,7 @@ const Elections = () => {
 
 
                 <Tabs defaultValue="cidadao" className="w-full">
-                    <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 h-auto">
+                    <TabsList className={`grid w-full h-auto ${['Admin','Presidente do Portal Eleitoral'].includes(user?.role) ? 'grid-cols-2 md:grid-cols-4' : 'grid-cols-3'}`}>
                         {serviceSections.map((section) => (
                             <TabsTrigger key={section.value} value={section.value} className="flex flex-col sm:flex-row gap-2 items-center justify-center py-3">
                                 <section.icon className="w-5 h-5" /><span>{section.label}</span>

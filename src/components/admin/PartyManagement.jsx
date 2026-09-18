@@ -20,6 +20,8 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { AlertTriangle, CheckCircle2, Edit, Loader2, Search, Trash2, Users } from 'lucide-react';
+import { useDomainRealtime } from '@/hooks/use-domain-realtime';
+import { PARTY_REALTIME_TABLES } from '@/lib/parties';
 import UserSelectOption from '@/components/UserSelectOption';
 
 const politicalOrientations = [
@@ -73,7 +75,6 @@ const PartyManagement = () => {
   const [formData, setFormData] = useState(EMPTY_PARTY_FORM);
 
   const fetchParties = useCallback(async () => {
-    setLoading(true);
     const { data, error } = await supabase
       .from('political_parties')
       .select(`
@@ -96,6 +97,8 @@ const PartyManagement = () => {
   useEffect(() => {
     fetchParties();
   }, [fetchParties]);
+
+  useDomainRealtime('admin-parties', 'administration', PARTY_REALTIME_TABLES, fetchParties);
 
   const filteredParties = useMemo(() => {
     const query = searchTerm.trim().toLowerCase();
@@ -146,9 +149,7 @@ const PartyManagement = () => {
     }
 
     setSaving(true);
-    const { error } = await supabase
-      .from('political_parties')
-      .update({
+    const { error } = await supabase.rpc('admin_update_party', { p_party_id: editingParty.id, p_changes: {
         name: formData.name.trim(),
         acronym: formData.acronym.trim(),
         description: formData.description.trim(),
@@ -160,8 +161,7 @@ const PartyManagement = () => {
         president_id: formData.president_id || null,
         vice_president_id: formData.vice_president_id || null,
         affiliation_mode: formData.affiliation_mode,
-      })
-      .eq('id', editingParty.id);
+      } });
 
     if (error) {
       toast({ title: 'Erro ao atualizar partido', description: error.message, variant: 'destructive' });
@@ -180,27 +180,12 @@ const PartyManagement = () => {
 
     setSaving(true);
     const partyId = partyToDelete.id;
-    const operations = [
-      () => supabase.from('party_affiliation_requests').delete().eq('party_id', partyId),
-      () => supabase.from('party_members').delete().eq('party_id', partyId),
-      () => supabase.from('candidates').update({ party_id: null }).eq('party_id', partyId),
-      () => supabase.from('political_parties').delete().eq('id', partyId),
-    ];
-    let failedError = null;
-
-    for (const operation of operations) {
-      const { error } = await operation();
-
-      if (error) {
-        failedError = error;
-        break;
-      }
-    }
+    const { error: failedError } = await supabase.rpc('admin_close_party', { p_party_id: partyId });
 
     if (failedError) {
-      toast({ title: 'Erro ao excluir partido', description: failedError.message, variant: 'destructive' });
+      toast({ title: 'Erro ao encerrar partido', description: failedError.message, variant: 'destructive' });
     } else {
-      toast({ title: 'Partido excluído' });
+      toast({ title: 'Partido encerrado' });
       setPartyToDelete(null);
       fetchParties();
     }
@@ -231,7 +216,7 @@ const PartyManagement = () => {
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid min-w-0 grid-cols-1 gap-4 md:grid-cols-2 [&>*]:min-w-0">
         {filteredParties.map((party) => {
           const memberCount = party.members?.length || 0;
           const isActive = memberCount >= ACTIVE_PARTY_MEMBER_THRESHOLD;
@@ -256,7 +241,7 @@ const PartyManagement = () => {
                       </Badge>
                       <Badge className={`gap-1 border ${isActive ? 'border-emerald-500/30 bg-emerald-500/15 text-emerald-300' : 'border-amber-500/30 bg-amber-500/15 text-amber-300'}`}>
                         {isActive ? <CheckCircle2 className="h-3 w-3" /> : <AlertTriangle className="h-3 w-3" />}
-                        {isActive ? 'Ativo' : 'Em formação'}
+                        {party.status === 'Encerrado' ? 'Encerrado' : isActive ? 'Ativo' : 'Em formação'}
                       </Badge>
                     </div>
                   </div>
@@ -266,20 +251,20 @@ const PartyManagement = () => {
                 <p>Dono: {party.owner?.full_name || 'Não definido'}</p>
                 <p>Presidente: {party.president?.full_name || 'Não definido'}</p>
                 <p>Vice: {party.vice_president?.full_name || 'Não definido'}</p>
-                {!isActive ? (
+                {!isActive && party.status !== 'Encerrado' ? (
                   <p className="text-amber-300">
                     Faltam {Math.max(0, ACTIVE_PARTY_MEMBER_THRESHOLD - memberCount)} membro(s) para ativação eleitoral.
                   </p>
                 ) : null}
               </CardContent>
-              <CardFooter className="gap-2">
-                <Button size="sm" variant="outline" onClick={() => openEdit(party)}>
+              <CardFooter className="flex-wrap gap-2">
+                <Button size="sm" variant="outline" disabled={party.status === 'Encerrado'} onClick={() => openEdit(party)}>
                   <Edit className="mr-2 h-4 w-4" />
                   Editar
                 </Button>
-                <Button size="sm" variant="destructive" onClick={() => setPartyToDelete(party)}>
+                <Button size="sm" variant="destructive" disabled={party.status === 'Encerrado'} onClick={() => setPartyToDelete(party)}>
                   <Trash2 className="mr-2 h-4 w-4" />
-                  Excluir
+                  Encerrar
                 </Button>
               </CardFooter>
             </Card>
@@ -299,7 +284,7 @@ const PartyManagement = () => {
             <DialogTitle>Editar Partido</DialogTitle>
           </DialogHeader>
           <div className="grid gap-4 py-4">
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid min-w-0 grid-cols-1 gap-4 md:grid-cols-2 [&>*]:min-w-0">
               <div>
                 <Label>Nome</Label>
                 <Input value={formData.name} onChange={(event) => updateForm('name', event.target.value)} />
@@ -395,16 +380,16 @@ const PartyManagement = () => {
       <AlertDialog open={Boolean(partyToDelete)} onOpenChange={(open) => !open && setPartyToDelete(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Excluir partido?</AlertDialogTitle>
+            <AlertDialogTitle>Encerrar partido?</AlertDialogTitle>
             <AlertDialogDescription>
-              Esta ação remove {partyToDelete?.name} e desfaz vínculos partidários associados. Candidaturas antigas ficam sem partido.
+              Esta ação encerra {partyToDelete?.name} e as filiações atuais. Candidaturas, fundador, doações, saldo e histórico permanecem registrados.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={saving}>Cancelar</AlertDialogCancel>
             <AlertDialogAction onClick={handleDelete} disabled={saving} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
               {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-              Excluir
+              Encerrar
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

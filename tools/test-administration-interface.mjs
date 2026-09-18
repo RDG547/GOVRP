@@ -19,8 +19,8 @@ try {
  const target=citizens[31];
  before=await request(service.from('state_enterprises').select('*').eq('service_key','marketplace').single());
  const config={p_commission_type:before.commission_type,p_commission_value:before.commission_value,p_publication_mode:before.publication_mode,p_manager_id:before.manager_id};
- const p=await login(admin);await p.goto(`${origin}/services/business`);
- await p.getByRole('button',{name:'Gerir Negócios Livre',exact:true}).click();await responsive(p,'Gestão de marketplace');
+ const p=await login(admin);await p.goto(`${origin}/dashboard/president`);
+ await p.getByRole('tab',{name:'Gestão Governamental',exact:true}).click();await p.getByRole('tab',{name:'Estatais',exact:true}).click();await p.getByRole('button',{name:/Gerenciar estatal Negócios Livre/}).click();await responsive(p,'Gestão de marketplace');
  await p.getByRole('combobox',{name:'Selecionar cidadão',exact:true}).click();await p.getByRole('textbox',{name:'Buscar cidadão por nome ou username',exact:true}).fill(prefix);
  await p.getByText('32 cidadãos elegíveis',{exact:true}).waitFor();const seen=new Set(await p.getByRole('option').allTextContents());assert.equal(seen.size,30);
  await p.getByRole('dialog').last().getByRole('button',{name:'Próxima',exact:true}).click();await waitFor(async()=>await p.getByRole('option').count()===2,'segunda página do seletor');for(const value of await p.getByRole('option').allTextContents())seen.add(value);assert.equal(seen.size,32);
@@ -30,7 +30,7 @@ try {
  await p.getByRole('dialog').getByRole('button',{name:'Fechar',exact:true}).click();console.log('OK CitizenSelector: paginação, busca além da primeira página, seleção salva e nove larguras');
  await rpc(admin.client,'configure_marketplace',{...config,p_publication_mode:'automatic'});
  const args={p_product_id:null,p_business_id:null,p_name:`Estoque ${prefix}`,p_description:'Produto para verificar a transição de estoque em tempo real.',p_price:100,p_image_url:'/icon-192x192.png',p_product_type:'one-time',p_subscription_interval:null,p_category:'Outros',p_stock:1,p_promotion_price:null,p_promotion_expires_at:null};
- const product=await rpc(admin.client,'save_business_product',args);await p.getByText(args.p_name,{exact:true}).waitFor();const loaded=await p.evaluate(()=>performance.timeOrigin);
+ const product=await rpc(admin.client,'save_business_product',args);await p.goto(`${origin}/services/business`);await p.getByText(args.p_name,{exact:true}).waitFor();const loaded=await p.evaluate(()=>performance.timeOrigin);
  await rpc(admin.client,'save_business_product',{...args,p_product_id:product.id,p_stock:0});await p.getByRole('status',{name:'Movendo para esgotados',exact:true}).waitFor();await p.getByText(args.p_name,{exact:true}).waitFor({state:'hidden',timeout:10000});await p.getByRole('tab',{name:'Esgotados',exact:true}).click();await p.getByText(args.p_name,{exact:true}).waitFor();
  await rpc(admin.client,'save_business_product',{...args,p_product_id:product.id,p_stock:2});await p.getByText(args.p_name,{exact:true}).waitFor({state:'hidden'});await p.getByRole('tab',{name:'Disponíveis',exact:true}).click();await p.getByText(args.p_name,{exact:true}).waitFor();assert.equal(await p.evaluate(()=>performance.timeOrigin),loaded);console.log('OK esgotamento com contador de cinco segundos, mudança de aba e reposição sem reload');
  await p.goto(`${origin}/admin-dashboard/users`);await p.getByPlaceholder('Buscar por nome real, cidadão, username ou email...').fill(`${prefix} 31`);await p.getByRole('button',{name:`Situação prisional de ${prefix} 31`,exact:true}).click();await p.getByText('Cidadão em liberdade',{exact:true}).waitFor();await responsive(p,'Custódia administrativa');

@@ -1,3 +1,5 @@
+import PartyTreasury from '@/components/parties/PartyTreasury';
+import { orientationColors } from '@/lib/partyIdentity';
 import PartyMemberActions from '@/components/parties/PartyMemberActions';
 import PartyRoleBadges from '@/components/parties/PartyRoleBadges';
 import { formatDateBR } from '@/lib/dateTime';
@@ -170,7 +172,11 @@ const PartyPage = () => {
     const fetchPartyData = useCallback(async () => {
         try {
             const [data] = await fetchPublicParties(partyId);
-            if (!data) throw new Error('Este partido não foi encontrado.');
+            if (!data) {
+                setParty(null); setSuggestions([]);
+                setLoadError('Este partido foi encerrado ou não está disponível.');
+                return;
+            }
             setLoadError('');
             setParty(data);
 
@@ -288,7 +294,7 @@ const PartyPage = () => {
                         <div className="lg:col-span-2 space-y-8">
                             <Card className="glass-effect">
                                 <CardHeader className="flex flex-row items-center justify-between">
-                                    <CardTitle>Sobre o Partido</CardTitle>
+                                    <CardTitle className="flex items-center gap-2"><Building className="h-5 w-5 text-primary"/>Sobre o Partido</CardTitle>
                                     {isOwner && !isEditing && <Button variant="outline" size="sm" onClick={() => { setEditData({ ideology: party.ideology || '', statute: party.statute || '' }); setIsEditing(true); }}><Edit className="w-4 h-4 mr-2" />Editar</Button>}
                                 </CardHeader>
                                 <CardContent className="space-y-4">
@@ -309,6 +315,7 @@ const PartyPage = () => {
                                     )}
                                 </CardContent>
                             </Card>
+                            <PartyTreasury party={party} />
                             {userMemberRecord && (
                                 <Card className="glass-effect">
                                     <CardHeader><CardTitle className="flex items-center gap-2"><Inbox className="w-5 h-5 text-primary"/> Sugestões Recebidas</CardTitle></CardHeader>
@@ -327,15 +334,15 @@ const PartyPage = () => {
 
                         <aside className="space-y-8">
                             <Card className="glass-effect">
-                                <CardHeader><CardTitle>Informações Gerais</CardTitle></CardHeader>
+                                <CardHeader><CardTitle className="flex items-center gap-2"><Shield className="h-5 w-5 text-primary"/>Informações Gerais</CardTitle></CardHeader>
                                 <CardContent className="space-y-3 text-sm"><div className="flex items-center gap-3"><Avatar><AvatarImage src={party.founder?.avatar_url} /><AvatarFallback>{party.founder?.full_name?.charAt(0) || '?'}</AvatarFallback></Avatar><div><p className="font-semibold">{party.founder?.full_name || 'Cidadão indisponível'}</p><p className="text-xs text-muted-foreground">Fundador</p></div></div>
-                                    <div className="flex items-center gap-3"><Shield className="w-5 h-5 text-primary" /><Badge variant="outline">{party.orientation}</Badge></div>
+                                    <div className="flex items-center gap-3"><Shield className="w-5 h-5 text-primary" /><Badge className={orientationColors[party.orientation || 'Não definido']}>{party.orientation || 'Não definido'}</Badge></div>
                                     <div className="flex items-center gap-3"><Calendar className="w-5 h-5 text-primary" /><span>Fundado em {formatDateBR(party.created_at,{long:true})}</span></div>
                                     <div className="flex items-center gap-3"><Users className="w-5 h-5 text-primary" /><span>{party.members.length} Membros</span></div>
                                 </CardContent>
                             </Card>
                             <Card className="glass-effect">
-                                <CardHeader><CardTitle>Lideranças</CardTitle></CardHeader>
+                                <CardHeader><CardTitle className="flex items-center gap-2"><Crown className="h-5 w-5 text-primary"/>Lideranças</CardTitle></CardHeader>
                                 <CardContent className="space-y-4">
 
                                     {party.owner && <div className="flex items-center gap-3"><Avatar><AvatarImage src={party.owner.avatar_url} /><AvatarFallback>{party.owner.full_name.charAt(0)}</AvatarFallback></Avatar><div><p className="font-semibold">{party.owner.full_name}</p><PartyRoleBadges party={party} userId={party.owner_id}/></div><PartyMemberActions party={party} memberId={party.owner_id} onChange={fetchPartyData}/></div>}
@@ -344,7 +351,7 @@ const PartyPage = () => {
                                 </CardContent>
                             </Card>
                             <Card className="glass-effect">
-                                <CardHeader><CardTitle>Membros</CardTitle></CardHeader>
+                                <CardHeader><CardTitle className="flex items-center gap-2"><Users className="h-5 w-5 text-primary"/>Membros</CardTitle></CardHeader>
                                 <CardContent className="space-y-2 max-h-72 overflow-y-auto">
                                     {[...party.members].sort((a, b) => (roleHierarchy[b.role] || 0) - (roleHierarchy[a.role] || 0)).map(member => (
                                         <div key={member.user_id} className="flex items-center gap-3 p-2 rounded-md hover:bg-secondary/50">

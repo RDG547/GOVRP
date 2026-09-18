@@ -1,3 +1,6 @@
+import { formatDateTimeBR } from '@/lib/dateTime';
+import PartyIdentity from '@/components/parliament/PartyIdentity';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { roleIcon } from '@/lib/roleIcons';
 import React, { useCallback, useEffect, useState, useRef } from 'react';
 import { Crown, Loader2, Landmark, Check, ArrowRight } from 'lucide-react';
@@ -22,7 +25,7 @@ export default function ElectionOfficeAwardPopup() {
    const sequence = ++request.current;
    if (!user?.id) { setNotification(null); return; }
    const { data, error } = await supabase.from('notifications').select('id,content,link,created_at,type,metadata')
-     .eq('user_id', user.id).eq('type', 'role_changed').is('metadata->>popup_shown_at', null).order('created_at').limit(1).maybeSingle();
+     .eq('user_id', user.id).in('type', ['role_changed','election_candidacy_open','election_voting_open','election_result_published','institutional_result']).is('metadata->>popup_shown_at', null).order('created_at').limit(1).maybeSingle();
    if (sequence !== request.current) return;
    if (error) console.error('Não foi possível consultar mudanças de cargo', error);
    else setNotification(data);
@@ -44,8 +47,9 @@ export default function ElectionOfficeAwardPopup() {
    } finally { setSaving(false); }
  };
  if (!user || !notification) return null;
- const info = roleEventPresentation(notification);
- const Icon = roleIcon(info.role);
+ const institutional = notification.type !== 'role_changed';
+ const info = institutional ? { title: ({election_candidacy_open:'Candidaturas abertas',election_voting_open:'Votação aberta',election_result_published:'Resultado eleitoral',institutional_result:'Decisão institucional'})[notification.type], role: notification.metadata?.election_name || notification.metadata?.outcome, loss: true, to: notification.link || '/services/elections', action: notification.type === 'institutional_result' ? 'Consultar decisão' : 'Ir ao Portal Eleitoral' } : roleEventPresentation(notification);
+ const Icon = institutional ? Landmark : roleIcon(info.role);
  return <Dialog open onOpenChange={open => { if (!open) void close(); }}>
    <DialogContent className="max-w-md text-center" onInteractOutside={event => event.preventDefault()}>
      <DialogHeader className="text-center sm:text-center">
@@ -54,7 +58,13 @@ export default function ElectionOfficeAwardPopup() {
        <DialogDescription>{notification.content}</DialogDescription>
      </DialogHeader>
      <p className="text-2xl font-semibold">{info.role}</p>
-     <p className="text-sm text-muted-foreground">{info.description}</p>
+     {info.description && <p className="text-sm text-muted-foreground">{info.description}</p>}
+     {institutional && <div className="space-y-3 text-left text-sm">
+       {notification.type === 'election_candidacy_open' && <><p>Candidaturas até {formatDateTimeBR(notification.metadata.candidacy_end_at)}.</p><p>Votação a partir de {formatDateTimeBR(notification.metadata.voting_start_at)}.</p></>}
+       {notification.type === 'election_voting_open' && <p>Vote até {formatDateTimeBR(notification.metadata.voting_end_at)}. Horário de Brasília.</p>}
+       {notification.type === 'election_result_published' && <div className="max-h-64 space-y-3 overflow-y-auto">{(notification.metadata.winners || []).map(winner => <div key={`${winner.id}:${winner.office_role}`} className="flex items-start gap-3 rounded-lg border p-3"><Avatar><AvatarImage src={winner.avatar_url}/><AvatarFallback>{winner.name?.charAt(0)}</AvatarFallback></Avatar><div className="min-w-0"><p className="break-words font-semibold">{winner.name}</p><p>{winner.office_role} · {winner.votes} votos</p><PartyIdentity party={winner.party}/></div></div>)}</div>}
+       {notification.type === 'institutional_result' && <><p>Presidência envolvida: {notification.metadata.former_president?.full_name}.</p><p>{formatDateTimeBR(notification.metadata.occurred_at)}</p>{notification.metadata.successor && <p>Nova Presidência: <strong>{notification.metadata.successor.name || 'Sucessor institucional'}</strong>. As permissões foram atualizadas.</p>}</>}
+     </div>}
      <div className="flex flex-col gap-2">
        <Button disabled={saving} onClick={() => close(info.to)}>{saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ArrowRight className="mr-2 h-4 w-4" />}{info.action}</Button>
        <Button disabled={saving} variant="outline" onClick={() => close()}><Check className="mr-2 h-4 w-4" />Entendi</Button>

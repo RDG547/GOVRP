@@ -1728,7 +1728,7 @@ const StateEnterpriseManager = ({ onUpdate }) => {
 
     if (loading) return <div className="flex justify-start sm:justify-center py-8"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
 
-    if (selectedEnterprise) {
+    if (selectedEnterprise && selectedEnterprise.service_key !== 'marketplace') {
         return <EnterpriseDetailView enterprise={selectedEnterprise} onBack={() => setSelectedEnterprise(null)} onUpdate={() => { fetchEnterprises(); onUpdate?.(); }} />;
     }
 
@@ -1737,7 +1737,7 @@ const StateEnterpriseManager = ({ onUpdate }) => {
 
     return (
         <div className="space-y-6">
-            <MarketplaceManagement />
+            <MarketplaceManagement open={selectedEnterprise?.service_key === 'marketplace'} onOpenChange={open => { if (!open) setSelectedEnterprise(null); }} />
             <div className="flex items-center justify-between">
                 <div>
                     <h3 className="text-xl font-semibold flex items-center gap-2"><Building className="w-5 h-5 text-primary" /> Estatais do Governo</h3>
@@ -1758,7 +1758,7 @@ const StateEnterpriseManager = ({ onUpdate }) => {
                         const marketValue = getEnterpriseMarketValue(enterprise);
                         const healthScore = getEnterpriseHealthScore(enterprise);
                         return (
-                            <Card key={enterprise.id} className="glass-effect cursor-pointer hover:border-primary/50 transition-colors" onClick={() => setSelectedEnterprise(enterprise)}>
+                            <Card key={enterprise.id} role="button" tabIndex={0} aria-label={`Gerenciar estatal ${enterprise.name}`} className="glass-effect cursor-pointer hover:border-primary/50 transition-colors focus-visible:outline focus-visible:outline-primary" onKeyDown={event => { if (event.target === event.currentTarget && ['Enter',' '].includes(event.key)) { event.preventDefault(); setSelectedEnterprise(enterprise); } }} onClick={() => setSelectedEnterprise(enterprise)}>
                                 <CardHeader className="pb-3">
                                     <div className="flex items-start justify-between">
                                         <div className="flex items-center gap-3">
@@ -2387,7 +2387,7 @@ const PresidentDashboard = () => {
 
                     <TabsContent value="finances" className="mt-6">
                         <Tabs value={financeTab} onValueChange={setFinanceTab} className="w-full">
-                            <div className="overflow-x-auto custom-scrollbar -mx-4 px-4 pb-2 mb-6 flex justify-start sm:justify-center">
+                            <div className="overflow-x-auto custom-scrollbar -mx-4 px-4 pb-2 mb-6 flex justify-start">
                                 <TabsList className="inline-flex min-w-max w-max gap-2 border-b border-border/40 bg-transparent p-0">
                                     <TabsTrigger value="budget" className="min-w-[14rem] shrink-0 data-[state=active]:bg-card data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-t-lg px-6"><Building2 className="mr-2 h-4 w-4" />Orçamento Governamental</TabsTrigger>
                                     <TabsTrigger value="taxes" className="min-w-[12rem] shrink-0 data-[state=active]:bg-card data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-t-lg px-6"><Receipt className="mr-2 h-4 w-4" />Gestão de Impostos e Tarifas</TabsTrigger>
@@ -2444,9 +2444,9 @@ const PresidentDashboard = () => {
 
                     <TabsContent value="management" className="mt-6">
                         <Tabs defaultValue="constitutional" className="w-full">
-                            <div className="overflow-x-auto custom-scrollbar -mx-4 px-4 pb-2 mb-6 flex justify-start sm:justify-center">
+                            <div className="overflow-x-auto custom-scrollbar -mx-4 px-4 pb-2 mb-6 flex justify-start">
                                 <TabsList className="inline-flex min-w-max w-max gap-2 border-b border-border/40 bg-transparent p-0">
-                                    <TabsTrigger value="constitutional" className="min-w-[12rem] shrink-0 data-[state=active]:bg-card data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-t-lg px-6"><Shield className="mr-2 h-4 w-4" />Estado Executivo</TabsTrigger>
+                                    <TabsTrigger value="constitutional" className="min-w-[18rem] shrink-0 data-[state=active]:bg-card data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-t-lg px-6"><Shield className="mr-2 h-4 w-4" />Status Constitucional do Executivo</TabsTrigger>
                                     <TabsTrigger value="dynamics" className="min-w-[14rem] shrink-0 data-[state=active]:bg-card data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-t-lg px-6"><Activity className="mr-2 h-4 w-4" />Indicadores e Governo</TabsTrigger>
                                     <TabsTrigger value="ministers" className="min-w-[13rem] shrink-0 data-[state=active]:bg-card data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-t-lg px-6"><UserPlus className="mr-2 h-4 w-4" />Ministros e Nomeações</TabsTrigger>
                                     <TabsTrigger value="proposals"><ScrollText className="mr-2 h-4 w-4" />Propostas</TabsTrigger>

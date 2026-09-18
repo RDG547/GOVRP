@@ -25,6 +25,7 @@ try {
   browser = await playwright.chromium.launch({ headless: true, ...(process.env.GOVRP_CHROMIUM_PATH ? { executablePath: process.env.GOVRP_CHROMIUM_PATH } : {}), args: ['--no-sandbox'] });
   const a = await actor('browserautor'), b = await actor('browserleitor');
   const login = async person => {
+    await rpc(person.client, 'claim_daily_check_in').catch(() => undefined);
     const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
     const p = await context.newPage(); page = p;
     p.on('pageerror', error => console.error('Browser:', error.message));
@@ -92,6 +93,7 @@ try {
   await detailThread.getByRole('textbox',{name:'Escrever comentário',exact:true}).fill('Rascunho preservado na conversa');
   await rootComment.getByRole('button',{name:'Remover comentário',exact:true}).first().click();
   await detailThread.getByText('Conversa alterada 2',{exact:true}).waitFor({state:'detached',timeout:20000});
+  await detailThread.getByText('Este comentário foi removido.',{exact:true}).waitFor();
   assert(await detailThread.getByText('Resposta E2E nível 5',{exact:true}).isVisible());
   assert.equal(await detailThread.getByRole('textbox',{name:'Escrever comentário',exact:true}).inputValue(),'Rascunho preservado na conversa');
   assert.equal(await pb.evaluate(()=>performance.timeOrigin),conversationLoad);

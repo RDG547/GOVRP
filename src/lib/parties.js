@@ -4,7 +4,7 @@ import { fetchPublicProfiles, unavailablePublicProfile } from './publicProfiles'
 export const PARTY_REALTIME_TABLES = ['political_parties', 'party_members', 'party_affiliation_requests', 'bill_suggestions'];
 
 export async function fetchPublicParties(partyId, client = supabase) {
-  let query = client.from('political_parties').select('*,members:party_members(id,user_id,role,joined_at)').order('created_at');
+  let query = client.from('political_parties').select('*,members:party_members(id,user_id,role,joined_at)').neq('status', 'Encerrado').order('created_at');
   if (partyId) query = query.eq('id', partyId);
   const { data, error } = await query;
   if (error) throw error;

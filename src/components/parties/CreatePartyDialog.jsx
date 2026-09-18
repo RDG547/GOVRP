@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, PlusCircle, Flag, Hash, Compass, FileText, Lightbulb, ScrollText } from 'lucide-react';
+import { Loader2, PlusCircle, Landmark, Flag, Hash, Compass, FileText, Lightbulb, ScrollText } from 'lucide-react';
 import ImageUploader from '@/components/ImageUploader';
 import { buildStoragePath } from '@/lib/security';
 
@@ -79,7 +79,7 @@ const CreatePartyDialog = ({ onPartyCreated, userAffiliation }) => {
         <Dialog open={isOpen} onOpenChange={handleOpenChange}>
             <DialogTrigger asChild><Button><PlusCircle className="mr-2 h-4 w-4" /> Criar Partido</Button></DialogTrigger>
             <DialogContent className="glass-effect max-h-[90vh] overflow-y-auto">
-                <DialogHeader><DialogTitle className="flex flex-col items-center gap-3 text-center"><Flag className="h-9 w-9 text-blue-400"/>Fundar um Novo Partido Político</DialogTitle><DialogDescription>Preencha os dados para registrar seu partido na nação.</DialogDescription></DialogHeader>
+                <DialogHeader><DialogTitle className="flex flex-col items-center gap-3 text-center"><Landmark className="h-9 w-9 text-blue-400"/>Fundar um Novo Partido Político</DialogTitle><DialogDescription>Preencha os dados para registrar seu partido na nação.</DialogDescription></DialogHeader>
                 <form onSubmit={handleSubmit} className="grid gap-4 py-4">
                     <div className="grid gap-2"><Label htmlFor="name" className="flex items-center gap-2"><Flag className="h-4 w-4 text-primary"/>Nome do Partido</Label><Input id="name" value={formData.name} onChange={(e) => setFormData(p=>({...p, name: e.target.value}))} required /></div>
                     <div className="grid gap-2"><Label htmlFor="acronym" className="flex items-center gap-2"><Hash className="h-4 w-4 text-primary"/>Sigla</Label><Input id="acronym" value={formData.acronym} onChange={(e) => setFormData(p=>({...p, acronym: e.target.value}))} required maxLength="5" /></div>
@@ -88,7 +88,7 @@ const CreatePartyDialog = ({ onPartyCreated, userAffiliation }) => {
                     <div className="grid gap-2"><Label htmlFor="ideology" className="flex items-center gap-2"><Lightbulb className="h-4 w-4 text-primary"/>Ideologia</Label><Textarea id="ideology" value={formData.ideology} onChange={(e) => setFormData(p=>({...p, ideology: e.target.value}))} placeholder="Descreva os princípios do seu partido..." required /></div>
                     <div className="grid gap-2"><Label htmlFor="statute" className="flex items-center gap-2"><ScrollText className="h-4 w-4 text-primary"/>Estatuto do Partido</Label><Textarea id="statute" value={formData.statute} onChange={(e) => setFormData(p=>({...p, statute: e.target.value}))} rows={5} placeholder="Cole aqui as regras internas do partido." required /></div>
                     <ImageUploader onUrlChange={setLogoUrl} onFileChange={setLogoFile} initialUrl={logoUrl} label="Logo do Partido (Obrigatório)" />
-                    <DialogFooter><Button type="submit" disabled={loading}>{loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Fundar Partido</Button></DialogFooter>
+                    <DialogFooter><Button type="submit" disabled={loading}>{loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Landmark className="mr-2 h-4 w-4"/>}Fundar Partido</Button></DialogFooter>
                 </form>
             </DialogContent>
         </Dialog>

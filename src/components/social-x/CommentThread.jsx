@@ -54,10 +54,9 @@ export default function CommentThread({ postId }) {
   const childrenByParent = useMemo(() => {
     const groups = new Map();
     const byId = new Map(rows.map(row => [row.id, row]));
-    rows.filter(row => !row.deleted_at).forEach(row => {
+    rows.forEach(row => {
       let key = row.parent_comment_id || null;
       const seen = new Set([row.id]);
-      while (key && byId.get(key)?.deleted_at && !seen.has(key)) { seen.add(key); key = byId.get(key).parent_comment_id; }
       if (seen.has(key) || (key && !byId.has(key))) key = null;
       if (!groups.has(key)) groups.set(key, []);
       groups.get(key).push(row);
@@ -78,6 +77,6 @@ export default function CommentThread({ postId }) {
     {loading && <Loader2 aria-label="Carregando comentários" className="w-5 h-5 animate-spin mx-auto" />}
     {failed && <Button variant="outline" onClick={load}>Não foi possível carregar. Tentar novamente</Button>}
     {(childrenByParent.get(null) || []).map(row => <Comment key={row.id} comment={row} childrenByParent={childrenByParent} onChange={load} />)}
-    {!loading && !failed && !rows.some(row => !row.deleted_at) && <p className="text-sm text-center text-muted-foreground">Nenhum comentário ainda. Seja o primeiro!</p>}
+    {!loading && !failed && rows.length === 0 && <p className="text-sm text-center text-muted-foreground">Nenhum comentário ainda. Seja o primeiro!</p>}
   </section>;
 }

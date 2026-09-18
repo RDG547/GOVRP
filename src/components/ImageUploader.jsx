@@ -17,6 +17,7 @@ const ImageUploader = ({
   onFileChange,
   initialUrl = '',
   label = 'Imagem',
+  previewOnly = false,
   accept = IMAGE_ACCEPT_ATTRIBUTE,
   allowedMimeTypes = ACCEPTED_IMAGE_MIME_TYPES,
   allowedExtensions = ACCEPTED_IMAGE_EXTENSIONS,
@@ -24,6 +25,13 @@ const ImageUploader = ({
 }) => {
   const [url, setUrl] = useState(initialUrl);
   const [file, setFile] = useState(null);
+  const [preview, setPreview] = useState(initialUrl);
+  const [editUrl, setEditUrl] = useState(false);
+  useEffect(() => {
+    if (!file) { setPreview(url); return; }
+    const objectUrl = URL.createObjectURL(file); setPreview(objectUrl);
+    return () => URL.revokeObjectURL(objectUrl);
+  }, [file, url]);
   const [error, setError] = useState('');
   const fileInputRef = useRef(null);
 
@@ -100,8 +108,10 @@ const ImageUploader = ({
   return (
     <div className="space-y-2">
       <Label>{label}</Label>
+      {previewOnly && preview && <img src={preview} alt={`Prévia: ${label}`} className="h-24 w-24 rounded-lg border object-contain"/>}
+      {previewOnly && !editUrl && <Button type="button" variant="ghost" size="sm" onClick={() => setEditUrl(true)}><LinkIcon className="mr-2 h-4 w-4"/>Alterar por link</Button>}
       <div className="flex items-center gap-2">
-        <div className="relative flex-grow">
+        <div className={`relative min-w-0 flex-grow ${previewOnly && !editUrl ? 'hidden' : ''}`}>
           <LinkIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             type="text"
@@ -113,11 +123,11 @@ const ImageUploader = ({
           />
         </div>
         {file ? (
-          <Button type="button" variant="destructive" size="icon" onClick={handleClearFile}>
+          <Button type="button" variant="destructive" size="icon" aria-label="Remover imagem selecionada" onClick={handleClearFile}>
             <X className="h-4 w-4" />
           </Button>
         ) : (
-          <Button type="button" variant="outline" size="icon" onClick={handleUploadClick}>
+          <Button type="button" variant="outline" size="icon" aria-label="Enviar imagem" onClick={handleUploadClick}>
             <Upload className="h-4 w-4" />
           </Button>
         )}

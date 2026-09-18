@@ -4,7 +4,7 @@ import TransactionTaxBreakdown from './TransactionTaxBreakdown';
 import { transactionAmounts } from '@/lib/transactionAmounts';
 import React, { useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Loader2, FileText, Image as ImageIcon, ArrowLeft, Share2 } from 'lucide-react';
 import { formatCurrency, formatCPF, formatAgency, formatAccount } from '@/lib/utils';
 import jsPDF from 'jspdf';
@@ -42,6 +42,7 @@ const ReceiptContent = React.forwardRef(({ receipt }, ref) => {
     const getTransactionTypeName = (type) => {
         const typeMap = {
             'transfer': 'Transferência',
+            'party_donation': 'Doação partidária',
             'purchase': 'Compra',
             'purchase_card': 'Compra (Cartão)',
             'subscription_payment': 'Assinatura',
@@ -67,7 +68,7 @@ const ReceiptContent = React.forwardRef(({ receipt }, ref) => {
     };
 
     const recipientData = {
-        name: receipt.recipient_name,
+        name: receipt.recipient_name || receipt.metadata?.party_snapshot?.name,
         cpf: receipt.recipient_cpf,
         agency: receipt.recipient_agency,
         account: receipt.recipient_account,
@@ -107,7 +108,7 @@ const ReceiptContent = React.forwardRef(({ receipt }, ref) => {
 
                 {receipt.sender_name && receipt.recipient_name && <div className="border-t border-dashed border-gray-600 my-4"></div>}
 
-                {receipt.recipient_name && <ReceiptParticipant title="Destinatário" data={recipientData} />}
+                {recipientData.name && <ReceiptParticipant title="Destinatário" data={recipientData} />}
 
                 {receipt.metadata?.seller_type && <div className="my-4 space-y-2 rounded-lg border border-white/10 p-3"><h3 className="font-semibold">Vendedor</h3><ReceiptInfoRow label="Tipo:" value={receipt.metadata.seller_type === 'citizen' ? 'Pessoa Física' : 'Empresa'} /><ReceiptInfoRow label="Nome:" value={receipt.metadata.seller_name || receipt.recipient_name} /></div>}
                 {receipt.metadata?.seller_snapshot && (
@@ -221,6 +222,7 @@ const ReceiptDownloadDialog = ({ receipt, onBack }) => {
     return (
         <Dialog open={!!receipt} onOpenChange={(isOpen) => !isOpen && onBack()}>
             <DialogContent plain className="[&>button]:hidden sm:max-w-md p-0 bg-transparent border-none shadow-none data-[state=open]:animate-none">
+                <DialogTitle className="sr-only">Comprovante de transação</DialogTitle><DialogDescription className="sr-only">Confira os valores e baixe ou compartilhe seu comprovante.</DialogDescription>
                 <div className="max-h-[85vh] overflow-y-auto custom-scrollbar rounded-lg">
                     <div className="p-4 bg-[#0D1117] sticky top-0 z-10 flex items-center justify-between">
                         <Button onClick={onBack} variant="ghost" size="sm" className="text-white hover:bg-white/10">
@@ -244,7 +246,7 @@ const ReceiptDownloadDialog = ({ receipt, onBack }) => {
                                     {(loading === 'share-png' || loading === 'share-pdf') ? <Loader2 className="animate-spin mr-2" /> : <Share2 className="mr-2 h-4 w-4" />} Compartilhar
                                 </Button>
                             </AlertDialogTrigger>
-                            <AlertDialogContent>
+                            <AlertDialogContent className="left-[50vw] top-[50dvh]">
                                 <AlertDialogHeader>
                                     <AlertDialogTitle>Compartilhar Comprovante</AlertDialogTitle>
                                     <AlertDialogDescription>

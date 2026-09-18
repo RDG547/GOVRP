@@ -58,7 +58,7 @@ import React, { useState, useRef } from 'react';
                         </div>
                     </div>
                 </div>
-                <div className="md:hidden fixed bottom-0 left-0 right-0 bg-background border-t border-border z-50">
+                <div data-x-mobile-navigation className="md:hidden fixed bottom-0 left-0 right-0 bg-background border-t border-border z-50">
                     <XSidebar onPostClick={() => setIsPostModalOpen(true)} />
                 </div>
                 <Dialog open={isPostModalOpen} onOpenChange={setIsPostModalOpen}>

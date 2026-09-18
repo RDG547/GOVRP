@@ -34,7 +34,8 @@ try {
  await rpc(member.client,'finalize_bill_voting',{p_voting_id:constitutional.voting.id});
  const second=await request(service.from('parliament_votings').select('*').eq('related_id',constitutional.bill.id).neq('id',constitutional.voting.id).single());
  check(second.house_id!==house.id&&second.status==='active','PEC aprovada abre votação na segunda Casa automaticamente');
- const senator=await actor('deadline-senator','Senador');
+ const secondRole=await rpc(service,'get_parliament_base_role_label',{p_house_id:second.house_id});
+ const senator=await actor('deadline-second-house',secondRole);
  const secondMandate=await request(service.from('parliament_members').insert({user_id:senator.id,house_id:second.house_id,term_start_date:new Date(Date.now()-86400000).toISOString().slice(0,10),term_end_date:new Date(Date.now()+86400000).toISOString().slice(0,10)}).select('id').single());
  await rpc(senator.client,'cast_parliament_vote',{p_voting_id:second.id,p_member_id:secondMandate.id,p_vote:'Rejeitar'});
  await request(service.from('parliament_votings').update({end_date:new Date(Date.now()-1000).toISOString()}).eq('id',second.id));

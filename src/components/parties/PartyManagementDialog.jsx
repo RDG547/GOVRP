@@ -17,7 +17,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
-import { Loader2, Settings, Save, Pencil, Users, Inbox, UserCheck, UserX, Check, X, UserMinus, Building, User, Crown } from 'lucide-react';
+import { Loader2, Settings, Save, Pencil, Users, Inbox, UserCheck, UserX, Check, X, UserMinus, Building, User, Crown, Hash, Compass, FileText, Lightbulb, ScrollText, Shield } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import ImageUploader from '@/components/ImageUploader';
@@ -128,50 +128,50 @@ const EditPartyForm = ({ party, onAction, closeDialog, userRole, members }) => {
         <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                    <Label htmlFor="name">Nome do Partido</Label>
+                    <Label htmlFor="name" className="flex items-center gap-2"><Building className="h-4 w-4 text-primary"/>Nome do Partido</Label>
                     <Input id="name" value={formData.name} onChange={(e) => setFormData(p=>({...p, name: e.target.value}))} />
                 </div>
                 <div className="space-y-2">
-                    <Label htmlFor="acronym">Sigla</Label>
+                    <Label htmlFor="acronym" className="flex items-center gap-2"><Hash className="h-4 w-4 text-primary"/>Sigla</Label>
                     <Input id="acronym" value={formData.acronym} onChange={(e) => setFormData(p=>({...p, acronym: e.target.value}))} />
                 </div>
             </div>
              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {userRole === 'Dono' && (
                     <div className="space-y-2">
-                        <Label htmlFor="owner">Dono</Label>
+                        <Label htmlFor="owner" className="flex items-center gap-2"><Crown className="h-4 w-4 text-primary"/>Dono</Label>
                         <CitizenSelector label="Selecionar dono" value={formData.owner_id || ''} eligibleIds={members.map(member => member.profile.id)} onChange={id => setFormData(current => ({...current, owner_id: id}))} />
                     </div>
                 )}
                 <div className="space-y-2">
-                    <Label htmlFor="president">Presidente</Label>
+                    <Label htmlFor="president" className="flex items-center gap-2"><Shield className="h-4 w-4 text-primary"/>Presidente</Label>
                     <CitizenSelector label="Selecionar presidente" value={formData.president_id || ''} eligibleIds={members.map(member => member.profile.id)} onChange={id => setFormData(current => ({...current, president_id: id}))} />
                 </div>
                 <div className="space-y-2">
-                    <Label htmlFor="vice_president">Vice-Presidente</Label>
+                    <Label htmlFor="vice_president" className="flex items-center gap-2"><UserCheck className="h-4 w-4 text-primary"/>Vice-Presidente</Label>
                     <CitizenSelector label="Selecionar vice-presidente" value={formData.vice_president_id || ''} eligibleIds={members.map(member => member.profile.id)} onChange={id => setFormData(current => ({...current, vice_president_id: id}))} />
                 </div>
             </div>
             <div className="space-y-2">
-                <Label htmlFor="orientation">Orientação Política</Label>
+                <Label htmlFor="orientation" className="flex items-center gap-2"><Compass className="h-4 w-4 text-primary"/>Orientação Política</Label>
                 <Select onValueChange={(v) => setFormData(p => ({...p, orientation: v}))} value={formData.orientation}>
                     <SelectTrigger><SelectValue placeholder="Selecione a orientação" /></SelectTrigger>
                     <SelectContent>{politicalOrientations.map(o => <SelectItem key={o} value={o}><span className={`rounded px-2 py-1 text-xs ${orientationColors[o]}`}>{o}</span></SelectItem>)}</SelectContent>
                 </Select>
             </div>
              <div className="space-y-2">
-                <Label htmlFor="description">Descrição Curta</Label>
+                <Label htmlFor="description" className="flex items-center gap-2"><FileText className="h-4 w-4 text-primary"/>Descrição Curta</Label>
                 <Input id="description" value={formData.description} onChange={(e) => setFormData(p=>({...p, description: e.target.value}))} />
             </div>
             <div className="space-y-2">
-                <Label htmlFor="ideology">Ideologia</Label>
+                <Label htmlFor="ideology" className="flex items-center gap-2"><Lightbulb className="h-4 w-4 text-primary"/>Ideologia</Label>
                 <Textarea id="ideology" value={formData.ideology} onChange={(e) => setFormData(p=>({...p, ideology: e.target.value}))} />
             </div>
             <div className="space-y-2">
-                <Label htmlFor="statute">Estatuto</Label>
+                <Label htmlFor="statute" className="flex items-center gap-2"><ScrollText className="h-4 w-4 text-primary"/>Estatuto</Label>
                 <Textarea id="statute" value={formData.statute} onChange={(e) => setFormData(p=>({...p, statute: e.target.value}))} rows={5} />
             </div>
-            <ImageUploader onUrlChange={(url) => setFormData(p=>({...p, logo_url: url}))} onFileChange={setLogoFile} initialUrl={formData.logo_url} label="Logo do Partido" />
+            <ImageUploader previewOnly onUrlChange={(url) => setFormData(p=>({...p, logo_url: url}))} onFileChange={setLogoFile} initialUrl={formData.logo_url} label="Logo do Partido" />
             <DialogFooter>
                 <Button type="submit" disabled={loading}>
                     {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4"/>}

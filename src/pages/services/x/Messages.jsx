@@ -25,13 +25,20 @@ const XMessages = () => {
         const viewport = window.visualViewport;
         const resize = () => {
             const top = chatShell.current?.getBoundingClientRect().top || 0;
-            setViewportHeight(Math.max(200, (viewport?.height || window.innerHeight) + (viewport?.offsetTop || 0) - top - 12));
+            const viewportBottom = (viewport?.height || window.innerHeight) + (viewport?.offsetTop || 0);
+            const navs = [...document.querySelectorAll('[aria-label="Navegação principal móvel"], [data-x-mobile-navigation]')];
+            const bottom = navs.reduce((edge, nav) => { const rect = nav.getBoundingClientRect(); return rect.height && rect.top > top ? Math.min(edge, rect.top) : edge; }, viewportBottom);
+            setViewportHeight(Math.max(120, bottom - top - 12));
         };
         resize();
         viewport?.addEventListener('resize', resize);
         viewport?.addEventListener('scroll', resize);
         window.addEventListener('resize', resize);
-        return () => { viewport?.removeEventListener('resize', resize); viewport?.removeEventListener('scroll', resize); window.removeEventListener('resize', resize); };
+        window.addEventListener('scroll', resize, { passive: true });
+        const observer = new ResizeObserver(resize);
+        if (chatShell.current) observer.observe(chatShell.current);
+        document.querySelectorAll('[aria-label="Navegação principal móvel"], [data-x-mobile-navigation]').forEach(nav => observer.observe(nav));
+        return () => { observer.disconnect(); viewport?.removeEventListener('resize', resize); viewport?.removeEventListener('scroll', resize); window.removeEventListener('resize', resize); window.removeEventListener('scroll', resize); };
     }, []);
 
     const fetchConversations = useCallback(async () => {

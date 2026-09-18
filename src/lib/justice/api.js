@@ -283,7 +283,7 @@ export const issueCaseAcquittal = async ({ caseId, reason }) => throwIfError(
   await supabase.rpc('issue_case_acquittal', { p_case_id: caseId, p_legal_reasoning: reason })
 );
 
-export const issueCriminalSentence = async ({ caseId, defendantId, reason, sentenceUnits = 1, fineAmount = 0, prisonRegime = 'closed' }) => throwIfError(
+export const issueCriminalSentence = async ({ caseId, defendantId, reason, sentenceUnits = 1, fineAmount = 0, prisonRegime = 'closed', specialJustification = '' }) => throwIfError(
   await supabase.rpc('issue_criminal_sentence', {
     p_case_id: caseId,
     p_defendant_id: defendantId,
@@ -292,7 +292,7 @@ export const issueCriminalSentence = async ({ caseId, defendantId, reason, sente
     p_final_sentence_units: Number(sentenceUnits),
     p_fine_amount: Number(fineAmount),
     p_prison_regime: prisonRegime,
-    p_special_justification: null,
+    p_special_justification: specialJustification.trim() || null,
   })
 );
 

@@ -1,4 +1,3 @@
-import MarketplaceManagement from '@/components/business/MarketplaceManagement';
 import ReportProduct from '@/components/business/ReportProduct';
 import { useMarketplace } from '@/hooks/use-marketplace';
 import BuyDialog from '@/components/business/PurchaseDialog';
@@ -167,8 +166,8 @@ const ProductCard = ({ now, product, onAddToCart, onBuy, onEdit, onDelete, isOwn
             </Button>
           ) : (
             <div className="w-full flex flex-col gap-2 no-navigate">
-                <Button className="w-full" onClick={(e) => { e.stopPropagation(); onBuy(product); }} disabled={isOutOfStock || isRestricted}>
-                    {isRestricted ? 'Atividade suspensa por norma vigente' : isOutOfStock ? 'Esgotado' : (product.product_type === 'subscription' ? <><Star className="w-4 h-4 mr-2" /> Assinar</> : <><ShoppingBag className="w-4 h-4 mr-2" />Comprar</>)}
+                <Button className={`w-full ${product.product_type === 'subscription' ? 'bg-purple-600 hover:bg-purple-500 text-white' : ''}`} onClick={(e) => { e.stopPropagation(); onBuy(product); }} disabled={isOutOfStock || isRestricted}>
+                    {isRestricted ? 'Atividade suspensa por norma vigente' : isOutOfStock ? 'Esgotado' : (product.product_type === 'subscription' ? <><Repeat className="w-4 h-4 mr-2" /> Assinar</> : <><ShoppingBag className="w-4 h-4 mr-2" />Comprar</>)}
                 </Button>
                 <ReportProduct product={product} />
                 {product.product_type !== 'subscription' && (
@@ -333,7 +332,7 @@ const Business = () => {
         centered={true}
       />
 
-      {enterprise && <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border p-4"><p className="text-sm">{enterprise.is_privatized ? 'Marketplace privatizado' : 'Marketplace estatal'} · Comissão do vendedor: {enterprise.commission_type === 'percentage' ? `${enterprise.commission_value}%` : formatCurrency(enterprise.commission_value)} por venda · {enterprise.publication_mode === 'approval' ? 'Anúncios sujeitos à aprovação' : 'Publicação automática'}{!enterprise.is_active ? ' · Operação suspensa' : ''}</p><MarketplaceManagement /></div>}
+      {enterprise && <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border p-4"><p className="text-sm">{enterprise.is_privatized ? 'Marketplace privatizado' : 'Marketplace estatal'} · Comissão do vendedor: {enterprise.commission_type === 'percentage' ? `${enterprise.commission_value}%` : formatCurrency(enterprise.commission_value)} por venda · {enterprise.publication_mode === 'approval' ? 'Anúncios sujeitos à aprovação' : 'Publicação automática'}{!enterprise.is_active ? ' · Operação suspensa' : ''}</p></div>}
       <div className="mb-8 space-y-4">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div className="relative w-full md:max-w-sm">

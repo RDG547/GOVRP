@@ -402,9 +402,9 @@ const CandidacyManagement = () => {
                         </div>
                     )}
 
-                    <DialogFooter>
+                    <DialogFooter className="gap-3 sm:space-x-0">
                         <DialogClose asChild>
-                            <Button variant="outline">Cancelar</Button>
+                            <Button variant="outline"><X className="mr-2 h-4 w-4"/>Cancelar</Button>
                         </DialogClose>
                         <Button
                             onClick={handleConfirmAction}
@@ -415,7 +415,7 @@ const CandidacyManagement = () => {
                             {actionType === 'approve' && 'Confirmar Aprovação'}
                             {actionType === 'reject' && 'Confirmar Rejeição'}
                             {actionType === 'edit' && 'Salvar Alterações'}
-                            {actionType === 'delete' && 'Excluir Permanentemente'}
+                            {actionType === 'delete' && <><Trash2 className="mr-2 h-4 w-4"/>Excluir Permanentemente</>}
                         </Button>
                     </DialogFooter>
                 </DialogContent>

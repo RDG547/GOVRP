@@ -266,6 +266,7 @@ const AuthorityJusticeDashboard = () => {
           sentenceUnits: action.sentenceUnits,
           fineAmount: action.fineAmount,
           prisonRegime: action.prisonRegime,
+          specialJustification: action.specialJustification || '',
         });
       } else if (action.type === 'appeal-decision') {
         await decideCaseAppeal({ appealId: action.appeal.id, outcome: action.outcome, decision: reason });
@@ -710,6 +711,7 @@ const AuthorityJusticeDashboard = () => {
             {action?.type === 'convict' ? <div className="grid grid-cols-2 gap-3"><div><Label htmlFor="sentence-units">Pena (anos RP)</Label><Input id="sentence-units" type="number" min="0.1" step="0.1" value={action.sentenceUnits} onChange={(event) => updateAction({ sentenceUnits: event.target.value })} /></div><div><Label htmlFor="sentence-fine">Multa</Label><Input id="sentence-fine" type="number" min="0" step="0.01" value={action.fineAmount} onChange={(event) => updateAction({ fineAmount: event.target.value })} /></div><div className="col-span-2"><Label>Regime</Label><Select value={action.prisonRegime} onValueChange={(value) => updateAction({ prisonRegime: value })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="open">Aberto</SelectItem><SelectItem value="semi_open">Semiaberto</SelectItem><SelectItem value="closed">Fechado</SelectItem><SelectItem value="maximum_security">Segurança máxima</SelectItem></SelectContent></Select></div></div> : null}
             {action?.type === 'fine-hearing' && action.status === 'scheduled' ? <><Label htmlFor="hearing-date">Data e hora (Brasília)</Label><Input id="hearing-date" type="datetime-local" value={scheduledAt} onChange={(event) => setScheduledAt(event.target.value)} /></> : null}
             {action?.type === 'issue-fine' && <><Label>Cidadão</Label><CitizenSelector value={action.userId} onChange={value => updateAction({userId:value})}/><Label htmlFor="fine-amount">Valor da multa (R$)</Label><Input id="fine-amount" type="number" min="0.01" step="0.01" value={action.amount} onChange={event => updateAction({ amount: event.target.value })} /><Label htmlFor="fine-due-date">Vencimento (Brasília)</Label><Input id="fine-due-date" type="datetime-local" value={scheduledAt} onChange={event => setScheduledAt(event.target.value)} /></>}
+            {action?.type === 'convict' && <div className="space-y-2"><Label htmlFor="sentence-special-justification">Justificativa especial para pena fora dos limites legais</Label><Textarea id="sentence-special-justification" value={action.specialJustification || ''} onChange={event => updateAction({ specialJustification: event.target.value })} minLength={40} rows={4} aria-describedby="sentence-special-help"/><p id="sentence-special-help" className="text-xs text-muted-foreground">Obrigatória quando a pena ultrapassa os limites da norma aplicável ao caso. Mínimo de 40 caracteres; não substitui a fundamentação da sentença. {(action.specialJustification || '').trim().length} / 40</p></div>}
             <Label htmlFor="authority-reason">Fundamentação (mínimo de {actionReasonMinimum} caracteres)</Label>
             <Textarea
               id="authority-reason"
@@ -732,7 +734,7 @@ const AuthorityJusticeDashboard = () => {
                 || (action?.type === 'fine-hearing' && action.status === 'scheduled' && !scheduledAt)
                 || (action?.type === 'evidence' && action.title?.trim().length < 5)
                 || (action?.type === 'file-charge' && (!action.defendantId || !action.penalCodeId || action.title?.trim().length < 5))
-                || (action?.type === 'convict' && !action.defendantId)
+                || (action?.type === 'convict' && (!action.defendantId || (action.specialJustification?.trim().length > 0 && action.specialJustification.trim().length < 40)))
                 || (action?.type === 'issue-fine' && (!action.userId || !Number.isFinite(Number(action.amount)) || Number(action.amount) <= 0 || !scheduledAt || new Date(fromBrasiliaInput(scheduledAt)).getTime() <= now))}
             >
               {acting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Briefcase className="mr-2 h-4 w-4" />}

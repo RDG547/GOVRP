@@ -300,6 +300,7 @@ const MobileBottomNav = ({
   setServicesOpen,
   onDashboard,
 }) => {
+  const { user } = useAuth();
   const location = useLocation();
   const isServicesRoute = location.pathname === '/services' || location.pathname.startsWith('/services/');
   const isDashboardRoute =
@@ -386,7 +387,7 @@ const MobileBottomNav = ({
         className="fixed inset-x-0 bottom-0 z-[70] border-t border-border/90 bg-background/95 px-2 pt-1 shadow-[0_-12px_35px_rgba(0,0,0,0.32)] backdrop-blur-xl"
         style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 0.25rem)' }}
       >
-        <div className="mx-auto grid h-[4.5rem] max-w-lg grid-cols-5 gap-1">
+        <div className={`mx-auto grid h-[4.5rem] max-w-lg gap-1 ${user ? 'grid-cols-5' : 'grid-cols-4'}`}>
           <Link
             to="/"
             aria-current={location.pathname === '/' ? 'page' : undefined}
@@ -414,7 +415,7 @@ const MobileBottomNav = ({
             <span className="truncate">Serviços</span>
           </button>
 
-          <CitizenNeedsHUD mobile />
+          {user && <CitizenNeedsHUD mobile />}
           <button
             type="button"
             aria-current={isDashboardRoute ? 'page' : undefined}

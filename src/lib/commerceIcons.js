@@ -1,8 +1,11 @@
-import { Utensils, Droplets, Home, Car, Shirt, Laptop, Wrench, Package, Building2, HardHat, HeartPulse, GraduationCap, Newspaper, Wifi, Hammer, Wheat, Hotel, Palette, Coffee, Store, Briefcase, Radio, Truck, Landmark } from 'lucide-react';
+import { Utensils, Droplets, Home, Car, Shirt, Laptop, Wrench, Package, Building2, HardHat, HeartPulse, GraduationCap, Newspaper, Wifi, Hammer, Wheat, Hotel, Palette, Coffee, Store, Briefcase, Radio, Truck, Landmark, Shield, Boxes, Lightbulb } from 'lucide-react';
 
 export const categoryIcon = category => ({ Alimentos: Utensils, Bebidas: Droplets, Moradia: Home, Casa: Home, Veículos: Car, Vestuário: Shirt, Eletrônicos: Laptop, Serviços: Wrench })[category] || Package;
 export function businessTypeIcon(type) {
   const label = `${type?.id || ''} ${type?.name || ''} ${type?.category || ''}`.toLocaleLowerCase('pt-BR');
+  if (/seguran|vigil/.test(label)) return Shield;
+  if (/distribui|atacad/.test(label)) return Boxes;
+  if (/consultor/.test(label)) return Lightbulb;
   if (/café|cafe|cafeteria/.test(label)) return Coffee;
   if (/saúde|saude|clínica|clinica|hospital/.test(label)) return HeartPulse;
   if (/educa|escola|universidade/.test(label)) return GraduationCap;

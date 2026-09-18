@@ -58,7 +58,11 @@
     "test:fine-appeal-recovery": "node tools/test-fine-appeal-recovery.mjs",
     "test:party-leadership-lifecycle": "node tools/test-party-leadership-lifecycle.mjs",
     "test:avatar-interface": "node tools/test-avatar-interface.mjs",
-    "test:administration-interface": "node tools/test-administration-interface.mjs"
+    "test:administration-interface": "node tools/test-administration-interface.mjs",
+    "test:institutional-transitions": "node tools/test-institutional-transitions.mjs",
+    "test:electoral-authority": "node tools/test-electoral-time-and-authority.mjs",
+    "test:institutional-interface": "node tools/test-institutional-interface.mjs",
+    "test:exchange-history-realtime": "node tools/test-exchange-history-realtime.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.0",
