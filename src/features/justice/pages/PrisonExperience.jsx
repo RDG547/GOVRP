@@ -1,3 +1,4 @@
+import { getServiceByKey } from '@/lib/serviceCatalog';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
@@ -8,7 +9,6 @@ import {
   Clock3,
   HeartPulse,
   Loader2,
-  Tally5,
   RefreshCw,
   Scale,
   Shield,
@@ -172,7 +172,7 @@ const PrisonExperience = () => {
         <Helmet><title>Sistema Prisional - GOV.RP</title></Helmet>
         <div className="mx-auto max-w-5xl px-4 py-12">
           <PageHeader
-            icon={Shield}
+            icon={getServiceByKey('/services/prison').icon}
             title="Sistema"
             gradientText="Prisional"
             description="Custódia, ressocialização e acompanhamento penitenciário do GOVRP."
@@ -245,7 +245,7 @@ const PrisonExperience = () => {
               tone="red"
             />
             <JusticeStatCard
-              icon={Tally5}
+              icon={getServiceByKey('/services/prison').icon}
               label="Cela"
               value={data.term.cell?.code || 'Triagem'}
               tone="amber"

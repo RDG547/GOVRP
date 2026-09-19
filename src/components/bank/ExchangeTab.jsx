@@ -240,7 +240,7 @@ const ExchangeTab = ({ onUpdate, account }) => {
                       <span className="text-right">
                         <span className="block font-mono text-primary">R$ {Number(row?.brl_per_unit || 0).toFixed(4)}</span>
                         <span className={`inline-flex items-center text-xs ${variation < 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
-                          {variation == null ? 'Histórico de 24h indisponível' : <><TrendIcon className="mr-1 h-3 w-3" />{variation >= 0 ? '+' : ''}{variation.toFixed(2)}% nas últimas 24h</>}
+                          {variation == null ? 'Histórico de 24h indisponível' : <><TrendIcon className="mr-1 h-3 w-3" />{variation >= 0 ? '+' : ''}{variation.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}% nas últimas 24h</>}
                         </span>
                       </span>
                     </li>

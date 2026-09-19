@@ -246,14 +246,14 @@ const ReceiptDownloadDialog = ({ receipt, onBack }) => {
                                     {(loading === 'share-png' || loading === 'share-pdf') ? <Loader2 className="animate-spin mr-2" /> : <Share2 className="mr-2 h-4 w-4" />} Compartilhar
                                 </Button>
                             </AlertDialogTrigger>
-                            <AlertDialogContent className="left-[50vw] top-[50dvh]">
-                                <AlertDialogHeader>
+                            <AlertDialogContent className="max-w-sm text-center">
+                                <AlertDialogHeader className="text-center sm:text-center">
                                     <AlertDialogTitle>Compartilhar Comprovante</AlertDialogTitle>
                                     <AlertDialogDescription>
                                         Escolha o formato em que deseja compartilhar o comprovante.
                                     </AlertDialogDescription>
                                 </AlertDialogHeader>
-                                <AlertDialogFooter className="gap-2 sm:space-x-0">
+                                <AlertDialogFooter className="gap-2 sm:justify-center sm:space-x-0">
                                     <AlertDialogCancel className="m-0"><X className="mr-2 h-4 w-4"/>Cancelar</AlertDialogCancel>
                                     <AlertDialogAction onClick={() => shareFile('png')} className="bg-gray-700 hover:bg-gray-600"><ImageIcon className="mr-2 h-4 w-4"/>PNG</AlertDialogAction>
                                     <AlertDialogAction onClick={() => shareFile('pdf')} className="bg-blue-600 hover:bg-blue-500"><FileText className="mr-2 h-4 w-4"/>PDF</AlertDialogAction>

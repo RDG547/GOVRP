@@ -4,7 +4,7 @@ import { supabase } from '@/lib/supabaseClient';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDomainRealtime } from '@/hooks/use-domain-realtime';
 import { useToast } from '@/components/ui/use-toast';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, parseCurrency } from '@/lib/utils';
 import { formatDateTimeBR } from '@/lib/dateTime';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -35,7 +35,7 @@ export default function PartyTreasury({ party }) {
     { table: 'party_treasury_entries', filter: `party_id=eq.${party.id}` },
   ], load);
   const donate = async () => {
-    const value = Number(amount);
+    const value = parseCurrency(amount);
     if (busy || !Number.isFinite(value) || value <= 0) return;
     if (intent.current?.amount !== value || intent.current?.partyId !== party.id) intent.current = { id: crypto.randomUUID(), amount: value, partyId: party.id };
     setBusy(true);
@@ -58,6 +58,6 @@ export default function PartyTreasury({ party }) {
     <ol className="space-y-3" aria-label="Movimentações do caixa partidário">{entries.map(entry => <li key={entry.id} className="flex min-w-0 items-start gap-3 rounded-lg border p-3"><Avatar className="shrink-0"><AvatarImage src={entry.donor_snapshot.avatar_url}/><AvatarFallback>{entry.donor_snapshot.full_name?.charAt(0) || '?'}</AvatarFallback></Avatar><div className="min-w-0 flex-1"><p className="break-words font-medium">{entry.donor_snapshot.full_name || 'Cidadão indisponível'}</p><p className="text-xs text-muted-foreground">{entry.description} · {formatDateTimeBR(entry.created_at)}</p><p className="mt-1 flex items-center gap-1 text-emerald-400"><ArrowDownLeft className="h-4 w-4"/>{formatCurrency(entry.amount)}</p></div></li>)}</ol>
     {!failed && balance != null && !entries.length && <p className="text-sm text-muted-foreground">Nenhuma movimentação nesta página.</p>}
     <div className="flex items-center justify-between gap-2"><Button variant="outline" size="sm" disabled={!page} onClick={() => setPage(page - 1)}>Anterior</Button><span className="text-xs">Página {page + 1}</span><Button variant="outline" size="sm" disabled={entries.length < 20} onClick={() => setPage(page + 1)}>Próxima</Button></div>
-    <Dialog open={open} onOpenChange={next => { if (!busy) setOpen(next); }}><DialogContent><DialogHeader><DialogTitle>Doar para {party.acronym}</DialogTitle><DialogDescription>O valor será debitado da sua conta e creditado no caixa de {party.name}. Seu nome, foto, valor e data aparecerão na transparência do partido.</DialogDescription></DialogHeader><Label htmlFor="party-donation-amount">Valor da doação (R$)</Label><Input id="party-donation-amount" type="number" inputMode="decimal" min="0.01" max="100000000" step="0.01" value={amount} disabled={busy} onChange={e => setAmount(e.target.value)}/><DialogFooter className="gap-2"><Button variant="outline" disabled={busy} onClick={() => setOpen(false)}><X className="mr-2 h-4 w-4"/>Cancelar</Button><Button disabled={busy || !(Number(amount) > 0)} onClick={donate}>{busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Check className="mr-2 h-4 w-4"/>}Confirmar doação</Button></DialogFooter></DialogContent></Dialog>
+    <Dialog open={open} onOpenChange={next => { if (!busy) setOpen(next); }}><DialogContent className="max-w-md text-center"><DialogHeader className="sm:text-center"><DialogTitle>Doar para {party.name} ({party.acronym})</DialogTitle><DialogDescription>O valor será debitado da sua conta e creditado no caixa de {party.name}. Seu nome, foto, valor e data aparecerão na transparência do partido.</DialogDescription></DialogHeader><Label htmlFor="party-donation-amount">Valor da doação (R$)</Label><Input id="party-donation-amount" inputMode="numeric" placeholder="R$ 0,00" value={amount} disabled={busy} onChange={e => setAmount(formatCurrency(e.target.value, true))}/><DialogFooter className="gap-2 sm:justify-center sm:space-x-0"><Button variant="outline" disabled={busy} onClick={() => setOpen(false)}><X className="mr-2 h-4 w-4"/>Cancelar</Button><Button disabled={busy || !(parseCurrency(amount) > 0)} onClick={donate}>{busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Check className="mr-2 h-4 w-4"/>}Confirmar doação</Button></DialogFooter></DialogContent></Dialog>
   </CardContent></Card>;
 }

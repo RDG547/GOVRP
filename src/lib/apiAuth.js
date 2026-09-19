@@ -1,34 +1,39 @@
 import { supabase } from './supabaseClient';
 
-export const getSessionAccessToken = async () => {
-  const {
-    data: { session },
-    error,
-  } = await supabase.auth.getSession();
-
-  if (error) {
-    throw error;
+const refreshes = new WeakMap();
+const refresh = async (client) => {
+  if (!refreshes.has(client)) {
+    refreshes.set(client, client.auth.refreshSession().finally(() => refreshes.delete(client)));
   }
-
-  if (!session?.access_token) {
-    throw new Error('Sessão autenticada não encontrada.');
-  }
-
-  return session.access_token;
+  const { data, error } = await refreshes.get(client);
+  if (error || !data?.session?.access_token) throw new Error('Sua sessão expirou. Entre novamente para continuar.');
+  return data.session;
 };
 
-export const fetchWithSessionAuth = async (input, init = {}) => {
-  const accessToken = await getSessionAccessToken();
-  const headers = new Headers(init.headers || {});
+export async function readySession(client = supabase) {
+  const { data, error } = await client.auth.getSession();
+  if (error || !data?.session?.access_token) throw new Error('Sua sessão expirou. Entre novamente para continuar.');
+  if (data.session.expires_at * 1000 <= Date.now() + 45000) return refresh(client);
+  return data.session;
+}
 
-  headers.set('Authorization', `Bearer ${accessToken}`);
-
-  if (init.body && !headers.has('Content-Type')) {
-    headers.set('Content-Type', 'application/json');
+// Retry only a rejected authentication, never a denied permission or a mutation error.
+// The server checks the current database role on every request.
+export async function fetchWithSessionAuth(url, options = {}, client = supabase, transport = fetch) {
+  let session = await readySession(client);
+  const send = token => {
+    const headers = new Headers(options.headers || {});
+    headers.set('Authorization', `Bearer ${token}`);
+    if (options.body && !headers.has('Content-Type')) headers.set('Content-Type', 'application/json');
+    return transport(url, { ...options, headers });
+  };
+  let response = await send(session.access_token);
+  if (response.status === 401) {
+    const current = await readySession(client);
+    session = current.access_token !== session.access_token ? current : await refresh(client);
+    response = await send(session.access_token);
   }
+  return response;
+}
 
-  return fetch(input, {
-    ...init,
-    headers,
-  });
-};
+export const getSessionAccessToken = async () => (await readySession()).access_token;

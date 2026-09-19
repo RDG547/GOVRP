@@ -73,8 +73,8 @@ const DocumentCard = ({ doc, onVisualize, onGenerate, onDelete }) => {
                     <Button variant="outline" size="sm" onClick={() => onVisualize(doc)}><Eye className="w-4 h-4 mr-2" />Visualizar</Button>
                     <Dialog>
                         <DialogTrigger asChild><Button variant="secondary" size="sm"><Download className="w-4 h-4 mr-2" />Baixar Documento</Button></DialogTrigger>
-                        <DialogContent>
-                            <DialogHeader><DialogTitle>Baixar Documento</DialogTitle></DialogHeader>
+                        <DialogContent className="max-w-xs text-center">
+                            <DialogHeader className="sm:text-center"><DialogTitle>Baixar Documento</DialogTitle></DialogHeader>
                             <div className="flex justify-center gap-4 py-4">
                                 <Button className="bg-cyan-700 hover:bg-cyan-600" onClick={() => onGenerate(doc, 'png')}><ImageIcon className="w-4 h-4 mr-2" />PNG</Button>
                                 <Button className="bg-red-700 hover:bg-red-600" onClick={() => onGenerate(doc, 'pdf')}><FileText className="w-4 h-4 mr-2" />PDF</Button>

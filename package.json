@@ -62,7 +62,11 @@
     "test:institutional-transitions": "node tools/test-institutional-transitions.mjs",
     "test:electoral-authority": "node tools/test-electoral-time-and-authority.mjs",
     "test:institutional-interface": "node tools/test-institutional-interface.mjs",
-    "test:exchange-history-realtime": "node tools/test-exchange-history-realtime.mjs"
+    "test:exchange-history-realtime": "node tools/test-exchange-history-realtime.mjs",
+    "test:alteration-one": "node tools/test-alteration-one-security.mjs",
+    "test:alteration-one-interface": "node tools/test-alteration-one-interface.mjs",
+    "test:document-layout": "node tools/test-document-layout.mjs",
+    "test:api-auth": "node tools/test-api-auth.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.0",

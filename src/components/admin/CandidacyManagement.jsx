@@ -1,3 +1,6 @@
+import { useAuth } from '@/contexts/AuthContext';
+import { useDomainRealtime } from '@/hooks/use-domain-realtime';
+import { readySession } from '@/lib/apiAuth';
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { useToast } from '@/components/ui/use-toast';
@@ -27,6 +30,7 @@ const statusConfig = {
 };
 
 const CandidacyManagement = () => {
+    const { user, loading: authLoading } = useAuth();
     const [candidates, setCandidates] = useState([]);
     const [elections, setElections] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -44,7 +48,6 @@ const CandidacyManagement = () => {
     const { toast } = useToast();
 
     const fetchCandidates = useCallback(async () => {
-        setLoading(true);
         let query = supabase
             .from('candidates')
             .select(`
@@ -63,6 +66,7 @@ const CandidacyManagement = () => {
                 vice:profiles!candidates_vice_candidate_id_fkey(full_name, avatar_url),
                 party:political_parties(name, acronym)
             `)
+            .is('removed_at', null)
             .order('created_at', { ascending: false });
 
         if (filterStatus !== 'all') {
@@ -100,6 +104,8 @@ const CandidacyManagement = () => {
         fetchElections();
     }, [toast]);
 
+    useDomainRealtime('admin-candidacies', user?.id, ['candidates'], fetchCandidates, Boolean(user?.id));
+
     const handleActionClick = (candidate, type) => {
         setSelectedCandidate(candidate);
         setActionType(type);
@@ -115,7 +121,7 @@ const CandidacyManagement = () => {
     };
 
     const handleConfirmAction = async () => {
-        if (!selectedCandidate || !actionType) return;
+        if (!selectedCandidate || !actionType || isProcessing || authLoading || user?.role !== 'Admin') return;
 
         if (actionType === 'reject' && !feedback.trim()) {
             toast({ title: "Erro de validação", description: "O motivo da rejeição é obrigatório.", variant: "destructive" });
@@ -125,6 +131,7 @@ const CandidacyManagement = () => {
         setIsProcessing(true);
 
         try {
+            await readySession();
             if (actionType === 'approve' || actionType === 'reject') {
                 const rpcName = actionType === 'approve' ? 'approve_candidacy' : 'reject_candidacy';
                 const { data, error } = await supabase.rpc(rpcName, {
@@ -134,22 +141,11 @@ const CandidacyManagement = () => {
                 if (error || !data.success) throw new Error(data?.message || error.message);
                 toast({ title: "Sucesso!", description: data.message });
             } else if (actionType === 'edit') {
-                const { error } = await supabase
-                    .from('candidates')
-                    .update({
-                        political_name: editForm.political_name,
-                        bio: editForm.bio,
-                        proposals: editForm.proposals,
-                        admin_feedback: feedback || null,
-                    })
-                    .eq('id', selectedCandidate.id);
+                const { error } = await supabase.rpc('admin_manage_candidacy', { p_candidate_id: selectedCandidate.id, p_action: 'edit', p_changes: { ...editForm, admin_feedback: feedback || null } });
                 if (error) throw error;
                 toast({ title: "Sucesso!", description: "Candidatura atualizada com sucesso." });
             } else if (actionType === 'delete') {
-                const { error } = await supabase
-                    .from('candidates')
-                    .delete()
-                    .eq('id', selectedCandidate.id);
+                const { error } = await supabase.rpc('admin_manage_candidacy', { p_candidate_id: selectedCandidate.id, p_action: 'delete' });
                 if (error) throw error;
                 toast({ title: "Sucesso!", description: "Candidatura excluída com sucesso." });
             }
@@ -408,7 +404,7 @@ const CandidacyManagement = () => {
                         </DialogClose>
                         <Button
                             onClick={handleConfirmAction}
-                            disabled={isProcessing}
+                            disabled={isProcessing || authLoading || user?.role !== 'Admin'}
                             variant={actionType === 'reject' || actionType === 'delete' ? 'destructive' : 'default'}
                         >
                             {isProcessing && <Loader2 className="animate-spin mr-2 w-4 h-4"/>}

@@ -57,7 +57,7 @@ const AdminDashboard = () => {
   const { tab: activeTabParam } = useParams();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState(
-    tabs.find((tab) => tab.id === activeTabParam)?.id || 'analytics'
+    tabs.find((tab) => tab.id === activeTabParam)?.id || 'users'
   );
   const [stats, setStats] = useState({});
   const [growthStats, setGrowthStats] = useState({});
@@ -78,7 +78,7 @@ const AdminDashboard = () => {
         inline: 'center',
       });
     } else {
-      setActiveTab('analytics');
+      setActiveTab('users');
     }
   }, [activeTabParam]);
 

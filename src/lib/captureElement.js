@@ -27,7 +27,7 @@ export async function captureElement(element, { scale = 2, backgroundColor = '#f
         if (!target) return;
         let parent = target;
         while (parent && parent !== clone.body) {
-          parent.style.transform = 'none'; parent.style.perspective = 'none';
+          if (!parent.hasAttribute('data-document-layout')) parent.style.transform = 'none'; parent.style.perspective = 'none';
           parent.style.opacity = '1'; parent.style.visibility = 'visible';
           if (parent.dataset.exportHost !== undefined) { parent.style.left = '0'; parent.style.top = '0'; }
           parent = parent.parentElement;

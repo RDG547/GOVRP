@@ -1,3 +1,4 @@
+import { politicalOrientations, orientationColors } from '@/lib/partyIdentity';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { useToast } from '@/components/ui/use-toast';
@@ -23,16 +24,6 @@ import { AlertTriangle, CheckCircle2, Edit, Loader2, Search, Trash2, Users } fro
 import { useDomainRealtime } from '@/hooks/use-domain-realtime';
 import { PARTY_REALTIME_TABLES } from '@/lib/parties';
 import UserSelectOption from '@/components/UserSelectOption';
-
-const politicalOrientations = [
-  'Extrema Esquerda',
-  'Esquerda',
-  'Centro-Esquerda',
-  'Centro',
-  'Centro-Direita',
-  'Direita',
-  'Extrema-Direita',
-];
 
 const ACTIVE_PARTY_MEMBER_THRESHOLD = 5;
 
@@ -180,12 +171,12 @@ const PartyManagement = () => {
 
     setSaving(true);
     const partyId = partyToDelete.id;
-    const { error: failedError } = await supabase.rpc('admin_close_party', { p_party_id: partyId });
+    const { error: failedError } = await supabase.rpc(partyToDelete.status === 'Encerrado' ? 'admin_permanently_delete_party' : 'admin_close_party', { p_party_id: partyId });
 
     if (failedError) {
       toast({ title: 'Erro ao encerrar partido', description: failedError.message, variant: 'destructive' });
     } else {
-      toast({ title: 'Partido encerrado' });
+      toast({ title: partyToDelete.status === 'Encerrado' ? 'Partido excluído permanentemente' : 'Partido encerrado' });
       setPartyToDelete(null);
       fetchParties();
     }
@@ -234,7 +225,7 @@ const PartyManagement = () => {
                     <CardTitle className="truncate">{party.name} ({party.acronym})</CardTitle>
                     <CardDescription className="line-clamp-2">{party.description || 'Sem descrição.'}</CardDescription>
                     <div className="mt-2 flex flex-wrap gap-2">
-                      <Badge variant="secondary">{party.orientation || 'Sem orientação'}</Badge>
+                      <Badge className={orientationColors[party.orientation] || orientationColors['Não definido']}>{party.orientation || 'Sem orientação'}</Badge>
                       <Badge variant="outline" className="gap-1">
                         <Users className="h-3 w-3" />
                         {memberCount} membros
@@ -262,9 +253,9 @@ const PartyManagement = () => {
                   <Edit className="mr-2 h-4 w-4" />
                   Editar
                 </Button>
-                <Button size="sm" variant="destructive" disabled={party.status === 'Encerrado'} onClick={() => setPartyToDelete(party)}>
+                <Button size="sm" variant="destructive" onClick={() => setPartyToDelete(party)}>
                   <Trash2 className="mr-2 h-4 w-4" />
-                  Encerrar
+                  {party.status === 'Encerrado' ? 'Excluir permanentemente' : 'Encerrar'}
                 </Button>
               </CardFooter>
             </Card>
@@ -380,16 +371,16 @@ const PartyManagement = () => {
       <AlertDialog open={Boolean(partyToDelete)} onOpenChange={(open) => !open && setPartyToDelete(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Encerrar partido?</AlertDialogTitle>
+            <AlertDialogTitle>{partyToDelete?.status === 'Encerrado' ? 'Excluir permanentemente?' : 'Encerrar partido?'}</AlertDialogTitle>
             <AlertDialogDescription>
-              Esta ação encerra {partyToDelete?.name} e as filiações atuais. Candidaturas, fundador, doações, saldo e histórico permanecem registrados.
+              {partyToDelete?.status === 'Encerrado' ? `Esta ação excluirá permanentemente o partido ${partyToDelete.name}. O histórico eleitoral, as doações e o saldo serão preservados em registros arquivados. Deseja continuar?` : `Esta ação encerra ${partyToDelete?.name} e as filiações atuais. Candidaturas, fundador, doações, saldo e histórico permanecem registrados.`}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={saving}>Cancelar</AlertDialogCancel>
             <AlertDialogAction onClick={handleDelete} disabled={saving} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
               {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-              Encerrar
+              {partyToDelete?.status === 'Encerrado' ? 'Excluir permanentemente' : 'Encerrar'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

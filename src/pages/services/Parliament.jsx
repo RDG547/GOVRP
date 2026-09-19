@@ -65,6 +65,7 @@ import {
   refreshParliamentGovernanceState,
 } from '@/lib/parliamentGovernance';
 import { filterCompatibleParliamentMembers, resolveLegislativeRoleForHouse } from '@/lib/roleResolution';
+import { useQueuedRefresh } from '@/hooks/use-queued-refresh';
 import { useDomainRealtime } from '@/hooks/use-domain-realtime';
 import { usePublicProfileChanges } from '@/hooks/use-public-profile-changes';
 
@@ -1095,7 +1096,7 @@ const Parliament = () => {
   const [activeTab, setActiveTab] = useState('members');
   const [selectedHouse, setSelectedHouse] = useState('all');
 
-  const fetchParliamentData = useCallback(async (refreshGovernance = false, events = null) => {
+  const loadParliamentData = useCallback(async (refreshGovernance = false, events = null) => {
     const sections = parliamentSectionsForEvents(events);
     try {
       if (refreshGovernance === true) await autoCloseExpiredVotings(supabase);
@@ -1262,9 +1263,8 @@ const Parliament = () => {
     }
   }, [toast, user?.id]);
 
-  useEffect(() => {
-    fetchParliamentData(true);
-  }, [fetchParliamentData]);
+  const fetchParliamentData = useQueuedRefresh(loadParliamentData, [false]);
+  useEffect(() => { void fetchParliamentData(true); }, [fetchParliamentData, loadParliamentData]);
   useDomainRealtime('parliament', user?.id, PARLIAMENT_REALTIME_TABLES, events => fetchParliamentData(false, events));
   usePublicProfileChanges(() => fetchParliamentData());
 

@@ -108,9 +108,9 @@ const BalanceCard = ({ account, onUpdate, onTransferClick, onPayClick }) => {
       <div className="shrink-0 border-l border-white/10 pl-2 text-right">
         <p className="text-[10px] uppercase tracking-wide text-blue-200/55">{getExchangePair(currency, baseCurrency)}</p>
         <p className="whitespace-nowrap text-xs font-semibold text-blue-50">{formatExchangeRate(rate.value, baseCurrency)}</p>
-        <span className={`inline-flex shrink-0 items-center gap-1 text-[11px] font-semibold ${trendClass}`} title="Variação desde o início do dia no calendário do RP">
+        <span className={`inline-flex shrink-0 items-center gap-1 text-[11px] font-semibold ${trendClass}`} title="Variação nas últimas 24 horas reais">
           <span aria-hidden="true">{trendSymbol}</span>
-          {rate.variation >= 0 ? '+' : ''}{Number(rate.variation).toFixed(2)}%
+          {rate.variation == null ? 'Sem histórico de 24h' : `${rate.variation >= 0 ? '+' : ''}${Number(rate.variation).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`}
         </span>
       </div>
     );

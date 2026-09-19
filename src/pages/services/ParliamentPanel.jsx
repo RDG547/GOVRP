@@ -6,10 +6,11 @@ import { fetchPublicProfiles } from '@/lib/publicProfiles';
 import DecreeOversight from '@/components/parliament/DecreeOversight';
 import LegalMeasureStudio from '@/components/parliament/LegalMeasureStudio';
 import PartyIdentity from '@/components/parliament/PartyIdentity';
-import { PARLIAMENT_REALTIME_TABLES } from '@/lib/parliamentRealtime';
+import { PARLIAMENT_REALTIME_TABLES, parliamentSectionsForEvents } from '@/lib/parliamentRealtime';
+import { useQueuedRefresh } from '@/hooks/use-queued-refresh';
 import { useDomainRealtime } from '@/hooks/use-domain-realtime';
 import { usePublicProfileChanges } from '@/hooks/use-public-profile-changes';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { motion } from 'framer-motion';
 import {
@@ -282,9 +283,8 @@ const ParliamentPanel = () => {
     manifesto: '',
   });
 
-  const rolePool = Array.isArray(user?.effective_roles)
-    ? user.effective_roles
-    : [user?.role].filter(Boolean);
+  const roleSignature = JSON.stringify(user?.effective_roles || [user?.role].filter(Boolean));
+  const rolePool = useMemo(() => JSON.parse(roleSignature), [roleSignature]);
   const isAdministrativeViewer =
     rolePool.includes('Admin') || rolePool.includes('Presidente');
   const canStartVote = rolePool.some((role) => canManageParliamentVoting(role));
@@ -397,8 +397,10 @@ const ParliamentPanel = () => {
     []
   );
 
-  const fetchPanelData = useCallback(async (options = {}) => {
-    const quiet = options.quiet === true;
+  const loaded = useRef(false);
+  const loadPanelData = useCallback(async (options = {}) => {
+    const quiet = options.quiet === true || loaded.current;
+    const sections = parliamentSectionsForEvents(options.events);
     if (!user) {
       return;
     }
@@ -473,34 +475,34 @@ const ParliamentPanel = () => {
         commissionsResponse,
         leadershipResponse,
       ] = await Promise.all([
-        supabase
+        (sections.includes('bills')) ? supabase
           .from('bills')
           .select('id, title, summary, full_text, status, type, created_at, author_id, house_id, author_party_snapshot, institutional_data, author:profiles(id, full_name, avatar_url, role)')
           .eq('house_id', selectedHouseId)
-          .order('created_at', { ascending: false }),
-        supabase
+          .order('created_at', { ascending: false }) : { data: [] },
+        (sections.includes('suggestions')) ? supabase
           .from('bill_suggestions')
           .select('id, title, suggestion, status, bill_type, adopted_by, adopted_bill_id, author_id, target_type, target_id, created_at, author:profiles!bill_suggestions_author_id_fkey(id, full_name, avatar_url, role)')
           .eq('target_type', 'house')
           .eq('target_id', selectedHouseId)
-          .order('created_at', { ascending: false }),
-        supabase
+          .order('created_at', { ascending: false }) : { data: [] },
+        (sections.includes('plebiscites')) ? supabase
           .from('plebiscites')
           .select('id, title, description, status, author:profiles(id, full_name, avatar_url)')
           .eq('status', 'Pendente')
-          .order('created_at', { ascending: false }),
-        supabase
+          .order('created_at', { ascending: false }) : { data: [] },
+        (sections.includes('members')) ? supabase
           .from('parliament_members')
           .select('id, user_id, house_id, term_start_date, term_end_date, profile:profiles(id, full_name, avatar_url, x_handle, role, titles), party:political_parties!parliament_members_party_id_fkey(name, acronym, logo_url)')
           .eq('house_id', selectedHouseId)
-          .order('term_start_date', { ascending: false }),
-        supabase
+          .order('term_start_date', { ascending: false }) : { data: [] },
+        (sections.includes('bills') || sections.includes('governance')) ? supabase
           .from('parliament_votings')
           .select('id, house_id, title, description, type, related_id, status, created_at, end_date, votes:parliament_voting_votes(vote, member_id)')
           .eq('house_id', selectedHouseId)
-          .eq('status', 'active'),
-        fetchCommissionGovernanceData(supabase, { houseId: selectedHouseId }),
-        fetchLeadershipGovernanceData(supabase, { houseId: selectedHouseId }),
+          .eq('status', 'active') : { data: [] },
+        sections.includes('governance') ? fetchCommissionGovernanceData(supabase, { houseId: selectedHouseId }) : {},
+        sections.includes('governance') ? fetchLeadershipGovernanceData(supabase, { houseId: selectedHouseId }) : {},
       ]);
 
       if (billsResponse.error) {
@@ -521,10 +523,13 @@ const ParliamentPanel = () => {
 
       const enrichedVotings = await resolveVotingTitles(votingsResponse.data || []);
 
+      if (sections.includes('bills')) {
       const billAuthors = await fetchPublicProfiles((billsResponse.data || []).map(bill => bill.author_id));
       setBills((billsResponse.data || []).filter(bill => bill.type !== 'IMPEACHMENT').map(bill => ({...bill,author:billAuthors.get(bill.author_id)||bill.author})));
-      setSuggestions(suggestionsResponse.data || []);
-      setPlebisciteRequests(plebiscitesResponse.data || []);
+      }
+      if (sections.includes('suggestions')) setSuggestions(suggestionsResponse.data || []);
+      if (sections.includes('plebiscites')) setPlebisciteRequests(plebiscitesResponse.data || []);
+      if (sections.includes('members')) {
       const visibleProfiles = await fetchPublicProfiles((membersResponse.data || []).map(member => member.user_id));
       const eligibleMembers = filterCompatibleParliamentMembers(
         (membersResponse.data || []).map(member => ({ ...member, profile: visibleProfiles.get(member.user_id) || member.profile })),
@@ -551,7 +556,9 @@ const ParliamentPanel = () => {
           term_end_date: member.term_end_date,
         }))
       );
-      setVotings(enrichedVotings);
+      }
+      if (sections.includes('bills') || sections.includes('governance')) setVotings(enrichedVotings);
+      if (sections.includes('governance')) {
       setCommissions(commissionsResponse.commissions || []);
       setLeadershipTerms(leadershipResponse.terms || []);
       setLeadershipElections(leadershipResponse.elections || []);
@@ -560,6 +567,8 @@ const ParliamentPanel = () => {
           Boolean(commissionsResponse.schemaReady) &&
           Boolean(leadershipResponse.schemaReady)
       );
+      }
+      loaded.current = true;
     } catch (error) {
       console.error('Erro ao carregar painel do parlamento:', error);
       setAccessData(previous => previous?.hasAccess ? previous : { hasAccess: false, reason: userErrorMessage(error) || 'Não foi possível carregar o painel parlamentar.' });
@@ -571,12 +580,11 @@ const ParliamentPanel = () => {
     } finally {
       setLoading(false);
     }
-  }, [adminTargetHouseId, isAdministrativeViewer, resolveVotingTitles, rolePool, toast, user]);
+  }, [adminTargetHouseId, isAdministrativeViewer, resolveVotingTitles, rolePool, toast, user?.id, user?.role]);
 
-  useEffect(() => {
-    fetchPanelData();
-  }, [fetchPanelData]);
-  useDomainRealtime('parliament', user?.id, PARLIAMENT_REALTIME_TABLES, () => fetchPanelData({ quiet: true }), Boolean(user?.id));
+  const fetchPanelData = useQueuedRefresh(loadPanelData, [{ quiet: true }]);
+  useEffect(() => { void fetchPanelData(); }, [fetchPanelData, loadPanelData]);
+  useDomainRealtime('parliament', user?.id, PARLIAMENT_REALTIME_TABLES, events => fetchPanelData({ quiet: true, events }), Boolean(user?.id));
   usePublicProfileChanges(() => fetchPanelData({ quiet: true }));
 
   useEffect(() => {
@@ -1102,7 +1110,7 @@ const ParliamentPanel = () => {
           </div>
         )}
 
-        <div className="mb-4 flex justify-end"><ParliamentResignation houseId={house?.id} member={parliamentMember} onUpdated={() => fetchPanelData({ quiet: true })}/></div>
+        <div className="mb-4 flex justify-end"><ParliamentResignation houseId={house?.id} member={parliamentMember} hasLeadership={activeLeadershipTerms.some(term => term.member_id === parliamentMember?.id) || /Presidente d[ao]/.test(user?.stored_role || user?.role || '')} onUpdated={() => fetchPanelData({ quiet: true })}/></div>
         <Tabs value={activeMainTab} onValueChange={setActiveMainTab} className="w-full">
           <TabsList className={`grid h-auto w-full grid-cols-2 items-stretch gap-2 ${house?.name?.toLocaleLowerCase('pt-BR').includes('câmara') ? 'md:grid-cols-7' : 'md:grid-cols-6'}`}>
             <TabsTrigger className="h-full min-h-10 whitespace-normal px-2 py-2 text-center leading-tight" value="projects">

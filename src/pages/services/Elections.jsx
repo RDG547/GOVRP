@@ -79,7 +79,7 @@ const CandidatesList = ({ election, onRecorded, userVote }) => {
             if (error) {
                 toast({ title: "Erro ao buscar candidatos", description: error.message, variant: "destructive" });
             } else {
-                setCandidates(data);
+                setCandidates((data || []).map(candidate => ({ ...candidate, political_parties: candidate.political_parties || candidate.party_snapshot })));
             }
             setLoading(false);
     }, [election.id, toast]);

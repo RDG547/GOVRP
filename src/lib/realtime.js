@@ -32,8 +32,9 @@ export function subscribeToDomain(domain, scope, tables, listener) {
         ? channel.on('broadcast', { event: spec.broadcast }, ({ payload }) => emit({ eventType: 'PUBLIC_PROFILE', new: payload }))
         : channel.on('postgres_changes', { event: '*', schema: 'public', ...spec }, emit);
     });
-    entry.channel = channel.subscribe((status) => {
+    entry.channel = channel.subscribe((status, error) => {
       if (status === 'SUBSCRIBED') entry.sync();
+      if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') console.error(`Realtime ${domain}: ${status}`, error?.message || 'Verifique publicação e permissões das tabelas.');
     });
     entry.resume = () => {
       if (document.visibilityState === 'visible') entry.sync();

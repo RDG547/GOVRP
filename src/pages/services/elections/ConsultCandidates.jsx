@@ -78,8 +78,9 @@ const ConsultCandidates = () => {
           .eq('status', 'Approved');
 
         if (candidatesError) throw candidatesError;
-        setCandidates(candidatesData);
-        setFilteredCandidates(candidatesData);
+        const currentCandidates = (candidatesData || []).map(candidate => ({ ...candidate, political_parties: candidate.political_parties || candidate.party_snapshot }));
+        setCandidates(currentCandidates);
+        setFilteredCandidates(currentCandidates);
       } catch (error) {
         toast({ title: 'Erro ao carregar dados', description: error.message, variant: 'destructive' });
       } finally {

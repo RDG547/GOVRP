@@ -147,7 +147,9 @@ const ensureAdminRequester = async (supabase, request) => {
   const { data: authData, error: authError } = await supabase.auth.getUser(token);
 
   if (authError || !authData?.user?.id) {
-    throw createHttpError('Não foi possível validar a sessão administrativa.', 401);
+    console.warn('[admin:authentication]', { status: authError?.status, code: authError?.code, name: authError?.name });
+    const unavailable = authError?.status >= 500 || authError?.name === 'AuthRetryableFetchError';
+    throw createHttpError(unavailable ? 'A validação da sessão está temporariamente indisponível. Tente novamente.' : 'Sua sessão expirou. Entre novamente para continuar.', unavailable ? 503 : 401);
   }
 
   const { data: profile, error: profileError } = await supabase

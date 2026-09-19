@@ -1,3 +1,4 @@
+import { readySession, fetchWithSessionAuth } from '@/lib/apiAuth';
 import CitizenCustodyControl from '@/components/admin/CitizenCustodyControl';
 import { canonicalRole, roleIcon } from '@/lib/roleIcons';
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
@@ -9,7 +10,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader2, Edit, Trash2, Search, Wallet, Crown, KeyRound, Filter, CreditCard, User, Shield, Scale, Gavel, Briefcase, ChevronLeft, ChevronRight, Landmark, AlertTriangle, RotateCcw } from 'lucide-react';
+import { Loader2, Save, X, CalendarDays, AtSign, Award, ListChecks, Edit, Trash2, Search, Wallet, Crown, KeyRound, Filter, CreditCard, User, Shield, Scale, Gavel, Briefcase, ChevronLeft, ChevronRight, Landmark, AlertTriangle, RotateCcw } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -182,6 +183,8 @@ const EditUserDialog = ({ user, onFinish, onUpdate }) => {
     });
     const [isProcessing, setIsProcessing] = useState(false);
     const { toast } = useToast();
+    const { loading: authLoading, user: administrator, session } = useAuth();
+    const authReady = !authLoading && administrator?.role === 'Admin' && Boolean(session?.access_token);
 
     const handleChange = (e) => {
         setFormData(prev => ({ ...prev, [e.target.id]: e.target.value }));
@@ -192,19 +195,12 @@ const EditUserDialog = ({ user, onFinish, onUpdate }) => {
     };
 
     const handleSubmit = async () => {
+        if (!authReady || isProcessing) return;
         setIsProcessing(true);
         const titlesArray = formData.titles.split(',').map(t => t.trim()).filter(Boolean);
 
         try {
-            const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-            if (sessionError) {
-                throw sessionError;
-            }
-
-            const accessToken = sessionData?.session?.access_token;
-            if (!accessToken) {
-                throw new Error('Sua sessão expirou. Faça login novamente para continuar.');
-            }
+            await readySession();
 
             const { error: identityError } = await supabase.rpc('admin_update_citizen_identity', {
                 p_user_id: user.id,
@@ -217,11 +213,10 @@ const EditUserDialog = ({ user, onFinish, onUpdate }) => {
             });
             if (identityError) throw identityError;
 
-            const response = await fetch('/api/admin/update-user', {
+            const response = await fetchWithSessionAuth('/api/admin/update-user', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    Authorization: `Bearer ${accessToken}`,
                 },
                 body: JSON.stringify({
                     userId: user.id,
@@ -252,20 +247,20 @@ const EditUserDialog = ({ user, onFinish, onUpdate }) => {
 
     return (
         <DialogContent className="glass-effect max-h-[90vh] overflow-y-auto text-white">
-            <DialogHeader>
-                <DialogTitle>Editar Usuário: {user.full_name}</DialogTitle>
+            <DialogHeader className="sm:text-center">
+                <DialogTitle>Editar Usuário: {user.full_name}</DialogTitle><DialogDescription>Atualize os dados e as funções deste cidadão.</DialogDescription>
             </DialogHeader>
             <div className="py-4 space-y-4">
                 <div className="rounded-xl border border-blue-400/20 bg-blue-500/10 p-3"><p className="text-sm font-semibold text-blue-200">Dados da Conta · privados/OOC</p></div>
-                <div><Label htmlFor="real_full_name">Nome real</Label><Input id="real_full_name" value={formData.real_full_name} onChange={handleChange} /></div>
-                <div><Label htmlFor="real_birth_date">Nascimento real</Label><Input id="real_birth_date" type="date" value={formData.real_birth_date} onChange={handleChange} /></div>
+                <div><Label htmlFor="real_full_name" className="flex items-center gap-2"><User className="h-4 w-4 text-primary"/>Nome real</Label><Input id="real_full_name" value={formData.real_full_name} onChange={handleChange} /></div>
+                <div><Label htmlFor="real_birth_date" className="flex items-center gap-2"><CalendarDays className="h-4 w-4 text-primary"/>Nascimento real</Label><Input id="real_birth_date" type="date" value={formData.real_birth_date} onChange={handleChange} /></div>
                 <div className="rounded-xl border border-emerald-400/20 bg-emerald-500/10 p-3"><p className="text-sm font-semibold text-emerald-200">Dados do Cidadão · públicos/IC</p></div>
-                <div><Label htmlFor="full_name">Nome civil do personagem</Label><Input id="full_name" value={formData.full_name} onChange={handleChange} /></div>
-                <div><Label htmlFor="username">Username público</Label><Input id="username" value={formData.username} onChange={handleChange} /></div>
-                <div><Label htmlFor="character_birth_date">Nascimento do personagem</Label><Input id="character_birth_date" type="date" value={formData.character_birth_date} onChange={handleChange} /></div>
-                <div><Label htmlFor="onboarding_step">Etapa da jornada de cidadania</Label><Select value={formData.onboarding_step} onValueChange={(value) => setFormData((current) => ({ ...current, onboarding_step: value }))}><SelectTrigger id="onboarding_step"><SelectValue /></SelectTrigger><SelectContent>{Object.entries(CITIZENSHIP_STEP_LABELS).map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}</SelectContent></Select></div>
+                <div><Label htmlFor="full_name" className="flex items-center gap-2"><User className="h-4 w-4 text-primary"/>Nome civil do personagem</Label><Input id="full_name" value={formData.full_name} onChange={handleChange} /></div>
+                <div><Label htmlFor="username" className="flex items-center gap-2"><AtSign className="h-4 w-4 text-primary"/>Username público</Label><Input id="username" value={formData.username} onChange={handleChange} /></div>
+                <div><Label htmlFor="character_birth_date" className="flex items-center gap-2"><CalendarDays className="h-4 w-4 text-primary"/>Nascimento do personagem</Label><Input id="character_birth_date" type="date" value={formData.character_birth_date} onChange={handleChange} /></div>
+                <div><Label htmlFor="onboarding_step" className="flex items-center gap-2"><ListChecks className="h-4 w-4 text-primary"/>Etapa da jornada de cidadania</Label><Select value={formData.onboarding_step} onValueChange={(value) => setFormData((current) => ({ ...current, onboarding_step: value }))}><SelectTrigger id="onboarding_step"><SelectValue /></SelectTrigger><SelectContent>{Object.entries(CITIZENSHIP_STEP_LABELS).map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}</SelectContent></Select></div>
                 <div>
-                    <Label htmlFor="role">Cargo</Label>
+                    <Label htmlFor="role" className="flex items-center gap-2"><Shield className="h-4 w-4 text-primary"/>Cargo</Label>
                     <Select value={canonicalRole(formData.role)} onValueChange={handleRoleChange}>
                         <SelectTrigger id="role"><SelectValue /></SelectTrigger>
                         <SelectContent className="max-h-[200px] overflow-y-auto">
@@ -275,11 +270,11 @@ const EditUserDialog = ({ user, onFinish, onUpdate }) => {
                         </SelectContent>
                     </Select>
                 </div>
-                <div><Label htmlFor="titles">Títulos (separados por vírgula)</Label><Input id="titles" value={formData.titles} onChange={handleChange} /></div>
+                <div><Label htmlFor="titles" className="flex items-center gap-2"><Award className="h-4 w-4 text-primary"/>Títulos (separados por vírgula)</Label><Input id="titles" value={formData.titles} onChange={handleChange} /></div>
             </div>
-            <DialogFooter>
-                <DialogClose asChild><Button variant="outline">Cancelar</Button></DialogClose>
-                <Button onClick={handleSubmit} disabled={isProcessing}>{isProcessing && <Loader2 className="animate-spin mr-2 w-4 h-4"/>} Salvar</Button>
+            <DialogFooter className="gap-2 sm:justify-center sm:space-x-0">
+                <DialogClose asChild><Button variant="outline" disabled={isProcessing}><X className="mr-2 h-4 w-4"/>Cancelar</Button></DialogClose>
+                <Button onClick={handleSubmit} disabled={isProcessing || !authReady}>{isProcessing ? <Loader2 className="animate-spin mr-2 w-4 h-4"/> : <Save className="mr-2 h-4 w-4"/>}{!authReady ? 'Validando…' : 'Salvar'}</Button>
             </DialogFooter>
         </DialogContent>
     );
@@ -567,7 +562,7 @@ const UserManagement = () => {
         } else {
             setLoading(false);
         }
-    }, [fetchUsers, adminUser]);
+    }, [fetchUsers, adminUser?.id, adminUser?.role]);
 
     const handleDeleteUser = async (userId, userName) => {
         setDeletingUserId(userId);

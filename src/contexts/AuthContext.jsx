@@ -91,7 +91,7 @@ export const AuthProvider = ({ children }) => {
     }
 
     // A reset character cannot recover titles from a cached institutional state.
-    if (profile.onboarding_completed === false) {
+    if (profile.onboarding_completed === false && profile.onboarding_mode !== 'legacy_migration') {
       return { ...profile, stored_role: profile.role, effective_roles: [profile.role === 'Admin' ? 'Admin' : 'Cidadão'] };
     }
 
