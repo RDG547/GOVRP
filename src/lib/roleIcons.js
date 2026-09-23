@@ -21,6 +21,10 @@ export const ROLE_ICONS = {
 export const roleIcon = role => ROLE_ICONS[canonicalRole(role)] || User;
 
 export const officialRoleCapabilities = role => ({
+  'Presidente da Câmara dos Deputados': ['Presidente da Câmara dos Deputados', 'Deputado'],
+  'Vice-Presidente da Câmara dos Deputados': ['Vice-Presidente da Câmara dos Deputados', 'Deputado'],
+  'Presidente do Senado': ['Presidente do Senado', 'Senador'],
+  'Vice-Presidente do Senado Federal': ['Vice-Presidente do Senado Federal', 'Senador'],
   'Diretor-Geral de Polícia': ['Diretor-Geral de Polícia','Policial','Delegado'],
   'Comandante-Geral das Forças Armadas': ['Comandante-Geral das Forças Armadas','Militar'],
   'Comandante da Agência de Inteligência': ['Comandante da Agência de Inteligência','Agente Secreto'],

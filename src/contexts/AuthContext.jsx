@@ -3,32 +3,13 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
 import { supabase } from '@/lib/supabaseClient';
 import { isPrisonSentenceActive } from '@/lib/prison';
 import { fetchExecutiveConstitutionalState } from '@/lib/executiveGovernance';
-import {
-  fetchElectionOfficeSyncState,
-  resolveActiveElectionOfficeRolesForUser,
-  syncElectionOffices,
-} from '@/lib/electionOfficeSync';
-import { isManualElectionRoleSuperseded } from '@/lib/roleResolution';
+import { syncElectionOffices } from '@/lib/electionOfficeSync';
+import { getProfileRolePool } from '@/lib/roleResolution';
 import { useDomainRealtime } from '@/hooks/use-domain-realtime';
 import { getAppRedirectUrl } from '@/lib/nativeLinks';
 
 const AuthContext = createContext();
 const AUTH_FAILURE_MESSAGE = 'Credenciais inválidas. Verifique seus dados e tente novamente.';
-const EFFECTIVE_ROLE_TITLES = new Set([
-  'Presidente',
-  'Vice-Presidente',
-  'Deputado',
-  'Senador',
-  'Presidente da Câmara',
-  'Presidente da Câmara dos Deputados',
-  'Vice-Presidente da Câmara dos Deputados',
-  'Presidente do Senado',
-  'Vice-Presidente do Senado',
-  'Vice-Presidente do Senado Federal',
-  'Presidente do STF',
-  'Presidente do Banco Nacional',
-]);
-const TERM_BOUND_OFFICE_ROLES = new Set(['Presidente', 'Vice-Presidente', 'Deputado', 'Senador']);
 const AUTH_HYDRATION_TIMEOUT_MS = 15000;
 
 const withTimeout = (promise, timeoutMs, message) => {
@@ -96,54 +77,16 @@ export const AuthProvider = ({ children }) => {
     }
 
     try {
-      const [executiveState, electionOfficeState] = await Promise.all([
-        fetchExecutiveConstitutionalState(supabase),
-        fetchElectionOfficeSyncState(supabase).catch((error) => {
-          console.error('Error fetching election office sync state:', error);
-          return null;
-        }),
-      ]);
-      const grantedOfficeRoles = resolveActiveElectionOfficeRolesForUser(electionOfficeState, profile.id);
-      const grantedOfficeRoleSet = new Set(grantedOfficeRoles);
-      const hasManualRoleOverride =
-        profile.manual_role_override === true &&
-        !isManualElectionRoleSuperseded(profile, electionOfficeState);
-      const shouldExposeStoredRole =
-        profile.role &&
-        (!TERM_BOUND_OFFICE_ROLES.has(profile.role) ||
-          grantedOfficeRoleSet.has(profile.role) ||
-          hasManualRoleOverride);
-      const displayRole = shouldExposeStoredRole ? profile.role : 'Cidadão';
-      const effectiveRoles = new Set([displayRole].filter(Boolean));
-      const titleRoles = Array.isArray(profile?.titles)
-        ? profile.titles.filter((title) => {
-            if (!EFFECTIVE_ROLE_TITLES.has(title)) {
-              return false;
-            }
-
-            return !TERM_BOUND_OFFICE_ROLES.has(title) || grantedOfficeRoleSet.has(title);
-          })
-        : [];
-      const filteredGrantedOfficeRoles = grantedOfficeRoles.filter((officeRole) => {
-        if (officeRole === 'Presidente') {
-          return executiveState?.currentPresidentProfile?.id === profile.id;
-        }
-
-        if (officeRole === 'Vice-Presidente') {
-          return executiveState?.currentViceProfile?.id === profile.id;
-        }
-
-        return true;
-      });
+      const executiveState = await fetchExecutiveConstitutionalState(supabase);
+      const displayRole = profile.role;
+      const effectiveRoles = new Set(getProfileRolePool(profile));
       let executiveTicketRole = null;
 
-      titleRoles.forEach((roleTitle) => effectiveRoles.add(roleTitle));
-      filteredGrantedOfficeRoles.forEach((officeRole) => effectiveRoles.add(officeRole));
 
-      if (executiveState?.currentPresidentProfile?.id === profile.id) {
+      if (profile.role === 'Presidente' && executiveState?.currentPresidentProfile?.id === profile.id) {
         effectiveRoles.add('Presidente');
         executiveTicketRole = 'Presidente';
-      } else if (executiveState?.currentViceProfile?.id === profile.id) {
+      } else if (profile.role === 'Vice-Presidente' && executiveState?.currentViceProfile?.id === profile.id) {
         effectiveRoles.add('Vice-Presidente');
         executiveTicketRole = 'Vice-Presidente';
       }
@@ -159,7 +102,7 @@ export const AuthProvider = ({ children }) => {
         bankPresidentAppointment?.profile?.id ||
         null;
 
-      if (bankPresidentUserId === profile.id) {
+      if (profile.role === 'Presidente do Banco Nacional' && bankPresidentUserId === profile.id) {
         effectiveRoles.add('Presidente do Banco Nacional');
       }
 
@@ -175,10 +118,7 @@ export const AuthProvider = ({ children }) => {
       };
     } catch (error) {
       console.error('Error resolving effective executive roles:', error);
-      const fallbackRole =
-        TERM_BOUND_OFFICE_ROLES.has(profile.role) && profile.manual_role_override !== true
-          ? 'Cidadão'
-          : profile.role;
+      const fallbackRole = profile.role;
       return {
         ...profile,
         stored_role: profile.role,

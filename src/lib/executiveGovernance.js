@@ -318,7 +318,7 @@ export const fetchPresidentialElectionHistory = async (supabase) => {
   const [{ data: candidates, error: candidatesError }, { data: votes, error: votesError }] = await Promise.all([
     supabase
       .from('candidates')
-      .select('id, election_id, user_id, party_id, vice_candidate_id, political_name, bio, proposals, campaign_photo_url, status, created_at')
+      .select('id, election_id, user_id, party_id, vice_candidate_id, political_name, bio, proposals, campaign_photo_url, status, created_at, identity_snapshot, vice_identity_snapshot')
       .in('election_id', electionIds)
       .eq('status', 'Approved'),
     supabase
@@ -364,7 +364,7 @@ export const fetchPresidentialElectionHistory = async (supabase) => {
       vote_count: voteCounts[candidate.id] || 0,
       profile: profilesMap[candidate.user_id] || null,
       vice_profile: candidate.vice_candidate_id ? profilesMap[candidate.vice_candidate_id] || null : null,
-      party: candidate.party_id ? partiesMap[candidate.party_id] || null : null,
+      party: candidate.identity_snapshot?.party ?? (candidate.party_id ? partiesMap[candidate.party_id] || null : null),
     });
     return accumulator;
   }, {});

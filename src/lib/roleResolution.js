@@ -1,4 +1,4 @@
-import { resolveActiveElectionOfficeRolesForUser } from './electionOfficeSync.js';
+import { canonicalRole, officialRoleCapabilities } from './roleIcons.js';
 
 export const EFFECTIVE_ROLE_PRIORITY = [
   'Admin',
@@ -27,7 +27,6 @@ export const EFFECTIVE_ROLE_PRIORITY = [
   'Usuário',
 ];
 
-const dedupe = (values = []) => [...new Set(values.filter(Boolean))];
 const todayDate = () => new Date().toISOString().slice(0, 10);
 const SENATE_PARLIAMENTARY_ROLES = ['Senador', 'Presidente do Senado', 'Vice-Presidente do Senado', 'Vice-Presidente do Senado Federal'];
 const CHAMBER_PARLIAMENTARY_ROLES = ['Deputado', 'Presidente da Câmara', 'Presidente da Câmara dos Deputados', 'Vice-Presidente da Câmara dos Deputados'];
@@ -72,29 +71,10 @@ export const isManualElectionRoleSuperseded = (profile = {}, syncState = null) =
 export const getStoredTitles = (profile = {}) =>
   Array.isArray(profile?.titles) ? profile.titles.filter(Boolean) : [];
 
-export const getProfileRolePool = (profile = {}, syncState = null) => {
-  const activeElectionRoles = resolveActiveElectionOfficeRolesForUser(syncState, profile?.id);
-  const activeElectionRoleSet = new Set(activeElectionRoles);
-  const manualOverrideActive = isManualRoleOverride(profile) && !isManualElectionRoleSuperseded(profile, syncState);
-  const includeStoredRole = (role) =>
-    role &&
-    (!TERM_BOUND_OFFICE_ROLES.includes(role) ||
-      activeElectionRoleSet.has(role) ||
-      manualOverrideActive);
-  const storedRoles = [
-    includeStoredRole(profile?.role) ? profile.role : null,
-    ...getStoredTitles(profile).filter(includeStoredRole),
-  ];
-
-  if (!profile?.id) {
-    return dedupe(storedRoles);
-  }
-
-  return dedupe([
-    ...storedRoles,
-    ...activeElectionRoles,
-  ]);
-};
+// Official labels are protected by the database. Public projections deliberately
+// omit private election metadata; the absence of that metadata never revokes office.
+export const getProfileRolePool = (profile = {}) =>
+  officialRoleCapabilities(canonicalRole(profile.stored_role || profile.role || 'Cidadão'));
 
 export const resolvePrimaryRoleFromPool = (rolePool = [], fallbackRole = 'Usuário') =>
   EFFECTIVE_ROLE_PRIORITY.find((role) => rolePool.includes(role)) ||

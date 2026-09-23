@@ -1,3 +1,4 @@
+import { partyColor } from '@/lib/partyIdentity';
 import CitizenSelector from '@/components/CitizenSelector';
 import { orientationColors, politicalOrientations as partyOrientations } from '@/lib/partyIdentity';
 import { useDomainRealtime } from '@/hooks/use-domain-realtime';
@@ -208,7 +209,7 @@ const PoliticalParties = () => {
 
                             return (
                                 <motion.div key={party.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-                                    <Card className={`glass-effect flex flex-col h-full hover:border-primary transition-colors duration-300 ${isUserParty ? 'border-primary' : ''} ${!isActive && 'border-dashed border-amber-500'}`}>
+                                    <Card style={{borderTopColor:partyColor(party.color),borderTopWidth:4}} className={`glass-effect flex flex-col h-full hover:border-primary transition-colors duration-300 ${isUserParty ? 'border-primary' : ''} ${!isActive && 'border-dashed border-amber-500'}`}>
                                         <CardHeader>
                                             <div className="relative space-y-3">
                                                 <div className="flex items-center gap-3 pr-8">

@@ -1,3 +1,5 @@
+import PartyColorPicker from '@/components/parties/PartyColorPicker';
+import { partyColor } from '@/lib/partyIdentity';
 import PartyTreasury from '@/components/parties/PartyTreasury';
 import { orientationColors } from '@/lib/partyIdentity';
 import PartyMemberActions from '@/components/parties/PartyMemberActions';
@@ -34,7 +36,7 @@ const CustomizationDialog = ({ party, open, onOpenChange, onUpdate }) => {
     const [headerFile, setHeaderFile] = useState(null);
     const [customization, setCustomization] = useState({
         header_url: party.customization?.header_url || '',
-        primary_color: party.customization?.primary_color || '#333333',
+        primary_color: party.color || '#64748B',
     });
 
     const handleSave = async () => {
@@ -105,23 +107,8 @@ const CustomizationDialog = ({ party, open, onOpenChange, onUpdate }) => {
                             <Trash2 className="w-4 h-4 mr-2" /> Remover Imagem
                         </Button>
                     )}
-                    <div className="space-y-2">
-                        <Label htmlFor="primary_color">Cor Principal</Label>
-                        <div className="flex items-center gap-2">
-                            <Input
-                                id="primary_color"
-                                type="color"
-                                value={customization.primary_color}
-                                onChange={(e) => setCustomization(p => ({...p, primary_color: e.target.value}))}
-                                className="p-1 h-10 w-14"
-                            />
-                            <Input
-                                type="text"
-                                value={customization.primary_color}
-                                onChange={(e) => setCustomization(p => ({...p, primary_color: e.target.value}))}
-                            />
-                        </div>
-                    </div>
+                    <PartyColorPicker value={customization.primary_color} onChange={color=>setCustomization(current=>({...current,primary_color:color}))} party={party}/>
+
                 </div>
                 <DialogFooter>
                     <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
@@ -252,7 +239,8 @@ const PartyPage = () => {
     if (!party) return <div className="mx-auto max-w-xl p-8 text-center" role="alert"><p>{loadError || 'Partido indisponível.'}</p><Button className="mt-4" onClick={fetchPartyData}>Tentar novamente</Button><Button variant="ghost" onClick={() => navigate('/services/political-parties')}>Voltar aos partidos</Button></div>;
 
     const headerStyle = {
-        backgroundColor: party.customization?.header_url ? 'transparent' : (party.customization?.primary_color || '#333'),
+        borderBottom: `5px solid ${partyColor(party.color)}`,
+        backgroundColor: party.customization?.header_url ? 'transparent' : '#1e293b',
         ...(party.customization?.header_url && {
             backgroundImage: `linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.6)), url(${party.customization.header_url})`,
             backgroundBlendMode: 'multiply',

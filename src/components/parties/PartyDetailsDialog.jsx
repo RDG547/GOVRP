@@ -1,3 +1,4 @@
+import { partyColor } from '@/lib/partyIdentity';
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from "@/components/ui/dialog";
@@ -9,7 +10,7 @@ import { ptBR } from 'date-fns/locale';
 const PartyDetailsDialog = ({ party }) => (
     <Dialog>
         <DialogTrigger asChild><Button variant="outline" className="w-full"><Info className="mr-2 h-4 w-4" />Detalhes</Button></DialogTrigger>
-        <DialogContent className="glass-effect max-h-[90vh] overflow-y-auto">
+        <DialogContent style={{borderTopColor:partyColor(party.color),borderTopWidth:4}} className="glass-effect max-h-[90vh] overflow-y-auto">
             <DialogHeader>
                 <div className="flex items-center gap-4 mb-4">
                     <img src={party.logo_url || `https://api.dicebear.com/7.x/initials/svg?seed=${party.acronym}`} alt={party.name} className="w-20 h-20 rounded-lg bg-secondary p-1 object-cover" />

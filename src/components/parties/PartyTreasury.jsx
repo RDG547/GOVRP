@@ -1,3 +1,4 @@
+import { partyColor } from '@/lib/partyIdentity';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Wallet, HeartHandshake, Loader2, ArrowDownLeft, Check, X } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
@@ -50,7 +51,7 @@ export default function PartyTreasury({ party }) {
       toast({ title: 'Doação não concluída', description: safe, variant: 'destructive' });
     } finally { setBusy(false); }
   };
-  return <Card className="glass-effect min-w-0"><CardHeader><CardTitle className="flex items-center gap-2"><Wallet className="h-5 w-5 text-emerald-400"/>Caixa partidário</CardTitle></CardHeader><CardContent className="space-y-4">
+  return <Card style={{borderTopColor:partyColor(party.color),borderTopWidth:3}} className="glass-effect min-w-0"><CardHeader><CardTitle className="flex items-center gap-2"><Wallet className="h-5 w-5 text-emerald-400"/>Caixa partidário</CardTitle></CardHeader><CardContent className="space-y-4">
     <p className="text-2xl font-semibold tabular-nums" aria-label="Saldo do caixa partidário">{balance == null ? 'Consultando saldo…' : formatCurrency(balance)}</p>
     <p className="text-sm text-muted-foreground">Os recursos pertencem ao partido. Dono, presidente, vice-presidente e membros podem acompanhar o caixa; não há saque para contas pessoais. As doações e o histórico são públicos.</p>
     {user && party.status !== 'Encerrado' && <Button onClick={() => setOpen(true)}><HeartHandshake className="mr-2 h-4 w-4"/>Doar para o partido</Button>}

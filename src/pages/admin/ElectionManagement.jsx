@@ -1,3 +1,4 @@
+import DeleteElectionButton from '@/components/admin/DeleteElectionButton';
 import { AlignLeft, CalendarClock, Save } from 'lucide-react';
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabaseClient';
@@ -157,17 +158,6 @@ const ElectionManagement = () => {
         setIsFormOpen(true);
     };
 
-    const handleDelete = async (electionId) => {
-        const { error } = await supabase.from('elections').delete().eq('id', electionId);
-        if (error) {
-            toast({ title: "Erro ao excluir eleição", description: error.message, variant: "destructive" });
-        } else {
-            toast({ title: "Sucesso", description: "Eleição excluída." });
-            if (elections.length === 1 && page > 1) setPage((current) => current - 1);
-            else fetchElections();
-        }
-    };
-
     const handleFormFinish = () => {
         setIsFormOpen(false);
         if (page === 1) fetchElections();
@@ -215,7 +205,7 @@ const ElectionManagement = () => {
                             </CardContent>
                             <CardFooter className="gap-2">
                                 <Button variant="outline" size="sm" onClick={() => handleEdit(election)}><Edit className="w-4 h-4 mr-2" /> Editar</Button>
-                                <Button variant="destructive" size="sm" onClick={() => handleDelete(election.id)}><Trash2 className="w-4 h-4 mr-2" /> Excluir</Button>
+                                <DeleteElectionButton election={election} onDeleted={fetchElections}/>
                             </CardFooter>
                         </Card>
                     ))}

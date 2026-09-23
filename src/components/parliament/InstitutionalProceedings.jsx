@@ -40,7 +40,7 @@ export default function InstitutionalProceedings({ houseId, memberId }) {
   const [action, setAction] = useState(null), [form, setForm] = useState({ title:'', reason:'', facts:'', links:'', presidentId:'' }), [busy, setBusy] = useState(false), [error, setError] = useState(false);
   const sequence = useRef(0);
   const [loading, setLoading] = useState(true);
-  const canPropose = Boolean(memberId) && ['Deputado','Presidente da Câmara','Presidente da Câmara dos Deputados','Vice-Presidente da Câmara dos Deputados'].includes(user?.stored_role || user?.role);
+  const canPropose = Boolean(memberId) && houseId === 'a1b2c3d4-e5f6-7890-1234-567890abcdef';
   const load = useCallback(async () => {
     if (!houseId) return;
     const version = ++sequence.current;

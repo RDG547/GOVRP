@@ -1,3 +1,5 @@
+import ElectionResults from '@/components/elections/ElectionResults';
+import CandidateIdentity, { candidateIdentity } from '@/components/elections/CandidateIdentity';
 import ElectronicBallot from '@/components/elections/ElectronicBallot';
 import { formatDateBR, formatDateTimeBR } from '@/lib/dateTime';
 import ElectoralManagement from '@/components/elections/ElectoralManagement';
@@ -98,148 +100,12 @@ const CandidatesList = ({ election, onRecorded, userVote }) => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {candidates.map(candidate => (
                     <Card key={candidate.id} className={`p-4 flex items-center justify-between gap-4 bg-background/70 ${userVote === candidate.id ? 'border-primary ring-2 ring-primary/30' : ''}`}>
-                        <div className="flex items-center gap-4">
-                            <Avatar className="w-12 h-12">
-                                <AvatarImage src={candidate.campaign_photo_url || candidate.profiles?.avatar_url} alt={candidate.political_name} />
-                                <AvatarFallback>{candidate.political_name?.charAt(0)}</AvatarFallback>
-                            </Avatar>
-                            <div>
-                                <p className="font-semibold">{candidate.political_name}</p>
-                                <div className="mt-1 flex items-center gap-2">
-                                  {candidate.political_parties?.logo_url && (
-                                    <img
-                                      src={candidate.political_parties.logo_url}
-                                      alt={candidate.political_parties.acronym || candidate.political_parties.name}
-                                      className="h-6 w-6 rounded-md border border-white/10 bg-secondary object-cover p-0.5"
-                                    />
-                                  )}
-                                  <div className="leading-tight">
-                                    <p className="text-sm text-muted-foreground">
-                                      {candidate.political_parties
-                                        ? `${candidate.political_parties.name} (${candidate.political_parties.acronym})`
-                                        : 'Avulso'}
-                                    </p>
-                                    {candidate.political_parties?.ideology && (
-                                      <span className="text-xs text-muted-foreground">{candidate.political_parties.ideology}</span>
-                                    )}
-                                  </div>
-                                </div>
-                                {election.election_types?.requires_vice_candidate && candidate.vice && (
-                                  <div className="flex items-center gap-2 mt-1">
-                                    <Avatar className="w-5 h-5">
-                                      <AvatarImage src={candidate.vice.avatar_url} alt={candidate.vice.full_name} />
-                                      <AvatarFallback className="text-[8px]">{candidate.vice.full_name?.charAt(0)}</AvatarFallback>
-                                    </Avatar>
-                                    <p className="text-xs text-muted-foreground">
-                                      Vice: {candidate.vice.full_name || 'Não informado'}
-                                    </p>
-                                  </div>
-                                )}
-                            </div>
-                        </div>
+                        <div className="min-w-0 space-y-3"><CandidateIdentity identity={candidateIdentity(candidate)} label="Candidato"/>{candidate.vice_identity_snapshot&&<CandidateIdentity identity={candidate.vice_identity_snapshot} label="Vice-Presidente" compact/>}</div>
                         <span className="rounded-lg bg-secondary p-2 font-mono text-xl font-bold">{candidate.electoral_number}</span>
                     </Card>
                 ))}
             </div>
 
-        </div>
-    );
-};
-
-const ElectionResults = ({ election }) => {
-    const [results, setResults] = useState([]);
-    const [candidateMeta, setCandidateMeta] = useState({});
-    const [loading, setLoading] = useState(true);
-    const { toast } = useToast();
-
-    const fetchResults = useCallback(async () => {
-        const { data, error } = await supabase.rpc('get_election_results', { p_election_id: election.id });
-        if (error) {
-            toast({ title: "Erro ao buscar resultados", description: error.message, variant: "destructive" });
-        } else {
-            setResults(data);
-        }
-        setLoading(false);
-    }, [election?.id, toast]);
-
-    useEffect(() => {
-        if (election?.id) {
-            setLoading(true);
-            fetchResults();
-
-            const channel = supabase.channel(`election_results_${election.id}`)
-                .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'votes', filter: `election_id=eq.${election.id}` }, fetchResults)
-                .subscribe();
-
-            return () => {
-                supabase.removeChannel(channel);
-            };
-        } else {
-            setResults([]);
-            setCandidateMeta({});
-            setLoading(false);
-        }
-    }, [election?.id, fetchResults]);
-
-    useEffect(() => {
-        const fetchCandidateMeta = async () => {
-            if (!election?.id || !election?.election_types?.requires_vice_candidate) {
-                setCandidateMeta({});
-                return;
-            }
-
-            const { data, error } = await supabase
-              .from('candidates')
-              .select('id, vice:profiles!candidates_vice_candidate_id_fkey(full_name)')
-              .eq('election_id', election.id)
-              .eq('status', 'Approved');
-
-            if (error) {
-              toast({ title: "Erro ao buscar composição das chapas", description: error.message, variant: "destructive" });
-              return;
-            }
-
-            setCandidateMeta(
-              (data || []).reduce((accumulator, candidate) => {
-                accumulator[candidate.id] = candidate;
-                return accumulator;
-              }, {})
-            );
-        };
-
-        fetchCandidateMeta();
-    }, [election?.id, election?.election_types?.requires_vice_candidate, toast]);
-
-    if (loading) return <div className="flex justify-center p-8"><Loader2 className="animate-spin" /></div>;
-    if (results.length === 0 && election?.id) return <p className="text-center p-8 text-muted-foreground">Nenhum resultado disponível para esta eleição.</p>;
-
-    const totalVotes = results.reduce((sum, r) => sum + Number(r.vote_count), 0);
-
-    return (
-        <div className="space-y-4">
-            {results.map(result => (
-                <div key={result.candidate_id}>
-                    <div className="flex justify-between font-semibold">
-                        <div>
-                          <span>{result.political_name} ({result.party_name || 'Avulso'})</span>
-                          {candidateMeta[result.candidate_id]?.vice?.full_name && (
-                            <p className="text-xs font-normal text-muted-foreground">
-                              Vice na chapa: {candidateMeta[result.candidate_id].vice.full_name}
-                            </p>
-                          )}
-                        </div>
-                        <span>{result.vote_count} votos ({totalVotes > 0 ? ((result.vote_count / totalVotes) * 100).toFixed(2) : 0}%)</span>
-                    </div>
-                    <div className="w-full bg-gray-700 rounded-full h-4 mt-1">
-                        <motion.div
-                            className="bg-primary h-4 rounded-full"
-                            initial={{ width: 0 }}
-                            animate={{ width: `${totalVotes > 0 ? (result.vote_count / totalVotes) * 100 : 0}%` }}
-                            transition={{ duration: 0.5, ease: "easeOut" }}
-                        />
-                    </div>
-                </div>
-            ))}
         </div>
     );
 };
@@ -300,8 +166,8 @@ const ExecutiveConstitutionCard = ({ executiveState }) => {
     const currentVice = viceAssumedPresidency
       ? 'Vaga após sucessão presidencial'
       : executiveState.currentViceProfile?.full_name || 'Vice-Presidente não definido';
-    const presidentParty = executiveState.currentTerm?.winner?.party || null;
-    const viceParty = presidentParty;
+    const presidentParty = (viceAssumedPresidency ? executiveState.currentTerm?.winner?.vice_identity_snapshot?.party : executiveState.currentTerm?.winner?.party) || null;
+    const viceParty = viceAssumedPresidency ? null : executiveState.currentTerm?.winner?.vice_identity_snapshot?.party || null;
     const currentTermLabel = executiveState.currentTerm
       ? `${formatDateTimeBR(executiveState.currentTerm.term_start_at)} até ${formatDateTimeBR(executiveState.currentTerm.term_end_at)}`
       : executiveState.manualExecutiveOfficeActive
@@ -453,7 +319,7 @@ const Elections = () => {
         try {
           if (syncStatuses === true) await supabase.rpc('update_election_statuses');
           const [electionsResponse, executiveResponse] = await Promise.all([
-            supabase.from('elections').select('*, election_types(name, requires_vice_candidate, voting_system)').order('voting_start_date', { ascending: false }),
+            supabase.from('elections').select('*, election_types(name, requires_vice_candidate, voting_system)').is('archived_at', null).order('voting_start_date', { ascending: false }),
             fetchExecutiveConstitutionalState(supabase),
           ]);
 

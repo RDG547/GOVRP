@@ -1,3 +1,6 @@
+import ParliamentRoleBadges from '@/components/parliament/ParliamentRoleBadges';
+import { toBrasiliaInput, fromBrasiliaInput } from '@/lib/dateTime';
+import { internalElectionPhase } from '@/lib/parliamentGovernance';
 import BillAuthorParty from '@/components/parliament/BillAuthorParty';
 import InstitutionalProceedings, { ParliamentResignation } from '@/components/parliament/InstitutionalProceedings';
 import { formatDateTimeBR, formatLocaleBR } from '@/lib/dateTime';
@@ -274,8 +277,10 @@ const ParliamentPanel = () => {
   const [isLeadershipDialogOpen, setIsLeadershipDialogOpen] = useState(false);
   const [leadershipElectionForm, setLeadershipElectionForm] = useState({
     position: 'president',
-    description: '',
-    durationHours: '24',
+    start_at: toBrasiliaInput(new Date(Date.now()+60000)),
+    nomination_end_at: toBrasiliaInput(new Date(Date.now()+3600000)),
+    voting_start_at: toBrasiliaInput(new Date(Date.now()+7200000)),
+    end_at: toBrasiliaInput(new Date(Date.now()+86400000)),
   });
   const [nominationElection, setNominationElection] = useState(null);
   const [nominationForm, setNominationForm] = useState({
@@ -493,7 +498,7 @@ const ParliamentPanel = () => {
           .order('created_at', { ascending: false }) : { data: [] },
         (sections.includes('members')) ? supabase
           .from('parliament_members')
-          .select('id, user_id, house_id, term_start_date, term_end_date, profile:profiles(id, full_name, avatar_url, x_handle, role, titles), party:political_parties!parliament_members_party_id_fkey(name, acronym, logo_url)')
+          .select('id, user_id, house_id, term_start_date, term_end_date, profile:profiles(id, full_name, avatar_url, x_handle, role, titles), party:political_parties!parliament_members_party_id_fkey(name, acronym, logo_url, color)')
           .eq('house_id', selectedHouseId)
           .order('term_start_date', { ascending: false }) : { data: [] },
         (sections.includes('bills') || sections.includes('governance')) ? supabase
@@ -908,11 +913,10 @@ const ParliamentPanel = () => {
   const handleCreateLeadershipElection = async () => {
     setLeadershipActionId('create-election');
     try {
-      const { data, error } = await supabase.rpc('create_leadership_election', {
+      const { data, error } = await supabase.rpc('schedule_leadership_election', {
         p_house_id: house.id,
         p_position: leadershipElectionForm.position,
-        p_description: leadershipElectionForm.description,
-        p_duration_hours: Number(leadershipElectionForm.durationHours || 24),
+        ...Object.fromEntries(['start_at','nomination_end_at','voting_start_at','end_at'].map(key => ['p_'+key, fromBrasiliaInput(leadershipElectionForm[key])])),
       });
 
       if (error || (data && !data.success)) {
@@ -924,11 +928,6 @@ const ParliamentPanel = () => {
         description: data.message,
       });
       setIsLeadershipDialogOpen(false);
-      setLeadershipElectionForm({
-        position: 'president',
-        description: '',
-        durationHours: '24',
-      });
       fetchPanelData();
     } catch (error) {
       toast({
@@ -942,7 +941,7 @@ const ParliamentPanel = () => {
   };
 
   const handleNominateCandidate = async () => {
-    if (!nominationElection || !nominationForm.memberId) {
+    if (!nominationElection || !parliamentMember?.id) {
       return;
     }
 
@@ -950,7 +949,7 @@ const ParliamentPanel = () => {
     try {
       const { data, error } = await supabase.rpc('nominate_leadership_candidate', {
         p_election_id: nominationElection.id,
-        p_member_id: nominationForm.memberId,
+        p_member_id: parliamentMember.id,
         p_manifesto: nominationForm.manifesto,
       });
 
@@ -1725,13 +1724,13 @@ const ParliamentPanel = () => {
                 <CardContent className="space-y-4">
                   {leadershipElections.length ? (
                     leadershipElections.map((election) => {
-                      const nominating = election.status==='open' && governanceClock < new Date(election.nomination_end_at || election.start_at).getTime();
-                      const votingOpen=election.status==='open' && !nominating && governanceClock<new Date(election.end_at).getTime();
-                      const statusMeta = nominating ? {label:'Candidaturas abertas',className:'text-cyan-300'} : getLeadershipElectionStatusMeta(election.status);
+                      const nominating = internalElectionPhase(election,governanceClock)==='Candidaturas abertas';
+                      const votingOpen=internalElectionPhase(election,governanceClock)==='Votação aberta';
+                      const statusMeta = {label: internalElectionPhase(election,governanceClock),className:nominating?'text-cyan-300':'text-muted-foreground'};
                       const userVote = (election.votes || []).find((vote) => vote.voter_member_id === parliamentMember?.id);
 
                       return (
-                        <Card key={election.id} className="border-white/10 bg-background/50">
+                        <Card key={election.id} data-election-id={election.id} className="border-white/10 bg-background/50">
                           <CardHeader>
                             <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                               <div>
@@ -1768,7 +1767,7 @@ const ParliamentPanel = () => {
                                         <p className="font-medium text-foreground">
                                           {candidate.member?.profile?.full_name || 'Parlamentar'}
                                         </p>
-<PartyIdentity party={candidate.member?.party} className="text-sm" />
+<p className="text-xs text-muted-foreground">{house?.name?.includes("Senado")?"Senador":"Deputado"}</p><PartyIdentity party={candidate.member?.party} className="text-sm" />
                                         <p className="text-sm text-muted-foreground">{candidate.votes} voto(s)</p>
                                       </div>
                                     </div>
@@ -1808,7 +1807,7 @@ const ParliamentPanel = () => {
                             ) : null}
                           </CardContent>
                           <CardFooter className="flex flex-wrap gap-2">
-                            {nominating && canParticipateInGovernance ? (
+                            {nominating && parliamentMember?.id ? (
                               <Button size="sm" variant="secondary" onClick={() => setNominationElection(election)}>
                                 <UserPlus className="mr-2 h-4 w-4" />
                                 Registrar candidatura
@@ -1819,7 +1818,7 @@ const ParliamentPanel = () => {
                               <p className="text-sm text-muted-foreground">Seu voto já foi registrado nesta eleição.</p>
                             ) : null}
 
-                            {election.status === 'open' && !nominating && user?.role==='Admin' ? (
+                            {votingOpen && user?.role==='Admin' ? (
                               <Button
                                 size="sm"
                                 variant="outline"
@@ -1912,7 +1911,7 @@ const ParliamentPanel = () => {
                           <AvatarImage src={member.avatar_url} />
                           <AvatarFallback>{member.full_name?.charAt(0) || 'P'}</AvatarFallback>
                         </Avatar>
-                        <CardTitle className="text-lg">{member.full_name}</CardTitle>
+                        <CardTitle className="text-lg">{member.full_name}</CardTitle><ParliamentRoleBadges role={member.role}/>
                         {member.x_handle ? (
                           <Link to={`/services/x/profile/${member.x_handle}`} className="text-sm text-primary hover:underline">
                             @{member.x_handle}
@@ -2207,10 +2206,10 @@ const ParliamentPanel = () => {
 
       <Dialog open={isLeadershipDialogOpen} onOpenChange={setIsLeadershipDialogOpen}>
         <DialogContent>
-          <DialogHeader>
+          <DialogHeader className="sm:text-center">
             <DialogTitle>Abrir Eleição Interna</DialogTitle>
             <DialogDescription>
-              Registre uma nova disputa para compor a mesa diretora da Casa. O primeiro quarto do prazo recebe candidaturas; depois abre a votação. A apuração acontece automaticamente ao término.
+              Defina o calendário em horário de Brasília. Candidaturas, votação e apuração seguem os períodos informados automaticamente.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
@@ -2229,31 +2228,14 @@ const ParliamentPanel = () => {
                 </SelectContent>
               </Select>
             </div>
-            <div>
-              <Label htmlFor="leadership-description">Descrição</Label>
-              <Textarea
-                id="leadership-description"
-                value={leadershipElectionForm.description}
-                onChange={(event) => setLeadershipElectionForm((current) => ({ ...current, description: event.target.value }))}
-              />
-            </div>
-            <div>
-              <Label htmlFor="leadership-duration">Duração em horas</Label>
-              <Input
-                id="leadership-duration"
-                type="number"
-                min="1"
-                value={leadershipElectionForm.durationHours}
-                onChange={(event) => setLeadershipElectionForm((current) => ({ ...current, durationHours: event.target.value }))}
-              />
-            </div>
+            {[['start_at','Início das candidaturas'],['nomination_end_at','Fim das candidaturas'],['voting_start_at','Início da votação'],['end_at','Fim da votação']].map(([key,label])=><div key={key}><Label htmlFor={`leadership-${key}`}>{label} (Brasília)</Label><Input id={`leadership-${key}`} type="datetime-local" value={leadershipElectionForm[key]} onChange={event=>setLeadershipElectionForm(current=>({...current,[key]:event.target.value}))}/></div>)}
           </div>
-          <DialogFooter>
+          <DialogFooter className="gap-2 sm:justify-center">
             <Button variant="outline" onClick={() => setIsLeadershipDialogOpen(false)}>
-              Cancelar
+              <X className="mr-2 h-4 w-4"/>Cancelar
             </Button>
             <Button onClick={handleCreateLeadershipElection} disabled={leadershipActionId === 'create-election'}>
-              {leadershipActionId === 'create-election' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              {leadershipActionId === 'create-election' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Vote className="mr-2 h-4 w-4"/>}
               Abrir Eleição
             </Button>
           </DialogFooter>
@@ -2262,45 +2244,28 @@ const ParliamentPanel = () => {
 
       <Dialog open={Boolean(nominationElection)} onOpenChange={(open) => !open && setNominationElection(null)}>
         <DialogContent>
-          <DialogHeader>
+          <DialogHeader className="sm:text-center">
             <DialogTitle>Registrar Candidatura</DialogTitle>
             <DialogDescription>{nominationElection?.title}</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
+            <div className="flex flex-col items-center gap-2 text-center"><Avatar className="h-16 w-16"><AvatarImage src={user?.avatar_url}/><AvatarFallback>{user?.full_name?.[0]}</AvatarFallback></Avatar><p className="font-semibold">{user?.full_name}</p><p>{user?.role}</p><PartyIdentity party={members.find(member=>member.user_id===user?.id)?.party}/></div>
             <div>
-              <Label htmlFor="candidate-member">Parlamentar</Label>
-              <Select
-                value={nominationForm.memberId}
-                onValueChange={(value) => setNominationForm((current) => ({ ...current, memberId: value }))}
-              >
-                <SelectTrigger id="candidate-member">
-                  <SelectValue placeholder="Selecione o candidato" />
-                </SelectTrigger>
-                <SelectContent>
-                  {members.filter(member => user?.role === 'Admin' || member.id === user?.id || member.user_id === user?.id).map((member) => (
-                    <SelectItem key={member.parliament_member_id} value={member.parliament_member_id}>
-                      <UserSelectOption user={member} detail={<PartyIdentity party={member.party} />} />
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label htmlFor="candidate-manifesto">Manifesto</Label>
+              <Label htmlFor="candidate-manifesto">Manifesto (opcional)</Label>
               <Textarea
-                id="candidate-manifesto"
+                id="candidate-manifesto" placeholder="Apresente aos seus colegas por que deseja ocupar esta função."
                 rows={8}
                 value={nominationForm.manifesto}
                 onChange={(event) => setNominationForm((current) => ({ ...current, manifesto: event.target.value }))}
               />
             </div>
           </div>
-          <DialogFooter>
+          <DialogFooter className="gap-2 sm:justify-center">
             <Button variant="outline" onClick={() => setNominationElection(null)}>
-              Cancelar
+              <X className="mr-2 h-4 w-4"/>Cancelar
             </Button>
             <Button onClick={handleNominateCandidate} disabled={leadershipActionId.startsWith('nominate')}>
-              {leadershipActionId.startsWith('nominate') ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              {leadershipActionId.startsWith('nominate') ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Vote className="mr-2 h-4 w-4"/>}
               Registrar Candidatura
             </Button>
           </DialogFooter>

@@ -1852,12 +1852,11 @@ export const submitPresidentialCandidacyHandler = async (request, response) => {
     const payload = await readJsonBody(request);
     const electionId = trimString(payload.electionId);
     const selectedViceCandidateId = trimString(payload.viceCandidateId);
-    const politicalName = trimString(payload.politicalName);
     const bio = trimString(payload.bio);
     const proposals = trimString(payload.proposals);
     const campaignPhotoUrl = trimString(payload.campaignPhotoUrl);
 
-    if (!electionId || !selectedViceCandidateId || !politicalName || !bio || !proposals || !campaignPhotoUrl) {
+    if (!electionId || !selectedViceCandidateId || !bio || !proposals || !campaignPhotoUrl) {
       throw createHttpError('Dados incompletos para registrar a chapa presidencial.', 400);
     }
 
@@ -1954,7 +1953,7 @@ export const submitPresidentialCandidacyHandler = async (request, response) => {
       candidate_name: candidateName,
       vice_candidate_id: viceProfile.id,
       vice_candidate_name: viceName,
-      political_name: politicalName,
+      political_name: requesterProfile.full_name,
       bio,
       proposals,
       campaign_photo_url: campaignPhotoUrl,

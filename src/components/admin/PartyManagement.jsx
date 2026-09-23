@@ -1,3 +1,4 @@
+import PartyColorPicker from '@/components/parties/PartyColorPicker';
 import { politicalOrientations, orientationColors } from '@/lib/partyIdentity';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
@@ -33,7 +34,7 @@ const EMPTY_PARTY_FORM = {
   description: '',
   ideology: '',
   statute: '',
-  orientation: '',
+  orientation: '', color: '#64748B',
   logo_url: '',
   owner_id: '',
   president_id: '',
@@ -47,7 +48,7 @@ const normalizePartyForm = (party) => ({
   description: party?.description || '',
   ideology: party?.ideology || '',
   statute: party?.statute || '',
-  orientation: party?.orientation || '',
+  orientation: party?.orientation || '', color: party?.color || '#64748B',
   logo_url: party?.logo_url || '',
   owner_id: party?.owner_id || '',
   president_id: party?.president_id || '',
@@ -146,7 +147,7 @@ const PartyManagement = () => {
         description: formData.description.trim(),
         ideology: formData.ideology.trim(),
         statute: formData.statute.trim(),
-        orientation: formData.orientation || null,
+        orientation: formData.orientation || null, color: formData.color,
         logo_url: formData.logo_url.trim() || null,
         owner_id: formData.owner_id || null,
         president_id: formData.president_id || null,
@@ -358,6 +359,7 @@ const PartyManagement = () => {
               <Textarea value={formData.statute} onChange={(event) => updateForm('statute', event.target.value)} rows={5} />
             </div>
           </div>
+            <PartyColorPicker party={formData} value={formData.color} onChange={color => setFormData(current => ({...current, color}))}/>
           <DialogFooter>
             <Button variant="outline" onClick={closeEdit} disabled={saving}>Cancelar</Button>
             <Button onClick={handleSave} disabled={saving}>

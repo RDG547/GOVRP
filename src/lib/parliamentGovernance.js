@@ -113,7 +113,7 @@ const fetchPartiesMap = async (supabase, partyIds = []) => {
 
   const { data, error } = await supabase
     .from('political_parties')
-    .select('id, name, acronym, logo_url')
+    .select('id, name, acronym, logo_url, color')
     .in('id', ids);
 
   if (error) {
@@ -456,7 +456,7 @@ export const fetchLeadershipGovernanceData = async (supabase, { houseId = null }
   try {
     let electionsQuery = supabase
       .from('parliament_leadership_elections')
-      .select('id, house_id, position, title, description, status, created_by, winner_member_id, start_at, nomination_end_at, end_at, concluded_at, created_at, updated_at')
+      .select('id, house_id, position, title, description, status, created_by, winner_member_id, start_at, nomination_end_at, voting_start_at, end_at, concluded_at, created_at, updated_at')
       .order('created_at', { ascending: false });
     let termsQuery = supabase
       .from('parliament_leadership_terms')
@@ -596,3 +596,11 @@ export const getCommissionHouseSummary = (commission) => {
 
 export const isHouseLeadershipRole = (role = '') =>
   HOUSE_PRESIDENT_ROLES.includes(role) || HOUSE_VICE_PRESIDENT_ROLES.includes(role);
+
+export const internalElectionPhase = (election, now = Date.now()) => {
+ if (election.status !== 'open' || now >= Date.parse(election.end_at)) return 'Encerrada';
+ if (now < Date.parse(election.start_at)) return 'Agendada';
+ if (now < Date.parse(election.nomination_end_at)) return 'Candidaturas abertas';
+ if (now < Date.parse(election.voting_start_at || election.nomination_end_at)) return 'Aguardando votação';
+ return 'Votação aberta';
+};

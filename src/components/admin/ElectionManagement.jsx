@@ -1,3 +1,4 @@
+import DeleteElectionButton from '@/components/admin/DeleteElectionButton';
 import { AlignLeft, CalendarClock, Save } from 'lucide-react';
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabaseClient';
@@ -242,7 +243,7 @@ const ElectionManagement = () => {
     const fetchElections = useCallback(async () => {
         setLoading(true);
         const [electionsResponse, automaticSettingsResponse] = await Promise.all([
-            supabase.from('elections').select('*, election_types(name)').order('created_at', { ascending: false }),
+            supabase.from('elections').select('*, election_types(name)').is('archived_at',null).order('created_at', { ascending: false }),
             supabase.from('system_settings').select('value').eq('key', AUTOMATIC_ELECTIONS_SETTINGS_KEY).maybeSingle(),
         ]);
         if (electionsResponse.error) {
@@ -269,16 +270,6 @@ const ElectionManagement = () => {
     const handleEdit = (election) => {
         setEditingElection(election);
         setIsFormOpen(true);
-    };
-
-    const handleDelete = async (electionId) => {
-        const { error } = await supabase.from('elections').delete().eq('id', electionId);
-        if (error) {
-            toast({ title: "Erro ao excluir eleição", description: error.message, variant: "destructive" });
-        } else {
-            toast({ title: "Sucesso", description: "Eleição excluída." });
-            fetchElections();
-        }
     };
 
     const handleFormFinish = () => {
@@ -317,7 +308,7 @@ const ElectionManagement = () => {
                             </CardContent>
                             <CardFooter className="gap-2">
                                 <Button variant="outline" size="sm" onClick={() => handleEdit(election)}><Edit className="w-4 h-4 mr-2" /> Editar</Button>
-                                <Button variant="destructive" size="sm" onClick={() => handleDelete(election.id)}><Trash2 className="w-4 h-4 mr-2" /> Excluir</Button>
+                                <DeleteElectionButton election={election} onDeleted={fetchElections}/>
                             </CardFooter>
                         </Card>
                     ))}

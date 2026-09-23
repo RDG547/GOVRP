@@ -1,3 +1,5 @@
+import CandidateIdentity from '@/components/elections/CandidateIdentity';
+import { partyColor } from '@/lib/partyIdentity';
 import { formatDateTimeBR } from '@/lib/dateTime';
 import PartyIdentity from '@/components/parliament/PartyIdentity';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -62,7 +64,7 @@ export default function ElectionOfficeAwardPopup() {
      {institutional && <div className="space-y-3 text-left text-sm">
        {notification.type === 'election_candidacy_open' && <><p>Candidaturas até {formatDateTimeBR(notification.metadata.candidacy_end_at)}.</p><p>Votação a partir de {formatDateTimeBR(notification.metadata.voting_start_at)}.</p></>}
        {notification.type === 'election_voting_open' && <p>Vote até {formatDateTimeBR(notification.metadata.voting_end_at)}. Horário de Brasília.</p>}
-       {notification.type === 'election_result_published' && <div className="max-h-64 space-y-3 overflow-y-auto">{(notification.metadata.winners || []).map(winner => <div key={`${winner.id}:${winner.office_role}`} className="flex items-start gap-3 rounded-lg border p-3"><Avatar><AvatarImage src={winner.avatar_url}/><AvatarFallback>{winner.name?.charAt(0)}</AvatarFallback></Avatar><div className="min-w-0"><p className="break-words font-semibold">{winner.name}</p><p>{winner.office_role} · {winner.votes} votos</p><PartyIdentity party={winner.party}/></div></div>)}</div>}
+       {notification.type === 'election_result_published' && <div className="max-h-64 space-y-3 overflow-y-auto">{(notification.metadata.winners || []).map(winner => <div key={`${winner.id}:${winner.office_role}`} className="space-y-2 rounded-lg border p-3"><CandidateIdentity identity={winner} label={winner.office_role}/><p>{winner.votes} votos · {winner.percentage ?? 0}%</p><div className="h-2 overflow-hidden rounded-full bg-secondary"><div className="h-full" style={{width:`${winner.percentage ?? 0}%`,backgroundColor:partyColor(winner.party?.color)}}/></div></div>)}</div>}
        {notification.type === 'institutional_result' && <><p>Presidência envolvida: {notification.metadata.former_president?.full_name}.</p><p>{formatDateTimeBR(notification.metadata.occurred_at)}</p>{notification.metadata.successor && <p>Nova Presidência: <strong>{notification.metadata.successor.name || 'Sucessor institucional'}</strong>. As permissões foram atualizadas.</p>}</>}
      </div>}
      <div className="flex flex-col gap-2">

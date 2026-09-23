@@ -356,11 +356,11 @@ const CandidacyManagement = () => {
                     {actionType === 'edit' && (
                         <div className="space-y-4 py-2">
                             <div>
-                                <Label htmlFor="edit_political_name">Nome Político</Label>
+                                <Label htmlFor="edit_political_name">Nome oficial registrado</Label>
                                 <Input
                                     id="edit_political_name"
                                     value={editForm.political_name}
-                                    onChange={(e) => setEditForm(prev => ({ ...prev, political_name: e.target.value }))}
+                                    readOnly aria-readonly="true"
                                 />
                             </div>
                             <div>

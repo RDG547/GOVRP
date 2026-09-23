@@ -95,12 +95,13 @@ const RegisterCandidacy = ({ onFinished }) => {
       election_id: '',
       party_id: null,
       vice_candidate_id: null,
-      political_name: '',
+      political_name: user?.full_name || '',
       bio: '',
       proposals: '',
     },
   });
 
+  useEffect(() => { form.setValue('political_name', user?.full_name || ''); }, [user?.full_name, form]);
   const selectedPartyId = form.watch('party_id');
   const selectedElectionId = form.watch('election_id');
   const selectedViceCandidateId = form.watch('vice_candidate_id');
@@ -629,19 +630,7 @@ const RegisterCandidacy = ({ onFinished }) => {
               />
             ) : null}
 
-            <FormField
-              control={form.control}
-              name="political_name"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Nome Político</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Seu nome na urna" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            <div className="rounded-lg border p-3"><p className="text-sm text-muted-foreground">Nome oficial na urna</p><div className="flex items-center gap-3">{user.avatar_url&&<img src={user.avatar_url} alt="" className="h-12 w-12 rounded-full object-cover"/>}<p className="font-semibold">{user.full_name}</p></div><p className="text-sm">{parties.find(party=>party.id===selectedPartyId)?.name || "Independente"} · {form.watch("electoral_number")} · {selectedElection?.election_types?.name}</p><p className="text-xs text-muted-foreground">Seu nome é preenchido automaticamente pelo cadastro de cidadão.</p></div>
 
             <div className="space-y-2">
               <FormLabel>Foto de Campanha</FormLabel>

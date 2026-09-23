@@ -1,4 +1,10 @@
 import { Crown, Shield, UserCheck, Users, Flag } from 'lucide-react';
+export const partyColor = color => /^#[0-9a-f]{6}$/i.test(color || '') ? color : '#64748B';
+export const partyColorText = color => {
+  const rgb = partyColor(color).slice(1).match(/../g).map(n => { const c=parseInt(n,16)/255; return c<=.04045?c/12.92:((c+.055)/1.055)**2.4; });
+  const luminance=rgb[0]*.2126+rgb[1]*.7152+rgb[2]*.0722;
+  return luminance>.179?'#000000':'#FFFFFF';
+};
 export const politicalOrientations = ['Extrema Esquerda','Esquerda','Centro-Esquerda','Centro','Centro-Direita','Direita','Extrema-Direita'];
 export const orientationColors = {
   'Extrema Esquerda':'bg-red-900 hover:bg-red-800 text-white',

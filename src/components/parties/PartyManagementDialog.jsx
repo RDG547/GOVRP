@@ -1,3 +1,4 @@
+import PartyColorPicker from '@/components/parties/PartyColorPicker';
 import CitizenSelector from '@/components/CitizenSelector';
 import { politicalOrientations, orientationColors } from '@/lib/partyIdentity';
 import { fetchPublicProfiles, unavailablePublicProfile } from '@/lib/publicProfiles';
@@ -53,7 +54,7 @@ const EditPartyForm = ({ party, onAction, closeDialog, userRole, members }) => {
         president_id: party.president_id || '',
         vice_president_id: party.vice_president_id || '',
         description: party.description || '',
-        orientation: party.orientation || '',
+        orientation: party.orientation || '', color: party.color || '#64748B',
     });
 
     const handleSubmit = async (e) => {
@@ -75,7 +76,7 @@ const EditPartyForm = ({ party, onAction, closeDialog, userRole, members }) => {
                 const { data: otherParties, error: leaderConflictError } = await supabase
                     .from('political_parties')
                     .select('id, name, acronym, owner_id, president_id, vice_president_id')
-                    .neq('id', party.id);
+                    .neq('id', party.id).neq('status', 'Encerrado');
 
                 if (leaderConflictError) {
                     throw leaderConflictError;
@@ -109,7 +110,7 @@ const EditPartyForm = ({ party, onAction, closeDialog, userRole, members }) => {
                 p_president_id: formData.president_id || null,
                 p_vice_president_id: formData.vice_president_id || null,
                 p_description: formData.description,
-                p_orientation: formData.orientation,
+                p_orientation: formData.orientation, p_color: formData.color,
             });
 
             if (error || !data?.success) throw new Error(error?.message || data?.message || "Erro desconhecido");
@@ -171,6 +172,7 @@ const EditPartyForm = ({ party, onAction, closeDialog, userRole, members }) => {
                 <Label htmlFor="statute" className="flex items-center gap-2"><ScrollText className="h-4 w-4 text-primary"/>Estatuto</Label>
                 <Textarea id="statute" value={formData.statute} onChange={(e) => setFormData(p=>({...p, statute: e.target.value}))} rows={5} />
             </div>
+            <PartyColorPicker party={formData} value={formData.color} onChange={color => setFormData(current => ({...current, color}))}/>
             <ImageUploader previewOnly onUrlChange={(url) => setFormData(p=>({...p, logo_url: url}))} onFileChange={setLogoFile} initialUrl={formData.logo_url} label="Logo do Partido" />
             <DialogFooter>
                 <Button type="submit" disabled={loading}>

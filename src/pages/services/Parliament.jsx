@@ -1,3 +1,5 @@
+import { internalElectionPhase } from '@/lib/parliamentGovernance';
+import ParliamentRoleBadges from '@/components/parliament/ParliamentRoleBadges';
 import BillAuthorParty from '@/components/parliament/BillAuthorParty';
 import { formatDateTimeBR } from '@/lib/dateTime';
 import { formatDateBR } from '@/lib/dateTime';
@@ -462,7 +464,7 @@ const ParliamentMembersList = ({ members = [] }) => {
               ) : (
                 <p className="font-semibold">{member.profile?.full_name || 'Parlamentar'}</p>
               )}
-              <p className="text-sm text-muted-foreground"><PartyIdentity party={member.party} /></p>
+              <ParliamentRoleBadges role={member.profile?.role}/><p className="text-sm text-muted-foreground"><PartyIdentity party={member.party} /></p>
               <p className="mt-1 text-xs text-muted-foreground">
                 Mandato de {PARLIAMENT_MANDATE_DURATION_LABEL}.<br/>Início: {member.term_start_at ? formatDateTimeBR(member.term_start_at) : formatDateBR(member.term_start_date)}<br/>Fim: {member.term_end_at ? formatDateTimeBR(member.term_end_at) : formatDateBR(member.term_end_date)}{(member.term_start_at||member.term_end_at)&&' · Brasília'}
               </p>
@@ -955,6 +957,8 @@ const CommissionList = ({ commissions = [], governanceSchemaReady }) => {
 };
 
 const LeadershipList = ({ houseId, houses = [], terms = [], elections = [], governanceSchemaReady }) => {
+  const [now,setNow]=useState(Date.now());
+  useEffect(()=>{const timer=setInterval(()=>setNow(Date.now()),1000);return()=>clearInterval(timer);},[]);
   const filteredTerms = houseId === 'all' ? terms : terms.filter((term) => term.house_id === houseId);
   const filteredElections = houseId === 'all' ? elections : elections.filter((election) => election.house_id === houseId);
 
@@ -1016,7 +1020,7 @@ const LeadershipList = ({ houseId, houses = [], terms = [], elections = [], gove
         <CardContent className="space-y-4">
           {filteredElections.length ? (
             filteredElections.map((election) => {
-              const statusMeta = getLeadershipElectionStatusMeta(election.status);
+              const statusMeta = { ...getLeadershipElectionStatusMeta(election.status), label:internalElectionPhase(election,now) };
               return (
                 <Card key={election.id} className="border-white/10 bg-background/50">
                   <CardHeader>
@@ -1123,7 +1127,7 @@ const Parliament = () => {
 
       const { data: membersData, error: membersError } = await supabase
         .from('parliament_members')
-        .select('*, profile:profiles(id,full_name,avatar_url,role,titles,x_handle), party:political_parties!parliament_members_party_id_fkey(name, acronym, logo_url)');
+        .select('*, profile:profiles(id,full_name,avatar_url,role,titles,x_handle), party:political_parties!parliament_members_party_id_fkey(name, acronym, logo_url, color)');
       if (membersError) {
         throw membersError;
       }
