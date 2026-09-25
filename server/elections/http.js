@@ -41,8 +41,6 @@ const EXECUTIVE_PROFILE_ROLES = ['Presidente', 'Vice-Presidente', 'Ministro'];
 const ROLE_CLEANUP_SELECT_WITH_OVERRIDE = 'id, role, titles, manual_role_override, role_assigned_at, role_assigned_by';
 const ROLE_CLEANUP_SELECT_BASE = 'id, role, titles';
 const MISSING_COLUMN_ERROR_CODES = new Set(['42703', 'PGRST204', 'PGRST205']);
-const BASE_CITIZEN_ROLES = ['Usuário', 'Cidadão'];
-const ELECTION_ROLE_PRIORITY = ['Presidente', 'Vice-Presidente', 'Senador', 'Deputado'];
 const SYNC_RATE_LIMIT_WINDOW_MS = 60 * 1000;
 const SYNC_RATE_LIMIT_MAX_REQUESTS = 5;
 
@@ -248,28 +246,12 @@ const fetchManualElectionRoleProfilesSupersededBySettlements = async (supabase, 
     .filter((profile) => doesElectionSettlementSupersedeManualRole(profile, settlements));
 };
 
-const updateProfileWithRoleOverrideFallback = async (supabase, userId, patch) => {
-  let { error } = await supabase
-    .from('profiles')
-    .update(patch)
-    .eq('id', userId);
-
-  if (shouldRetryWithoutManualRoleOverride(error)) {
-    const basePatch = { ...patch };
-    delete basePatch.manual_role_override;
-    delete basePatch.role_assigned_at;
-    delete basePatch.role_assigned_by;
-    const retryResponse = await supabase
-      .from('profiles')
-      .update(basePatch)
-      .eq('id', userId);
-
-    error = retryResponse.error;
-  }
-
-  if (error) {
-    throw error;
-  }
+const updateProfileIfUnchanged = async (supabase, profile, patch) => {
+  let query = supabase.from('profiles').update(patch).eq('id', profile.id)
+    .eq('role', profile.role).eq('manual_role_override', profile.manual_role_override);
+  query = profile.role_assigned_at ? query.eq('role_assigned_at', profile.role_assigned_at) : query.is('role_assigned_at', null);
+  const { error } = await query;
+  if (error) throw error;
 };
 
 const readJsonBody = async (request) => {
@@ -1476,71 +1458,7 @@ const clearStaleProfileOfficeRoles = async (supabase, { previousState, activeAss
       continue;
     }
 
-    await updateProfileWithRoleOverrideFallback(supabase, profile.id, patch);
-  }
-};
-
-const syncActiveElectionProfileRoles = async (supabase, activeAssignments = []) => {
-  const assignmentsByUser = new Map();
-
-  for (const assignment of activeAssignments || []) {
-    if (!assignment?.userId || !assignment?.officeRole) {
-      continue;
-    }
-
-    if (!assignmentsByUser.has(assignment.userId)) {
-      assignmentsByUser.set(assignment.userId, []);
-    }
-
-    assignmentsByUser.get(assignment.userId).push(assignment);
-  }
-
-  if (!assignmentsByUser.size) {
-    return;
-  }
-
-  const profiles = await fetchProfilesForRoleCleanup(supabase, [...assignmentsByUser.keys()]);
-
-  for (const profile of profiles) {
-    if (profile.role === 'Admin') {
-      continue;
-    }
-
-    const currentRoleIsElectionOrBase = TERM_BOUND_PROFILE_ROLES.includes(profile.role) ||
-      BASE_CITIZEN_ROLES.includes(profile.role || '');
-
-    if (!currentRoleIsElectionOrBase) {
-      continue;
-    }
-
-    const assignments = assignmentsByUser.get(profile.id) || [];
-    const selectedAssignment = [...assignments].sort(
-      (left, right) =>
-        ELECTION_ROLE_PRIORITY.indexOf(left.officeRole) -
-        ELECTION_ROLE_PRIORITY.indexOf(right.officeRole)
-    )[0];
-
-    if (!selectedAssignment?.officeRole) {
-      continue;
-    }
-
-    const patch = {
-      role: selectedAssignment.officeRole,
-      manual_role_override: false,
-      role_assigned_at: null,
-      role_assigned_by: null,
-    };
-
-    if (
-      profile.role === patch.role &&
-      profile.manual_role_override === false &&
-      !profile.role_assigned_at &&
-      !profile.role_assigned_by
-    ) {
-      continue;
-    }
-
-    await updateProfileWithRoleOverrideFallback(supabase, profile.id, patch);
+    await updateProfileIfUnchanged(supabase, profile, patch);
   }
 };
 
@@ -1671,14 +1589,7 @@ const clearMinistersWhenExecutiveTermChanges = async (supabase, { previousState,
       continue;
     }
 
-    const { error: updateError } = await supabase
-      .from('profiles')
-      .update(patch)
-      .eq('id', profile.id);
-
-    if (updateError) {
-      throw updateError;
-    }
+    await updateProfileIfUnchanged(supabase, profile, patch);
   }
 
   return ministerUserIds;
@@ -1750,7 +1661,8 @@ export const syncElectionOfficesState = async ({ accessToken } = {}) => {
     activeAssignments,
   });
 
-  await syncActiveElectionProfileRoles(supabase, activeAssignments);
+  // settle_election_offices grants each mandate exactly once. Replaying assignments
+  // here used to undo later Admin decisions and erase their actor/timestamp.
 
   const clearedMinisterUserIds = await clearMinistersWhenExecutiveTermChanges(supabase, {
     previousState,

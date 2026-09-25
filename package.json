@@ -67,6 +67,7 @@
     "test:alteration-one-interface": "node tools/test-alteration-one-interface.mjs",
     "test:document-layout": "node tools/test-document-layout.mjs",
     "test:api-auth": "node tools/test-api-auth.mjs",
+    "test:admin-role-persistence": "node tools/test-admin-role-persistence.mjs",
     "test:electoral-identity": "node tools/test-electoral-identity-and-roles.mjs",
     "test:electoral-identity-interface": "node tools/test-electoral-identity-interface.mjs"
   },

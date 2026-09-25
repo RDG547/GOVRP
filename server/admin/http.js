@@ -1,6 +1,5 @@
 import process from 'node:process';
 import { createClient } from '@supabase/supabase-js';
-import { resolveParliamentHouseIdFromRole } from '../../src/lib/roleResolution.js';
 
 let serverSupabase;
 
@@ -121,22 +120,6 @@ const normalizeTitles = (titles) => {
   return [...new Set(titles.map((title) => trimString(title)).filter(Boolean))];
 };
 
-const BASE_CITIZEN_ROLES = new Set(['Usuário', 'Cidadão']);
-const MISSING_COLUMN_ERROR_CODES = new Set(['42703', 'PGRST204', 'PGRST205']);
-
-const shouldRetryWithoutRoleOverrideColumns = (error) =>
-  error &&
-  (MISSING_COLUMN_ERROR_CODES.has(error.code) ||
-    /manual_role_override|role_assigned_at|role_assigned_by/i.test(error.message || ''));
-
-const todayDate = () => new Date().toISOString().slice(0, 10);
-
-const addOneMonth = (dateValue) => {
-  const baseDate = new Date(`${dateValue}T00:00:00.000Z`);
-  baseDate.setUTCMonth(baseDate.getUTCMonth() + 1);
-  return baseDate.toISOString().slice(0, 10);
-};
-
 const ensureAdminRequester = async (supabase, request) => {
   const token = getBearerToken(request);
 
@@ -169,69 +152,7 @@ const ensureAdminRequester = async (supabase, request) => {
   return authData.user;
 };
 
-const syncParliamentMembershipForRole = async (supabase, { userId, role }) => {
-  const today = todayDate();
-  const { data: housesData, error: housesError } = await supabase
-    .from('parliament_houses')
-    .select('id, name');
-
-  if (housesError) {
-    throw housesError;
-  }
-
-  const targetHouseId = resolveParliamentHouseIdFromRole(role, housesData || []);
-  const { data: activeMemberships, error: membershipsError } = await supabase
-    .from('parliament_members')
-    .select('id, house_id, term_end_date')
-    .eq('user_id', userId)
-    .gte('term_end_date', today);
-
-  if (membershipsError) {
-    throw membershipsError;
-  }
-
-  const memberships = activeMemberships || [];
-  const membershipsToExpire = targetHouseId
-    ? memberships.filter((membership) => membership.house_id !== targetHouseId)
-    : memberships;
-
-  if (membershipsToExpire.length) {
-    const { error: expireError } = await supabase
-      .from('parliament_members')
-      .update({ term_end_date: today })
-      .in('id', membershipsToExpire.map((membership) => membership.id));
-
-    if (expireError) {
-      throw expireError;
-    }
-  }
-
-  if (!targetHouseId) {
-    return;
-  }
-
-  const sameHouseMembership = memberships.find((membership) => membership.house_id === targetHouseId);
-
-  if (sameHouseMembership) {
-    return;
-  }
-
-  const { error: createMembershipError } = await supabase
-    .from('parliament_members')
-    .insert({
-      user_id: userId,
-      house_id: targetHouseId,
-      party_id: null,
-      term_start_date: today,
-      term_end_date: addOneMonth(today),
-    });
-
-  if (createMembershipError) {
-    throw createMembershipError;
-  }
-};
-
-const updateUserProfile = async (supabase, payload, adminUserId = null) => {
+const updateUserProfile = async (supabase, payload) => {
   const userId = trimString(payload?.userId);
   const fullName = trimString(payload?.fullName);
   const username = trimString(payload?.username);
@@ -250,48 +171,22 @@ const updateUserProfile = async (supabase, payload, adminUserId = null) => {
     throw createHttpError('Informe o nome de usuário.', 400);
   }
 
-  const manualRoleOverride = !BASE_CITIZEN_ROLES.has(role);
-  const baseUpdatePayload = {
-    full_name: fullName,
-    username,
-    role,
-    titles,
-  };
-  const roleOverridePayload = {
-    ...baseUpdatePayload,
-    manual_role_override: manualRoleOverride,
-    role_assigned_at: manualRoleOverride ? new Date().toISOString() : null,
-    role_assigned_by: manualRoleOverride ? adminUserId : null,
-  };
-
-  let { data: updatedProfile, error: updateError } = await supabase
-    .from('profiles')
-    .update(roleOverridePayload)
-    .eq('id', userId)
-    .select('id, full_name, username, role, titles, manual_role_override')
-    .single();
-
-  if (shouldRetryWithoutRoleOverrideColumns(updateError)) {
-    const retryResponse = await supabase
-      .from('profiles')
-      .update(baseUpdatePayload)
-      .eq('id', userId)
-      .select('id, full_name, username, role, titles')
-      .single();
-
-    updatedProfile = retryResponse.data;
-    updateError = retryResponse.error;
+  // The caller's JWT reaches the existing RPC so authorization, audit attribution,
+  // profile changes and institutional records commit in one database transaction.
+  const { data, error } = await supabase.rpc('admin_update_user', {
+    p_user_id: userId,
+    p_full_name: fullName,
+    p_username: username,
+    p_role: role,
+    p_titles: titles,
+  });
+  if (error) {
+    if (error.code === '23505') throw createHttpError('Este nome de usuário já está em uso.', 409);
+    if (error.code === '42501') throw createHttpError('Acesso negado. Somente administradores podem executar esta ação.', 403);
+    throw error;
   }
-
-  if (updateError) {
-    if (updateError.code === '23505') {
-      throw createHttpError('Este nome de usuário já está em uso.', 409);
-    }
-
-    throw updateError;
-  }
-
-  await syncParliamentMembershipForRole(supabase, { userId, role });
+  if (!data?.success) throw createHttpError(data?.message || 'Não foi possível atualizar o usuário.', 400);
+  const updatedProfile = data.user;
 
   return updatedProfile;
 };
@@ -303,9 +198,14 @@ export const adminUpdateUserHandler = async (request, response) => {
 
   try {
     const supabase = getServerSupabase();
-    const adminUser = await ensureAdminRequester(supabase, request);
+    await ensureAdminRequester(supabase, request);
     const body = await readJsonBody(request);
-    const updatedProfile = await updateUserProfile(supabase, body, adminUser.id);
+    const requester = createClient(
+      getRequiredServerEnv('VITE_SUPABASE_URL'),
+      process.env.VITE_SUPABASE_PUBLISHABLE_KEY?.trim() || getRequiredServerEnv('VITE_SUPABASE_ANON_KEY'),
+      { global: { headers: { Authorization: `Bearer ${getBearerToken(request)}` } }, auth: { autoRefreshToken: false, persistSession: false } }
+    );
+    const updatedProfile = await updateUserProfile(requester, body);
 
     json(response, 200, {
       success: true,
