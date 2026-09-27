@@ -797,7 +797,7 @@ const fetchLatestFinishedElections = async (supabase) => {
   const nowIso = new Date().toISOString();
   const { data, error } = await supabase
     .from('elections')
-    .select('id, name, voting_end_date, election_type_id, election_types(id, name, voting_system, requires_vice_candidate)')
+    .select('id, name, voting_end_date, original_term_ends_at, election_type_id, election_types(id, name, voting_system, requires_vice_candidate)')
     .lte('voting_end_date', nowIso)
     .order('voting_end_date', { ascending: false });
 
@@ -848,7 +848,7 @@ const resolveElectionAssignments = async (supabase, election) => {
   const electionType = election.election_types;
   const officeRole = electionType?.name;
   const termStartAt = election.voting_end_date;
-  const termEndAt = addOneMonth(termStartAt);
+  const termEndAt = election.original_term_ends_at || addOneMonth(termStartAt);
   const termActive = isTermActive(termEndAt);
   // Election results are historical. Current appointments are authoritative, including
   // resignations, impeachment and succession recorded after the original election.
@@ -1462,139 +1462,6 @@ const clearStaleProfileOfficeRoles = async (supabase, { previousState, activeAss
   }
 };
 
-const clearMinistersWhenExecutiveTermChanges = async (supabase, { previousState, activeAssignments }) => {
-  const currentPresident = activeAssignments.find((assignment) => assignment.officeRole === 'Presidente') || null;
-  const previousPresident = Array.isArray(previousState?.active_assignments)
-    ? previousState.active_assignments.find((assignment) => assignment.office_role === 'Presidente') || null
-    : null;
-  // A change of holder within the same mandate preserves the cabinet.
-  // Manual appointments and institutional vacancies also have no new electoral mandate.
-  if ((!currentPresident && !previousPresident) ||
-      (currentPresident && previousPresident?.election_id === currentPresident.electionId)) return [];
-
-  const executiveTermChanged =
-    !currentPresident ||
-    previousPresident?.election_id !== currentPresident.electionId ||
-    previousPresident?.user_id !== currentPresident.userId;
-
-  if (!executiveTermChanged) {
-    return [];
-  }
-
-  const { data: currentMinisters, error: ministersError } = await supabase
-    .from('ministers')
-    .select('user_id');
-
-  if (ministersError) {
-    throw ministersError;
-  }
-
-  const ministerUserIds = dedupe((currentMinisters || []).map((minister) => minister.user_id));
-
-  if ((currentMinisters || []).length) {
-    const { error: deleteError } = await supabase
-      .from('ministers')
-      .delete()
-      .neq('user_id', '00000000-0000-0000-0000-000000000000');
-
-    if (deleteError) {
-      throw deleteError;
-    }
-  }
-
-  if (ministerUserIds.length) {
-    const profilesMap = await fetchProfilesByIds(supabase, ministerUserIds);
-    const publishedAt = new Date().toISOString();
-    const reasonLabel = currentPresident
-      ? `mudança de governo decorrente da eleição "${currentPresident.electionName || 'não identificada'}"`
-      : 'vacância do Poder Executivo';
-    const gazetteRows = ministerUserIds.map((userId) => {
-      const profile = profilesMap[userId] || null;
-      const profileName = resolveProfileDisplayName(profile, 'Ministro exonerado');
-
-      return {
-        title: `Exoneração de ministro: ${profileName}`,
-        summary: `${profileName} deixou o cargo de Ministro em razão de ${reasonLabel}.`,
-        content: `${profileName} foi exonerado do cargo de Ministro em razão de ${reasonLabel}.`,
-        type: 'Nomeacao e Exoneracao',
-        source_id: normalizeOfficialGazetteSourceId(`minister-dismiss-${userId}-${currentPresident?.electionId || 'vacancy'}-${publishedAt}`),
-        published_at: publishedAt,
-      };
-    });
-
-    const { error: gazetteError } = await supabase.from('dou_entries').insert(gazetteRows);
-
-    if (gazetteError) {
-      throw gazetteError;
-    }
-  }
-
-  const previousExecutiveUserIds = Array.isArray(previousState?.active_assignments)
-    ? previousState.active_assignments
-        .filter((assignment) => ['Presidente', 'Vice-Presidente'].includes(assignment?.office_role))
-        .map((assignment) => assignment.user_id)
-    : [];
-  const activeExecutiveUserIds = (activeAssignments || [])
-    .filter((assignment) => ['Presidente', 'Vice-Presidente'].includes(assignment?.officeRole))
-    .map((assignment) => assignment.userId);
-  const executiveProfileIds = dedupe([
-    ...ministerUserIds,
-    ...previousExecutiveUserIds,
-    ...activeExecutiveUserIds,
-  ]);
-
-  if (!executiveProfileIds.length) {
-    return ministerUserIds;
-  }
-
-  const staleProfiles = await fetchProfilesForRoleCleanup(supabase, executiveProfileIds);
-
-  const activeExecutiveRolesByUser = new Map();
-  for (const assignment of activeAssignments || []) {
-    if (!['Presidente', 'Vice-Presidente'].includes(assignment.officeRole)) {
-      continue;
-    }
-
-    if (!activeExecutiveRolesByUser.has(assignment.userId)) {
-      activeExecutiveRolesByUser.set(assignment.userId, new Set());
-    }
-
-    activeExecutiveRolesByUser.get(assignment.userId).add(assignment.officeRole);
-  }
-
-  for (const profile of staleProfiles || []) {
-    if (profile.manual_role_override) {
-      continue;
-    }
-
-    const activeRoles = activeExecutiveRolesByUser.get(profile.id) || new Set();
-    const nextRole = EXECUTIVE_PROFILE_ROLES.includes(profile.role) && !activeRoles.has(profile.role)
-      ? 'Cidadão'
-      : profile.role;
-    const currentTitles = Array.isArray(profile.titles) ? profile.titles : [];
-    const nextTitles = currentTitles.filter(
-      (title) => !EXECUTIVE_PROFILE_ROLES.includes(title) || activeRoles.has(title)
-    );
-    const patch = {};
-
-    if (nextRole !== profile.role) {
-      patch.role = nextRole;
-    }
-
-    if (nextTitles.length !== currentTitles.length) {
-      patch.titles = nextTitles;
-    }
-
-    if (!Object.keys(patch).length) {
-      continue;
-    }
-
-    await updateProfileIfUnchanged(supabase, profile, patch);
-  }
-
-  return ministerUserIds;
-};
-
 export const syncElectionOfficesState = async ({ accessToken } = {}) => {
   const supabase = getServerSupabase();
   const automaticElectionIds = await ensureAutomaticRecurringElections(supabase);
@@ -1664,10 +1531,8 @@ export const syncElectionOfficesState = async ({ accessToken } = {}) => {
   // settle_election_offices grants each mandate exactly once. Replaying assignments
   // here used to undo later Admin decisions and erase their actor/timestamp.
 
-  const clearedMinisterUserIds = await clearMinistersWhenExecutiveTermChanges(supabase, {
-    previousState,
-    activeAssignments,
-  });
+  // Government transitions, cabinet dismissal and history are atomic database operations.
+  const clearedMinisterUserIds = [];
 
   await clearStaleProfileOfficeRoles(supabase, {
     previousState,
@@ -2253,101 +2118,11 @@ export const resignPresidencyHandler = async (request, response) => {
 
   try {
     const { user: requester, accessToken } = await ensureAuthenticatedRequester(supabase, request);
-    const executiveState = await fetchExecutiveConstitutionalState(supabase);
-    const currentPresidentId = executiveState?.currentPresidentProfile?.id || null;
-    const currentViceId = executiveState?.currentViceProfile?.id || null;
-
-    if (!currentPresidentId || currentPresidentId !== requester.id) {
-      throw createHttpError('Apenas o presidente em exercicio pode registrar a renuncia.', 403);
-    }
-
     const userScopedSupabase = getUserScopedSupabase(accessToken);
     const { data, error } = await userScopedSupabase.rpc('resign_presidency');
-
-    if (error || !data?.success) {
-      throw createHttpError(data?.message || error?.message || 'Nao foi possivel registrar a renuncia presidencial.', 400);
-    }
-
-    if (currentViceId && executiveState?.currentTerm?.id) {
-      const settings = await fetchExecutiveGovernanceSettings(supabase);
-
-      await saveExecutiveGovernanceSettings(supabase, {
-        ...settings.value,
-        officeVacancy: {
-          vacant: false,
-          since: null,
-          reason: '',
-          triggered_by: null,
-        },
-        presidentialSuccession: {
-          promoted_president_id: currentViceId,
-          previous_vice_id: currentViceId,
-          former_president_id: currentPresidentId,
-          term_election_id: executiveState.currentTerm.id,
-          promoted_at: new Date().toISOString(),
-          reason: 'Renuncia presidencial',
-          triggered_by: requester.id,
-        },
-      });
-
-      const { error: successionNotificationError } = await supabase.from('notifications').insert([
-        {
-          user_id: currentViceId,
-          sender_id: requester.id,
-          type: 'executive_succession',
-          content: 'Com a renuncia presidencial, voce assumiu automaticamente a Presidencia da Republica.',
-          link: '/dashboard/president',
-          is_read: false,
-          metadata: {
-            succession_type: 'vice_assumed_presidency',
-            term_election_id: executiveState.currentTerm.id,
-            former_president_id: currentPresidentId,
-          },
-        },
-        {
-          user_id: currentPresidentId,
-          sender_id: requester.id,
-          type: 'executive_succession',
-          content: 'Sua renuncia foi registrada e a Vice-Presidencia assumiu automaticamente a Presidencia da Republica.',
-          link: '/services/elections',
-          is_read: false,
-          metadata: {
-            succession_type: 'vice_assumed_presidency',
-            term_election_id: executiveState.currentTerm.id,
-            successor_id: currentViceId,
-          },
-        },
-      ]);
-
-      if (successionNotificationError) {
-        throw successionNotificationError;
-      }
-
-      json(response, 200, {
-        success: true,
-        viceAssumedOffice: true,
-        message: 'Renuncia registrada com sucesso. O vice-presidente assumiu automaticamente a Presidencia.',
-      });
-      return;
-    }
-
-    const settings = await fetchExecutiveGovernanceSettings(supabase);
-    await saveExecutiveGovernanceSettings(supabase, {
-      ...settings.value,
-      officeVacancy: {
-        vacant: true,
-        since: new Date().toISOString(),
-        reason: 'Renuncia presidencial',
-        triggered_by: requester.id,
-      },
-      presidentialSuccession: null,
-    });
-
-    json(response, 200, {
-      success: true,
-      viceAssumedOffice: false,
-      message: 'Renuncia registrada com sucesso. O cargo presidencial ficou vago por ausencia de vice ativo.',
-    });
+    if (error || !data?.success) throw createHttpError(data?.message || error?.message || 'Não foi possível registrar a renúncia.', 400);
+    const result = await userScopedSupabase.rpc('get_executive_state');
+    json(response, 200, { success: true, viceAssumedOffice: result.data?.government?.source === 'vice_succession', message: data.message });
   } catch (error) {
     const statusCode = error?.statusCode || 500;
 

@@ -1,6 +1,6 @@
 import CitizenFinancialSummary from './CitizenFinancialSummary';
 import CitizenLegalSummary from './CitizenLegalSummary';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Package } from 'lucide-react';
 import React, { lazy, Suspense } from 'react';
@@ -11,9 +11,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 const EmbeddedEconomyPanel = lazy(
   () => import('@/features/economy/components/EmbeddedEconomyPanel')
 );
-const CitizenJusticeDashboard = lazy(
-  () => import('@/features/justice/pages/CitizenJusticeDashboard')
-);
+const Products = lazy(() => import('@/components/dashboard/Products'));
+const InventoryPage = lazy(() => import('@/pages/services/InventoryPage'));
 
 const PanelFallback = () => (
   <div className="flex min-h-[320px] items-center justify-center">
@@ -21,7 +20,10 @@ const PanelFallback = () => (
   </div>
 );
 
-const IntegratedCitizenDashboard = () => (
+const IntegratedCitizenDashboard = () => {
+  const [params, setParams] = useSearchParams();
+  const selected = ['overview','inventory','economy','business','justice'].includes(params.get('tab')) ? params.get('tab') : 'overview';
+  return (
   <div className="space-y-6">
     <div className="mx-auto max-w-7xl px-4 pt-8 sm:px-6 lg:px-8">
       <div className="rounded-2xl border border-cyan-500/20 bg-cyan-500/5 p-4">
@@ -29,16 +31,16 @@ const IntegratedCitizenDashboard = () => (
         <p className="mt-1 text-sm text-muted-foreground">
           Sua rotina, poder de compra, empresas e vida jurídica agora fazem parte do mesmo painel.
         </p>
-        <Button asChild variant="outline" className="mt-3"><Link to="/services/inventory"><Package className="mr-2 h-4 w-4" />Meu Inventário</Link></Button>
       </div>
     </div>
 
-    <Tabs defaultValue="overview" className="mx-auto w-full max-w-7xl px-4 pb-12 sm:px-6 lg:px-8">
-      <TabsList className="grid h-auto w-full grid-cols-2 gap-2 bg-muted/50 p-2 lg:grid-cols-4">
+    <Tabs value={selected} onValueChange={tab=>setParams(previous=>{const next=new URLSearchParams(previous);next.set('tab',tab);return next;},{replace:true,preventScrollReset:true})} className="mx-auto w-full max-w-7xl px-4 pb-12 sm:px-6 lg:px-8">
+      <TabsList className="grid h-auto w-full grid-cols-2 gap-2 bg-muted/50 p-2 lg:grid-cols-5">
         <TabsTrigger value="overview">
           <LayoutDashboard className="mr-2 h-4 w-4" />
           Visão geral
         </TabsTrigger>
+        <TabsTrigger value="inventory"><Package className="mr-2 h-4 w-4"/>Meu Inventário</TabsTrigger>
         <TabsTrigger value="economy">
           <Landmark className="mr-2 h-4 w-4" />
           Meu Financeiro
@@ -56,6 +58,7 @@ const IntegratedCitizenDashboard = () => (
       <TabsContent value="overview" className="-mx-4 mt-0 sm:-mx-6 lg:-mx-8">
         <CitizenDashboard />
       </TabsContent>
+      <TabsContent value="inventory" className="mt-6"><Suspense fallback={<PanelFallback/>}><InventoryPage embedded/></Suspense></TabsContent>
       <TabsContent value="economy" className="mt-6">
         <Suspense fallback={<PanelFallback />}>
           <CitizenFinancialSummary />
@@ -64,6 +67,7 @@ const IntegratedCitizenDashboard = () => (
       <TabsContent value="business" className="mt-6"><Button asChild variant="outline" className="mb-4"><Link to="/services/entrepreneur-portal">Administrar minhas empresas</Link></Button>
         <Suspense fallback={<PanelFallback />}>
           <EmbeddedEconomyPanel view="business" />
+          <div className="mt-8"><Products/></div>
         </Suspense>
       </TabsContent>
       <TabsContent value="justice" className="mt-6">
@@ -74,5 +78,6 @@ const IntegratedCitizenDashboard = () => (
     </Tabs>
   </div>
 );
+};
 
 export default IntegratedCitizenDashboard;

@@ -591,7 +591,7 @@ const BillList = ({ bills = [] }) => {
                       <div className="flex-1">
                         <CardTitle className="text-foreground">{bill.title}</CardTitle>
                         <CardDescription>
-                          Autor: {bill.author?.full_name || 'Cidadão indisponível'} | {bill.house?.name}
+                          Autor: {bill.author_identity_snapshot?.name || bill.author?.full_name || 'Cidadão indisponível'} | {bill.house?.name}
                         </CardDescription>
                       </div>
                     </div>

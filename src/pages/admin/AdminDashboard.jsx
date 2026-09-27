@@ -1,3 +1,5 @@
+import ParliamentVotingSettings from '@/components/admin/ParliamentVotingSettings';
+import ExecutiveTransitionSettings from '@/components/admin/ExecutiveTransitionSettings';
 import ParliamentInstitutionalSettings from '@/components/admin/ParliamentInstitutionalSettings';
 import OfficialSalarySettings from '@/components/admin/OfficialSalarySettings';
 import CitizenNeedsSettings from '@/components/admin/CitizenNeedsSettings';
@@ -35,7 +37,7 @@ import JusticeSystem from '@/components/admin/JusticeSystem';
 import SupportManagement from '@/components/admin/SupportManagement';
 import ResetManagement from '@/components/admin/ResetManagement';
 
-const WorldSettings = () => <div className="space-y-6"><EconomicMixControl /><CitizenNeedsSettings /><ParliamentInstitutionalSettings /></div>;
+const WorldSettings = () => <div className="space-y-6"><EconomicMixControl /><CitizenNeedsSettings /><ParliamentInstitutionalSettings /><ExecutiveTransitionSettings /><ParliamentVotingSettings /></div>;
 
 const tabs = [
   { id: 'users', label: 'Usuários', icon: Users, component: UserManagement },

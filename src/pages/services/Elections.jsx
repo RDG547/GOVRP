@@ -95,6 +95,7 @@ const CandidatesList = ({ election, onRecorded, userVote }) => {
 
     return (
         <div className="space-y-6">
+            {election.extraordinary && <p className="rounded-xl border p-3 text-sm">Eleição extraordinária {election.election_mode==='indirect'?'indireta · eleitores: Congresso Nacional':'direta · voto popular'}. Mandato até {formatDateBR(election.original_term_ends_at)}.{election.election_mode==='indirect'&&` Quórum mínimo: ${election.quorum_min_votes} votos válidos em candidatos.`}</p>}
             {election.status === 'Voting' && <ElectronicBallot election={election} candidates={candidates} hasVoted={Boolean(userVote)} onRecorded={onRecorded} />}
             <h3 className="font-semibold">Candidaturas aprovadas</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -162,11 +163,11 @@ const ExecutiveConstitutionCard = ({ executiveState }) => {
     }
 
     const viceAssumedPresidency = Boolean(executiveState.viceAssumedPresidency);
-    const currentPresident = executiveState.currentPresidentProfile?.full_name || 'Sem presidente em exercício';
+    const currentPresident = executiveState.currentPresidentProfile?.full_name || executiveState.actingAuthority?.profile?.full_name || 'Cargo vago';
     const currentVice = viceAssumedPresidency
       ? 'Vaga após sucessão presidencial'
       : executiveState.currentViceProfile?.full_name || 'Vice-Presidente não definido';
-    const presidentParty = (viceAssumedPresidency ? executiveState.currentTerm?.winner?.vice_identity_snapshot?.party : executiveState.currentTerm?.winner?.party) || null;
+    const presidentParty = executiveState.isInterim ? null : (viceAssumedPresidency ? executiveState.currentTerm?.winner?.vice_identity_snapshot?.party : executiveState.currentTerm?.winner?.party) || null;
     const viceParty = viceAssumedPresidency ? null : executiveState.currentTerm?.winner?.vice_identity_snapshot?.party || null;
     const currentTermLabel = executiveState.currentTerm
       ? `${formatDateTimeBR(executiveState.currentTerm.term_start_at)} até ${formatDateTimeBR(executiveState.currentTerm.term_end_at)}`
@@ -193,7 +194,7 @@ const ExecutiveConstitutionCard = ({ executiveState }) => {
           <CardContent className="space-y-6">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
               <div className="rounded-xl border border-white/10 bg-white/5 p-4">
-                <p className="text-sm text-muted-foreground">Presidente da República</p>
+                <p className="text-sm text-muted-foreground">{executiveState.isInterim ? 'Presidente Interino da República' : 'Presidente da República'}</p>
                 <div className="flex items-center gap-3 mt-2">
                   {executiveState.currentPresidentProfile?.avatar_url && (
                     <Avatar className="w-10 h-10">

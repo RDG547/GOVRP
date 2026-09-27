@@ -482,7 +482,7 @@ const ParliamentPanel = () => {
       ] = await Promise.all([
         (sections.includes('bills')) ? supabase
           .from('bills')
-          .select('id, title, summary, full_text, status, type, created_at, author_id, house_id, author_party_snapshot, institutional_data, author:profiles(id, full_name, avatar_url, role)')
+          .select('id, title, summary, full_text, status, type, created_at, author_id, house_id, author_identity_snapshot, author_role, voting_rule, author_party_snapshot, institutional_data, author:profiles(id, full_name, avatar_url, role)')
           .eq('house_id', selectedHouseId)
           .order('created_at', { ascending: false }) : { data: [] },
         (sections.includes('suggestions')) ? supabase
@@ -503,7 +503,7 @@ const ParliamentPanel = () => {
           .order('term_start_date', { ascending: false }) : { data: [] },
         (sections.includes('bills') || sections.includes('governance')) ? supabase
           .from('parliament_votings')
-          .select('id, house_id, title, description, type, related_id, status, created_at, end_date, votes:parliament_voting_votes(vote, member_id)')
+          .select('id, house_id, title, description, type, related_id, status, created_at, end_date, rule_snapshot, eligible_member_ids, chair_member_id, tie_break_pending, votes:parliament_voting_votes(vote, member_id)')
           .eq('house_id', selectedHouseId)
           .eq('status', 'active') : { data: [] },
         sections.includes('governance') ? fetchCommissionGovernanceData(supabase, { houseId: selectedHouseId }) : {},
@@ -1115,7 +1115,7 @@ const ParliamentPanel = () => {
             <TabsTrigger className="h-full min-h-10 whitespace-normal px-2 py-2 text-center leading-tight" value="projects">
               <ScrollText className="mr-2 h-4 w-4 shrink-0" />Projetos
             </TabsTrigger>
-            <TabsTrigger className="h-full min-h-10 whitespace-normal px-2 py-2 text-center leading-tight" value="votes">
+            <TabsTrigger className="h-full min-h-10 whitespace-normal px-2 py-2 text-center leading-tight" value="history"><FileText className="mr-2 h-4 w-4"/>Histórico de Projetos</TabsTrigger><TabsTrigger className="h-full min-h-10 whitespace-normal px-2 py-2 text-center leading-tight" value="votes">
               <Vote className="mr-2 h-4 w-4 shrink-0" />Votações
             </TabsTrigger>
             <TabsTrigger className="h-full min-h-10 whitespace-normal px-2 py-2 text-center leading-tight" value="commissions">
@@ -1221,7 +1221,7 @@ const ParliamentPanel = () => {
                                       {bill.title}{' '}
                                       <span className="text-sm font-normal text-muted-foreground">({bill.type})</span>
                                     </CardTitle>
-                                    <CardDescription>Autor: {bill.author?.full_name || 'Cidadão indisponível'}</CardDescription><BillAuthorParty bill={bill}/><p className="text-xs text-muted-foreground">Proposto em {formatDateTimeBR(bill.created_at)}</p>
+                                    <CardDescription>Autor: {bill.author_identity_snapshot?.name || bill.author?.full_name || 'Cidadão indisponível'}</CardDescription><BillAuthorParty bill={bill}/><p className="text-xs text-muted-foreground">Proposto em {formatDateTimeBR(bill.created_at)}</p>
                                   </div>
                                   <Badge variant="outline" className={billStatusMeta[bill.status] || ''}>
                                     {bill.status}
@@ -1313,6 +1313,7 @@ const ParliamentPanel = () => {
               </Tabs>
             </TabsContent>
 
+            <TabsContent value="history"><Card><CardHeader><CardTitle>Histórico de Projetos</CardTitle><CardDescription>Autoria e filiação registradas no protocolo.</CardDescription></CardHeader><CardContent className="space-y-4">{bills.filter(b=>!['Em tramitação','Em votação','Em votação (2ª Casa)','Protocolado'].includes(b.status)).map(bill=><article key={bill.id} className="rounded-lg border p-4 space-y-2"><h3 className="font-semibold">{bill.title}</h3><Badge>{bill.status}</Badge><p>{bill.author_identity_snapshot?.name || bill.author?.full_name || 'Autor indisponível'}</p><BillAuthorParty bill={bill}/><p className="text-sm">{bill.summary}</p></article>)}</CardContent></Card></TabsContent>
             <TabsContent value="votes">
               <Card className="glass-effect">
                 <CardHeader>
@@ -1325,6 +1326,7 @@ const ParliamentPanel = () => {
                   {votings.length ? (
                     <div className="space-y-4">
                       {votings.map((voting) => {
+                        const canVote = voting.type !== 'bill' || (voting.tie_break_pending ? voting.chair_member_id === parliamentMember?.id : voting.eligible_member_ids?.includes(parliamentMember?.id));
                         const userHasVoted = (voting.votes || []).some((entry) => entry.member_id === parliamentMember?.id);
                         const votingLabel =
                           voting.type === 'commission'
@@ -1349,12 +1351,12 @@ const ParliamentPanel = () => {
                               </div>
                             </CardHeader>
                             <CardContent>
-                              <VotingChart votes={voting.votes || []} />
+                              <p className="text-sm mb-2">{voting.rule_snapshot?.label}{voting.tie_break_pending ? " · Aguardando voto de desempate" : ` · ${Math.max(0, (voting.eligible_member_ids?.length || 0) - (voting.votes?.length || 0))} voto(s) restante(s)`}</p><VotingChart votes={voting.votes || []} />
                             </CardContent>
                             <CardFooter className="flex flex-wrap gap-2">
                               {votingOn === voting.id ? (
                                 <Loader2 className="animate-spin" />
-                              ) : userHasVoted ? (
+                              ) : !canVote ? (<p className="text-sm text-muted-foreground">{voting.tie_break_pending ? "Aguardando a Presidência da Casa desempatar." : "A Presidência da Casa vota apenas em caso de empate nesta matéria."}</p>) : userHasVoted ? (
                                 <p className="text-sm text-muted-foreground">Seu voto já foi computado nesta sessão.</p>
                               ) : (
                                 <>
@@ -1365,13 +1367,13 @@ const ParliamentPanel = () => {
                                     onClick={() => handleParliamentVote(voting.id, 'Aprovar')}
                                   >
                                     <Check className="mr-2 h-4 w-4" />
-                                    Aprovar
+                                    {voting.tie_break_pending ? "Desempatar: aprovar" : "Aprovar"}
                                   </Button>
                                   <Button size="sm" variant="destructive" onClick={() => handleParliamentVote(voting.id, 'Rejeitar')}>
                                     <X className="mr-2 h-4 w-4" />
-                                    Rejeitar
+                                    {voting.tie_break_pending ? "Desempatar: rejeitar" : "Rejeitar"}
                                   </Button>
-                                  <Button size="sm" variant="secondary" onClick={() => handleParliamentVote(voting.id, 'Abster')}>
+                                  <Button disabled={voting.tie_break_pending} size="sm" variant="secondary" onClick={() => handleParliamentVote(voting.id, 'Abster')}>
                                     <UserX className="mr-2 h-4 w-4" />
                                     Abster
                                   </Button>

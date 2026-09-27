@@ -1,0 +1,48 @@
+import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
+import { actor, cleanup, ensureParliamentHouses } from './lib/world-test.mjs';
+try {
+ await ensureParliamentHouses();
+ const [chair,a,b,senator]=await Promise.all(['vote-chair','vote-a','vote-b','vote-senator'].map(label=>actor(label)));
+ const house='a1b2c3d4-e5f6-7890-1234-567890abcdef',senate='fedcba09-8765-4321-0987-654321fedcba';
+ const output=execFileSync('docker',['exec','-i','supabase_db_GOVRP','psql','-U','postgres','-d','postgres','-v','ON_ERROR_STOP=1'],{encoding:'utf8',input:`begin;
+ update public.parliament_leadership_terms set status='completed',concluded_at=clock_timestamp() where status='active';
+ update public.parliament_members set term_end_date=current_date-1;
+ update public.profiles set role='Deputado',manual_role_override=true where id in ('${chair.id}','${a.id}','${b.id}');
+ update public.profiles set role='Senador',manual_role_override=true where id='${senator.id}';
+ insert into public.parliament_leadership_terms(house_id,member_id,position,status,term_start_date,term_end_date) select '${house}',id,'president','active',current_date,current_date+30 from public.parliament_members where user_id='${chair.id}' and house_id='${house}';
+ do $test$ declare bill public.bills%rowtype; v public.parliament_votings%rowtype; party uuid; denied boolean; name_snapshot text; other uuid; begin
+ insert into public.political_parties(name,acronym,registration_number,founder_id,owner_id,president_id,status) values('Partido histórico '||gen_random_uuid(),'HIS','RP-'||gen_random_uuid(),'${a.id}','${a.id}','${a.id}','Em fundação') returning id into party;
+ insert into public.party_members(party_id,user_id,role) values(party,'${a.id}','Dono') on conflict do nothing;
+ insert into public.bills(title,summary,full_text,author_id,house_id,type,status) values('Projeto comum integrado','Ementa de teste legislativo','Texto legislativo estruturado de teste','${a.id}','${house}','PL','Apresentado') returning * into bill;
+ name_snapshot:=bill.author_identity_snapshot->>'full_name';
+ delete from public.party_members where party_id=party;
+ update public.profiles set full_name='Nome modificado posteriormente' where id='${a.id}';
+ if (select author_identity_snapshot->>'full_name' from public.bills where id=bill.id)<>name_snapshot or (select author_party_snapshot->>'id' from public.bills where id=bill.id)<>party::text then raise exception 'Histórico do autor mudou';end if;
+ perform set_config('request.jwt.claim.sub','${chair.id}',true);v:=public.start_parliament_bill_voting(bill.id,'${house}',bill.title);
+ if cardinality(v.eligible_member_ids)<>2 then raise exception 'Presidência incluída no eleitorado ordinário';end if;
+ denied:=false;begin perform public.cast_parliament_vote(v.id,public.get_active_parliament_member_id('${chair.id}','${house}'),'Aprovar');exception when insufficient_privilege then denied:=true;end;
+ if not denied then raise exception 'Presidência votou antes do desempate';end if;
+ perform set_config('request.jwt.claim.sub','${a.id}',true);perform public.cast_parliament_vote(v.id,public.get_active_parliament_member_id('${a.id}','${house}'),'Aprovar');
+ if (select status from public.parliament_votings where id=v.id)<>'active' then raise exception 'Votação terminou faltando voto';end if;
+ perform set_config('request.jwt.claim.sub','${b.id}',true);perform public.cast_parliament_vote(v.id,public.get_active_parliament_member_id('${b.id}','${house}'),'Rejeitar');
+ if not (select tie_break_pending from public.parliament_votings where id=v.id) then raise exception 'Empate não liberou voto presidencial';end if;
+ perform set_config('request.jwt.claim.sub','${chair.id}',true);perform public.cast_parliament_vote(v.id,public.get_active_parliament_member_id('${chair.id}','${house}'),'Aprovar');
+ if (select status from public.parliament_votings where id=v.id)<>'closed' or not (select (result->>'approved')::boolean from public.parliament_votings where id=v.id) then raise exception 'Desempate não concluiu';end if;
+ if not (private.finalize_bill_voting(v.id)->>'approved')::boolean then raise exception 'Resultado não persistiu';end if;
+ insert into public.bills(title,summary,full_text,author_id,house_id,type,status) values('Proposta constitucional integrada','Ementa de teste constitucional','Texto constitucional estruturado de teste','${a.id}','${house}','PEC','Apresentado') returning * into bill;
+ v:=public.start_parliament_bill_voting(bill.id,'${house}',bill.title);
+ if cardinality(v.eligible_member_ids)<>3 then raise exception 'Presidência excluída da votação qualificada';end if;
+ perform public.cast_parliament_vote(v.id,public.get_active_parliament_member_id('${chair.id}','${house}'),'Aprovar');
+ perform set_config('request.jwt.claim.sub','${a.id}',true);perform public.cast_parliament_vote(v.id,public.get_active_parliament_member_id('${a.id}','${house}'),'Aprovar');
+ perform set_config('request.jwt.claim.sub','${b.id}',true);perform public.cast_parliament_vote(v.id,public.get_active_parliament_member_id('${b.id}','${house}'),'Abster');
+ if (select status from public.parliament_votings where id=v.id)<>'closed' then raise exception 'Todos votaram mas aguardou prazo';end if;
+ select id into other from public.parliament_votings where related_id=bill.id and house_id='${senate}';
+ if other is null then raise exception 'PEC não seguiu à segunda Casa';end if;
+ perform set_config('request.jwt.claim.sub','${senator.id}',true);perform public.cast_parliament_vote(other,public.get_active_parliament_member_id('${senator.id}','${senate}'),'Aprovar');
+ if (select status from public.bills where id=bill.id)<>'Aguardando promulgação presidencial' then raise exception 'PEC não preservou aprovação da primeira Casa';end if;
+ raise notice 'Regra simples, desempate, maioria qualificada, encerramento antecipado e autoria histórica aprovados.';
+ end $test$;
+ rollback;`});
+ assert(output.includes('ROLLBACK'));console.log('✓ Regras parlamentares verificadas no PostgreSQL real.');
+} finally {await cleanup();}

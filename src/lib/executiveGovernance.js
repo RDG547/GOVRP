@@ -647,102 +647,35 @@ export const fetchExecutiveConstitutionalState = async (supabase) => {
   }
 
   const settings = await attachProfilesToSettings(supabase, settingsRow.value);
-  const officeVacancy = settings.officeVacancy || { vacant: false };
-  const presidentialSuccession = settings.presidentialSuccession || null;
-  const successionApplies =
-    Boolean(currentTerm?.id) &&
-    Boolean(presidentialSuccession?.promoted_president_id) &&
-    (!presidentialSuccession?.term_election_id ||
-      presidentialSuccession.term_election_id === currentTerm.id);
-  const vacancyStillApplies =
-    !successionApplies &&
-    officeVacancy.vacant &&
-    (!currentTerm || !officeVacancy.since || new Date(officeVacancy.since) >= new Date(currentTerm.term_start_at));
-
-  const activeManualExecutiveProfiles = (manualExecutiveProfiles || []).filter(
-    (profile) => !isManualElectionRoleSuperseded(profile, electionOfficeState)
-  );
-  const manualPresidentProfile = activeManualExecutiveProfiles.find((profile) => profile.role === 'Presidente') || null;
-  const manualViceProfile = activeManualExecutiveProfiles.find((profile) => profile.role === 'Vice-Presidente') || null;
-  const electedPresidentProfile = currentTerm?.winner?.profile || null;
-  const electedViceProfile = currentTerm?.winner?.vice_profile || null;
-  const electedPresidentOfficeActive = Boolean(currentTerm?.id && electedPresidentProfile?.role === 'Presidente');
-  const automaticViceSuccessionApplies = Boolean(
-    currentTerm?.id &&
-    !successionApplies &&
-    !electedPresidentOfficeActive &&
-    electedViceProfile
-  );
-  const currentPresidentProfile = successionApplies
-    ? electedViceProfile || null
-    : currentTerm
-      ? automaticViceSuccessionApplies
-        ? electedViceProfile
-        : electedPresidentOfficeActive
-          ? electedPresidentProfile
-          : null
-      : manualPresidentProfile;
-  const currentViceProfile = (successionApplies || automaticViceSuccessionApplies)
-    ? null
-    : currentTerm
-      ? electedViceProfile
-      : manualViceProfile;
-  const viceAssumedPresidency = Boolean(successionApplies || automaticViceSuccessionApplies);
-  const effectivePresidentialSuccession = successionApplies
-    ? presidentialSuccession
-    : automaticViceSuccessionApplies
-      ? {
-          promoted_president_id: electedViceProfile.id,
-          previous_vice_id: electedViceProfile.id,
-          former_president_id: electedPresidentProfile?.id || null,
-          term_election_id: currentTerm.id,
-          promoted_at: null,
-          reason: 'Vacância presidencial detectada',
-          triggered_by: null,
-          inferred: true,
-        }
-      : null;
-  const manualExecutiveOfficeActive = !currentTerm && Boolean(manualPresidentProfile || manualViceProfile);
-  const isVacant = vacancyStillApplies || !currentPresidentProfile;
-  const actingAuthority = !isVacant
-    ? {
-        key: 'president',
-        label: 'Presidente da República',
-        profile: currentPresidentProfile,
-      }
-    : successionLine.find((entry) => entry.profile) || successionLine[successionLine.length - 1];
-
+  const stateResponse = await supabase.rpc('get_executive_state');
+  if (stateResponse.error) throw stateResponse.error;
+  const state = stateResponse.data || {};
+  const government = state.government;
+  const currentPresidentProfile = state.is_interim ? null : state.head;
+  const currentViceProfile = state.vice || null;
+  const isVacant = !currentPresidentProfile;
+  const actingAuthority = state.head ? {
+    key: state.is_interim ? 'chamber_president' : 'president',
+    label: state.is_interim ? 'Presidente Interino da República' : 'Presidente da República',
+    profile: state.head,
+  } : null;
+  const viceAssumedPresidency = government?.source === 'vice_succession';
   return {
-    presidentialType,
-    presidentialElections: elections,
-    currentTerm,
-    currentPresidentProfile,
-    currentViceProfile,
-    electedPresidentProfile,
-    electedViceProfile,
-    manualPresidentProfile,
-    manualViceProfile,
-    manualExecutiveOfficeActive,
-    executiveOfficeSource: currentTerm
-      ? viceAssumedPresidency
-        ? 'vice_succession'
-        : 'election'
-      : manualExecutiveOfficeActive
-        ? 'manual_admin_role'
-        : 'vacant',
-    officeVacancy,
-    presidentialSuccession: effectivePresidentialSuccession,
-    viceAssumedPresidency,
-    viceAssumptionSource: successionApplies
-      ? 'registered_succession'
-      : automaticViceSuccessionApplies
-        ? 'detected_presidential_vacancy'
-        : null,
-    isVacant,
-    actingAuthority,
-    successionLine,
-    settingsRowExists: settingsRow.exists,
-    settings,
+    presidentialType, presidentialElections: elections,
+    currentTerm: government ? { ...(currentTerm || {}), id: government.election_id,
+      name: government.election_id ? currentTerm?.name || 'Mandato presidencial' : 'Mandato administrativo',
+      term_start_at: government.term_starts_at, term_end_at: government.term_ends_at } : null,
+    government, isInterim: Boolean(state.is_interim), currentPresidentProfile, currentViceProfile,
+    electedPresidentProfile: currentTerm?.winner?.profile || null,
+    electedViceProfile: currentTerm?.winner?.vice_profile || null,
+    manualPresidentProfile: government?.source === 'administrative' ? state.head : null,
+    manualViceProfile: null, manualExecutiveOfficeActive: government?.source === 'administrative',
+    executiveOfficeSource: government?.source || 'vacant',
+    officeVacancy: { vacant: isVacant, since: government?.vacancy_at },
+    presidentialSuccession: viceAssumedPresidency ? { promoted_president_id: state.head?.id } : null,
+    viceAssumedPresidency, viceAssumptionSource: viceAssumedPresidency ? 'registered_succession' : null,
+    isVacant, actingAuthority, successionLine,
+    settingsRowExists: settingsRow.exists, settings,
     pendingBills: pendingBillsResponse.data || [],
   };
 };

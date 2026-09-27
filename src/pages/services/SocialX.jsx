@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-    import { Routes, Route, Navigate, Outlet } from 'react-router-dom';
+    import { Routes, Route, Navigate, Outlet, useLocation } from 'react-router-dom';
     import { Helmet } from 'react-helmet-async';
     import XSidebar from '@/components/social-x/XSidebar';
     import TrendsSidebar from '@/components/social-x/TrendsSidebar';
@@ -21,6 +21,8 @@ import React, { useState, useRef } from 'react';
         const { user, refreshUser } = useAuth();
         const [isPostModalOpen, setIsPostModalOpen] = useState(false);
         const postInputRef = useRef(null);
+        const [mobileTrends, setMobileTrends] = useState(false);
+        const location = useLocation();
 
         if (!user?.x_handle) {
             return (
@@ -42,10 +44,11 @@ import React, { useState, useRef } from 'react';
                                     <XSidebar onPostClick={() => setIsPostModalOpen(true)} />
                                 </header>
                                 
-                                <div className="border-x border-border min-h-screen pb-16 md:pb-0">
+                                <div className="min-w-0 border-x border-border min-h-screen pb-16 md:pb-0">
                                     <div className="md:hidden sticky top-20 bg-background/80 backdrop-blur-sm z-30">
                                         <XHeader />
                                     </div>
+                                    {['/services/x', '/services/x/search'].includes(location.pathname.replace(/\/$/, '')) && <details className="border-b border-border p-3 lg:hidden" onToggle={event => setMobileTrends(event.currentTarget.open)}><summary className="cursor-pointer rounded p-2 font-semibold focus-visible:ring-2 focus-visible:ring-ring">Tendências recentes</summary>{mobileTrends && <TrendsSidebar />}</details>}
                                     <Outlet context={{ postInputRef }} />
                                 </div>
 

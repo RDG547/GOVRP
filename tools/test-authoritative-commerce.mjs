@@ -34,7 +34,7 @@ const businessTypeId = `test-${crypto.randomUUID().slice(0, 8)}`;
 const productName = `Produto funcional ${businessTypeId}`;
 const businessType = await service.from('business_types').insert({
   id: businessTypeId, name: 'Comércio funcional', category: 'Teste', description: 'Tipo temporário para validar o ciclo empresarial.',
-  registration_fee: 100, min_employees: 2, is_active: true,
+  registration_fee: 100, min_employees: 2, is_active: true, requires_cnpj: false,
 }).select('id').single();
 if (businessType.error) throw businessType.error;
 

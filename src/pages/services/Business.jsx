@@ -1,3 +1,6 @@
+import { usePublicCompanyChanges } from '@/hooks/use-public-company-changes';
+import ListingCosts from '@/components/business/ListingCosts';
+import { brandFont } from '@/lib/brandFonts';
 import ReportProduct from '@/components/business/ReportProduct';
 import { useMarketplace } from '@/hooks/use-marketplace';
 import BuyDialog from '@/components/business/PurchaseDialog';
@@ -132,7 +135,7 @@ const ProductCard = ({ now, product, onAddToCart, onBuy, onEdit, onDelete, isOwn
           )}
 
           <CardDescription className="text-sm text-muted-foreground flex flex-col items-start gap-1 mt-2">
-            <span>{isBusiness ? 'Empresa' : 'Pessoa Física'} · Vendido por: <Link to={`/services/x/profile/${seller.x_handle}`} onClick={(e) => e.stopPropagation()} className="text-primary hover:underline no-navigate">{businessName || seller.full_name}</Link></span>
+            <span>{isBusiness ? 'Empresa' : 'Pessoa Física'} · Vendido por: <Link to={isBusiness ? `/services/companies/${product.business_id||seller.business_id}` : `/services/x/profile/${seller.x_handle}`} style={isBusiness?{fontFamily:brandFont(seller.business_font_key)}:undefined} onClick={(e) => e.stopPropagation()} className="text-primary hover:underline no-navigate">{businessName || seller.full_name}</Link></span>
             {isBusiness && businessCnpj && <span className="text-xs">CNPJ: {formatCNPJ(businessCnpj)}</span>}
           </CardDescription>
         </CardHeader>
@@ -236,6 +239,7 @@ const Business = () => {
 
   useDomainRealtime('marketplace', 'public', ['products', 'businesses', 'government_rules', 'state_enterprises'], fetchProductsAndCategories);
   usePublicProfileChanges(fetchProductsAndCategories);
+  usePublicCompanyChanges(fetchProductsAndCategories);
   const inStockTab = product => {const depleted=product.product_type==='one-time'&&product.stock<=0;const moved=depleted&&(!product.metadata?.stock_depleted_at||now>=Date.parse(product.metadata.stock_depleted_at)+5000);return stockTab==='sold-out'?moved:!moved;};
   const visibleProducts = products.filter(product => inStockTab(product) && (!searchTerm || product.name.toLocaleLowerCase('pt-BR').includes(searchTerm.toLocaleLowerCase('pt-BR'))) && (selectedCategory === 'all' || product.category === selectedCategory));
 
@@ -332,6 +336,7 @@ const Business = () => {
         centered={true}
       />
 
+      <div className="mb-4 flex flex-wrap gap-3"><Button asChild variant="outline"><Link to="/dashboard/citizen?tab=business">Meus anúncios e renovações</Link></Button></div><ListingCosts enterprise={enterprise}/>
       {enterprise && <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border p-4"><p className="text-sm">{enterprise.is_privatized ? 'Marketplace privatizado' : 'Marketplace estatal'} · Comissão do vendedor: {enterprise.commission_type === 'percentage' ? `${enterprise.commission_value}%` : formatCurrency(enterprise.commission_value)} por venda · {enterprise.publication_mode === 'approval' ? 'Anúncios sujeitos à aprovação' : 'Publicação automática'}{!enterprise.is_active ? ' · Operação suspensa' : ''}</p></div>}
       <div className="mb-8 space-y-4">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">

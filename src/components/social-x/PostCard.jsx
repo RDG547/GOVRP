@@ -2,7 +2,7 @@ import MentionText from './MentionText';
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MessageCircle, Repeat2, Heart, Upload, MoreHorizontal, Trash2, Edit, Crown, Shield, Scale, Loader2, Check, Send, Copy, Share2 } from 'lucide-react';
+import { MessageCircle, Repeat2, Heart, Upload, MoreHorizontal, Trash2, Edit, Crown, Shield, Scale, Loader2, Check, Send, Copy, Share2, X } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { formatDateBR, formatDateTimeBR } from '@/lib/dateTime';
 import { ptBR } from 'date-fns/locale';
@@ -218,7 +218,7 @@ const PostCard = ({ post, onPostUpdate, onPostDelete, onRepostCreated, commentsA
         }
         if (part.match(hashtagRegex)) {
           const tag = part.substring(1);
-          return <Link key={index} to={`/services/x/search?q=${tag}`} className="text-blue-400 hover:underline">{part}</Link>;
+          return <Link key={index} to={`/services/x/search?q=${encodeURIComponent(`#${tag}`)}`} className="text-blue-400 hover:underline no-navigate" onClick={event => event.stopPropagation()}>{part}</Link>;
         }
         return part;
       });
@@ -227,13 +227,13 @@ const PostCard = ({ post, onPostUpdate, onPostDelete, onRepostCreated, commentsA
     const OriginalPost = ({ original }) => (
       <div className="border border-border rounded-lg p-3 mt-2 flex gap-3">
         <img src={original.author.x_avatar_url || `https://api.dicebear.com/7.x/micah/svg?seed=${original.author.x_handle}`} alt={original.author.x_username} className="w-6 h-6 rounded-full"/>
-        <div className="w-full">
+        <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1 text-sm text-muted-foreground">
             <span className="font-bold text-foreground truncate">{original.author.x_username}</span>
             <span className="truncate">@{original.author.x_handle}</span>
             <span>· {formatDateBR(original.created_at)}</span>
           </div>
-          <p className="text-foreground text-sm whitespace-pre-wrap">{renderContent(original.content)}</p>
+          <p className="text-foreground text-sm whitespace-pre-wrap break-words [overflow-wrap:anywhere]">{renderContent(original.content)}</p>
           {original.image_url && <img src={original.image_url} alt="Post media" className="mt-2 rounded-lg max-h-60 w-full object-cover" />}
         </div>
       </div>
@@ -246,7 +246,7 @@ const PostCard = ({ post, onPostUpdate, onPostDelete, onRepostCreated, commentsA
     const mediaType = post.metadata?.type;
 
     const ActionButton = ({ icon: Icon, label, count, onClick, active, activeColor, hoverColor }) => (
-        <motion.div whileTap={{ scale: 0.95 }} className="flex-1">
+        <motion.div whileTap={{ scale: 0.95 }} className="min-w-0 flex-1">
             <button
               className={`flex flex-col items-center justify-center w-full group text-muted-foreground ${hoverColor}`}
               onClick={onClick}
@@ -285,17 +285,17 @@ const PostCard = ({ post, onPostUpdate, onPostDelete, onRepostCreated, commentsA
             className="border-b border-border p-4 flex space-x-4 hover:bg-muted/30 transition-colors duration-200 cursor-pointer"
             onClick={handleCardClick}
         >
-            <Link to={`/services/x/profile/${handle}`} className="no-navigate"><img src={avatar} alt={name} className="w-12 h-12 rounded-full bg-secondary" /></Link>
-            <div className="flex-1">
+            <Link to={`/services/x/profile/${handle}`} className="no-navigate shrink-0"><img src={avatar} alt={name} className="w-12 h-12 rounded-full bg-secondary" /></Link>
+            <div className="min-w-0 flex-1">
                 <div className="flex items-center justify-between">
-                    <div className="flex flex-col">
-                        <div className="flex items-center">
-                            <Link to={`/services/x/profile/${handle}`} className="font-bold text-foreground hover:underline no-navigate">
+                    <div className="min-w-0 flex flex-col">
+                        <div className="flex min-w-0 flex-wrap items-center">
+                            <Link to={`/services/x/profile/${handle}`} className="min-w-0 break-words font-bold text-foreground hover:underline no-navigate">
                                 {name}
                             </Link>
                             {uniqueTitles.map(title => <PoliticalSeal key={title} role={title} />)}
                         </div>
-                        <p className="text-sm text-muted-foreground">@{handle} · {postDateTime}</p>
+                        <p className="break-all text-sm text-muted-foreground">@{handle} · {postDateTime}</p>
                     </div>
                     {(user?.id === post.user_id || user?.role === 'Admin') && (
                         <DropdownMenu onOpenChange={handleDropdownOpenChange}>
@@ -311,14 +311,14 @@ const PostCard = ({ post, onPostUpdate, onPostDelete, onRepostCreated, commentsA
                     <div className="mt-2 no-navigate">
                         <Textarea value={editedContent} onChange={(e) => setEditedContent(e.target.value)} className="bg-background border-border" />
                         <div className="flex justify-end gap-2 mt-2">
-                            <Button variant="ghost" size="sm" onClick={() => setIsEditing(false)}>Cancelar</Button>
+                            <Button variant="ghost" size="sm" onClick={() => setIsEditing(false)}><X className="mr-2 h-4 w-4"/>Cancelar</Button>
                             <Button size="sm" onClick={handleEdit} disabled={isSavingEdit}>
                                 {isSavingEdit ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />} Salvar
                             </Button>
                         </div>
                     </div>
                 ) : (
-                    <div className="text-foreground whitespace-pre-wrap mt-1">
+                    <div className="text-foreground whitespace-pre-wrap break-words [overflow-wrap:anywhere] mt-1">
                         {post.quote_content && <p className="mb-2">{renderContent(post.quote_content)}</p>}
                         {post.content !== 'repost' && <p>{renderContent(post.content)}</p>}
                     </div>

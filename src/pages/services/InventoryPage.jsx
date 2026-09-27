@@ -114,7 +114,7 @@ const GiftItemDialog = ({ isOpen, setIsOpen, onGiftSuccess }) => {
     );
 };
 
-const InventoryPage = () => {
+const InventoryPage = ({ embedded = false }) => {
     const [isGiftDialogOpen, setIsGiftDialogOpen] = useState(false);
 
 
@@ -128,7 +128,7 @@ const InventoryPage = () => {
                 <title>Meu Inventário - GOV.RP</title>
                 <meta name="description" content="Gerencie seus produtos e assinaturas adquiridos na plataforma." />
             </Helmet>
-            <div className="container mx-auto p-4 md:p-8">
+            <div className={embedded ? "space-y-4" : "container mx-auto p-4 md:p-8"}>
                 {/* ESTRUTURA CORRIGIDA AQUI */}
                 <PageHeader
                     icon={Package}

@@ -72,6 +72,7 @@ const dashboards = {
     component: ParliamentarianDashboard,
     economyView: 'public',
   },
+  Promotor: { icon: Scale, title: 'Ministério Público', description: 'Analise remessas policiais, apresente denúncias e acompanhe processos.', color: 'text-purple-400', component: AuthorityJusticeDashboard, economyView: 'public' },
   Juiz: {
     icon: Gavel,
     title: 'Painel Judicial',
@@ -149,7 +150,7 @@ const RoleDashboard = ({ forcedRole = null }) => {
     economyView,
   } = dashboardConfig;
   const justiceAuthority = hasAnyJusticeRole(user);
-  const defaultTab = ['Juiz', 'Police'].includes(roleKey)
+  const defaultTab = ['Juiz', 'Promotor', 'Police'].includes(roleKey)
     ? 'justice'
     : roleKey === 'Presidente do Banco Nacional'
       ? 'economy'
@@ -173,7 +174,7 @@ const RoleDashboard = ({ forcedRole = null }) => {
           />
 
           <Tabs defaultValue={defaultTab} className="mt-8 space-y-6">
-            <TabsList className="grid h-auto w-full grid-cols-3 gap-2 bg-muted/50 p-2">
+            <TabsList className="grid h-auto w-full grid-cols-3 gap-2 bg-muted/50 p-2 [&>button]:min-w-0 [&>button]:whitespace-normal [&>button]:px-2">
               <TabsTrigger value="office">
                 <LayoutDashboard className="mr-2 h-4 w-4" />
                 Funções do cargo

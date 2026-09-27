@@ -1,3 +1,4 @@
+import PartyCustomizationForm from './PartyCustomizationForm';
 import PartyColorPicker from '@/components/parties/PartyColorPicker';
 import CitizenSelector from '@/components/CitizenSelector';
 import { politicalOrientations, orientationColors } from '@/lib/partyIdentity';
@@ -323,16 +324,16 @@ const PartyManagementDialog = ({ party, onAction, isFromDetailsPage = false }) =
                     <Settings className="mr-2 h-4 w-4" />Gerenciar
                 </Button>
             </DialogTrigger>
-            <DialogContent className="glass-effect max-h-[90vh] overflow-y-auto">
+            <DialogContent className="glass-effect grid-cols-1 [&>*]:min-w-0 max-h-[90vh] overflow-y-auto">
                 <DialogHeader><DialogTitle>Gerenciar {party.name}</DialogTitle></DialogHeader>
                 <Tabs value={currentTab} onValueChange={setCurrentTab} className="w-full">
-                    <TabsList className="grid w-full grid-cols-4">
+                    <TabsList className="grid h-auto w-full grid-cols-2 gap-2 sm:grid-cols-3 [&>button]:min-w-0 [&>button]:whitespace-normal [&>button]:px-1 [&>button]:text-xs">
                         <TabsTrigger value="edit"><Pencil className="mr-2 h-4 w-4"/>Editar</TabsTrigger>
                         <TabsTrigger value="members"><Users className="mr-2 h-4 w-4"/>Membros</TabsTrigger>
                         <TabsTrigger value="requests"><Inbox className="mr-2 h-4 w-4"/>Pedidos</TabsTrigger>
-                        <TabsTrigger value="settings"><Settings className="mr-2 h-4 w-4"/>Ajustes</TabsTrigger>
+                        <TabsTrigger value="customization"><Settings className="mr-2 h-4 w-4"/>Personalização</TabsTrigger><TabsTrigger value="settings"><Settings className="mr-2 h-4 w-4"/>Ajustes</TabsTrigger>
                     </TabsList>
-                    <TabsContent value="edit" className="pt-4">
+                    <TabsContent value="customization" className="pt-4"><PartyCustomizationForm party={party} onAction={onAction}/></TabsContent><TabsContent value="edit" className="pt-4">
                         <EditPartyForm party={party} onAction={onAction} closeDialog={() => setIsOpen(false)} userRole={userRole} members={members} />
                     </TabsContent>
                      <TabsContent value="members" className="pt-4">

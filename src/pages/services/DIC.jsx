@@ -205,6 +205,8 @@ const DIC = () => {
         setDocuments(data || []);
     };
 
+    const [businessTypes,setBusinessTypes]=useState([]);
+    useEffect(()=>{supabase.from('business_types').select('id,name').eq('is_active',true).order('name').then(r=>setBusinessTypes(r.data||[]));},[]);
     const handleFormChange = (e) => setFormValues(prev => ({...prev, [e.target.id]: e.target.value}));
 
     const handleRequestDocument = async () => {
@@ -332,7 +334,7 @@ const DIC = () => {
 
     const availableDocsToRequest = Object.keys(docInfo).filter(type => {
         if (['CPF', 'RG', 'Atestado de Antecedentes'].includes(type)) return false;
-        if (type === 'CNPJ') return !getDoc(type, true); // can request if no valid cnpj exists
+        if (type === 'CNPJ') return true; // can request if no valid cnpj exists
         return !getDoc(type, true);
     });
 
@@ -598,7 +600,7 @@ const DIC = () => {
                         <DialogDescription>Preencha os dados e confirme a emissão pela taxa de {formatFee(docFees[confirmingDoc] || 0)}.</DialogDescription>
                     </DialogHeader>
                     <div className="py-4 space-y-4">
-                        {confirmingDoc === 'CNPJ' && (<><Label htmlFor="company_name">Nome da Empresa</Label><Input id="company_name" onChange={handleFormChange} /></>)}
+                        {confirmingDoc === 'CNPJ' && (<><Label htmlFor="company_name">Nome da Empresa</Label><Input id="company_name" onChange={handleFormChange} /><Label htmlFor="business_type_id">Atividade do CNPJ</Label><select id="business_type_id" className="h-11 w-full rounded border bg-background px-2" value={formValues.business_type_id||''} onChange={handleFormChange}><option value="">Selecione a atividade</option>{businessTypes.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}</select></>)}
                         {confirmingDoc === 'Certidão de Casamento' && (<><Label htmlFor="spouse_name">Nome do Cônjuge</Label><Input id="spouse_name" onChange={handleFormChange} /></>)}
                         {confirmingDoc === 'Registro Profissional' && (<><Label htmlFor="profession">Profissão (Ex: Engenheiro)</Label><Input id="profession" onChange={handleFormChange} /></>)}
                     </div>
@@ -613,7 +615,7 @@ const DIC = () => {
                     <AlertDialogHeader>
                         <AlertDialogTitle>Encerrar Empresa</AlertDialogTitle>
                         <AlertDialogDescription>
-                            Tem certeza que deseja encerrar a empresa com o CNPJ {deletingDoc?.document_number}? Esta ação é irreversível e todos os produtos associados serão removidos.
+                            Tem certeza que deseja encerrar a empresa com o CNPJ {deletingDoc?.document_number}? Este registro será encerrado. A empresa, seus produtos e o histórico serão preservados.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>

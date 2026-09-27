@@ -1,3 +1,5 @@
+import { brandFont } from '@/lib/brandFonts';
+import { Info } from 'lucide-react';
 import PartyColorPicker from '@/components/parties/PartyColorPicker';
 import { partyColor } from '@/lib/partyIdentity';
 import PartyTreasury from '@/components/parties/PartyTreasury';
@@ -30,97 +32,6 @@ import { buildStoragePath } from '@/lib/security';
 
 const roleHierarchy = { 'Dono': 4, 'Presidente': 3, 'Vice-Presidente': 2, 'Membro': 1 };
 
-const CustomizationDialog = ({ party, open, onOpenChange, onUpdate }) => {
-    const { toast } = useToast();
-    const [loading, setLoading] = useState(false);
-    const [headerFile, setHeaderFile] = useState(null);
-    const [customization, setCustomization] = useState({
-        header_url: party.customization?.header_url || '',
-        primary_color: party.color || '#64748B',
-    });
-
-    const handleSave = async () => {
-        setLoading(true);
-        try {
-            let finalHeaderUrl = customization.header_url;
-            if (headerFile) {
-                const { data: uploadData, error: uploadError } = await supabase.storage
-                    .from('public-assets')
-                    .upload(buildStoragePath({ prefix: 'party-headers', entityId: party.id, fileName: headerFile.name }), headerFile);
-                if (uploadError) throw uploadError;
-                finalHeaderUrl = supabase.storage.from('public-assets').getPublicUrl(uploadData.path).data.publicUrl;
-            }
-
-            const updatedCustomization = { ...customization, header_url: finalHeaderUrl };
-            const { data, error } = await supabase.rpc('update_party_customization', {
-                p_party_id: party.id,
-                p_customization: updatedCustomization,
-            });
-
-            if (error || !data.success) throw new Error(error?.message || data.message);
-
-            toast({ title: "Sucesso!", description: "Página do partido atualizada." });
-            onUpdate();
-            onOpenChange(false);
-        } catch (error) {
-            toast({ title: "Erro", description: error.message, variant: "destructive" });
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const handleRemoveImage = async () => {
-        setLoading(true);
-        try {
-            const updatedCustomization = { ...customization, header_url: '' };
-            const { data, error } = await supabase.rpc('update_party_customization', {
-                p_party_id: party.id,
-                p_customization: updatedCustomization,
-            });
-            if (error || !data.success) throw new Error(error?.message || data.message);
-            toast({ title: "Sucesso!", description: "Imagem de cabeçalho removida." });
-            onUpdate();
-            onOpenChange(false);
-        } catch (error) {
-            toast({ title: "Erro", description: error.message, variant: "destructive" });
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent>
-                <DialogHeader>
-                    <DialogTitle>Personalizar Página do Partido</DialogTitle>
-                    <DialogDescription>Altere a aparência da página do seu partido.</DialogDescription>
-                </DialogHeader>
-                <div className="space-y-4 py-4">
-                    <ImageUploader
-                        label="Imagem de Cabeçalho"
-                        initialUrl={customization.header_url}
-                        onUrlChange={(url) => setCustomization(p => ({...p, header_url: url}))}
-                        onFileChange={setHeaderFile}
-                    />
-                    {customization.header_url && (
-                        <Button variant="destructive" size="sm" onClick={handleRemoveImage} disabled={loading}>
-                            <Trash2 className="w-4 h-4 mr-2" /> Remover Imagem
-                        </Button>
-                    )}
-                    <PartyColorPicker value={customization.primary_color} onChange={color=>setCustomization(current=>({...current,primary_color:color}))} party={party}/>
-
-                </div>
-                <DialogFooter>
-                    <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-                    <Button onClick={handleSave} disabled={loading}>
-                        {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
-                        Salvar
-                    </Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
-    );
-};
 
 const ExpandableText = ({ text, maxLength = 150 }) => {
     const [isExpanded, setIsExpanded] = useState(false);
@@ -264,15 +175,15 @@ const PartyPage = () => {
             <Helmet><title>{party.name} - Partidos Políticos</title><meta name="description" content={party.description} /></Helmet>
             <div className="min-h-screen">
                 <header style={headerStyle} className="h-auto min-h-[20rem] py-10 relative flex items-center justify-center text-white shadow-lg">
-                    <div className="relative text-center z-10 p-4">
+                    <div className="relative min-w-0 max-w-full text-center z-10 p-4">
                         <img src={party.logo_url} alt={`Logo ${party.name}`} className="w-24 h-24 md:w-32 md:h-32 mx-auto rounded-full border-4 border-white bg-background object-cover shadow-2xl mb-4" />
-                        <h1 className="text-4xl md:text-6xl font-extrabold tracking-tight drop-shadow-lg">{party.name} ({party.acronym})</h1>
+                        <h1 style={{fontFamily:brandFont(party.customization?.font_key)}} className="break-words text-4xl md:text-6xl font-extrabold tracking-tight drop-shadow-lg">{party.name} ({party.acronym})</h1>
                         <ExpandableText text={party.description} />
                     </div>
                     {canManage && (
                         <div className="absolute top-4 right-4 z-20 flex gap-2">
                             <PartyManagementDialog party={party} onAction={fetchPartyData} isFromDetailsPage={true} />
-                            {isOwner && <Button variant="secondary" onClick={() => setIsCustomizing(true)}><Settings className="w-4 h-4 mr-2" /> Personalizar</Button>}
+
                         </div>
                     )}
                 </header>
@@ -282,7 +193,7 @@ const PartyPage = () => {
                         <div className="lg:col-span-2 space-y-8">
                             <Card className="glass-effect">
                                 <CardHeader className="flex flex-row items-center justify-between">
-                                    <CardTitle className="flex items-center gap-2"><Building className="h-5 w-5 text-primary"/>Sobre o Partido</CardTitle>
+                                    <CardTitle className="flex items-center gap-2"><Building className="h-5 w-5" style={{color:party.color}}/>Sobre o Partido</CardTitle>
                                     {isOwner && !isEditing && <Button variant="outline" size="sm" onClick={() => { setEditData({ ideology: party.ideology || '', statute: party.statute || '' }); setIsEditing(true); }}><Edit className="w-4 h-4 mr-2" />Editar</Button>}
                                 </CardHeader>
                                 <CardContent className="space-y-4">
@@ -306,7 +217,7 @@ const PartyPage = () => {
                             <PartyTreasury party={party} />
                             {userMemberRecord && (
                                 <Card className="glass-effect">
-                                    <CardHeader><CardTitle className="flex items-center gap-2"><Inbox className="w-5 h-5 text-primary"/> Sugestões Recebidas</CardTitle></CardHeader>
+                                    <CardHeader><CardTitle className="flex items-center gap-2"><Inbox className="w-5 h-5" style={{color: party.color}}/> Sugestões Recebidas</CardTitle></CardHeader>
                                     <CardContent className="space-y-4 max-h-96 overflow-y-auto">
                                         {suggestions.length > 0 ? suggestions.map(s => (
                                             <div key={s.id} className="p-4 border rounded-lg bg-background/30">
@@ -322,15 +233,15 @@ const PartyPage = () => {
 
                         <aside className="space-y-8">
                             <Card className="glass-effect">
-                                <CardHeader><CardTitle className="flex items-center gap-2"><Shield className="h-5 w-5 text-primary"/>Informações Gerais</CardTitle></CardHeader>
+                                <CardHeader><CardTitle className="flex items-center gap-2"><Info className="h-5 w-5" style={{color:party.color}}/>Informações Gerais</CardTitle></CardHeader>
                                 <CardContent className="space-y-3 text-sm"><div className="flex items-center gap-3"><Avatar><AvatarImage src={party.founder?.avatar_url} /><AvatarFallback>{party.founder?.full_name?.charAt(0) || '?'}</AvatarFallback></Avatar><div><p className="font-semibold">{party.founder?.full_name || 'Cidadão indisponível'}</p><p className="text-xs text-muted-foreground">Fundador</p></div></div>
-                                    <div className="flex items-center gap-3"><Shield className="w-5 h-5 text-primary" /><Badge className={orientationColors[party.orientation || 'Não definido']}>{party.orientation || 'Não definido'}</Badge></div>
-                                    <div className="flex items-center gap-3"><Calendar className="w-5 h-5 text-primary" /><span>Fundado em {formatDateBR(party.created_at,{long:true})}</span></div>
-                                    <div className="flex items-center gap-3"><Users className="w-5 h-5 text-primary" /><span>{party.members.length} Membros</span></div>
+                                    <div className="flex items-center gap-3"><Shield className="w-5 h-5" style={{color: party.color}} /><Badge className={orientationColors[party.orientation || 'Não definido']}>{party.orientation || 'Não definido'}</Badge></div>
+                                    <div className="flex items-center gap-3"><Calendar className="w-5 h-5" style={{color: party.color}} /><span>Fundado em {formatDateBR(party.created_at,{long:true})}</span></div>
+                                    <div className="flex items-center gap-3"><Users className="w-5 h-5" style={{color: party.color}} /><span>{party.members.length} Membros</span></div>
                                 </CardContent>
                             </Card>
                             <Card className="glass-effect">
-                                <CardHeader><CardTitle className="flex items-center gap-2"><Crown className="h-5 w-5 text-primary"/>Lideranças</CardTitle></CardHeader>
+                                <CardHeader><CardTitle className="flex items-center gap-2"><Crown className="h-5 w-5" style={{color:party.color}}/>Lideranças</CardTitle></CardHeader>
                                 <CardContent className="space-y-4">
 
                                     {party.owner && <div className="flex items-center gap-3"><Avatar><AvatarImage src={party.owner.avatar_url} /><AvatarFallback>{party.owner.full_name.charAt(0)}</AvatarFallback></Avatar><div><p className="font-semibold">{party.owner.full_name}</p><PartyRoleBadges party={party} userId={party.owner_id}/></div><PartyMemberActions party={party} memberId={party.owner_id} onChange={fetchPartyData}/></div>}
@@ -339,7 +250,7 @@ const PartyPage = () => {
                                 </CardContent>
                             </Card>
                             <Card className="glass-effect">
-                                <CardHeader><CardTitle className="flex items-center gap-2"><Users className="h-5 w-5 text-primary"/>Membros</CardTitle></CardHeader>
+                                <CardHeader><CardTitle className="flex items-center gap-2"><Users className="h-5 w-5" style={{color:party.color}}/>Membros</CardTitle></CardHeader>
                                 <CardContent className="space-y-2 max-h-72 overflow-y-auto">
                                     {[...party.members].sort((a, b) => (roleHierarchy[b.role] || 0) - (roleHierarchy[a.role] || 0)).map(member => (
                                         <div key={member.user_id} className="flex items-center gap-3 p-2 rounded-md hover:bg-secondary/50">
@@ -359,7 +270,6 @@ const PartyPage = () => {
                         </aside>
                     </div>
                 </main>
-                {canManage && <CustomizationDialog party={party} open={isCustomizing} onOpenChange={setIsCustomizing} onUpdate={fetchPartyData} />}
             </div>
         </>
     );

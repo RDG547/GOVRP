@@ -1,3 +1,6 @@
+import ListingCosts from '@/components/business/ListingCosts';
+import { useMarketplace } from '@/hooks/use-marketplace';
+import { useRef } from 'react';
 import { toBrasiliaInput, fromBrasiliaInput } from '@/lib/dateTime';
 import { categoryIcon } from '@/lib/commerceIcons';
 import React, { useState, useEffect } from 'react';
@@ -35,9 +38,16 @@ const SUBSCRIPTION_INTERVALS = [
 const ProductFormDialog = ({ isOpen, setIsOpen, product, onSuccess }) => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { enterprise } = useMarketplace();
+  const [feeConsent, setFeeConsent] = useState(false);
+  const requestKey = useRef(null);
+  useEffect(()=>{if(isOpen){requestKey.current=crypto.randomUUID();setFeeConsent(false);}},[isOpen]);
+  useEffect(()=>{setFeeConsent(false);},[enterprise?.active_listing_fee_amount,enterprise?.active_listing_fee_period,enterprise?.active_listing_fee_enabled]);
+  const listingFee = enterprise?.active_listing_fee_enabled ? Number(enterprise.active_listing_fee_amount) : 0;
   const [loading, setLoading] = useState(false);
   const [consumableEffects,setConsumableEffects]=useState({});
   const [imageFile, setImageFile] = useState(null);
+  const uploadedImage = useRef(null);
   const [showPromotion, setShowPromotion] = useState(false);
   const [showCustomCategory, setShowCustomCategory] = useState(false);
   const [customCategory, setCustomCategory] = useState('');
@@ -175,7 +185,6 @@ const ProductFormDialog = ({ isOpen, setIsOpen, product, onSuccess }) => {
     if (loading) return;
     setLoading(true);
     let uploadedPath = null;
-    let saved = false;
     const oldFilePath = product?.image_url ? extractStoragePathFromUrl(product.image_url, 'product-images') : null;
 
     try {
@@ -223,7 +232,10 @@ const ProductFormDialog = ({ isOpen, setIsOpen, product, onSuccess }) => {
         throw new Error('Defina a periodicidade da assinatura antes de anunciar o produto.');
       }
 
-      if (imageFile) {
+      if (imageFile && uploadedImage.current?.file === imageFile) {
+        finalImageUrl = uploadedImage.current.url;
+        uploadedPath = uploadedImage.current.path;
+      } else if (imageFile) {
 
         const newFileName = buildStoragePath({ prefix: '', entityId: user.id, fileName: imageFile.name });
         const { data: uploadData, error: uploadError } = await supabase.storage
@@ -235,9 +247,10 @@ const ProductFormDialog = ({ isOpen, setIsOpen, product, onSuccess }) => {
         finalImageUrl = supabase.storage.from('product-images').getPublicUrl(uploadData.path).data.publicUrl;
 
         uploadedPath = uploadData.path;
+        uploadedImage.current = { file: imageFile, url: finalImageUrl, path: uploadedPath };
       }
 
-      const { data: savedProduct, error } = await supabase.rpc('save_business_product', {
+      const { data: savedProduct, error } = await supabase.rpc('publish_business_product', {p_confirmed_fee:listingFee,p_period_days:enterprise.active_listing_fee_period,p_idempotency_key:requestKey.current,p_product:{
         p_product_id: product?.id || null,
         p_business_id: formData.business_id || null,
         p_name: formData.name,
@@ -253,25 +266,25 @@ const ProductFormDialog = ({ isOpen, setIsOpen, product, onSuccess }) => {
         p_promotion_expires_at: showPromotion && normalizedPromotionPrice > 0 && formData.promotion_expires_at
           ? fromBrasiliaInput(formData.promotion_expires_at)
           : null,
-      });
+      }});
 
       if (error) throw error;
 
-      saved = true;
       if (uploadedPath && oldFilePath && uploadedPath !== oldFilePath) await supabase.storage.from('product-images').remove([oldFilePath]);
       toast({ title: `Produto ${product ? 'atualizado' : 'criado'} com sucesso!`, description: savedProduct?.moderation_status === 'pending' ? 'O anúncio aguarda aprovação da gestão do marketplace.' : 'A alteração já está disponível.' });
       onSuccess();
     } catch (error) {
       toast({ title: 'Erro ao salvar produto', description: userErrorMessage(error), variant: 'destructive' });
     } finally {
-      if (!saved && uploadedPath) await supabase.storage.from('product-images').remove([uploadedPath]);
+      // A network failure can occur after the database commits. Keep the image and
+      // reuse its URL on retry so the same idempotency key preserves the product.
       setLoading(false);
     }
   };
 
   return (
     <Dialog open={isOpen} onOpenChange={open => { if (!loading) setIsOpen(open); }}>
-      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-hidden p-0">
+      <DialogContent className="grid-cols-1 [&>*]:min-w-0 sm:max-w-lg max-h-[90vh] overflow-hidden p-0">
         <DialogHeader className="px-6 pt-6">
           <DialogTitle>{product ? 'Editar Produto' : 'Adicionar Novo Produto'}</DialogTitle>
         </DialogHeader>
@@ -370,8 +383,9 @@ const ProductFormDialog = ({ isOpen, setIsOpen, product, onSuccess }) => {
               </div>
             )}
           </div>
+          <ListingCosts enterprise={enterprise}/>{!product&&listingFee>0&&<label className="flex items-start gap-2 text-sm"><input type="checkbox" className="mt-1 h-4 w-4" checked={feeConsent} onChange={e=>setFeeConsent(e.target.checked)}/>Autorizo a cobrança da taxa de anúncio exibida, na conta selecionada para a venda.</label>}{product&&<p className="text-xs text-muted-foreground">Editar não renova nem cobra o anúncio. Use Renovar anúncio se o período terminou.</p>}
           <DialogFooter>
-            <Button type="submit" disabled={loading || !formData.image_url && !imageFile}>
+            <Button type="submit" disabled={loading || !enterprise || (!product&&listingFee>0&&!feeConsent) || !formData.image_url && !imageFile}>
               {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
               {product ? 'Salvar Alterações' : 'Anunciar Produto'}
             </Button>

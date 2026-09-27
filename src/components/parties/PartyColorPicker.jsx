@@ -24,7 +24,7 @@ export default function PartyColorPicker({ value='#64748B', onChange, party }) {
     </div>
     <label className="block text-sm" htmlFor={`${id}-brightness`}>Luminosidade</label><input id={`${id}-brightness`} className="w-full min-h-8" type="range" min="0" max="100" value={Math.round(hsv[2]*100)} onChange={e=>update([hsv[0],hsv[1],Number(e.target.value)/100])}/>
     <label className="block text-sm" htmlFor={`${id}-hex`}>Código HEX</label><Input id={`${id}-hex`} value={hex} maxLength={7} pattern="#[0-9a-fA-F]{6}" onChange={e=>{setHex(e.target.value);if(/^#[0-9a-f]{6}$/i.test(e.target.value))onChange(e.target.value.toUpperCase());}} onBlur={()=>setHex(value)} />
-    <div className="rounded-lg p-3 text-center font-semibold" style={{backgroundColor:partyColor(value),color:partyColorText(value)}}>{party?.logo_url&&<img src={party.logo_url} alt="" className="mx-auto mb-2 h-10 w-10 rounded object-contain"/>}{party?.name || "Nome do partido"} {party?.acronym ? `- ${party.acronym}` : ""}</div>
+    <div className="rounded-lg p-3 text-center font-semibold break-words" style={{backgroundColor:partyColor(value),color:partyColorText(value)}}>{party?.logo_url&&<img src={party.logo_url} alt="" className="mx-auto mb-2 h-10 w-10 rounded object-contain"/>}{party?.name || "Nome do partido"} {party?.acronym ? `- ${party.acronym}` : ""}</div>
     <p className="text-xs text-muted-foreground">Arraste na roda ou use as setas: esquerda/direita para matiz e cima/baixo para saturação.</p>
   </fieldset>;
 }

@@ -432,7 +432,7 @@ export const AuthProvider = ({ children }) => {
 
   useDomainRealtime('identity', session?.user?.id, [
     { table: 'profiles', event: 'UPDATE', filter: `id=eq.${session?.user?.id}` },
-  ], () => { void refreshUser({ skipSync: true }); }, Boolean(session?.user?.id));
+    'government_terms'], () => { void refreshUser({ skipSync: true }); }, Boolean(session?.user?.id));
 
   const login = async ({ identifier, password, captchaToken }) => {
     const email = identifier.trim().toLowerCase();

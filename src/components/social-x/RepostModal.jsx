@@ -58,7 +58,7 @@ const RepostModal = ({ post, open, onOpenChange, onReposted }) => {
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent>
-                <DialogHeader>
+                <DialogHeader className="text-center sm:text-center">
                     <DialogTitle>Repostar</DialogTitle>
                     <DialogDescription>Adicione um comentário ou apenas reposte.</DialogDescription>
                 </DialogHeader>
@@ -71,7 +71,7 @@ const RepostModal = ({ post, open, onOpenChange, onReposted }) => {
                     />
                     <OriginalPostPreview post={post} />
                 </div>
-                <DialogFooter>
+                <DialogFooter className="justify-center sm:justify-center">
                     <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}><X className="mr-2 h-4 w-4" />Cancelar</Button>
                     <Button onClick={handleRepost} disabled={isSubmitting}>
                         {isSubmitting ? <Loader2 className="animate-spin mr-2"/> : <Repeat2 className="mr-2 h-4 w-4" />}

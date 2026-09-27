@@ -1,3 +1,4 @@
+import CompanyPage from '@/pages/services/CompanyPage';
 import { CitizenNeedsProvider } from '@/contexts/CitizenNeedsContext';
 import PresidentialFormationGuide from '@/components/PresidentialFormationGuide';
 import CitizenNeedsHUD from '@/components/CitizenNeedsHUD';
@@ -232,7 +233,7 @@ const AppShell = ({ location, theme, isAuthCallback }) => {
                 <Route path="/services/bank" element={<ManagedServiceRoute serviceKey="/services/bank"><Bank /></ManagedServiceRoute>} />
                 <Route path="/services/business" element={<ManagedServiceRoute serviceKey="/services/business"><Business /></ManagedServiceRoute>} />
                 <Route path="/services/business/product/:productId" element={<ManagedServiceRoute serviceKey="/services/business"><ProductDetails /></ManagedServiceRoute>} />
-                <Route path="/services/inventory" element={<ManagedServiceRoute serviceKey="/services/business"><InventoryPage /></ManagedServiceRoute>} />
+                <Route path="/services/companies/:id" element={<ProtectedRoute><CompanyPage /></ProtectedRoute>} /><Route path="/services/inventory" element={<ProtectedRoute><Navigate to="/dashboard/citizen?tab=inventory" replace /></ProtectedRoute>} />
                 <Route path="/services/dic" element={<ManagedServiceRoute serviceKey="/services/dic"><DIC /></ManagedServiceRoute>} />
                 <Route path="/services/prison" element={<ManagedServiceRoute serviceKey="/services/prison"><Prison /></ManagedServiceRoute>} />
                 <Route path="/services/entrepreneur-portal" element={<ManagedServiceRoute serviceKey="/services/entrepreneur-portal"><EntrepreneurPortal /></ManagedServiceRoute>} />

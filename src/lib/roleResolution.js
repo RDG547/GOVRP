@@ -17,6 +17,7 @@ export const EFFECTIVE_ROLE_PRIORITY = [
   'Senador',
   'Deputado',
   'Juiz',
+  'Promotor',
   'Diretor-Geral de Polícia',
   'Comandante-Geral das Forças Armadas',
   'Comandante da Agência de Inteligência',

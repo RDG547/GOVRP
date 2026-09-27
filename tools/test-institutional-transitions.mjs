@@ -100,10 +100,11 @@ try {
       perform public.cast_parliament_vote(v.id,public.get_active_parliament_member_id('${chair.id}','${chamber}'),'Aprovar');
       result:=private.finalize_bill_voting(v.id);
       if (result->>'approved')::boolean or (select role from public.profiles where id='${vice.id}')<>'Presidente' then raise exception 'Rejeição alterou a Presidência';end if;
-      -- With no Vice, the current Chamber chair succeeds and leaves its old seat.
+      -- The Chamber chair exercises interim executive authority without losing its mandate.
       update public.profiles set role='Cidadão',manual_role_override=false where id='${vice.id}';
-      if (select role from public.profiles where id='${houseVice.id}')<>'Presidente' then raise exception 'Sem Vice, Presidência da Câmara não assumiu: %, %, %',(select role from public.profiles where id='${houseVice.id}'),(select value->'presidentialSuccession' from public.system_settings where key='executive_governance'),(select jsonb_agg(jsonb_build_object('id',id,'role',role)) from public.profiles where role in ('Presidente','Vice-Presidente') and deleted_at is null);end if;
-      if public.get_active_parliament_member_id('${houseVice.id}','${chamber}') is not null then raise exception 'Sucessor reteve mandato parlamentar';end if;
+      if not public.is_acting_president('${houseVice.id}') or public.get_user_role('${houseVice.id}')<>'Presidente' then raise exception 'Interino sem autoridade executiva';end if;
+      if (select role from public.profiles where id='${houseVice.id}')<>'Presidente da Câmara dos Deputados' then raise exception 'Interino perdeu cargo de origem';end if;
+      if public.get_active_parliament_member_id('${houseVice.id}','${chamber}') is null then raise exception 'Interino perdeu mandato parlamentar';end if;
       raise notice 'Impeachment: permissões, quórum, destituição, sucessão, idempotência e renúncias aprovados.';
     end $test$;
     rollback;`;

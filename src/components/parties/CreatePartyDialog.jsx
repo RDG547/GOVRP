@@ -1,3 +1,4 @@
+import BrandFontPicker from '@/components/BrandFontPicker';
 import PartyColorPicker from '@/components/parties/PartyColorPicker';
 import { politicalOrientations, orientationColors } from '@/lib/partyIdentity';
 import React, { useState } from 'react';
@@ -18,7 +19,7 @@ const CreatePartyDialog = ({ onPartyCreated, userAffiliation }) => {
     const { toast } = useToast();
     const [isOpen, setIsOpen] = useState(false);
     const [loading, setLoading] = useState(false);
-    const [formData, setFormData] = useState({ name: '', acronym: '', ideology: '', statute: '', description: '', orientation: '', color: '#64748B' });
+    const [formData, setFormData] = useState({ name: '', acronym: '', ideology: '', statute: '', description: '', orientation: '', color: '#64748B', font_key: 'default' });
     const [logoUrl, setLogoUrl] = useState('');
     const [logoFile, setLogoFile] = useState(null);
 
@@ -55,7 +56,7 @@ const CreatePartyDialog = ({ onPartyCreated, userAffiliation }) => {
 
             const { data, error } = await supabase.rpc('create_political_party', {
                 p_name: formData.name, p_acronym: formData.acronym, p_ideology: formData.ideology, p_logo_url: finalLogoUrl,
-                p_statute: formData.statute, p_description: formData.description, p_orientation: formData.orientation, p_color: formData.color
+                p_statute: formData.statute, p_description: formData.description, p_orientation: formData.orientation, p_color: formData.color, p_font_key: formData.font_key
             });
 
             if (error || !data.success) {
@@ -65,7 +66,7 @@ const CreatePartyDialog = ({ onPartyCreated, userAffiliation }) => {
             toast({ title: 'Sucesso!', description: 'Partido criado com sucesso.' });
             onPartyCreated(); 
             setIsOpen(false);
-            setFormData({ name: '', acronym: '', ideology: '', statute: '', description: '', orientation: '', color: '#64748B' });
+            setFormData({ name: '', acronym: '', ideology: '', statute: '', description: '', orientation: '', color: '#64748B', font_key: 'default' });
             setLogoUrl(''); 
             setLogoFile(null);
         } catch (error) {
@@ -80,7 +81,7 @@ const CreatePartyDialog = ({ onPartyCreated, userAffiliation }) => {
         <Dialog open={isOpen} onOpenChange={handleOpenChange}>
             <DialogTrigger asChild><Button><PlusCircle className="mr-2 h-4 w-4" /> Criar Partido</Button></DialogTrigger>
             <DialogContent className="glass-effect max-h-[90vh] overflow-y-auto">
-                <DialogHeader><DialogTitle className="flex flex-col items-center gap-3 text-center"><PlusCircle className="h-9 w-9 text-blue-400"/>Fundar um Novo Partido Político</DialogTitle><DialogDescription>Preencha os dados para registrar seu partido na nação.</DialogDescription></DialogHeader>
+                <DialogHeader><DialogTitle className="flex flex-col items-center gap-3 text-center"><PlusCircle className="h-9 w-9 text-blue-400"/>Fundar um Novo Partido Político</DialogTitle><DialogDescription className="text-center">Preencha os dados para registrar seu partido na nação.</DialogDescription></DialogHeader>
                 <form onSubmit={handleSubmit} className="grid gap-4 py-4">
                     <div className="grid gap-2"><Label htmlFor="name" className="flex items-center gap-2"><Flag className="h-4 w-4 text-primary"/>Nome do Partido</Label><Input id="name" value={formData.name} onChange={(e) => setFormData(p=>({...p, name: e.target.value}))} required /></div>
                     <div className="grid gap-2"><Label htmlFor="acronym" className="flex items-center gap-2"><Hash className="h-4 w-4 text-primary"/>Sigla</Label><Input id="acronym" value={formData.acronym} onChange={(e) => setFormData(p=>({...p, acronym: e.target.value}))} required maxLength="5" /></div>
@@ -88,8 +89,8 @@ const CreatePartyDialog = ({ onPartyCreated, userAffiliation }) => {
                     <div className="grid gap-2"><Label htmlFor="description" className="flex items-center gap-2"><FileText className="h-4 w-4 text-primary"/>Descrição Curta</Label><Input id="description" value={formData.description} onChange={(e) => setFormData(p=>({...p, description: e.target.value}))} required /></div>
                     <div className="grid gap-2"><Label htmlFor="ideology" className="flex items-center gap-2"><Lightbulb className="h-4 w-4 text-primary"/>Ideologia</Label><Textarea id="ideology" value={formData.ideology} onChange={(e) => setFormData(p=>({...p, ideology: e.target.value}))} placeholder="Descreva os princípios do seu partido..." required /></div>
                     <div className="grid gap-2"><Label htmlFor="statute" className="flex items-center gap-2"><ScrollText className="h-4 w-4 text-primary"/>Estatuto do Partido</Label><Textarea id="statute" value={formData.statute} onChange={(e) => setFormData(p=>({...p, statute: e.target.value}))} rows={5} placeholder="Cole aqui as regras internas do partido." required /></div>
-            <PartyColorPicker party={{...formData,logo_url:logoUrl}} value={formData.color} onChange={color => setFormData(current => ({...current, color}))}/>
-                    <ImageUploader onUrlChange={setLogoUrl} onFileChange={setLogoFile} initialUrl={logoUrl} label="Logo do Partido (Obrigatório)" />
+            <h3 className="font-semibold">🎨 Personalização</h3><BrandFontPicker value={formData.font_key} onChange={font_key=>setFormData({...formData,font_key})} name={formData.name||"Nome do partido"}/><PartyColorPicker party={{...formData,logo_url:logoUrl}} value={formData.color} onChange={color => setFormData(current => ({...current, color}))}/>
+                    <ImageUploader previewOnly onUrlChange={setLogoUrl} onFileChange={setLogoFile} initialUrl={logoUrl} label="Logo do Partido (Obrigatório)" />
                     <DialogFooter className="gap-2 sm:justify-center"><Button type="submit" disabled={loading}>{loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <PlusCircle className="mr-2 h-4 w-4"/>}Fundar Partido</Button></DialogFooter>
                 </form>
             </DialogContent>

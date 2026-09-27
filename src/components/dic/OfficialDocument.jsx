@@ -256,9 +256,9 @@ const CNPJDocument = ({ user, doc, side }) => (
                     <DocumentField label="DATA DE ABERTURA" value={formatDocumentDate(doc.issued_at)} />
                     <DocumentField className="col-span-2" label="NOME EMPRESARIAL" value={doc.metadata?.company_name?.toUpperCase() || 'N/A'} />
                     <DocumentField className="col-span-2" label="TÍTULO DO ESTABELECIMENTO (NOME DE FANTASIA)" value={doc.metadata?.company_name?.toUpperCase() || 'N/A'} />
-                    <DocumentField className="col-span-2" label="CÓDIGO E DESCRIÇÃO DA ATIVIDADE ECONÔMICA PRINCIPAL" value="96.09-2-99 - OUTRAS ATIVIDADES DE SERVIÇOS PESSOAIS" />
+                    <DocumentField className="col-span-2" label="CÓDIGO E DESCRIÇÃO DA ATIVIDADE ECONÔMICA PRINCIPAL" value={doc.metadata?.activity_name?.toUpperCase() || doc.metadata?.business_type_id || 'ATIVIDADE HISTÓRICA NÃO INFORMADA'} />
                     <DocumentField label="ENDEREÇO" value="GOV, RP" />
-                    <DocumentField label="SITUAÇÃO CADASTRAL" value="ATIVA" />
+                    <DocumentField label="SITUAÇÃO CADASTRAL" value={doc.is_valid ? 'ATIVA' : 'ENCERRADA'} />
                 </main>
                 <footer className="text-center text-[0.4rem] sm:text-[10px]">
                     <p>Aprovado pela Instrução Normativa RFB nº 1.863, de 27 de dezembro de 2018.</p>

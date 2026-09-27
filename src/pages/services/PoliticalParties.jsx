@@ -1,3 +1,4 @@
+import { brandFont } from '@/lib/brandFonts';
 import { partyColor } from '@/lib/partyIdentity';
 import CitizenSelector from '@/components/CitizenSelector';
 import { orientationColors, politicalOrientations as partyOrientations } from '@/lib/partyIdentity';
@@ -218,7 +219,7 @@ const PoliticalParties = () => {
                                                       alt={party.name}
                                                       className="h-14 w-14 shrink-0 rounded-lg bg-secondary p-1 object-cover"
                                                     />
-                                                    <CardTitle className="text-foreground">{party.name} ({party.acronym})</CardTitle>
+                                                    <CardTitle style={{fontFamily:brandFont(party.customization?.font_key)}} className="text-foreground">{party.name} ({party.acronym})</CardTitle>
                                                 </div>
                                                 <CardDescription className="text-muted-foreground">{party.description}</CardDescription>
                                                 {isUserParty && <Star className="absolute top-0 right-0 w-5 h-5 text-yellow-400 fill-yellow-400" />}

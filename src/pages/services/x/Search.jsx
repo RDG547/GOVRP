@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { supabase } from '@/lib/supabaseClient';
 import { useAuth } from '@/contexts/AuthContext';
 import { Loader2, Search as SearchIcon, User, MessageSquare, Hash } from 'lucide-react';
+import { useDomainRealtime } from '@/hooks/use-domain-realtime';
 import PostCard from '@/components/social-x/PostCard';
 import { Link, useSearchParams } from 'react-router-dom';
 
@@ -61,12 +62,8 @@ const XSearch = () => {
         };
     }, [query, doSearch]);
 
-    // Search from URL params on initial load
-    useEffect(() => {
-        if (initialQuery) {
-            doSearch(initialQuery);
-        }
-    }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    useEffect(() => { setQuery(initialQuery); }, [initialQuery]);
+    useDomainRealtime('x-search', user?.id, ['posts','profiles'], () => { if(query.trim().length>=2) void doSearch(query); });
 
     const handleDeletePost = (postId) => {
         setResults(prev => {

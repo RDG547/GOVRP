@@ -12,13 +12,13 @@ const PageHeader = ({ icon: Icon, title, description, gradientText, iconColor = 
       className="mb-12 md:mb-16"
     >
       <div className={containerClass}>
-        <div className={`flex-grow ${alignmentClass}`}>
+        <div className={`min-w-0 max-w-full flex-grow ${alignmentClass}`}>
           {Icon && (
             <div className={`inline-block p-4 rounded-full mb-4 bg-white/10`}>
               <Icon className={`w-10 h-10 ${iconColor}`} />
             </div>
           )}
-          <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-4">
+          <h1 className="break-words text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-4">
             {title} {gradientText && <span className="gradient-text">{gradientText}</span>}
           </h1>
           {description && (

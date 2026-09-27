@@ -1,3 +1,5 @@
+import RenewListingButton from '@/components/business/RenewListingButton';
+import { useMarketplace } from '@/hooks/use-marketplace';
 import { useDomainRealtime } from '@/hooks/use-domain-realtime';
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabaseClient';
@@ -11,7 +13,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { formatCurrency } from '@/lib/utils';
 import ProductFormDialog from './ProductFormDialog';
 
-const ProductCard = ({ product, onEdit, onDelete }) => {
+const ProductCard = ({ product, onEdit, onDelete, enterprise, onRenewed }) => {
   return (
     <Card className="glass-effect flex flex-col">
       <CardHeader>
@@ -35,7 +37,7 @@ const ProductCard = ({ product, onEdit, onDelete }) => {
         <CardDescription>{product.moderation_status === 'pending' ? 'Aguardando aprovação · ' : product.moderation_status === 'suspended' ? 'Anúncio suspenso · ' : ''}{formatCurrency(product.price)}</CardDescription>
       </CardHeader>
       <CardContent className="flex-grow">
-        <p className="text-sm text-muted-foreground line-clamp-3">{product.description}</p>
+        <p className="text-sm text-muted-foreground line-clamp-3">{product.description}</p><RenewListingButton product={product} enterprise={enterprise} onRenewed={onRenewed}/>
       </CardContent>
       <CardFooter className="flex justify-between text-sm text-muted-foreground">
         <div className="flex items-center gap-1">
@@ -53,6 +55,7 @@ const ProductCard = ({ product, onEdit, onDelete }) => {
 
 const Products = () => {
   const { user } = useAuth();
+  const { enterprise } = useMarketplace();
   const { toast } = useToast();
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -138,6 +141,8 @@ const Products = () => {
             <ProductCard
               key={product.id}
               product={product}
+              enterprise={enterprise}
+              onRenewed={fetchProducts}
               onEdit={handleEditClick}
               onDelete={handleDeleteClick}
             />

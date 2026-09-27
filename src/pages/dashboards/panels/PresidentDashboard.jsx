@@ -1,3 +1,4 @@
+import ExtraordinaryElectionAction from '@/components/government/ExtraordinaryElectionAction';
 import MarketplaceManagement from '@/components/business/MarketplaceManagement';
 import { useDomainRealtime } from '@/hooks/use-domain-realtime';
 import CitizenSelector from '@/components/CitizenSelector';
@@ -781,7 +782,7 @@ const TariffManager = ({ onUpdate }) => <div className="space-y-4"><LiveLegalRul
 const ConstitutionalStatusCard = ({ executiveState }) => {
     const currentTerm = executiveState?.currentTerm;
     const viceAssumedPresidency = Boolean(executiveState?.viceAssumedPresidency);
-    const currentPresident = executiveState?.currentPresidentProfile?.full_name || 'Sem presidente em exercício';
+    const currentPresident = executiveState?.currentPresidentProfile?.full_name || executiveState?.actingAuthority?.profile?.full_name || 'Cargo vago';
     const currentVice = viceAssumedPresidency
         ? 'Vaga após sucessão presidencial'
         : executiveState?.currentViceProfile?.full_name || 'Vice-Presidente não definido';
@@ -806,7 +807,7 @@ const ConstitutionalStatusCard = ({ executiveState }) => {
             <CardContent className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="rounded-xl border border-white/10 bg-white/5 p-4">
-                        <p className="text-sm text-muted-foreground">Presidente da República</p>
+                        <p className="text-sm text-muted-foreground">{executiveState?.isInterim ? 'Presidente Interino da República' : 'Presidente da República'}</p>
                         <p className="font-semibold text-foreground mt-1">{currentPresident}</p>
                         {viceAssumedPresidency && (
                             <p className="mt-1 text-xs font-medium text-emerald-300">Vice eleito que assumiu a Presidência</p>
@@ -1334,8 +1335,8 @@ const EnterpriseDetailView = ({ enterprise, onBack, onUpdate }) => {
         const loadData = async () => {
             setLoadingData(true);
             const [pricesRes, costsRes] = await Promise.all([
-                supabase.from('system_settings').select('value').eq('key', 'basic_service_prices').single(),
-                supabase.from('system_settings').select('value').eq('key', 'enterprise_costs').single(),
+                supabase.from('system_settings').select('value').eq('key', 'basic_service_prices').maybeSingle(),
+                supabase.from('system_settings').select('value').eq('key', 'enterprise_costs').maybeSingle(),
             ]);
             if (pricesRes.data?.value) setPrices(pricesRes.data.value);
             setCosts(normalizeEnterpriseCosts(costsRes.data?.value?.[enterprise.id]));
@@ -1366,7 +1367,7 @@ const EnterpriseDetailView = ({ enterprise, onBack, onUpdate }) => {
 
     const handleSaveCosts = async () => {
         setSavingCosts(true);
-        const { data: existing } = await supabase.from('system_settings').select('value').eq('key', 'enterprise_costs').single();
+        const { data: existing } = await supabase.from('system_settings').select('value').eq('key', 'enterprise_costs').maybeSingle();
         const allCosts = existing?.value || {};
         allCosts[enterprise.id] = costs;
         const { error } = await supabase.from('system_settings').upsert({ key: 'enterprise_costs', value: allCosts });
@@ -1541,8 +1542,8 @@ const StateEnterpriseManager = ({ onUpdate }) => {
     const fetchEnterprises = useCallback(async () => {
         const [entRes, pricesRes, costsRes] = await Promise.all([
             supabase.from('state_enterprises').select('*').order('created_at', { ascending: true }),
-            supabase.from('system_settings').select('value').eq('key', 'basic_service_prices').single(),
-            supabase.from('system_settings').select('value').eq('key', 'enterprise_costs').single(),
+            supabase.from('system_settings').select('value').eq('key', 'basic_service_prices').maybeSingle(),
+            supabase.from('system_settings').select('value').eq('key', 'enterprise_costs').maybeSingle(),
         ]);
         if (entRes.error) {
             toast({ title: 'Erro ao carregar estatais', description: entRes.error.message, variant: 'destructive' });
@@ -2036,7 +2037,7 @@ const PresidentDashboard = () => {
                 supabase.from('government_ministries').select('*').order('name'),
                 supabase.from('decrees').select('*').order('created_at', { ascending: false }),
                 supabase.from('system_settings').select('key, value'),
-                supabase.from('government_finances').select('*').single(),
+                supabase.from('government_finances').select('*').eq('id', 1).maybeSingle(),
                 supabase.from('economic_state').select('current_selic').eq('id', true).single(),
                 fetchExecutiveConstitutionalState(supabase)
                     .then((data) => ({ data, error: null }))
@@ -2045,6 +2046,7 @@ const PresidentDashboard = () => {
 
             if (settingsRes.error) throw settingsRes.error;
             if (financesRes.error) throw financesRes.error;
+            if (!financesRes.data) throw new Error('As finanças do Governo não estão disponíveis para esta sessão.');
 
             const optionalErrors = [
                 ministersRes.error,
@@ -2110,7 +2112,8 @@ const PresidentDashboard = () => {
             setDeficit(financesRes.data.treasury_balance - totalAllocated);
 
         } catch (error) {
-            toast({ title: 'Erro ao carregar dados', description: error.message, variant: 'destructive' });
+            toast({ title: 'Erro ao carregar dados', description: 'Não foi possível consultar o Governo. Verifique sua conexão e tente novamente.', variant: 'destructive' });
+            console.error('Painel presidencial:', error);
         } finally {
             if (showLoading) setLoading(false);
         }
@@ -2142,6 +2145,7 @@ const PresidentDashboard = () => {
             'candidates',
             'party_members',
             'government_ministries',
+            'government_terms',
             'government_popularity_state',
             'government_popularity_events',
             'national_indicator_points',
@@ -2200,7 +2204,7 @@ const PresidentDashboard = () => {
         .sort((left, right) => Number(right.allocated_value || 0) - Number(left.allocated_value || 0))
         .slice(0, 5);
     const viceAssumedPresidency = Boolean(executiveState?.viceAssumedPresidency);
-    const currentPresidentName = executiveState?.currentPresidentProfile?.full_name || 'Cargo vago';
+    const currentPresidentName = executiveState?.currentPresidentProfile?.full_name || executiveState?.actingAuthority?.profile?.full_name || 'Cargo vago';
     const currentViceName = viceAssumedPresidency
         ? 'Vaga após sucessão presidencial'
         : executiveState?.currentViceProfile?.full_name || 'Sem vice em exercício';
@@ -2225,6 +2229,7 @@ const PresidentDashboard = () => {
                     centered={true}
                 />
 
+                <ExtraordinaryElectionAction government={executiveState?.government} onUpdate={()=>fetchData(false)}/>
                 <Tabs defaultValue="overview" value={activeTab} onValueChange={setActiveTab} className="w-full">
                     <div className="overflow-x-auto custom-scrollbar -mx-4 px-4 pb-2 flex justify-start sm:justify-center">
                         <TabsList className="inline-flex min-w-max w-max gap-2">
@@ -2246,7 +2251,7 @@ const PresidentDashboard = () => {
                                         <p className="text-xs uppercase text-muted-foreground">Presidente em exercício</p>
                                         <p className="mt-2 text-lg font-semibold text-foreground">{currentPresidentName}</p>
                                         <p className="text-sm text-muted-foreground">
-                                            {executiveState?.isVacant
+                                            {executiveState?.isInterim ? 'Presidente Interino · dupla vacância' : executiveState?.isVacant
                                                 ? 'Vacância presidencial ativa'
                                                 : viceAssumedPresidency
                                                     ? 'Vice eleito que assumiu a Presidência'

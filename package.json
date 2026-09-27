@@ -69,7 +69,14 @@
     "test:api-auth": "node tools/test-api-auth.mjs",
     "test:admin-role-persistence": "node tools/test-admin-role-persistence.mjs",
     "test:electoral-identity": "node tools/test-electoral-identity-and-roles.mjs",
-    "test:electoral-identity-interface": "node tools/test-electoral-identity-interface.mjs"
+    "test:electoral-identity-interface": "node tools/test-electoral-identity-interface.mjs",
+    "test:government-succession": "node tools/test-government-succession.mjs",
+    "test:extraordinary-elections": "node tools/test-extraordinary-elections.mjs",
+    "test:parliament-rules": "node tools/test-parliament-voting-rules.mjs",
+    "test:marketplace-listings": "node tools/test-marketplace-listing-fees.mjs",
+    "test:brand-cnpj-trends": "node tools/test-brand-cnpj-trends.mjs",
+    "test:expansion-interface": "node tools/test-expansion-interface.mjs",
+    "test:interim-government-interface": "node tools/test-interim-government-interface.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.0",

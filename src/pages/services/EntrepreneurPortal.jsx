@@ -1,3 +1,4 @@
+import { brandFont } from '@/lib/brandFonts';
 import { businessTypeIcon } from '@/lib/commerceIcons';
 import { LEGAL_REALTIME_TABLES } from '@/lib/legalMeasures';
 import RegisterCompanyDialog from '@/components/business/RegisterCompanyDialog';
@@ -562,10 +563,10 @@ const MyBusinessCard = ({ biz, index, onSell, onCancelSale }) => {
           <div className="flex items-start justify-between mb-4">
             <div className="flex items-center gap-4">
               <div className={`flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-br ${typeData.bgGlow}`}>
-                <Icon className={`w-6 h-6 ${typeData.color}`} />
+                {biz.logo_url?<img src={biz.logo_url} alt="Logo da empresa" className="h-12 w-12 rounded-xl object-contain"/>:<Icon className={`w-6 h-6 ${typeData.color}`} />}
               </div>
               <div>
-                <h3 className="text-lg font-bold text-foreground">{biz.name}</h3>
+                <h3 className="text-lg font-bold text-foreground" style={{fontFamily:brandFont(biz.font_key)}}>{biz.name}</h3>
                 <p className="text-xs text-muted-foreground uppercase tracking-wider">{typeData.category}</p>
               </div>
             </div>
@@ -754,7 +755,7 @@ const EntrepreneurPortal = () => {
   const businessTypes = useMemo(() => catalogTypes.map(type => {
     const presentation = BUSINESS_TYPES.find(item => item.id === type.id) || BUSINESS_TYPES.find(item => item.id === 'consultoria') || BUSINESS_TYPES[0];
     return { ...presentation, icon: businessTypeIcon(type), id: type.id, name: type.name, description: type.description, category: type.category,
-      registrationFee: Number(type.registration_fee),
+      registrationFee: Number(type.registration_fee), requiresCnpj: type.requires_cnpj !== false,
       minEmployees: type.min_employees, monthlyCosts: type.monthly_costs || presentation.monthlyCosts,
       requirements: Array.isArray(type.requirements) ? type.requirements : presentation.requirements,
     };
@@ -781,7 +782,7 @@ const EntrepreneurPortal = () => {
       setMyBusinesses(
         (data || []).map((b) => ({
           id: b.id,
-          name: b.name,
+          name: b.name, logo_url:b.logo_url,font_key:b.font_key,brand_color:b.brand_color,
           type: b.business_type_id,
           status: b.status,
           employees: b.employees,
@@ -895,6 +896,8 @@ const EntrepreneurPortal = () => {
         method: 'POST',
         body: JSON.stringify({
           businessTypeId: business.id,
+          cnpjId: details.cnpjId,
+          brand: details.brand,
           companyName,
           description,
           idempotencyKey,
@@ -1111,12 +1114,12 @@ const EntrepreneurPortal = () => {
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-2 mb-8 border-b border-white/10 pb-1">
+        <div className="grid grid-cols-3 gap-1 mb-8 border-b border-white/10 pb-1">
           {tabs.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-2 px-5 py-3 rounded-t-xl text-sm font-semibold transition-all duration-200 ${
+              className={`flex min-w-0 flex-wrap justify-center items-center gap-2 px-2 py-3 rounded-t-xl text-xs sm:text-sm font-semibold transition-all duration-200 ${
                 activeTab === tab.id
                   ? 'bg-white/10 text-foreground border-b-2 border-primary'
                   : 'text-muted-foreground hover:text-foreground hover:bg-white/5'
@@ -1199,13 +1202,13 @@ const EntrepreneurPortal = () => {
               ) : (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                   {myBusinesses.map((biz, index) => (
-                    <MyBusinessCard
+                    <div key={biz.id}><Button asChild variant="outline" className="mb-2"><Link to={`/services/companies/${biz.id}`}>Ver Empresa</Link></Button><MyBusinessCard
                       key={biz.id}
                       biz={biz}
                       index={index}
                       onSell={setBusinessToSell}
                       onCancelSale={handleCancelBusinessSale}
-                    />
+                    /></div>
                   ))}
                 </div>
               )}

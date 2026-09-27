@@ -1,4 +1,5 @@
 const PURCHASE_ERRORS = {
+  LISTING_RENEWAL_REQUIRED: 'Este anúncio aguarda renovação pelo vendedor. Nenhum valor foi cobrado.',
   PRODUCT_NOT_AVAILABLE: 'Este anúncio está suspenso, removido ou aguardando aprovação.',
   MARKETPLACE_UNAVAILABLE: 'O marketplace está temporariamente indisponível.',
   MARKETPLACE_RECEIVING_ACCOUNT_REQUIRED: 'A gestão do marketplace precisa regularizar sua conta de recebimento.',

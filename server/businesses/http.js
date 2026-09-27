@@ -720,6 +720,8 @@ export const registerBusinessHandler = async (request, response) => {
         p_company_name: companyName,
         p_description: description,
         p_idempotency_key: idempotencyKey,
+        p_cnpj_id: payload.cnpjId || null,
+        p_brand: payload.brand || {},
       }
     );
     if (registrationError) {
