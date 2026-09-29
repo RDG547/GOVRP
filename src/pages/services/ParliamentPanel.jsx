@@ -1,3 +1,5 @@
+import BillHistory from '@/components/parliament/BillHistory';
+import { hydrateBillHistory } from '@/lib/billHistory';
 import ParliamentRoleBadges from '@/components/parliament/ParliamentRoleBadges';
 import { toBrasiliaInput, fromBrasiliaInput } from '@/lib/dateTime';
 import { internalElectionPhase } from '@/lib/parliamentGovernance';
@@ -299,7 +301,7 @@ const ParliamentPanel = () => {
 
   const filteredBills = useMemo(
     () =>
-      billStatusFilter === 'all'
+      (billStatusFilter === 'all'
         ? bills
         : bills.filter((bill) =>
             bill.status === billStatusFilter ||
@@ -309,7 +311,7 @@ const ParliamentPanel = () => {
             (billStatusFilter === 'Convertido em norma' && ['Sancionado', 'Promulgado'].includes(bill.status)) ||
             (billStatusFilter === 'Vetado' &&
               ['Vetado integralmente', 'Vetado parcialmente'].includes(bill.status))
-          ),
+          )).filter(bill => bill.type !== 'IMPEACHMENT'),
     [billStatusFilter, bills]
   );
 
@@ -530,7 +532,7 @@ const ParliamentPanel = () => {
 
       if (sections.includes('bills')) {
       const billAuthors = await fetchPublicProfiles((billsResponse.data || []).map(bill => bill.author_id));
-      setBills((billsResponse.data || []).filter(bill => bill.type !== 'IMPEACHMENT').map(bill => ({...bill,author:billAuthors.get(bill.author_id)||bill.author})));
+      setBills(await hydrateBillHistory((billsResponse.data || []).map(bill => ({...bill, house: currentHouse, author: billAuthors.get(bill.author_id) || bill.author})), supabase));
       }
       if (sections.includes('suggestions')) setSuggestions(suggestionsResponse.data || []);
       if (sections.includes('plebiscites')) setPlebisciteRequests(plebiscitesResponse.data || []);
@@ -1313,7 +1315,7 @@ const ParliamentPanel = () => {
               </Tabs>
             </TabsContent>
 
-            <TabsContent value="history"><Card><CardHeader><CardTitle>Histórico de Projetos</CardTitle><CardDescription>Autoria e filiação registradas no protocolo.</CardDescription></CardHeader><CardContent className="space-y-4">{bills.filter(b=>!['Em tramitação','Em votação','Em votação (2ª Casa)','Protocolado'].includes(b.status)).map(bill=><article key={bill.id} className="rounded-lg border p-4 space-y-2"><h3 className="font-semibold">{bill.title}</h3><Badge>{bill.status}</Badge><p>{bill.author_identity_snapshot?.name || bill.author?.full_name || 'Autor indisponível'}</p><BillAuthorParty bill={bill}/><p className="text-sm">{bill.summary}</p></article>)}</CardContent></Card></TabsContent>
+            <TabsContent value="history"><h2 className="mb-4 text-2xl font-bold">Histórico de Projetos</h2><BillHistory bills={bills}/></TabsContent>
             <TabsContent value="votes">
               <Card className="glass-effect">
                 <CardHeader>

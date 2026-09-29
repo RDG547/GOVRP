@@ -18,6 +18,8 @@ const ImageUploader = ({
   initialUrl = '',
   label = 'Imagem',
   previewOnly = false,
+  banner = false,
+  allowRemove = false,
   accept = IMAGE_ACCEPT_ATTRIBUTE,
   allowedMimeTypes = ACCEPTED_IMAGE_MIME_TYPES,
   allowedExtensions = ACCEPTED_IMAGE_EXTENSIONS,
@@ -37,7 +39,7 @@ const ImageUploader = ({
 
   useEffect(() => {
     setUrl(initialUrl);
-    setFile(null);
+    if (initialUrl) setFile(null);
     setError('');
   }, [initialUrl]);
 
@@ -100,6 +102,8 @@ const ImageUploader = ({
     setFile(null);
     setError('');
     onFileChange?.(null);
+    setUrl('');
+    onUrlChange?.('');
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -108,7 +112,7 @@ const ImageUploader = ({
   return (
     <div className="space-y-2">
       <Label>{label}</Label>
-      {previewOnly && preview && <img src={preview} alt={`Prévia: ${label}`} className="h-24 w-24 rounded-lg border object-contain"/>}
+      {previewOnly && preview && <img src={preview} alt={`Prévia: ${label}`} className={banner ? "aspect-[3/1] w-full rounded-lg border object-cover" : "h-24 w-24 rounded-lg border object-contain"}/>}
       {previewOnly && !editUrl && <Button type="button" variant="ghost" size="sm" onClick={() => setEditUrl(true)}><LinkIcon className="mr-2 h-4 w-4"/>Alterar por link</Button>}
       <div className="flex items-center gap-2">
         <div className={`relative min-w-0 flex-grow ${previewOnly && !editUrl ? 'hidden' : ''}`}>
@@ -122,15 +126,8 @@ const ImageUploader = ({
             className="pl-10"
           />
         </div>
-        {file ? (
-          <Button type="button" variant="destructive" size="icon" aria-label="Remover imagem selecionada" onClick={handleClearFile}>
-            <X className="h-4 w-4" />
-          </Button>
-        ) : (
-          <Button type="button" variant="outline" size="icon" aria-label="Enviar imagem" onClick={handleUploadClick}>
-            <Upload className="h-4 w-4" />
-          </Button>
-        )}
+        <Button type="button" variant="outline" size="sm" aria-label={`Enviar ${label}`} onClick={handleUploadClick}><Upload className="mr-2 h-4 w-4"/>{preview ? 'Alterar imagem' : 'Enviar imagem'}</Button>
+        {(file || (allowRemove && preview)) && <Button type="button" variant="ghost" size="sm" aria-label={`Remover ${label}`} onClick={handleClearFile}><X className="mr-2 h-4 w-4"/>Remover</Button>}
       </div>
       {error && <p className="text-sm text-destructive">{error}</p>}
       <input

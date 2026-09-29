@@ -1711,8 +1711,16 @@ export const submitPresidentialCandidacyHandler = async (request, response) => {
 
     const party = await fetchPartyById(supabase, requesterPartyId);
     const electoralNumber = trimString(payload.electoralNumber);
-    if (electoralNumber && (!/^[0-9]{2}$/.test(electoralNumber) || (party ? electoralNumber !== party.electoral_number : !electoralNumber.startsWith('0')))) {
-      throw createHttpError('Confira o número eleitoral da chapa e o prefixo partidário.', 400);
+    if (!/^[0-9]{2}$/.test(electoralNumber)) {
+      throw createHttpError('Informe um número com 2 dígitos para a chapa presidencial.', 400);
+    }
+    if (party && electoralNumber !== party.electoral_number) {
+      throw createHttpError(`Use o número eleitoral do partido: ${party.electoral_number}.`, 400);
+    }
+    const {data:numberConflicts,error:numberError}=await supabase.from('candidates').select('id,status').eq('election_id',electionId).eq('electoral_number',electoralNumber);
+    if(numberError)throw numberError;
+    if((numberConflicts||[]).some(candidate=>!['rejected','rejeitado','cancelled','cancelado','cancelada','withdrawn'].includes(String(candidate.status||'').toLowerCase()))) {
+      throw createHttpError('Este número já está sendo utilizado nesta eleição.',409);
     }
     const candidateName = resolveProfileDisplayName(requesterProfile, 'Candidato');
     const viceName = resolveProfileDisplayName(viceProfile, 'Vice indicado');
@@ -1940,6 +1948,10 @@ export const respondViceCandidacyInvitationHandler = async (request, response) =
       .single();
 
     if (candidateInsertError) {
+      if (candidateInsertError.message?.includes('Este número já está') || (candidateInsertError.code==='23505' && candidateInsertError.message?.includes('candidate_electoral_number_unique'))) {
+        throw createHttpError('Este número já está sendo utilizado nesta eleição.',409);
+      }
+      if (/^(Use |Informe |Defina |O partido)/.test(candidateInsertError.message||'')) throw createHttpError(candidateInsertError.message,400);
       throw candidateInsertError;
     }
 

@@ -1,0 +1,1065 @@
+[
+  {
+    "key": "modern",
+    "label": "Inter",
+    "family": "\"GOVRP Inter\", sans-serif",
+    "fallback": "sans-serif",
+    "category": "Sans",
+    "preview": "GOVRP • Política e negócios",
+    "source": "https://cdn.jsdelivr.net/npm/@fontsource/inter@5.3.0",
+    "license": "OFL-1.1",
+    "files": [
+      {
+        "file": "modern-400.woff2",
+        "weight": 400,
+        "sha256": "8909904ab6c872eb994093482a88a28eca2cd95912d7b6fecd72103b0dc07edc"
+      },
+      {
+        "file": "modern-700.woff2",
+        "weight": 700,
+        "sha256": "6f56409fd3d64bb85f7d070bce20749db2d66b6d63cec586cc22d1c761be2491"
+      }
+    ]
+  },
+  {
+    "key": "institutional",
+    "label": "Open Sans",
+    "family": "\"GOVRP Open Sans\", sans-serif",
+    "fallback": "sans-serif",
+    "category": "Institucional",
+    "preview": "GOVRP • Política e negócios",
+    "source": "https://cdn.jsdelivr.net/npm/@fontsource/open-sans@5.3.0",
+    "license": "OFL-1.1",
+    "files": [
+      {
+        "file": "institutional-400.woff2",
+        "weight": 400,
+        "sha256": "0e44026ad31376af1b56593cd4acb4f353f8e8789c51759e18f64578e4ef296a"
+      },
+      {
+        "file": "institutional-700.woff2",
+        "weight": 700,
+        "sha256": "594a622208d1dad5d1dd58aef74f212ce7132d8f0aa5bacea6cfeb86d308c17a"
+      }
+    ]
+  },
+  {
+    "key": "classic",
+    "label": "Merriweather",
+    "family": "\"GOVRP Merriweather\", serif",
+    "fallback": "serif",
+    "category": "Clássica",
+    "preview": "GOVRP • Política e negócios",
+    "source": "https://cdn.jsdelivr.net/npm/@fontsource/merriweather@5.3.0",
+    "license": "OFL-1.1",
+    "files": [
+      {
+        "file": "classic-400.woff2",
+        "weight": 400,
+        "sha256": "66f5bd22d738a801a9e58d71920559743b0baaced04be299e3c4feca3dce3556"
+      },
+      {
+        "file": "classic-700.woff2",
+        "weight": 700,
+        "sha256": "4e1ab49396c02be0d9a2a25eed7bc73781c047d85fcb5dfc2889873eaf992b09"
+      }
+    ]
+  },
+  {
+    "key": "elegant",
+    "label": "Cormorant Garamond",
+    "family": "\"GOVRP Cormorant Garamond\", serif",
+    "fallback": "serif",
+    "category": "Elegante",
+    "preview": "GOVRP • Política e negócios",
+    "source": "https://cdn.jsdelivr.net/npm/@fontsource/cormorant-garamond@5.3.0",
+    "license": "OFL-1.1",
+    "files": [
+      {
+        "file": "elegant-400.woff2",
+        "weight": 400,
+        "sha256": "8048ac209bec741e1c29cd0cfac5aac1c0c2ba8c3ddbd4a58fa9bd92ef5c63c2"
+      },
+      {
+        "file": "elegant-700.woff2",
+        "weight": 700,
+        "sha256": "21a0fc1c5c22708cf4aa0c147fd32982e25bf9e21efec0ca31a4495ba41753eb"
+      }
+    ]
+  },
+  {
+    "key": "geometric",
+    "label": "Montserrat",
+    "family": "\"GOVRP Montserrat\", sans-serif",
+    "fallback": "sans-serif",
+    "category": "Geométrica",
+    "preview": "GOVRP • Política e negócios",
+    "source": "https://cdn.jsdelivr.net/npm/@fontsource/montserrat@5.3.0",
+    "license": "OFL-1.1",
+    "files": [
+      {
+        "file": "geometric-400.woff2",
+        "weight": 400,
+        "sha256": "e66bcd2761ab6924b25ce70dafe10e57a39193c4fea1516730bd9cb5240af6c8"
+      },
+      {
+        "file": "geometric-700.woff2",
+        "weight": 700,
+        "sha256": "f9d9e65b15372cebcafc3acd1e664a564c5c4b23278de4d5760de9a13c530371"
+      }
+    ]
+  },
+  {
+    "key": "editorial",
+    "label": "Libre Baskerville",
+    "family": "\"GOVRP Libre Baskerville\", serif",
+    "fallback": "serif",
+    "category": "Editorial",
+    "preview": "GOVRP • Política e negócios",
+    "source": "https://cdn.jsdelivr.net/npm/@fontsource/libre-baskerville@5.3.0",
+    "license": "OFL-1.1",
+    "files": [
+      {
+        "file": "editorial-400.woff2",
+        "weight": 400,
+        "sha256": "3eb80fbca70498126925ce16ff5c20b2fa35e67ae7123ddb46302d2778dfbf0e"
+      },
+      {
+        "file": "editorial-700.woff2",
+        "weight": 700,
+        "sha256": "96fa63376eed93029fa2514a02f5cb80276b016e239426858787de6e794d8619"
+      }
+    ]
+  },
+  {
+    "key": "technical",
+    "label": "Roboto Mono",
+    "family": "\"GOVRP Roboto Mono\", monospace",
+    "fallback": "monospace",
+    "category": "Técnica",
+    "preview": "GOVRP • Política e negócios",
+    "source": "https://cdn.jsdelivr.net/npm/@fontsource/roboto-mono@5.3.0",
+    "license": "OFL-1.1",
+    "files": [
+      {
+        "file": "technical-400.woff2",
+        "weight": 400,
+        "sha256": "e03013e0baa5690a803c188da2214d920c3245b25ad78421ecc8ae86cd842ae9"
+      },
+      {
+        "file": "technical-700.woff2",
+        "weight": 700,
+        "sha256": "283fbef73f42c21722c5a3efc7a44b0c38aac1ada665602b2144c13ed58c0e99"
+      }
+    ]
+  },
+  {
+    "key": "lato",
+    "label": "Lato",
+    "family": "\"GOVRP Lato\", sans-serif",
+    "fallback": "sans-serif",
+    "category": "Sans",
+    "preview": "GOVRP • Política e negócios",
+    "source": "https://cdn.jsdelivr.net/npm/@fontsource/lato@5.3.0",
+    "license": "OFL-1.1",
+    "files": [
+      {
+        "file": "lato-400.woff2",
+        "weight": 400,
+        "sha256": "918b7dc3e2e2d015c16ce08b57bcb64d2253bafc1707658f361e72865498e537"
+      },
+      {
+        "file": "lato-700.woff2",
+        "weight": 700,
+        "sha256": "c447dd7677b419db7b21dbdfc6277c7816a913ffda76fd2e52702df538de0e49"
+      }
+    ]
+  },
+  {
+    "key": "poppins",
+    "label": "Poppins",
+    "family": "\"GOVRP Poppins\", sans-serif",
+    "fallback": "sans-serif",
+    "category": "Geométrica",
+    "preview": "GOVRP • Política e negócios",
+    "source": "https://cdn.jsdelivr.net/npm/@fontsource/poppins@5.3.0",
+    "license": "OFL-1.1",
+    "files": [
+      {
+        "file": "poppins-400.woff2",
+        "weight": 400,
+        "sha256": "7d93459d86585bfcdbb7e0376056226adb25821ee54b96236fe2123e9560929f"
+      },
+      {
+        "file": "poppins-700.woff2",
+        "weight": 700,
+        "sha256": "9338e65fc077355c7a87ae0d64cc101e23b9bf8ad78ae65f0f319c857311b526"
+      }
+    ]
+  },
+  {
+    "key": "raleway",
+    "label": "Raleway",
+    "family": "\"GOVRP Raleway\", sans-serif",
+    "fallback": "sans-serif",
+    "category": "Elegante",
+    "preview": "GOVRP • Política e negócios",
+    "source": "https://cdn.jsdelivr.net/npm/@fontsource/raleway@5.3.0",
+    "license": "OFL-1.1",
+    "files": [
+      {
+        "file": "raleway-400.woff2",
+        "weight": 400,
+        "sha256": "2318962e7930f55b45907ee85a6b6165ca3bba437b05ca17068a5c876d3de18b"
+      },
+      {
+        "file": "raleway-700.woff2",
+        "weight": 700,
+        "sha256": "05844cd75b25917a8463edbffc9a952205d327775c54a6697745ababb14a10d7"
+      }
+    ]
+  },
+  {
+    "key": "nunito-sans",
+    "label": "Nunito Sans",
+    "family": "\"GOVRP Nunito Sans\", sans-serif",
+    "fallback": "sans-serif",
+    "category": "Sans",
+    "preview": "GOVRP • Política e negócios",
+    "source": "https://cdn.jsdelivr.net/npm/@fontsource/nunito-sans@5.3.0",
+    "license": "OFL-1.1",
+    "files": [
+      {
+        "file": "nunito-sans-400.woff2",
+        "weight": 400,
+        "sha256": "d9976dd1dc9c0d65046b52810e7cc69cfc229ee9939628ffe637e17efe4ef1ed"
+      },
+      {
+        "file": "nunito-sans-700.woff2",
+        "weight": 700,
+        "sha256": "cb84238e7b852f2d22b91a598289f13b31cbc7a2d618fd2c0628ecb69459fbeb"
+      }
+    ]
+  },
+  {
+    "key": "source-sans-3",
+    "label": "Source Sans 3",
+    "family": "\"GOVRP Source Sans 3\", sans-serif",
+    "fallback": "sans-serif",
+    "category": "Institucional",
+    "preview": "GOVRP • Política e negócios",
+    "source": "https://cdn.jsdelivr.net/npm/@fontsource/source-sans-3@5.3.0",
+    "license": "OFL-1.1",
+    "files": [
+      {
+        "file": "source-sans-3-400.woff2",
+        "weight": 400,
+        "sha256": "0f73f35e08cde0a2f10c109c6e01d71459d97e4099ecd9a50f1b6c0209e4de2b"
+      },
+      {
+        "file": "source-sans-3-700.woff2",
+        "weight": 700,
+        "sha256": "ae35266f2ab0d5314ff9a04127931eb26c793e4f1269bb240046d4d2db4b7bb1"
+      }
+    ]
+  },
+  {
+    "key": "work-sans",
+    "label": "Work Sans",
+    "family": "\"GOVRP Work Sans\", sans-serif",
+    "fallback": "sans-serif",
+    "category": "Moderna",
+    "preview": "GOVRP • Política e negócios",
+    "source": "https://cdn.jsdelivr.net/npm/@fontsource/work-sans@5.3.0",
+    "license": "OFL-1.1",
+    "files": [
+      {
+        "file": "work-sans-400.woff2",
+        "weight": 400,
+        "sha256": "418b06936717d2e9b6c7a1fb61acb7e2f40030be4b230452f96505230e7b6b41"
+      },
+      {
+        "file": "work-sans-700.woff2",
+        "weight": 700,
+        "sha256": "c1e51267967030c3d8893931aa3b2e087b9caf44332cf7c384f4f4c22da0dadc"
+      }
+    ]
+  },
+  {
+    "key": "manrope",
+    "label": "Manrope",
+    "family": "\"GOVRP Manrope\", sans-serif",
+    "fallback": "sans-serif",
+    "category": "Geométrica",
+    "preview": "GOVRP • Política e negócios",
+    "source": "https://cdn.jsdelivr.net/npm/@fontsource/manrope@5.3.0",
+    "license": "OFL-1.1",
+    "files": [
+      {
+        "file": "manrope-400.woff2",
+        "weight": 400,
+        "sha256": "849290ef12a2eeb9af5c11924120d11aa4ae8b435ed3347d7fc8bc240c293ca3"
+      },
+      {
+        "file": "manrope-700.woff2",
+        "weight": 700,
+        "sha256": "d2a12c85a831e4b5db341767d0347fa3d1361d22a1fcb3e361a16b6c90080f71"
+      }
+    ]
+  },
+  {
+    "key": "dm-sans",
+    "label": "DM Sans",
+    "family": "\"GOVRP DM Sans\", sans-serif",
+    "fallback": "sans-serif",
+    "category": "Moderna",
+    "preview": "GOVRP • Política e negócios",
+    "source": "https://cdn.jsdelivr.net/npm/@fontsource/dm-sans@5.3.0",
+    "license": "OFL-1.1",
+    "files": [
+      {
+        "file": "dm-sans-400.woff2",
+        "weight": 400,
+        "sha256": "4ab51eb2cd7305d177187908d6397474d4520663f6c6e572feb0a64f4fa80006"
+      },
+      {
+        "file": "dm-sans-700.woff2",
+        "weight": 700,
+        "sha256": "35c5efa0e5daa52ee5c6500f5be354bf751fb65c4e49e1d6806c6eb5883e8fe9"
+      }
+    ]
+  },
+  {
+    "key": "figtree",
+    "label": "Figtree",
+    "family": "\"GOVRP Figtree\", sans-serif",
+    "fallback": "sans-serif",
+    "category": "Sans",
+    "preview": "GOVRP • Política e negócios",
+    "source": "https://cdn.jsdelivr.net/npm/@fontsource/figtree@5.3.0",
+    "license": "OFL-1.1",
+    "files": [
+      {
+        "file": "figtree-400.woff2",
+        "weight": 400,
+        "sha256": "8f98dd642986f1fa39c45b89665a57372897c235b36028e0e4a136e43dc5f8ab"
+      },
+      {
+        "file": "figtree-700.woff2",
+        "weight": 700,
+        "sha256": "7ec4f08d09f91d349917dd6592f6aaae66d8fe1bbd58fa24707961e79236616e"
+      }
+    ]
+  },
+  {
+    "key": "outfit",
+    "label": "Outfit",
+    "family": "\"GOVRP Outfit\", sans-serif",
+    "fallback": "sans-serif",
+    "category": "Geométrica",
+    "preview": "GOVRP • Política e negócios",
+    "source": "https://cdn.jsdelivr.net/npm/@fontsource/outfit@5.3.0",
+    "license": "OFL-1.1",
+    "files": [
+      {
+        "file": "outfit-400.woff2",
+        "weight": 400,
+        "sha256": "71f028fd2349990b3f8aa643abe767e82e0f596be407ae66f0004ff164121bdb"
+      },
+      {
+        "file": "outfit-700.woff2",
+        "weight": 700,
+        "sha256": "5d5e3734089a74707292ce8a3e186def34cd63e33879f9ac3689a8d8da9d0706"
+      }
+    ]
+  },
+  {
+    "key": "plus-jakarta-sans",
+    "label": "Plus Jakarta Sans",
+    "family": "\"GOVRP Plus Jakarta Sans\", sans-serif",
+    "fallback": "sans-serif",
+    "category": "Moderna",
+    "preview": "GOVRP • Política e negócios",
+    "source": "https://cdn.jsdelivr.net/npm/@fontsource/plus-jakarta-sans@5.3.0",
+    "license": "OFL-1.1",
+    "files": [
+      {
+        "file": "plus-jakarta-sans-400.woff2",
+        "weight": 400,
+        "sha256": "221a4135d06a4b33abbd535e9a0da4e565d19545ddd9267c4e678a916d54d9b6"
+      },
+      {
+        "file": "plus-jakarta-sans-700.woff2",
+        "weight": 700,
+        "sha256": "2050755bf475817c96ac7d914c7f07cc3c2d11ff4b3fb4747b8d41de584aad17"
+      }
+    ]
+  },
+  {
+    "key": "barlow",
+    "label": "Barlow",
+    "family": "\"GOVRP Barlow\", sans-serif",
+    "fallback": "sans-serif",
+    "category": "Técnica",
+    "preview": "GOVRP • Política e negócios",
+    "source": "https://cdn.jsdelivr.net/npm/@fontsource/barlow@5.3.0",
+    "license": "OFL-1.1",
+    "files": [
+      {
+        "file": "barlow-400.woff2",
+        "weight": 400,
+        "sha256": "b0a8ad37ac45f5fb22ced461576db72e44e295107aad7a9c8a7a4bad728fd03b"
+      },
+      {
+        "file": "barlow-700.woff2",
+        "weight": 700,
+        "sha256": "2d797dd8b35dcb3413e1af9d7052b3f4f8c341a147cdcb01f4f06af80db53289"
+      }
+    ]
+  },
+  {
+    "key": "urbanist",
+    "label": "Urbanist",
+    "family": "\"GOVRP Urbanist\", sans-serif",
+    "fallback": "sans-serif",
+    "category": "Geométrica",
+    "preview": "GOVRP • Política e negócios",
+    "source": "https://cdn.jsdelivr.net/npm/@fontsource/urbanist@5.3.0",
+    "license": "OFL-1.1",
+    "files": [
+      {
+        "file": "urbanist-400.woff2",
+        "weight": 400,
+        "sha256": "526bab743f8aeba2df182767150d7a354bf57b885f6ff2eab184cd27264b90aa"
+      },
+      {
+        "file": "urbanist-700.woff2",
+        "weight": 700,
+        "sha256": "ede48e359fb3f70d13b558e4bf8aea2697e3c86c267cfb4b360fe2d7a621df18"
+      }
+    ]
+  },
+  {
+    "key": "rubik",
+    "label": "Rubik",
+    "family": "\"GOVRP Rubik\", sans-serif",
+    "fallback": "sans-serif",
+    "category": "Moderna",
+    "preview": "GOVRP • Política e negócios",
+    "source": "https://cdn.jsdelivr.net/npm/@fontsource/rubik@5.3.0",
+    "license": "OFL-1.1",
+    "files": [
+      {
+        "file": "rubik-400.woff2",
+        "weight": 400,
+        "sha256": "82ac0e78285c43d0cd203427c57ab30fb07b18f8e6166045f729442eb1abfa26"
+      },
+      {
+        "file": "rubik-700.woff2",
+        "weight": 700,
+        "sha256": "e423f8ae1668156addf5e32f1056d5b22b5b113a9a23afd364df84a6fa88602d"
+      }
+    ]
+  },
+  {
+    "key": "oswald",
+    "label": "Oswald",
+    "family": "\"GOVRP Oswald\", sans-serif",
+    "fallback": "sans-serif",
+    "category": "Display",
+    "preview": "GOVRP • Política e negócios",
+    "source": "https://cdn.jsdelivr.net/npm/@fontsource/oswald@5.3.0",
+    "license": "OFL-1.1",
+    "files": [
+      {
+        "file": "oswald-400.woff2",
+        "weight": 400,
+        "sha256": "e902b779e43944c300cf8ae5e4a1affa68cb8a823fd263dd2f479c4cdfbd213c"
+      },
+      {
+        "file": "oswald-700.woff2",
+        "weight": 700,
+        "sha256": "aae665c75af89ea7cb7d8ccc8b0911ea72267442ebcd84f6e3efa041ad3b3c16"
+      }
+    ]
+  },
+  {
+    "key": "bebas-neue",
+    "label": "Bebas Neue",
+    "family": "\"GOVRP Bebas Neue\", sans-serif",
+    "fallback": "sans-serif",
+    "category": "Display",
+    "preview": "GOVRP • Política e negócios",
+    "source": "https://cdn.jsdelivr.net/npm/@fontsource/bebas-neue@5.3.0",
+    "license": "OFL-1.1",
+    "files": [
+      {
+        "file": "bebas-neue-400.woff2",
+        "weight": 400,
+        "sha256": "a7c90c89240c134f7fdd33d40c000ec90b79d675ea53e8cc5a6d423c073de412"
+      }
+    ]
+  },
+  {
+    "key": "anton",
+    "label": "Anton",
+    "family": "\"GOVRP Anton\", sans-serif",
+    "fallback": "sans-serif",
+    "category": "Display",
+    "preview": "GOVRP • Política e negócios",
+    "source": "https://cdn.jsdelivr.net/npm/@fontsource/anton@5.3.0",
+    "license": "OFL-1.1",
+    "files": [
+      {
+        "file": "anton-400.woff2",
+        "weight": 400,
+        "sha256": "d0fa07ff63dd60cbc0e2f58e29c802dca2a5ae0276c999f59c6111ab7bbaec3b"
+      }
+    ]
+  },
+  {
+    "key": "archivo",
+    "label": "Archivo",
+    "family": "\"GOVRP Archivo\", sans-serif",
+    "fallback": "sans-serif",
+    "category": "Institucional",
+    "preview": "GOVRP • Política e negócios",
+    "source": "https://cdn.jsdelivr.net/npm/@fontsource/archivo@5.3.0",
+    "license": "OFL-1.1",
+    "files": [
+      {
+        "file": "archivo-400.woff2",
+        "weight": 400,
+        "sha256": "07f9160163da2ec0f6376ef9d27a2bb8163f98019ba798da4baafb154e30056e"
+      },
+      {
+        "file": "archivo-700.woff2",
+        "weight": 700,
+        "sha256": "abada6cd4c92a9a706f6d7ed3189f322ff43dd78b9402c7d1137465b861d2a04"
+      }
+    ]
+  },
+  {
+    "key": "cabin",
+    "label": "Cabin",
+    "family": "\"GOVRP Cabin\", sans-serif",
+    "fallback": "sans-serif",
+    "category": "Sans",
+    "preview": "GOVRP • Política e negócios",
+    "source": "https://cdn.jsdelivr.net/npm/@fontsource/cabin@5.3.0",
+    "license": "OFL-1.1",
+    "files": [
+      {
+        "file": "cabin-400.woff2",
+        "weight": 400,
+        "sha256": "77f442b8d11d3f4fad140744b15500493939a8be0542814ca9eb63164fbdfacd"
+      },
+      {
+        "file": "cabin-700.woff2",
+        "weight": 700,
+        "sha256": "2721cbdaf3cafa9f5f2964f94a436afb6540326958a43447a25dc253f3c2005b"
+      }
+    ]
+  },
+  {
+    "key": "karla",
+    "label": "Karla",
+    "family": "\"GOVRP Karla\", sans-serif",
+    "fallback": "sans-serif",
+    "category": "Sans",
+    "preview": "GOVRP • Política e negócios",
+    "source": "https://cdn.jsdelivr.net/npm/@fontsource/karla@5.3.0",
+    "license": "OFL-1.1",
+    "files": [
+      {
+        "file": "karla-400.woff2",
+        "weight": 400,
+        "sha256": "250bb48fdea5ba354fa85161f3877121ef679c6f7a1ef3d8f173fb8979628906"
+      },
+      {
+        "file": "karla-700.woff2",
+        "weight": 700,
+        "sha256": "b3613b987992f48294da8bce46723ef9683a16422318cd41712421084dd4c2c4"
+      }
+    ]
+  },
+  {
+    "key": "quicksand",
+    "label": "Quicksand",
+    "family": "\"GOVRP Quicksand\", sans-serif",
+    "fallback": "sans-serif",
+    "category": "Geométrica",
+    "preview": "GOVRP • Política e negócios",
+    "source": "https://cdn.jsdelivr.net/npm/@fontsource/quicksand@5.3.0",
+    "license": "OFL-1.1",
+    "files": [
+      {
+        "file": "quicksand-400.woff2",
+        "weight": 400,
+        "sha256": "fee25690fddfdf52d7c88f8460260998c523b762e1a53fc91561b179835e3316"
+      },
+      {
+        "file": "quicksand-700.woff2",
+        "weight": 700,
+        "sha256": "00bfba44dde0dd81d9296cacc53f0ffa3ceff85997e69abd2891cbb9518ff40e"
+      }
+    ]
+  },
+  {
+    "key": "josefin-sans",
+    "label": "Josefin Sans",
+    "family": "\"GOVRP Josefin Sans\", sans-serif",
+    "fallback": "sans-serif",
+    "category": "Elegante",
+    "preview": "GOVRP • Política e negócios",
+    "source": "https://cdn.jsdelivr.net/npm/@fontsource/josefin-sans@5.3.0",
+    "license": "OFL-1.1",
+    "files": [
+      {
+        "file": "josefin-sans-400.woff2",
+        "weight": 400,
+        "sha256": "242e98782313218a60ac5397a94a49bbe4cf3dbf4ca31039acacd801d957b13a"
+      },
+      {
+        "file": "josefin-sans-700.woff2",
+        "weight": 700,
+        "sha256": "a3c6a58cd814957f4d0f30bd99afae615e74cba87dbef88a276593bcb3b3568b"
+      }
+    ]
+  },
+  {
+    "key": "exo-2",
+    "label": "Exo 2",
+    "family": "\"GOVRP Exo 2\", sans-serif",
+    "fallback": "sans-serif",
+    "category": "Técnica",
+    "preview": "GOVRP • Política e negócios",
+    "source": "https://cdn.jsdelivr.net/npm/@fontsource/exo-2@5.3.0",
+    "license": "OFL-1.1",
+    "files": [
+      {
+        "file": "exo-2-400.woff2",
+        "weight": 400,
+        "sha256": "49c9cd329161f5c5feed3ae80a788199f2dce127c00828e027a61261cf602491"
+      },
+      {
+        "file": "exo-2-700.woff2",
+        "weight": 700,
+        "sha256": "96c87b1597aed754e0ad45970883774e851a390788e7fba7b3f49f8d1f6e5a6b"
+      }
+    ]
+  },
+  {
+    "key": "rajdhani",
+    "label": "Rajdhani",
+    "family": "\"GOVRP Rajdhani\", sans-serif",
+    "fallback": "sans-serif",
+    "category": "Técnica",
+    "preview": "GOVRP • Política e negócios",
+    "source": "https://cdn.jsdelivr.net/npm/@fontsource/rajdhani@5.3.0",
+    "license": "OFL-1.1",
+    "files": [
+      {
+        "file": "rajdhani-400.woff2",
+        "weight": 400,
+        "sha256": "759a9000e47b028799d7a4ca602634a7ac7adf415775df070a335d18d9b66f38"
+      },
+      {
+        "file": "rajdhani-700.woff2",
+        "weight": 700,
+        "sha256": "5b7e4a6f97163c2636724d4de90304fc895653dcfe64c67a7a22f26331ca5c5f"
+      }
+    ]
+  },
+  {
+    "key": "space-grotesk",
+    "label": "Space Grotesk",
+    "family": "\"GOVRP Space Grotesk\", sans-serif",
+    "fallback": "sans-serif",
+    "category": "Geométrica",
+    "preview": "GOVRP • Política e negócios",
+    "source": "https://cdn.jsdelivr.net/npm/@fontsource/space-grotesk@5.3.0",
+    "license": "OFL-1.1",
+    "files": [
+      {
+        "file": "space-grotesk-400.woff2",
+        "weight": 400,
+        "sha256": "65fd17fcbd2e2f522940b5f67ead3d23329e02891aa5495e74d11a499c0b0673"
+      },
+      {
+        "file": "space-grotesk-700.woff2",
+        "weight": 700,
+        "sha256": "35f8aec56cfd5cbfdb03cc68733a54a0b05bb3617ffcd5fd332badc0b045ca55"
+      }
+    ]
+  },
+  {
+    "key": "space-mono",
+    "label": "Space Mono",
+    "family": "\"GOVRP Space Mono\", monospace",
+    "fallback": "monospace",
+    "category": "Técnica",
+    "preview": "GOVRP • Política e negócios",
+    "source": "https://cdn.jsdelivr.net/npm/@fontsource/space-mono@5.3.0",
+    "license": "OFL-1.1",
+    "files": [
+      {
+        "file": "space-mono-400.woff2",
+        "weight": 400,
+        "sha256": "fb4a81a2d0a893e5c38c394a7e716a1cef0b24610a0af49c96f6d529bd66bf2b"
+      },
+      {
+        "file": "space-mono-700.woff2",
+        "weight": 700,
+        "sha256": "2d46bd159b53f55c41167a4f1540a074649464194fd1e416f5b4694a6c0f282c"
+      }
+    ]
+  },
+  {
+    "key": "ibm-plex-sans",
+    "label": "IBM Plex Sans",
+    "family": "\"GOVRP IBM Plex Sans\", sans-serif",
+    "fallback": "sans-serif",
+    "category": "Institucional",
+    "preview": "GOVRP • Política e negócios",
+    "source": "https://cdn.jsdelivr.net/npm/@fontsource/ibm-plex-sans@5.3.0",
+    "license": "OFL-1.1",
+    "files": [
+      {
+        "file": "ibm-plex-sans-400.woff2",
+        "weight": 400,
+        "sha256": "3b646991d30055a93a4ecc499713d4347953a74a947ecab435ab72070cbdab0e"
+      },
+      {
+        "file": "ibm-plex-sans-700.woff2",
+        "weight": 700,
+        "sha256": "42e7b0c143c19df9d99fd896e76b48f846edf0902d200bc29796b34d12c33aa7"
+      }
+    ]
+  },
+  {
+    "key": "ibm-plex-serif",
+    "label": "IBM Plex Serif",
+    "family": "\"GOVRP IBM Plex Serif\", serif",
+    "fallback": "serif",
+    "category": "Editorial",
+    "preview": "GOVRP • Política e negócios",
+    "source": "https://cdn.jsdelivr.net/npm/@fontsource/ibm-plex-serif@5.3.0",
+    "license": "OFL-1.1",
+    "files": [
+      {
+        "file": "ibm-plex-serif-400.woff2",
+        "weight": 400,
+        "sha256": "cb2c5eee2c0a43ff30d2365407c7bc8b20e3bd90720a4a64102ba0b328022a02"
+      },
+      {
+        "file": "ibm-plex-serif-700.woff2",
+        "weight": 700,
+        "sha256": "886ea167faf6610c3448a7dd058dbe7c7438f710229c9ff52343ef006960939c"
+      }
+    ]
+  },
+  {
+    "key": "ibm-plex-mono",
+    "label": "IBM Plex Mono",
+    "family": "\"GOVRP IBM Plex Mono\", monospace",
+    "fallback": "monospace",
+    "category": "Técnica",
+    "preview": "GOVRP • Política e negócios",
+    "source": "https://cdn.jsdelivr.net/npm/@fontsource/ibm-plex-mono@5.3.0",
+    "license": "OFL-1.1",
+    "files": [
+      {
+        "file": "ibm-plex-mono-400.woff2",
+        "weight": 400,
+        "sha256": "08949f728dc52d528e69b1667d15c89a5686a4ee9a296ff90983985f99c380f7"
+      },
+      {
+        "file": "ibm-plex-mono-700.woff2",
+        "weight": 700,
+        "sha256": "4f84d86cfd060f4ded334358ff8a4c81d4db2ed5addd568359d693f44a87765a"
+      }
+    ]
+  },
+  {
+    "key": "playfair-display",
+    "label": "Playfair Display",
+    "family": "\"GOVRP Playfair Display\", serif",
+    "fallback": "serif",
+    "category": "Elegante",
+    "preview": "GOVRP • Política e negócios",
+    "source": "https://cdn.jsdelivr.net/npm/@fontsource/playfair-display@5.3.0",
+    "license": "OFL-1.1",
+    "files": [
+      {
+        "file": "playfair-display-400.woff2",
+        "weight": 400,
+        "sha256": "1fe9ad5d8b2ebd8ecb8fbd05bed1e3fdfa52dae3f1a04e1c219918442fe9394d"
+      },
+      {
+        "file": "playfair-display-700.woff2",
+        "weight": 700,
+        "sha256": "28453852ea165c47b5a941be00e418402e1407002ed87507f062a1e316328fe6"
+      }
+    ]
+  },
+  {
+    "key": "lora",
+    "label": "Lora",
+    "family": "\"GOVRP Lora\", serif",
+    "fallback": "serif",
+    "category": "Clássica",
+    "preview": "GOVRP • Política e negócios",
+    "source": "https://cdn.jsdelivr.net/npm/@fontsource/lora@5.3.0",
+    "license": "OFL-1.1",
+    "files": [
+      {
+        "file": "lora-400.woff2",
+        "weight": 400,
+        "sha256": "ac079950fd9885261c0f73d9e87233f31b5427333ce0eb20e26c119458493c40"
+      },
+      {
+        "file": "lora-700.woff2",
+        "weight": 700,
+        "sha256": "c05fd5289492ed310ed882259b944ca5287e76e572a65d92d3941f9f44f0342a"
+      }
+    ]
+  },
+  {
+    "key": "pt-serif",
+    "label": "PT Serif",
+    "family": "\"GOVRP PT Serif\", serif",
+    "fallback": "serif",
+    "category": "Clássica",
+    "preview": "GOVRP • Política e negócios",
+    "source": "https://cdn.jsdelivr.net/npm/@fontsource/pt-serif@5.3.0",
+    "license": "OFL-1.1",
+    "files": [
+      {
+        "file": "pt-serif-400.woff2",
+        "weight": 400,
+        "sha256": "4271064a37f3ffc0aac5f3806db8a72acc23e19447d1804e4e80d8796cbf6330"
+      },
+      {
+        "file": "pt-serif-700.woff2",
+        "weight": 700,
+        "sha256": "bf23a7a4eebedbb87d4084a69496b29815914a18e339a00f5dc73a03c9c9328f"
+      }
+    ]
+  },
+  {
+    "key": "noto-serif",
+    "label": "Noto Serif",
+    "family": "\"GOVRP Noto Serif\", sans-serif",
+    "fallback": "sans-serif",
+    "category": "Institucional",
+    "preview": "GOVRP • Política e negócios",
+    "source": "https://cdn.jsdelivr.net/npm/@fontsource/noto-serif@5.3.0",
+    "license": "OFL-1.1",
+    "files": [
+      {
+        "file": "noto-serif-400.woff2",
+        "weight": 400,
+        "sha256": "4c0cbe3eec50d260754d681c17ee2af49a43d7fd93ce42877f665fcb1a889b87"
+      },
+      {
+        "file": "noto-serif-700.woff2",
+        "weight": 700,
+        "sha256": "0d0b440760c93e6fec440ad438d10cea6c70367a0f5ecfcfa15cef0a85c67093"
+      }
+    ]
+  },
+  {
+    "key": "source-serif-4",
+    "label": "Source Serif 4",
+    "family": "\"GOVRP Source Serif 4\", serif",
+    "fallback": "serif",
+    "category": "Editorial",
+    "preview": "GOVRP • Política e negócios",
+    "source": "https://cdn.jsdelivr.net/npm/@fontsource/source-serif-4@5.3.0",
+    "license": "OFL-1.1",
+    "files": [
+      {
+        "file": "source-serif-4-400.woff2",
+        "weight": 400,
+        "sha256": "02194deb92d3975dd30e11a3824a1f1db32b48c93654e60560cb81ce8e7b5f95"
+      },
+      {
+        "file": "source-serif-4-700.woff2",
+        "weight": 700,
+        "sha256": "7691c51bc286a9014db0048277d2c3f2ad0a90b533dc8adfb16cb22a95390d39"
+      }
+    ]
+  },
+  {
+    "key": "crimson-pro",
+    "label": "Crimson Pro",
+    "family": "\"GOVRP Crimson Pro\", serif",
+    "fallback": "serif",
+    "category": "Editorial",
+    "preview": "GOVRP • Política e negócios",
+    "source": "https://cdn.jsdelivr.net/npm/@fontsource/crimson-pro@5.3.0",
+    "license": "OFL-1.1",
+    "files": [
+      {
+        "file": "crimson-pro-400.woff2",
+        "weight": 400,
+        "sha256": "d2a3a146387d91b8d476d508849dd1d93a3cbde85d1e0d303e3d5c970726a703"
+      },
+      {
+        "file": "crimson-pro-700.woff2",
+        "weight": 700,
+        "sha256": "e34581dd821e87e007f5525f03b45f90207539a6c79132851217b5c1a0616c68"
+      }
+    ]
+  },
+  {
+    "key": "eb-garamond",
+    "label": "EB Garamond",
+    "family": "\"GOVRP EB Garamond\", serif",
+    "fallback": "serif",
+    "category": "Clássica",
+    "preview": "GOVRP • Política e negócios",
+    "source": "https://cdn.jsdelivr.net/npm/@fontsource/eb-garamond@5.3.0",
+    "license": "OFL-1.1",
+    "files": [
+      {
+        "file": "eb-garamond-400.woff2",
+        "weight": 400,
+        "sha256": "912929dba0faab5e151849ea5e988adba3080ad6d2bcc4dbff27aa427896498d"
+      },
+      {
+        "file": "eb-garamond-700.woff2",
+        "weight": 700,
+        "sha256": "ae7cef029eea959654a474fbcaa2c202f205abfca29caaef62e9a0019c3c8370"
+      }
+    ]
+  },
+  {
+    "key": "bitter",
+    "label": "Bitter",
+    "family": "\"GOVRP Bitter\", serif",
+    "fallback": "serif",
+    "category": "Editorial",
+    "preview": "GOVRP • Política e negócios",
+    "source": "https://cdn.jsdelivr.net/npm/@fontsource/bitter@5.3.0",
+    "license": "OFL-1.1",
+    "files": [
+      {
+        "file": "bitter-400.woff2",
+        "weight": 400,
+        "sha256": "a9960fdb72f913dc0ccd67dbf6c520f720123bd1a4542cb05555e7ebb2dae42f"
+      },
+      {
+        "file": "bitter-700.woff2",
+        "weight": 700,
+        "sha256": "222764fa2fd737779886878c572108b38f675e3c04c87f82376cd56e92bac2d6"
+      }
+    ]
+  },
+  {
+    "key": "zilla-slab",
+    "label": "Zilla Slab",
+    "family": "\"GOVRP Zilla Slab\", serif",
+    "fallback": "serif",
+    "category": "Editorial",
+    "preview": "GOVRP • Política e negócios",
+    "source": "https://cdn.jsdelivr.net/npm/@fontsource/zilla-slab@5.3.0",
+    "license": "OFL-1.1",
+    "files": [
+      {
+        "file": "zilla-slab-400.woff2",
+        "weight": 400,
+        "sha256": "ab2607313bc04e82a53aca235853a0b83463e99b3ae88b17cc963e371f8fe91c"
+      },
+      {
+        "file": "zilla-slab-700.woff2",
+        "weight": 700,
+        "sha256": "896b6ebb8cd10aca90bdff88a5a1b648cbc0d50751740bd5a6d012007aef9ebe"
+      }
+    ]
+  },
+  {
+    "key": "arvo",
+    "label": "Arvo",
+    "family": "\"GOVRP Arvo\", sans-serif",
+    "fallback": "sans-serif",
+    "category": "Geométrica",
+    "preview": "GOVRP • Política e negócios",
+    "source": "https://cdn.jsdelivr.net/npm/@fontsource/arvo@5.3.0",
+    "license": "OFL-1.1",
+    "files": [
+      {
+        "file": "arvo-400.woff2",
+        "weight": 400,
+        "sha256": "b4eb4284188dcd4a4643d900bbe50b2d6b336afeb7c126eace219276b5d30521"
+      },
+      {
+        "file": "arvo-700.woff2",
+        "weight": 700,
+        "sha256": "3d908a2c04ec4c59d26d1454008b2d6744480654663a5f88e439f6483976bd37"
+      }
+    ]
+  },
+  {
+    "key": "cinzel",
+    "label": "Cinzel",
+    "family": "\"GOVRP Cinzel\", sans-serif",
+    "fallback": "sans-serif",
+    "category": "Display",
+    "preview": "GOVRP • Política e negócios",
+    "source": "https://cdn.jsdelivr.net/npm/@fontsource/cinzel@5.3.0",
+    "license": "OFL-1.1",
+    "files": [
+      {
+        "file": "cinzel-400.woff2",
+        "weight": 400,
+        "sha256": "b873cdd90d6bd9ca4793c805b4175abfae00b3611ee8afccf63067133dcf1217"
+      },
+      {
+        "file": "cinzel-700.woff2",
+        "weight": 700,
+        "sha256": "8efa224fe70fef188a39c095e218b81fd31061809f2752537e33a9ec7b9c2263"
+      }
+    ]
+  },
+  {
+    "key": "dm-serif-display",
+    "label": "DM Serif Display",
+    "family": "\"GOVRP DM Serif Display\", sans-serif",
+    "fallback": "sans-serif",
+    "category": "Display",
+    "preview": "GOVRP • Política e negócios",
+    "source": "https://cdn.jsdelivr.net/npm/@fontsource/dm-serif-display@5.3.0",
+    "license": "OFL-1.1",
+    "files": [
+      {
+        "file": "dm-serif-display-400.woff2",
+        "weight": 400,
+        "sha256": "fdf61e20fd2c0108e0ea28da4daca0035205b4b7fc031a3974b865b704de160a"
+      }
+    ]
+  },
+  {
+    "key": "vollkorn",
+    "label": "Vollkorn",
+    "family": "\"GOVRP Vollkorn\", serif",
+    "fallback": "serif",
+    "category": "Clássica",
+    "preview": "GOVRP • Política e negócios",
+    "source": "https://cdn.jsdelivr.net/npm/@fontsource/vollkorn@5.3.0",
+    "license": "OFL-1.1",
+    "files": [
+      {
+        "file": "vollkorn-400.woff2",
+        "weight": 400,
+        "sha256": "dce19b6da3afe25af6cee9ec697877f92d95b6ed2617da67a5e7d5b8d7a857c9"
+      },
+      {
+        "file": "vollkorn-700.woff2",
+        "weight": 700,
+        "sha256": "e9c1dd6167df498ddb111951556ae29283efcce4b7e559db3547063e9a4c63c4"
+      }
+    ]
+  }
+]

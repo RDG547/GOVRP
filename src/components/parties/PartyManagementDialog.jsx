@@ -1,5 +1,4 @@
 import PartyCustomizationForm from './PartyCustomizationForm';
-import PartyColorPicker from '@/components/parties/PartyColorPicker';
 import CitizenSelector from '@/components/CitizenSelector';
 import { politicalOrientations, orientationColors } from '@/lib/partyIdentity';
 import { fetchPublicProfiles, unavailablePublicProfile } from '@/lib/publicProfiles';
@@ -22,10 +21,8 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Loader2, Settings, Save, Pencil, Users, Inbox, UserCheck, UserX, Check, X, UserMinus, Building, User, Crown, Hash, Compass, FileText, Lightbulb, ScrollText, Shield } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import ImageUploader from '@/components/ImageUploader';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { buildStoragePath } from '@/lib/security';
 import UserSelectOption from '@/components/UserSelectOption';
 
 const roleHierarchy = { 'Dono': 4, 'Presidente': 3, 'Vice-Presidente': 2, 'Membro': 1 };
@@ -44,18 +41,16 @@ const partyRoleLabels = {
 const EditPartyForm = ({ party, onAction, closeDialog, userRole, members }) => {
     const { toast } = useToast();
     const [loading, setLoading] = useState(false);
-    const [logoFile, setLogoFile] = useState(null);
     const [formData, setFormData] = useState({
         name: party.name || '',
         acronym: party.acronym || '',
         ideology: party.ideology || '',
         statute: party.statute || '',
-        logo_url: party.logo_url || '',
         owner_id: party.owner_id || '',
         president_id: party.president_id || '',
         vice_president_id: party.vice_president_id || '',
         description: party.description || '',
-        orientation: party.orientation || '', color: party.color || '#64748B',
+        orientation: party.orientation || '',
     });
 
     const handleSubmit = async (e) => {
@@ -93,25 +88,17 @@ const EditPartyForm = ({ party, onAction, closeDialog, userRole, members }) => {
                 }
             }
 
-            let finalLogoUrl = formData.logo_url;
-            if (logoFile) {
-                const { data: uploadData, error: uploadError } = await supabase.storage.from('public-assets').upload(buildStoragePath({ prefix: 'party-logos', entityId: party.id, fileName: logoFile.name }), logoFile);
-                if (uploadError) throw new Error(`Erro no upload do logo: ${uploadError.message}`);
-                finalLogoUrl = supabase.storage.from('public-assets').getPublicUrl(uploadData.path).data.publicUrl;
-            }
-
             const { data, error } = await supabase.rpc('update_party_details', {
                 p_party_id: party.id,
                 p_name: formData.name,
                 p_acronym: formData.acronym,
                 p_ideology: formData.ideology,
                 p_statute: formData.statute,
-                p_logo_url: finalLogoUrl,
                 p_owner_id: formData.owner_id || null,
                 p_president_id: formData.president_id || null,
                 p_vice_president_id: formData.vice_president_id || null,
                 p_description: formData.description,
-                p_orientation: formData.orientation, p_color: formData.color,
+                p_orientation: formData.orientation,
             });
 
             if (error || !data?.success) throw new Error(error?.message || data?.message || "Erro desconhecido");
@@ -173,9 +160,7 @@ const EditPartyForm = ({ party, onAction, closeDialog, userRole, members }) => {
                 <Label htmlFor="statute" className="flex items-center gap-2"><ScrollText className="h-4 w-4 text-primary"/>Estatuto</Label>
                 <Textarea id="statute" value={formData.statute} onChange={(e) => setFormData(p=>({...p, statute: e.target.value}))} rows={5} />
             </div>
-            <PartyColorPicker party={formData} value={formData.color} onChange={color => setFormData(current => ({...current, color}))}/>
-            <ImageUploader previewOnly onUrlChange={(url) => setFormData(p=>({...p, logo_url: url}))} onFileChange={setLogoFile} initialUrl={formData.logo_url} label="Logo do Partido" />
-            <DialogFooter>
+            <DialogFooter className="sm:justify-center">
                 <Button type="submit" disabled={loading}>
                     {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4"/>}
                     Salvar Alterações
@@ -325,7 +310,7 @@ const PartyManagementDialog = ({ party, onAction, isFromDetailsPage = false }) =
                 </Button>
             </DialogTrigger>
             <DialogContent className="glass-effect grid-cols-1 [&>*]:min-w-0 max-h-[90vh] overflow-y-auto">
-                <DialogHeader><DialogTitle>Gerenciar {party.name}</DialogTitle></DialogHeader>
+                <DialogHeader className="text-center sm:text-center"><DialogTitle className="break-words">Gerenciar {party.name}</DialogTitle><DialogDescription>Dados institucionais, integrantes e identidade visual do partido.</DialogDescription></DialogHeader>
                 <Tabs value={currentTab} onValueChange={setCurrentTab} className="w-full">
                     <TabsList className="grid h-auto w-full grid-cols-2 gap-2 sm:grid-cols-3 [&>button]:min-w-0 [&>button]:whitespace-normal [&>button]:px-1 [&>button]:text-xs">
                         <TabsTrigger value="edit"><Pencil className="mr-2 h-4 w-4"/>Editar</TabsTrigger>

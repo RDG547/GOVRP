@@ -1,3 +1,5 @@
+import { usePublicProfileChanges } from '@/hooks/use-public-profile-changes';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { brandFont } from '@/lib/brandFonts';
 import { partyColor } from '@/lib/partyIdentity';
 import CitizenSelector from '@/components/CitizenSelector';
@@ -93,6 +95,7 @@ const PoliticalParties = () => {
 
     useEffect(() => { void fetchData(); }, [fetchData]);
     useDomainRealtime('parties', user?.id, PARTY_REALTIME_TABLES, fetchData);
+    usePublicProfileChanges(fetchData);
     const visibleParties = parties.filter(party => orientationFilter === 'Todos' || party.orientation === orientationFilter);
 
     const handleAffiliate = async (partyId) => {
@@ -219,7 +222,7 @@ const PoliticalParties = () => {
                                                       alt={party.name}
                                                       className="h-14 w-14 shrink-0 rounded-lg bg-secondary p-1 object-cover"
                                                     />
-                                                    <CardTitle style={{fontFamily:brandFont(party.customization?.font_key)}} className="text-foreground">{party.name} ({party.acronym})</CardTitle>
+                                                    <CardTitle style={{fontFamily:brandFont(party.customization?.font_key)}} className="min-w-0 break-words text-foreground">{party.name} ({party.acronym})</CardTitle>
                                                 </div>
                                                 <CardDescription className="text-muted-foreground">{party.description}</CardDescription>
                                                 {isUserParty && <Star className="absolute top-0 right-0 w-5 h-5 text-yellow-400 fill-yellow-400" />}
@@ -254,7 +257,7 @@ const PoliticalParties = () => {
                                             <p className="text-sm text-muted-foreground">Dono: {party.owner?.full_name || (party.owner_conflict ? 'Conflito de liderança' : 'Não definido')}</p>
                                             <p className="text-sm text-muted-foreground">Presidente: {party.president?.full_name || (party.president_conflict ? 'Conflito de liderança' : 'Não definido')}</p>
                                             <p className="text-sm text-muted-foreground">Vice-Presidente: {party.vice_president?.full_name || (party.vice_president_conflict ? 'Conflito de liderança' : 'Não definido')}</p>
-                                            <p className="text-sm text-muted-foreground">Fundador: {party.founder?.full_name || 'Desconhecido'}</p>
+                                            <div className="flex items-center gap-2 text-sm text-muted-foreground"><Avatar className="h-7 w-7"><AvatarImage src={party.founder?.avatar_url} alt=""/><AvatarFallback>{party.founder?.full_name?.charAt(0)||'?'}</AvatarFallback></Avatar><span>Fundador: {party.founder?.full_name || 'Não registrado'}</span></div>
                                             <p className="text-sm text-muted-foreground">Membros: {memberCount}</p>
                                             <p className="text-sm text-muted-foreground">Filiação: <span className="font-semibold">{party.affiliation_mode === 'automatic' ? 'Automática' : 'Manual'}</span></p>
                                         </CardContent>

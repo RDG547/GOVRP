@@ -1,0 +1,95 @@
+@font-face { font-family: "GOVRP Inter"; font-style: normal; font-weight: 400; font-display: swap; src: url("/fonts/brands/modern-400.woff2") format("woff2"); }
+@font-face { font-family: "GOVRP Inter"; font-style: normal; font-weight: 700; font-display: swap; src: url("/fonts/brands/modern-700.woff2") format("woff2"); }
+@font-face { font-family: "GOVRP Open Sans"; font-style: normal; font-weight: 400; font-display: swap; src: url("/fonts/brands/institutional-400.woff2") format("woff2"); }
+@font-face { font-family: "GOVRP Open Sans"; font-style: normal; font-weight: 700; font-display: swap; src: url("/fonts/brands/institutional-700.woff2") format("woff2"); }
+@font-face { font-family: "GOVRP Merriweather"; font-style: normal; font-weight: 400; font-display: swap; src: url("/fonts/brands/classic-400.woff2") format("woff2"); }
+@font-face { font-family: "GOVRP Merriweather"; font-style: normal; font-weight: 700; font-display: swap; src: url("/fonts/brands/classic-700.woff2") format("woff2"); }
+@font-face { font-family: "GOVRP Cormorant Garamond"; font-style: normal; font-weight: 400; font-display: swap; src: url("/fonts/brands/elegant-400.woff2") format("woff2"); }
+@font-face { font-family: "GOVRP Cormorant Garamond"; font-style: normal; font-weight: 700; font-display: swap; src: url("/fonts/brands/elegant-700.woff2") format("woff2"); }
+@font-face { font-family: "GOVRP Montserrat"; font-style: normal; font-weight: 400; font-display: swap; src: url("/fonts/brands/geometric-400.woff2") format("woff2"); }
+@font-face { font-family: "GOVRP Montserrat"; font-style: normal; font-weight: 700; font-display: swap; src: url("/fonts/brands/geometric-700.woff2") format("woff2"); }
+@font-face { font-family: "GOVRP Libre Baskerville"; font-style: normal; font-weight: 400; font-display: swap; src: url("/fonts/brands/editorial-400.woff2") format("woff2"); }
+@font-face { font-family: "GOVRP Libre Baskerville"; font-style: normal; font-weight: 700; font-display: swap; src: url("/fonts/brands/editorial-700.woff2") format("woff2"); }
+@font-face { font-family: "GOVRP Roboto Mono"; font-style: normal; font-weight: 400; font-display: swap; src: url("/fonts/brands/technical-400.woff2") format("woff2"); }
+@font-face { font-family: "GOVRP Roboto Mono"; font-style: normal; font-weight: 700; font-display: swap; src: url("/fonts/brands/technical-700.woff2") format("woff2"); }
+@font-face { font-family: "GOVRP Lato"; font-style: normal; font-weight: 400; font-display: swap; src: url("/fonts/brands/lato-400.woff2") format("woff2"); }
+@font-face { font-family: "GOVRP Lato"; font-style: normal; font-weight: 700; font-display: swap; src: url("/fonts/brands/lato-700.woff2") format("woff2"); }
+@font-face { font-family: "GOVRP Poppins"; font-style: normal; font-weight: 400; font-display: swap; src: url("/fonts/brands/poppins-400.woff2") format("woff2"); }
+@font-face { font-family: "GOVRP Poppins"; font-style: normal; font-weight: 700; font-display: swap; src: url("/fonts/brands/poppins-700.woff2") format("woff2"); }
+@font-face { font-family: "GOVRP Raleway"; font-style: normal; font-weight: 400; font-display: swap; src: url("/fonts/brands/raleway-400.woff2") format("woff2"); }
+@font-face { font-family: "GOVRP Raleway"; font-style: normal; font-weight: 700; font-display: swap; src: url("/fonts/brands/raleway-700.woff2") format("woff2"); }
+@font-face { font-family: "GOVRP Nunito Sans"; font-style: normal; font-weight: 400; font-display: swap; src: url("/fonts/brands/nunito-sans-400.woff2") format("woff2"); }
+@font-face { font-family: "GOVRP Nunito Sans"; font-style: normal; font-weight: 700; font-display: swap; src: url("/fonts/brands/nunito-sans-700.woff2") format("woff2"); }
+@font-face { font-family: "GOVRP Source Sans 3"; font-style: normal; font-weight: 400; font-display: swap; src: url("/fonts/brands/source-sans-3-400.woff2") format("woff2"); }
+@font-face { font-family: "GOVRP Source Sans 3"; font-style: normal; font-weight: 700; font-display: swap; src: url("/fonts/brands/source-sans-3-700.woff2") format("woff2"); }
+@font-face { font-family: "GOVRP Work Sans"; font-style: normal; font-weight: 400; font-display: swap; src: url("/fonts/brands/work-sans-400.woff2") format("woff2"); }
+@font-face { font-family: "GOVRP Work Sans"; font-style: normal; font-weight: 700; font-display: swap; src: url("/fonts/brands/work-sans-700.woff2") format("woff2"); }
+@font-face { font-family: "GOVRP Manrope"; font-style: normal; font-weight: 400; font-display: swap; src: url("/fonts/brands/manrope-400.woff2") format("woff2"); }
+@font-face { font-family: "GOVRP Manrope"; font-style: normal; font-weight: 700; font-display: swap; src: url("/fonts/brands/manrope-700.woff2") format("woff2"); }
+@font-face { font-family: "GOVRP DM Sans"; font-style: normal; font-weight: 400; font-display: swap; src: url("/fonts/brands/dm-sans-400.woff2") format("woff2"); }
+@font-face { font-family: "GOVRP DM Sans"; font-style: normal; font-weight: 700; font-display: swap; src: url("/fonts/brands/dm-sans-700.woff2") format("woff2"); }
+@font-face { font-family: "GOVRP Figtree"; font-style: normal; font-weight: 400; font-display: swap; src: url("/fonts/brands/figtree-400.woff2") format("woff2"); }
+@font-face { font-family: "GOVRP Figtree"; font-style: normal; font-weight: 700; font-display: swap; src: url("/fonts/brands/figtree-700.woff2") format("woff2"); }
+@font-face { font-family: "GOVRP Outfit"; font-style: normal; font-weight: 400; font-display: swap; src: url("/fonts/brands/outfit-400.woff2") format("woff2"); }
+@font-face { font-family: "GOVRP Outfit"; font-style: normal; font-weight: 700; font-display: swap; src: url("/fonts/brands/outfit-700.woff2") format("woff2"); }
+@font-face { font-family: "GOVRP Plus Jakarta Sans"; font-style: normal; font-weight: 400; font-display: swap; src: url("/fonts/brands/plus-jakarta-sans-400.woff2") format("woff2"); }
+@font-face { font-family: "GOVRP Plus Jakarta Sans"; font-style: normal; font-weight: 700; font-display: swap; src: url("/fonts/brands/plus-jakarta-sans-700.woff2") format("woff2"); }
+@font-face { font-family: "GOVRP Barlow"; font-style: normal; font-weight: 400; font-display: swap; src: url("/fonts/brands/barlow-400.woff2") format("woff2"); }
+@font-face { font-family: "GOVRP Barlow"; font-style: normal; font-weight: 700; font-display: swap; src: url("/fonts/brands/barlow-700.woff2") format("woff2"); }
+@font-face { font-family: "GOVRP Urbanist"; font-style: normal; font-weight: 400; font-display: swap; src: url("/fonts/brands/urbanist-400.woff2") format("woff2"); }
+@font-face { font-family: "GOVRP Urbanist"; font-style: normal; font-weight: 700; font-display: swap; src: url("/fonts/brands/urbanist-700.woff2") format("woff2"); }
+@font-face { font-family: "GOVRP Rubik"; font-style: normal; font-weight: 400; font-display: swap; src: url("/fonts/brands/rubik-400.woff2") format("woff2"); }
+@font-face { font-family: "GOVRP Rubik"; font-style: normal; font-weight: 700; font-display: swap; src: url("/fonts/brands/rubik-700.woff2") format("woff2"); }
+@font-face { font-family: "GOVRP Oswald"; font-style: normal; font-weight: 400; font-display: swap; src: url("/fonts/brands/oswald-400.woff2") format("woff2"); }
+@font-face { font-family: "GOVRP Oswald"; font-style: normal; font-weight: 700; font-display: swap; src: url("/fonts/brands/oswald-700.woff2") format("woff2"); }
+@font-face { font-family: "GOVRP Bebas Neue"; font-style: normal; font-weight: 400; font-display: swap; src: url("/fonts/brands/bebas-neue-400.woff2") format("woff2"); }
+@font-face { font-family: "GOVRP Anton"; font-style: normal; font-weight: 400; font-display: swap; src: url("/fonts/brands/anton-400.woff2") format("woff2"); }
+@font-face { font-family: "GOVRP Archivo"; font-style: normal; font-weight: 400; font-display: swap; src: url("/fonts/brands/archivo-400.woff2") format("woff2"); }
+@font-face { font-family: "GOVRP Archivo"; font-style: normal; font-weight: 700; font-display: swap; src: url("/fonts/brands/archivo-700.woff2") format("woff2"); }
+@font-face { font-family: "GOVRP Cabin"; font-style: normal; font-weight: 400; font-display: swap; src: url("/fonts/brands/cabin-400.woff2") format("woff2"); }
+@font-face { font-family: "GOVRP Cabin"; font-style: normal; font-weight: 700; font-display: swap; src: url("/fonts/brands/cabin-700.woff2") format("woff2"); }
+@font-face { font-family: "GOVRP Karla"; font-style: normal; font-weight: 400; font-display: swap; src: url("/fonts/brands/karla-400.woff2") format("woff2"); }
+@font-face { font-family: "GOVRP Karla"; font-style: normal; font-weight: 700; font-display: swap; src: url("/fonts/brands/karla-700.woff2") format("woff2"); }
+@font-face { font-family: "GOVRP Quicksand"; font-style: normal; font-weight: 400; font-display: swap; src: url("/fonts/brands/quicksand-400.woff2") format("woff2"); }
+@font-face { font-family: "GOVRP Quicksand"; font-style: normal; font-weight: 700; font-display: swap; src: url("/fonts/brands/quicksand-700.woff2") format("woff2"); }
+@font-face { font-family: "GOVRP Josefin Sans"; font-style: normal; font-weight: 400; font-display: swap; src: url("/fonts/brands/josefin-sans-400.woff2") format("woff2"); }
+@font-face { font-family: "GOVRP Josefin Sans"; font-style: normal; font-weight: 700; font-display: swap; src: url("/fonts/brands/josefin-sans-700.woff2") format("woff2"); }
+@font-face { font-family: "GOVRP Exo 2"; font-style: normal; font-weight: 400; font-display: swap; src: url("/fonts/brands/exo-2-400.woff2") format("woff2"); }
+@font-face { font-family: "GOVRP Exo 2"; font-style: normal; font-weight: 700; font-display: swap; src: url("/fonts/brands/exo-2-700.woff2") format("woff2"); }
+@font-face { font-family: "GOVRP Rajdhani"; font-style: normal; font-weight: 400; font-display: swap; src: url("/fonts/brands/rajdhani-400.woff2") format("woff2"); }
+@font-face { font-family: "GOVRP Rajdhani"; font-style: normal; font-weight: 700; font-display: swap; src: url("/fonts/brands/rajdhani-700.woff2") format("woff2"); }
+@font-face { font-family: "GOVRP Space Grotesk"; font-style: normal; font-weight: 400; font-display: swap; src: url("/fonts/brands/space-grotesk-400.woff2") format("woff2"); }
+@font-face { font-family: "GOVRP Space Grotesk"; font-style: normal; font-weight: 700; font-display: swap; src: url("/fonts/brands/space-grotesk-700.woff2") format("woff2"); }
+@font-face { font-family: "GOVRP Space Mono"; font-style: normal; font-weight: 400; font-display: swap; src: url("/fonts/brands/space-mono-400.woff2") format("woff2"); }
+@font-face { font-family: "GOVRP Space Mono"; font-style: normal; font-weight: 700; font-display: swap; src: url("/fonts/brands/space-mono-700.woff2") format("woff2"); }
+@font-face { font-family: "GOVRP IBM Plex Sans"; font-style: normal; font-weight: 400; font-display: swap; src: url("/fonts/brands/ibm-plex-sans-400.woff2") format("woff2"); }
+@font-face { font-family: "GOVRP IBM Plex Sans"; font-style: normal; font-weight: 700; font-display: swap; src: url("/fonts/brands/ibm-plex-sans-700.woff2") format("woff2"); }
+@font-face { font-family: "GOVRP IBM Plex Serif"; font-style: normal; font-weight: 400; font-display: swap; src: url("/fonts/brands/ibm-plex-serif-400.woff2") format("woff2"); }
+@font-face { font-family: "GOVRP IBM Plex Serif"; font-style: normal; font-weight: 700; font-display: swap; src: url("/fonts/brands/ibm-plex-serif-700.woff2") format("woff2"); }
+@font-face { font-family: "GOVRP IBM Plex Mono"; font-style: normal; font-weight: 400; font-display: swap; src: url("/fonts/brands/ibm-plex-mono-400.woff2") format("woff2"); }
+@font-face { font-family: "GOVRP IBM Plex Mono"; font-style: normal; font-weight: 700; font-display: swap; src: url("/fonts/brands/ibm-plex-mono-700.woff2") format("woff2"); }
+@font-face { font-family: "GOVRP Playfair Display"; font-style: normal; font-weight: 400; font-display: swap; src: url("/fonts/brands/playfair-display-400.woff2") format("woff2"); }
+@font-face { font-family: "GOVRP Playfair Display"; font-style: normal; font-weight: 700; font-display: swap; src: url("/fonts/brands/playfair-display-700.woff2") format("woff2"); }
+@font-face { font-family: "GOVRP Lora"; font-style: normal; font-weight: 400; font-display: swap; src: url("/fonts/brands/lora-400.woff2") format("woff2"); }
+@font-face { font-family: "GOVRP Lora"; font-style: normal; font-weight: 700; font-display: swap; src: url("/fonts/brands/lora-700.woff2") format("woff2"); }
+@font-face { font-family: "GOVRP PT Serif"; font-style: normal; font-weight: 400; font-display: swap; src: url("/fonts/brands/pt-serif-400.woff2") format("woff2"); }
+@font-face { font-family: "GOVRP PT Serif"; font-style: normal; font-weight: 700; font-display: swap; src: url("/fonts/brands/pt-serif-700.woff2") format("woff2"); }
+@font-face { font-family: "GOVRP Noto Serif"; font-style: normal; font-weight: 400; font-display: swap; src: url("/fonts/brands/noto-serif-400.woff2") format("woff2"); }
+@font-face { font-family: "GOVRP Noto Serif"; font-style: normal; font-weight: 700; font-display: swap; src: url("/fonts/brands/noto-serif-700.woff2") format("woff2"); }
+@font-face { font-family: "GOVRP Source Serif 4"; font-style: normal; font-weight: 400; font-display: swap; src: url("/fonts/brands/source-serif-4-400.woff2") format("woff2"); }
+@font-face { font-family: "GOVRP Source Serif 4"; font-style: normal; font-weight: 700; font-display: swap; src: url("/fonts/brands/source-serif-4-700.woff2") format("woff2"); }
+@font-face { font-family: "GOVRP Crimson Pro"; font-style: normal; font-weight: 400; font-display: swap; src: url("/fonts/brands/crimson-pro-400.woff2") format("woff2"); }
+@font-face { font-family: "GOVRP Crimson Pro"; font-style: normal; font-weight: 700; font-display: swap; src: url("/fonts/brands/crimson-pro-700.woff2") format("woff2"); }
+@font-face { font-family: "GOVRP EB Garamond"; font-style: normal; font-weight: 400; font-display: swap; src: url("/fonts/brands/eb-garamond-400.woff2") format("woff2"); }
+@font-face { font-family: "GOVRP EB Garamond"; font-style: normal; font-weight: 700; font-display: swap; src: url("/fonts/brands/eb-garamond-700.woff2") format("woff2"); }
+@font-face { font-family: "GOVRP Bitter"; font-style: normal; font-weight: 400; font-display: swap; src: url("/fonts/brands/bitter-400.woff2") format("woff2"); }
+@font-face { font-family: "GOVRP Bitter"; font-style: normal; font-weight: 700; font-display: swap; src: url("/fonts/brands/bitter-700.woff2") format("woff2"); }
+@font-face { font-family: "GOVRP Zilla Slab"; font-style: normal; font-weight: 400; font-display: swap; src: url("/fonts/brands/zilla-slab-400.woff2") format("woff2"); }
+@font-face { font-family: "GOVRP Zilla Slab"; font-style: normal; font-weight: 700; font-display: swap; src: url("/fonts/brands/zilla-slab-700.woff2") format("woff2"); }
+@font-face { font-family: "GOVRP Arvo"; font-style: normal; font-weight: 400; font-display: swap; src: url("/fonts/brands/arvo-400.woff2") format("woff2"); }
+@font-face { font-family: "GOVRP Arvo"; font-style: normal; font-weight: 700; font-display: swap; src: url("/fonts/brands/arvo-700.woff2") format("woff2"); }
+@font-face { font-family: "GOVRP Cinzel"; font-style: normal; font-weight: 400; font-display: swap; src: url("/fonts/brands/cinzel-400.woff2") format("woff2"); }
+@font-face { font-family: "GOVRP Cinzel"; font-style: normal; font-weight: 700; font-display: swap; src: url("/fonts/brands/cinzel-700.woff2") format("woff2"); }
+@font-face { font-family: "GOVRP DM Serif Display"; font-style: normal; font-weight: 400; font-display: swap; src: url("/fonts/brands/dm-serif-display-400.woff2") format("woff2"); }
+@font-face { font-family: "GOVRP Vollkorn"; font-style: normal; font-weight: 400; font-display: swap; src: url("/fonts/brands/vollkorn-400.woff2") format("woff2"); }
+@font-face { font-family: "GOVRP Vollkorn"; font-style: normal; font-weight: 700; font-display: swap; src: url("/fonts/brands/vollkorn-700.woff2") format("woff2"); }

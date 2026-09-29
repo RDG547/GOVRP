@@ -70,7 +70,7 @@ try {
  -- Each person in the ticket has their own party and immutable identity.
  insert into public.election_types(name,requires_vice_candidate,voting_system) values('Presidencial identidade '||gen_random_uuid(),true,'majoritarian') returning id into topic;
  insert into public.elections(name,election_type_id,candidacy_start_date,candidacy_end_date,voting_start_date,voting_end_date,status) values('Identidade integrada',topic,now()-interval '1 day',now()+interval '1 day',now()+interval '2 days',now()+interval '3 days','Candidacy') returning id into e;
- insert into public.candidates(election_id,user_id,vice_candidate_id,party_id,political_name,status,campaign_photo_url) values(e,'${owner.id}','${vice.id}','${p.id}','Nome inventado','Approved','https://example.invalid/campaign.png') returning * into candidate_row;c:=candidate_row.id;original:=candidate_row.identity_snapshot;
+ insert into public.candidates(election_id,user_id,vice_candidate_id,party_id,political_name,status,campaign_photo_url,electoral_number) values(e,'${owner.id}','${vice.id}','${p.id}','Nome inventado','Approved','https://example.invalid/campaign.png','${p.electoral_number}') returning * into candidate_row;c:=candidate_row.id;original:=candidate_row.identity_snapshot;
  if candidate_row.political_name<>'Teste identity-owner' or candidate_row.vice_identity_snapshot->'party'->>'id'<>'${vp.id}' or candidate_row.identity_snapshot->'party'->>'id'<>'${p.id}' then raise exception 'Identidade da chapa incorreta';end if;
  update public.profiles set full_name='Nome posterior' where id='${owner.id}';
  update public.political_parties set color='#FFFFFF' where id='${p.id}';

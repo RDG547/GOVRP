@@ -1,10 +1,10 @@
 import { internalElectionPhase } from '@/lib/parliamentGovernance';
 import ParliamentRoleBadges from '@/components/parliament/ParliamentRoleBadges';
-import BillAuthorParty from '@/components/parliament/BillAuthorParty';
+import BillHistory, { CountdownTimer } from '@/components/parliament/BillHistory';
+import { hydrateBillHistory } from '@/lib/billHistory';
 import { formatDateTimeBR } from '@/lib/dateTime';
 import { formatDateBR } from '@/lib/dateTime';
 import { formatLocaleBR } from '@/lib/dateTime';
-import LegalEffectsSummary from '@/components/parliament/LegalEffectsSummary';
 import PartyIdentity from '@/components/parliament/PartyIdentity';
 import { fetchPublicProfiles } from '@/lib/publicProfiles';
 import { PARLIAMENT_REALTIME_TABLES, parliamentSectionsForEvents } from '@/lib/parliamentRealtime';
@@ -472,204 +472,6 @@ const ParliamentMembersList = ({ members = [] }) => {
           </CardContent>
         </Card>
       ))}
-    </div>
-  );
-};
-
-const useCountdown = (endDate) => {
-  const [timeLeft, setTimeLeft] = useState('');
-
-  useEffect(() => {
-    if (!endDate) {
-      setTimeLeft('');
-      return undefined;
-    }
-
-    const endTime = new Date(endDate).getTime();
-
-    const tick = () => {
-      const difference = endTime - Date.now();
-      if (difference <= 0) {
-        setTimeLeft('Encerrado');
-        return;
-      }
-
-      const hours = Math.floor(difference / 3600000);
-      const minutes = Math.floor((difference % 3600000) / 60000);
-      const seconds = Math.floor((difference % 60000) / 1000);
-      setTimeLeft(`${hours}h ${String(minutes).padStart(2, '0')}min ${String(seconds).padStart(2, '0')}s`);
-    };
-
-    tick();
-    const intervalId = setInterval(tick, 1000);
-    return () => clearInterval(intervalId);
-  }, [endDate]);
-
-  return timeLeft;
-};
-
-const CountdownTimer = ({ endDate }) => {
-  const timeLeft = useCountdown(endDate);
-  if (!timeLeft) {
-    return null;
-  }
-
-  return <span className="text-xs text-blue-400">⏱ {timeLeft}</span>;
-};
-
-const BillList = ({ bills = [] }) => {
-  const [statusFilter, setStatusFilter] = useState('all');
-  const filteredBills =
-    statusFilter === 'all'
-      ? bills
-      : bills.filter(
-          (bill) =>
-            bill.status === statusFilter ||
-            (statusFilter === 'Em votação' && bill.status?.startsWith('Em votação')) ||
-            (statusFilter === 'Aguardando ato presidencial' &&
-              ['Aguardando sanção presidencial', 'Aguardando promulgação presidencial'].includes(bill.status)) ||
-            (statusFilter === 'Convertido em norma' && ['Sancionado', 'Promulgado'].includes(bill.status)) ||
-            (statusFilter === 'Vetado' &&
-              ['Vetado integralmente', 'Vetado parcialmente'].includes(bill.status))
-        );
-
-  return (
-    <div className="space-y-6">
-      <div className="flex justify-end">
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-[200px]">
-            <SelectValue placeholder="Filtrar por status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todos os Status</SelectItem>
-            <SelectItem value="Em tramitação">Em Tramitação</SelectItem>
-            <SelectItem value="Em votação">Em Votação</SelectItem>
-            <SelectItem value="Aprovado">Aprovados</SelectItem>
-            <SelectItem value="Aguardando ato presidencial">Aguardando Ato Presidencial</SelectItem>
-            <SelectItem value="Convertido em norma">Convertidos em Norma</SelectItem>
-            <SelectItem value="Vetado">Vetados</SelectItem>
-            <SelectItem value="Rejeitado">Rejeitados</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {filteredBills.length ? (
-          filteredBills.map((bill) => {
-            const activeVoting = bill.votings?.find((voting) => voting.status === 'active');
-            const closedVotings = bill.votings?.filter((voting) => voting.status === 'closed') || [];
-            const latestVoting = activeVoting || closedVotings[0];
-            const allVotes = latestVoting?.votes || [];
-            const votesFor = allVotes.filter((vote) => vote.vote === 'Aprovar').length;
-            const votesAgainst = allVotes.filter((vote) => vote.vote === 'Rejeitar').length;
-            const votesAbstain = allVotes.filter((vote) => vote.vote === 'Abster').length;
-            const totalVotes = votesFor + votesAgainst + votesAbstain;
-
-            const statusMeta = {
-              'Em tramitação': { className: 'bg-yellow-500/20 text-yellow-300', label: 'Em Tramitação' },
-              'Em votação': { className: 'bg-blue-500/20 text-blue-300', label: 'Em Votação' },
-              'Em votação (2ª Casa)': { className: 'bg-indigo-500/20 text-indigo-300', label: 'Em Votação (2ª Casa)' },
-              Aprovado: { className: 'bg-green-500/20 text-green-300', label: 'Aprovado' },
-              'Aguardando sanção presidencial': { className: 'bg-amber-500/20 text-amber-300', label: 'Aguardando sanção presidencial' },
-              'Aguardando promulgação presidencial': { className: 'bg-violet-500/20 text-violet-300', label: 'Aguardando promulgação presidencial' },
-              Sancionado: { className: 'bg-emerald-500/20 text-emerald-300', label: 'Sancionado' },
-              Promulgado: { className: 'bg-cyan-500/20 text-cyan-300', label: 'Promulgado' },
-              'Vetado integralmente': { className: 'bg-rose-500/20 text-rose-300', label: 'Vetado integralmente' },
-              'Vetado parcialmente': { className: 'bg-orange-500/20 text-orange-300', label: 'Vetado parcialmente' },
-              Rejeitado: { className: 'bg-red-500/20 text-red-300', label: 'Rejeitado' },
-            }[bill.status] || { className: 'bg-muted text-muted-foreground', label: bill.status };
-
-            return (
-              <motion.div key={bill.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-                <Card className="glass-effect flex h-full flex-col">
-                  <CardHeader>
-                    <div className="flex items-start gap-3">
-                      <Avatar className="h-11 w-11">
-                        <AvatarImage src={bill.author?.avatar_url} alt={bill.author?.full_name} />
-                        <AvatarFallback>{bill.author?.full_name?.charAt(0) || 'P'}</AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1">
-                        <CardTitle className="text-foreground">{bill.title}</CardTitle>
-                        <CardDescription>
-                          Autor: {bill.author_identity_snapshot?.name || bill.author?.full_name || 'Cidadão indisponível'} | {bill.house?.name}
-                        </CardDescription>
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="flex-grow">
-                    <p className="line-clamp-3 text-sm text-muted-foreground">{bill.summary}</p>
-                    <p className="mt-3 text-xs text-muted-foreground">
-                      <BillAuthorParty bill={bill}/>
-                      Proposto em <span className="font-medium text-foreground">{formatDateTimeBR(bill.created_at)}</span>
-                    </p>
-                    <div className="mt-4 flex flex-wrap items-center gap-2">
-                      <span className={`rounded-full px-2 py-1 text-xs ${statusMeta.className}`}>{statusMeta.label}</span>
-                      <span className="rounded-full bg-muted px-2 py-1 text-xs text-muted-foreground">{bill.type}</span>
-                      {activeVoting?.end_date ? <CountdownTimer endDate={activeVoting.end_date} /> : null}
-                    </div>
-                    <LegalEffectsSummary effects={bill.legal_effects} />
-                    {totalVotes ? (
-                      <>
-                        <div className="mt-4 space-y-2">
-                          <div className="flex gap-1">
-                            <Progress value={votesFor} max={totalVotes} className="h-2 flex-1" indicatorClassName="bg-green-500" />
-                            <Progress
-                              value={votesAgainst}
-                              max={totalVotes}
-                              className="h-2 flex-1"
-                              indicatorClassName="bg-red-500"
-                            />
-                            <Progress
-                              value={votesAbstain}
-                              max={totalVotes}
-                              className="h-2 flex-1"
-                              indicatorClassName="bg-gray-500"
-                            />
-                          </div>
-                          <div className="flex justify-between text-xs">
-                            <span className="text-green-400">Aprovar: {votesFor}</span>
-                            <span className="text-red-400">Rejeitar: {votesAgainst}</span>
-                            <span className="text-gray-400">Abster: {votesAbstain}</span>
-                          </div>
-                        </div>
-                      </>
-                    ) : bill.status?.startsWith('Em votação') ? (
-                      <p className="mt-4 text-center text-xs text-muted-foreground">Nenhum voto registrado ainda.</p>
-                    ) : null}
-                    {bill.status_history?.length ? (
-                      <div className="mt-5 border-t border-white/10 pt-4">
-                        <p className="mb-3 text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-                          Histórico de tramitação
-                        </p>
-                        <ol className="space-y-0">
-                          {bill.status_history.map((event, index) => (
-                            <li key={event.id} className="relative flex gap-3 pb-4 last:pb-0">
-                              {index < bill.status_history.length - 1 ? (
-                                <span aria-hidden="true" className="absolute left-[5px] top-3 h-full w-px bg-white/10" />
-                              ) : null}
-                              <span aria-hidden="true" className="relative mt-1.5 h-3 w-3 shrink-0 rounded-full border-2 border-blue-300 bg-slate-950" />
-                              <div>
-                                <p className="text-sm font-medium text-foreground">{event.event_label}</p>
-                                <time dateTime={event.occurred_at} className="text-xs text-muted-foreground">
-                                  {formatDateTimeBR(event.occurred_at)}
-                                </time>
-                              </div>
-                            </li>
-                          ))}
-                        </ol>
-                      </div>
-                    ) : null}
-                  </CardContent>
-                </Card>
-              </motion.div>
-            );
-          })
-        ) : (
-          <p className="col-span-full py-10 text-center text-muted-foreground">
-            Nenhum projeto encontrado para o filtro selecionado.
-          </p>
-        )}
-      </div>
     </div>
   );
 };
@@ -1146,70 +948,7 @@ const Parliament = () => {
         throw billsError;
       }
 
-      const billIds = (billsData || []).map((bill) => bill.id);
-      let votingsMap = {};
-      let historyMap = {};
-      let effectsMap = {};
-      if (billIds.length) {
-        const [votingsResponse, historyResponse, effectsResponse] = await Promise.all([
-          supabase
-            .from('parliament_votings')
-            .select('id, status, end_date, house_id, related_id, votes:parliament_voting_votes(vote, member_id)')
-            .eq('type', 'bill')
-            .in('related_id', billIds),
-          supabase
-            .from('bill_status_history')
-            .select('id, bill_id, status, event_label, occurred_at')
-            .in('bill_id', billIds)
-            .order('occurred_at', { ascending: true }),
-          supabase
-            .from('law_effects')
-            .select('id, source_id, effect_key, operation, effect_value, explanation, status, activated_at, effect_data, previous_snapshot, valid_from, valid_until')
-            .eq('source_kind', 'bill')
-            .in('source_id', billIds),
-        ]);
-
-        const { data: votingsData, error: votingsError } = votingsResponse;
-
-        if (votingsError) {
-          throw votingsError;
-        }
-
-        (votingsData || []).forEach((voting) => {
-          if (!votingsMap[voting.related_id]) {
-            votingsMap[voting.related_id] = [];
-          }
-          votingsMap[voting.related_id].push(voting);
-        });
-
-        if (historyResponse.error) {
-          console.warn('Histórico de tramitação ainda não está disponível:', historyResponse.error);
-        } else {
-          (historyResponse.data || []).forEach((event) => {
-            if (!historyMap[event.bill_id]) historyMap[event.bill_id] = [];
-            historyMap[event.bill_id].push(event);
-          });
-        }
-        if (effectsResponse.error) {
-          console.warn('Efeitos das normas ainda não estão disponíveis:', effectsResponse.error);
-        } else {
-          (effectsResponse.data || []).forEach((effect) => {
-            if (!effectsMap[effect.source_id]) effectsMap[effect.source_id] = [];
-            effectsMap[effect.source_id].push(effect);
-          });
-        }
-      }
-
-      const billAuthors = await fetchPublicProfiles((billsData || []).map(bill => bill.author_id));
-      setBills(
-        (billsData || []).map((bill) => ({
-          ...bill,
-          author: billAuthors.get(bill.author_id) || bill.author,
-          votings: votingsMap[bill.id] || [],
-          status_history: historyMap[bill.id] || [],
-          legal_effects: effectsMap[bill.id] || [],
-        }))
-      );
+      setBills(await hydrateBillHistory(billsData || [], supabase));
 
       }
       if (sections.includes('plebiscites')) {
@@ -1365,7 +1104,7 @@ const Parliament = () => {
 
             <TabsContent value="bills">
               <h2 className="mb-4 text-2xl font-bold">Histórico de Projetos</h2>
-              <BillList bills={filteredBills} />
+              <BillHistory bills={filteredBills} />
             </TabsContent>
 
             <TabsContent value="commissions">

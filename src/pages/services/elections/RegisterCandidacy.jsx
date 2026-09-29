@@ -108,7 +108,7 @@ const RegisterCandidacy = ({ onFinished }) => {
   const selectedElection = elections.find((election) => election.id === selectedElectionId) || null;
   const requiresViceCandidate = isPresidentialTicketElection(selectedElection);
   const numberDigits = electionNumberDigits(selectedElection);
-  const numberPrefix = parties.find(party => party.id === selectedPartyId)?.electoral_number || '0';
+  const numberPrefix = parties.find(party => party.id === selectedPartyId)?.electoral_number || '';
   useEffect(() => { form.setValue('electoral_number', numberDigits === 2 && numberPrefix.length === 2 ? numberPrefix : ''); }, [selectedElectionId, numberPrefix, numberDigits, form]);
   const consecutivePresidentialWins = getConsecutivePresidentialWins(presidentialElections, user?.id);
   const presidentialRunBlocked = requiresViceCandidate && consecutivePresidentialWins >= 2;
@@ -342,6 +342,10 @@ const RegisterCandidacy = ({ onFinished }) => {
   };
 
   const onSubmit = async (values) => {
+    if (!new RegExp(`^[0-9]{${numberDigits}}$`).test(values.electoral_number) || (numberPrefix && !values.electoral_number.startsWith(numberPrefix))) {
+      form.setError('electoral_number', {type:'manual', message:numberPrefix ? `Use ${numberDigits} dígitos começando por ${numberPrefix}.` : `Informe um número com ${numberDigits} dígitos.`});
+      return;
+    }
     if (!imageFile) {
       setImageError('A foto de campanha é obrigatória. Faça upload de uma imagem.');
       return;
@@ -533,7 +537,7 @@ const RegisterCandidacy = ({ onFinished }) => {
             <CardDescription>Preencha todos os campos obrigatórios para registrar sua candidatura.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-            {selectedElection && <FormField control={form.control} name="electoral_number" render={({ field }) => <FormItem><FormLabel>Número eleitoral · {numberDigits} dígitos</FormLabel><FormControl><Input {...field} inputMode="numeric" maxLength={numberDigits} readOnly={numberDigits === 2 && numberPrefix.length === 2} onChange={event => field.onChange(event.target.value.replace(/\D/g, '').slice(0, numberDigits))} /></FormControl><p className="text-xs text-muted-foreground">Começa por {numberPrefix}. O número será reservado nesta eleição.</p><FormMessage /></FormItem>} />}
+            {selectedElection && <FormField control={form.control} name="electoral_number" render={({ field }) => <FormItem><FormLabel>Número eleitoral · {numberDigits} dígitos</FormLabel><FormControl><Input {...field} inputMode="numeric" maxLength={numberDigits} readOnly={numberDigits === 2 && numberPrefix.length === 2} onChange={event => field.onChange(event.target.value.replace(/\D/g, '').slice(0, numberDigits))} /></FormControl><p className="text-xs text-muted-foreground">{numberPrefix ? `Começa por ${numberPrefix}.` : 'Candidatura independente: escolha um número disponível.'} O número será reservado nesta eleição.</p><FormMessage /></FormItem>} />}
 
             <FormField
               control={form.control}

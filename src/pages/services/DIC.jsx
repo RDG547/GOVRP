@@ -1,3 +1,4 @@
+import { GovSelect } from '@/components/ui/gov-select';
 import { formatDateBR } from '@/lib/dateTime';
 import { formatLocaleBR } from '@/lib/dateTime';
 import { useDomainRealtime } from '@/hooks/use-domain-realtime';
@@ -10,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabaseClient';
-import { FileText, Car, Globe, Briefcase as BriefcaseIcon, Building, Download, Image as ImageIcon, Eye, History, FilePlus, Files, Loader2, Flag, School, Star, Award, Vote, Heart, ShieldCheck, Fingerprint, X, Trash2, AtSign, Landmark, MapPin, CalendarDays } from 'lucide-react';
+import { FileText, Car, Globe, Briefcase as BriefcaseIcon, Building, Download, Image as ImageIcon, Eye, History, FilePlus, Files, Loader2, Flag, School, Star, Award, Vote, Heart, ShieldCheck, Fingerprint, X, Trash2, AtSign, Landmark, MapPin, CalendarDays, Check, Coins } from 'lucide-react';
 import { formatCPF, formatRG, formatCNPJ } from '@/lib/utils';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import PageHeader from '@/components/layout/PageHeader';
@@ -595,18 +596,19 @@ const DIC = () => {
             </Dialog>
             <Dialog open={!!confirmingDoc} onOpenChange={() => { setConfirmingDoc(null); setFormValues({}); }}>
                 <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>Confirmar Emissão: {docInfo[confirmingDoc]?.name}</DialogTitle>
-                        <DialogDescription>Preencha os dados e confirme a emissão pela taxa de {formatFee(docFees[confirmingDoc] || 0)}.</DialogDescription>
+                    <DialogHeader className="text-center sm:text-center">
+                        <DialogTitle>Confirmar Emissão de {confirmingDoc === 'CNPJ' ? 'CNPJ' : docInfo[confirmingDoc]?.name}</DialogTitle>
+                        <DialogDescription>Preencha os dados e confira a taxa antes de confirmar.</DialogDescription>
                     </DialogHeader>
                     <div className="py-4 space-y-4">
-                        {confirmingDoc === 'CNPJ' && (<><Label htmlFor="company_name">Nome da Empresa</Label><Input id="company_name" onChange={handleFormChange} /><Label htmlFor="business_type_id">Atividade do CNPJ</Label><select id="business_type_id" className="h-11 w-full rounded border bg-background px-2" value={formValues.business_type_id||''} onChange={handleFormChange}><option value="">Selecione a atividade</option>{businessTypes.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}</select></>)}
+                        <p className="flex items-center justify-center gap-2 text-sm"><Coins className="h-4 w-4 text-primary"/>Taxa de emissão: {formatFee(docFees[confirmingDoc] || 0)}</p>
+                        {confirmingDoc === 'CNPJ' && (<><Label htmlFor="company_name" className="flex items-center gap-2"><Building className="h-4 w-4 text-primary"/>Nome da Empresa</Label><Input id="company_name" onChange={handleFormChange} /><Label htmlFor="business_type_id" className="flex items-center gap-2"><BriefcaseIcon className="h-4 w-4 text-primary"/>Atividade do CNPJ</Label><GovSelect id="business_type_id" className="h-11 w-full rounded border bg-background px-2" value={formValues.business_type_id||''} onChange={handleFormChange}><option value="">Selecione a atividade</option>{businessTypes.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}</GovSelect><p className="text-sm text-muted-foreground">O CNPJ será vinculado ao nome da empresa e à atividade selecionada. Use este documento para registrar essa atividade no Portal do Empreendedor.</p></>)}
                         {confirmingDoc === 'Certidão de Casamento' && (<><Label htmlFor="spouse_name">Nome do Cônjuge</Label><Input id="spouse_name" onChange={handleFormChange} /></>)}
                         {confirmingDoc === 'Registro Profissional' && (<><Label htmlFor="profession">Profissão (Ex: Engenheiro)</Label><Input id="profession" onChange={handleFormChange} /></>)}
                     </div>
-                    <DialogFooter>
-                        <Button variant="ghost" onClick={() => { setConfirmingDoc(null); setFormValues({}); }}>Cancelar</Button>
-                        <Button onClick={handleRequestDocument} disabled={!!requesting}>{requesting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Confirmar</Button>
+                    <DialogFooter className="gap-2 sm:justify-center">
+                        <Button variant="ghost" onClick={() => { setConfirmingDoc(null); setFormValues({}); }}><X className="mr-2 h-4 w-4"/>Cancelar</Button>
+                        <Button onClick={handleRequestDocument} disabled={!!requesting}>{requesting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Check className="mr-2 h-4 w-4"/>} Confirmar</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>

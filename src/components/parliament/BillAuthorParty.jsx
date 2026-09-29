@@ -6,5 +6,5 @@ export default function BillAuthorParty({ bill }) {
   const roleLabel = role ? <span className="block text-xs text-muted-foreground">{role} no protocolo</span> : null;
   if (!snapshot) return <span className="block text-xs text-muted-foreground">{roleLabel}Partido no protocolo: não registrado no histórico</span>;
   if (snapshot.unaffiliated) return <span className="block text-xs text-muted-foreground">{roleLabel}Sem partido no protocolo</span>;
-  return <span className="block text-xs" title="Filiação registrada no protocolo da proposta">{roleLabel}<PartyIdentity party={snapshot}/></span>;
+  return <span className="block text-xs" title="Filiação registrada no protocolo da proposta">{roleLabel}<PartyIdentity party={snapshot} historical/></span>;
 }

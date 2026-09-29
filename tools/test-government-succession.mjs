@@ -44,6 +44,7 @@ try {
       if not denied then raise exception 'Cidadão escolheu gabinete';end if;
       perform set_config('request.jwt.claim.sub','${chair.id}',true);
       if public.get_presidential_formation() is null then raise exception 'Interino não acessa formação';end if;
+      if jsonb_typeof(public.search_executive_candidates('minister','',0)->'candidates') is distinct from 'array' then raise exception 'Interino não acessa diretório de nomeação';end if;
       perform public.choose_government_cabinet('reform');
       if (select role from public.profiles where id='${minister.id}')<>'Cidadão' then raise exception 'Exoneração não alterou cargo';end if;
       if not exists(select 1 from public.ministers where user_id='${minister.id}' and status='dismissed' and government_id=g) then raise exception 'Histórico apagado';end if;

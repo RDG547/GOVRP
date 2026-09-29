@@ -809,7 +809,7 @@ const EntrepreneurPortal = () => {
       const [privateListingsResponse, stateListingsResponse] = await Promise.all([
         supabase
           .from('businesses')
-          .select('id, owner_id, business_type_id, name, description, sale_price, sale_listed_at, owner:profiles(full_name)')
+          .select('id, owner_id, business_type_id, name, description, sale_price, sale_listed_at, owner:profiles!businesses_owner_id_fkey(full_name)')
           .eq('is_for_sale', true)
           .order('sale_listed_at', { ascending: false }),
         supabase

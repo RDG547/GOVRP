@@ -76,7 +76,10 @@
     "test:marketplace-listings": "node tools/test-marketplace-listing-fees.mjs",
     "test:brand-cnpj-trends": "node tools/test-brand-cnpj-trends.mjs",
     "test:expansion-interface": "node tools/test-expansion-interface.mjs",
-    "test:interim-government-interface": "node tools/test-interim-government-interface.mjs"
+    "test:interim-government-interface": "node tools/test-interim-government-interface.mjs",
+    "test:shared-identity": "node tools/test-shared-identity.mjs",
+    "test:shared-identity-interface": "node tools/test-shared-identity-interface.mjs",
+    "test:independent-candidacy-interface": "node tools/test-independent-candidacy-interface.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.0",

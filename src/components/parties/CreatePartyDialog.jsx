@@ -1,3 +1,4 @@
+import PartyBrandPreview from './PartyBrandPreview';
 import BrandFontPicker from '@/components/BrandFontPicker';
 import PartyColorPicker from '@/components/parties/PartyColorPicker';
 import { politicalOrientations, orientationColors } from '@/lib/partyIdentity';
@@ -22,6 +23,8 @@ const CreatePartyDialog = ({ onPartyCreated, userAffiliation }) => {
     const [formData, setFormData] = useState({ name: '', acronym: '', ideology: '', statute: '', description: '', orientation: '', color: '#64748B', font_key: 'default' });
     const [logoUrl, setLogoUrl] = useState('');
     const [logoFile, setLogoFile] = useState(null);
+    const [bannerUrl,setBannerUrl]=useState('');
+    const [bannerFile,setBannerFile]=useState(null);
 
     const handleOpenChange = (open) => {
         if (open && userAffiliation) {
@@ -54,9 +57,15 @@ const CreatePartyDialog = ({ onPartyCreated, userAffiliation }) => {
                 finalLogoUrl = supabase.storage.from('public-assets').getPublicUrl(uploadData.path).data.publicUrl;
             }
 
+            let finalBannerUrl=bannerUrl;
+            if (bannerFile) {
+                const {data:uploaded,error:uploadError}=await supabase.storage.from('public-assets').upload(buildStoragePath({prefix:'party-headers',entityId:'new-party',fileName:bannerFile.name}),bannerFile);
+                if(uploadError)throw uploadError;
+                finalBannerUrl=supabase.storage.from('public-assets').getPublicUrl(uploaded.path).data.publicUrl;
+            }
             const { data, error } = await supabase.rpc('create_political_party', {
                 p_name: formData.name, p_acronym: formData.acronym, p_ideology: formData.ideology, p_logo_url: finalLogoUrl,
-                p_statute: formData.statute, p_description: formData.description, p_orientation: formData.orientation, p_color: formData.color, p_font_key: formData.font_key
+                p_statute: formData.statute, p_description: formData.description, p_orientation: formData.orientation, p_color: formData.color, p_font_key: formData.font_key, p_header_url: finalBannerUrl
             });
 
             if (error || !data.success) {
@@ -68,7 +77,7 @@ const CreatePartyDialog = ({ onPartyCreated, userAffiliation }) => {
             setIsOpen(false);
             setFormData({ name: '', acronym: '', ideology: '', statute: '', description: '', orientation: '', color: '#64748B', font_key: 'default' });
             setLogoUrl(''); 
-            setLogoFile(null);
+            setLogoFile(null); setBannerUrl(''); setBannerFile(null);
         } catch (error) {
             console.error("Error creating party:", error);
             toast({ title: 'Erro ao criar partido', description: error.message, variant: 'destructive' });
@@ -91,6 +100,8 @@ const CreatePartyDialog = ({ onPartyCreated, userAffiliation }) => {
                     <div className="grid gap-2"><Label htmlFor="statute" className="flex items-center gap-2"><ScrollText className="h-4 w-4 text-primary"/>Estatuto do Partido</Label><Textarea id="statute" value={formData.statute} onChange={(e) => setFormData(p=>({...p, statute: e.target.value}))} rows={5} placeholder="Cole aqui as regras internas do partido." required /></div>
             <h3 className="font-semibold">🎨 Personalização</h3><BrandFontPicker value={formData.font_key} onChange={font_key=>setFormData({...formData,font_key})} name={formData.name||"Nome do partido"}/><PartyColorPicker party={{...formData,logo_url:logoUrl}} value={formData.color} onChange={color => setFormData(current => ({...current, color}))}/>
                     <ImageUploader previewOnly onUrlChange={setLogoUrl} onFileChange={setLogoFile} initialUrl={logoUrl} label="Logo do Partido (Obrigatório)" />
+                    <ImageUploader previewOnly banner allowRemove label="Banner do partido (opcional)" initialUrl={bannerUrl} onUrlChange={setBannerUrl} onFileChange={setBannerFile}/>
+                    <PartyBrandPreview name={formData.name} acronym={formData.acronym} logoUrl={logoUrl} logoFile={logoFile} bannerUrl={bannerUrl} bannerFile={bannerFile} color={formData.color} fontKey={formData.font_key}/>
                     <DialogFooter className="gap-2 sm:justify-center"><Button type="submit" disabled={loading}>{loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <PlusCircle className="mr-2 h-4 w-4"/>}Fundar Partido</Button></DialogFooter>
                 </form>
             </DialogContent>
