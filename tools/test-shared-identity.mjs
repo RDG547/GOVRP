@@ -11,9 +11,9 @@ const electionIds=[];
 try {
  const [owner,member,outsider,candidate,vice,challenger,secondVice]=await Promise.all(['brand-founder','brand-member','brand-outsider','independent','independent-vice','conflict','conflict-vice'].map(label=>actor(label)));
  const sources=JSON.parse(readFileSync('public/fonts/brands/sources.json','utf8'));
- check(sources.length===49&&new Set(sources.map(f=>f.key)).size===49,'50 opções únicas incluindo o padrão GOVRP');
+ check(sources.length===500&&new Set(sources.map(f=>f.key)).size===500,'500 fontes reais únicas, além do padrão GOVRP');
  const families=new Set();for(const font of sources){families.add(font.family);for(const file of font.files)assert.equal(readFileSync('public/fonts/brands/'+file.file).subarray(0,4).toString(),'wOF2');assert(readFileSync('public/fonts/brands/'+font.key+'.license','utf8').length>100);assert.equal(await rpc(owner.client,'valid_brand_font',{p_key:font.key}),true);}
- check(families.size===49,'49 famílias reais com arquivos locais, licenças e allowlist no banco');
+ check(families.size===500,'500 famílias reais com arquivos locais, licenças e allowlist no banco');
  check(!await rpc(owner.client,'valid_brand_font',{p_key:'url(javascript:alert(1))'}),'CSS arbitrário bloqueado pela biblioteca');
  const args={p_name:'Identidade '+owner.handle,p_acronym:owner.handle.slice(-5),p_ideology:'Institucional',p_logo_url:'https://example.invalid/logo.png',p_statute:'Estatuto permanente',p_description:'Teste integrado de identidade',p_orientation:'Centro',p_color:'#445566',p_font_key:'cinzel',p_header_url:'https://example.invalid/banner.png'};
  const party=await rpc(owner.client,'create_political_party',args);assert(party.success);

@@ -231,7 +231,7 @@ const PoliticalParties = () => {
                                         <CardContent className="flex-grow space-y-2">
                                             <div className="flex items-center gap-2 text-sm text-muted-foreground">
                                                 <Calendar className="w-4 h-4" />
-                                                <span>Fundado em {format(new Date(party.created_at), "dd/MM/yyyy", { locale: ptBR })}</span>
+                                                <div className="flex items-center gap-2 text-sm text-muted-foreground"><Avatar className="h-7 w-7"><AvatarImage src={party.founder?.avatar_url} alt=""/><AvatarFallback>{party.founder?.full_name?.charAt(0)||'?'}</AvatarFallback></Avatar><span>Fundador: {party.founder?.full_name || 'Não registrado'}</span></div><span>Fundado em {format(new Date(party.created_at), "dd/MM/yyyy", { locale: ptBR })}</span>
                                             </div>
                                             <div className="flex items-center gap-2 text-sm text-muted-foreground">
                                                 <Compass className="w-4 h-4" />
@@ -257,7 +257,7 @@ const PoliticalParties = () => {
                                             <p className="text-sm text-muted-foreground">Dono: {party.owner?.full_name || (party.owner_conflict ? 'Conflito de liderança' : 'Não definido')}</p>
                                             <p className="text-sm text-muted-foreground">Presidente: {party.president?.full_name || (party.president_conflict ? 'Conflito de liderança' : 'Não definido')}</p>
                                             <p className="text-sm text-muted-foreground">Vice-Presidente: {party.vice_president?.full_name || (party.vice_president_conflict ? 'Conflito de liderança' : 'Não definido')}</p>
-                                            <div className="flex items-center gap-2 text-sm text-muted-foreground"><Avatar className="h-7 w-7"><AvatarImage src={party.founder?.avatar_url} alt=""/><AvatarFallback>{party.founder?.full_name?.charAt(0)||'?'}</AvatarFallback></Avatar><span>Fundador: {party.founder?.full_name || 'Não registrado'}</span></div>
+
                                             <p className="text-sm text-muted-foreground">Membros: {memberCount}</p>
                                             <p className="text-sm text-muted-foreground">Filiação: <span className="font-semibold">{party.affiliation_mode === 'automatic' ? 'Automática' : 'Manual'}</span></p>
                                         </CardContent>

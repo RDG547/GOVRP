@@ -18,7 +18,7 @@ try {
  check(Boolean((await citizen.client.from('citizen_needs').update({health:100}).eq('user_id',citizen.id)).error),'escrita direta nas necessidades é bloqueada');
  const market=await rpc(citizen.client,'get_state_citizen_offers',{p_housing:false});
  const homes=await rpc(citizen.client,'get_state_citizen_offers',{p_housing:true});
- check(market.length===15 && homes.length===5,'catálogos oferecem 15 consumíveis e cinco moradias');
+ check(market.length>=15 && homes.length>=81 && new Set(homes.map(home=>home.residence_spec.state)).size===27,'catálogos oferecem consumíveis e moradias nos 27 estados');
  const food=market.find(p=>p.consumable_effects.hunger===40), drink=market.find(p=>p.consumable_effects.thirst===40);
  const received=[];
  await subscribe(citizen.client.channel(`needs-${citizen.id}`).on('postgres_changes',{schema:'public',table:'citizen_needs',event:'UPDATE',filter:`user_id=eq.${citizen.id}`},event=>received.push(event.new)));
@@ -44,7 +44,7 @@ try {
  const homePurchase=await buy(citizen.client,homes[0].id);
  const residence=await request(citizen.client.from('citizen_residences').select('*').eq('transaction_id',homePurchase.transaction_id).single());
  check(residence.owner_id===citizen.id && residence.purchase_price===homes[0].price,'compra de imóvel persiste patrimônio e origem financeira');
- check((await action(citizen.client,'bath',residence.id)).hygiene===100,'residência básica recupera toda a higiene');
+ check((await action(citizen.client,'bath',residence.id)).hygiene===Math.min(100,20+Number(residence.hygiene_recovery)),'banho aplica a recuperação persistida no imóvel');
  const sleeping=await action(citizen.client,'sleep',residence.id);
  check(sleeping.sleep<100 && Boolean(sleeping.sleep_started_at),'residência inicia descanso persistente e gradual');
  await action(citizen.client,'wake',null);

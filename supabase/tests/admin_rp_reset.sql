@@ -11,6 +11,8 @@ begin if ok is distinct from true then raise exception 'ASSERTION FAILED: %',mes
 
 select pg_temp.assert_true(current_setting('safeupdate.enabled')='on','test session reproduces API safeupdate protection');
 
+create temporary table state_catalog_before as select count(*) total from public.products where state_enterprise_id is not null;
+
 -- Fixtures intentionally include closed/immutable ledgers, a shared transfer,
 -- party membership, a self-referencing thread, investments and legal consequences.
 create temporary table test_trigger_modes as
@@ -72,6 +74,7 @@ insert into public.marketplace_reports(product_id,reporter_id,reason) values('36
 update public.state_enterprises set manager_id='10000000-0000-0000-0000-000000000002',commission_value=4,publication_mode='approval' where service_key='marketplace';
 update public.profiles set avatar_config='{"hair":"curly"}' where id='10000000-0000-0000-0000-000000000002';
 create temporary table before_profiles as select * from public.profiles;
+set constraints all immediate;set constraints all deferred;
 do $$ declare t record; begin for t in select * from test_trigger_modes loop
 execute format('alter table public.%I %s trigger %I',t.relname,case t.tgenabled when 'A' then 'enable always' when 'R' then 'enable replica' else 'enable' end,t.tgname); end loop; end $$;
 
@@ -244,7 +247,7 @@ select pg_temp.assert_true((select treasury_balance=0 and loans_balance=0 from p
 select pg_temp.assert_true((select count(*) from public.country_rp_economic_snapshots)=1 and (select count(*) from public.economic_events)=0 and (select count(*) from public.transactions)=0,'only new economic baseline remains');
 select pg_temp.assert_true((select count(*) from public.currency_market_states)=6 and (select count(*) from public.currency_market_states where current_strength<>1)=0,'currency market starts from real quotes without old RP pressure');
 select pg_temp.assert_true((select count(*) from public.security_audit_log)=1 and (select value from public.system_settings where key='service_availability')='{"bank":true}'::jsonb,'security records and service configuration survive complete reset');
-select pg_temp.assert_true((select count(*) from public.products where state_enterprise_id is not null)=20,'full reset preserves the state food and housing catalog');
+select pg_temp.assert_true((select count(*) from public.products where state_enterprise_id is not null)=(select total from state_catalog_before),'full reset preserves the state food and housing catalog');
 select pg_temp.assert_true((select count(*) from public.profiles)=4 and (select count(*) from private.account_identities)=4,'full reset preserves all account anchors');
 select pg_temp.assert_true(not exists(select 1 from test_trigger_modes b join pg_class c on c.relname=b.relname and c.relnamespace='public'::regnamespace join pg_trigger g on g.tgrelid=c.oid and g.tgname=b.tgname where g.tgenabled<>b.tgenabled),'triggers remain enabled after full reset');
 

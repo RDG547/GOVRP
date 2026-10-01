@@ -10,7 +10,7 @@ try {
  const doc=await issue(types[0]);const extra=await issue(types[1]);
  check(doc.id!==extra.id&&doc.metadata.activity_name===types[0].name&&extra.metadata.activity_name===types[1].name,'múltiplos CNPJs preservam atividades distintas');
  check(!doc.metadata.business_id,'emissão não aceita vínculo empresarial forjado');
- const registration={p_owner_id:owner.id,p_business_type_id:types[0].id,p_company_name:'Empresa Integrada '+crypto.randomUUID().slice(0,6),p_description:'Atividade empresarial de integração documentada.',p_idempotency_key:crypto.randomUUID(),p_cnpj_id:extra.id,p_brand:{font_key:'classic',color:'#8822CC',logo_url:'https://example.invalid/company.png'}};
+ const registration={p_owner_id:owner.id,p_business_type_id:types[0].id,p_company_name:'Empresa Integrada '+crypto.randomUUID().slice(0,6),p_description:'Atividade empresarial de integração documentada.',p_idempotency_key:crypto.randomUUID(),p_cnpj_id:extra.id,p_brand:{region_code:'SP',font_key:'classic',color:'#8822CC',logo_url:'https://example.invalid/company.png'}};
  check(Boolean((await service.rpc('register_business_authoritative',registration)).error),'CNPJ de atividade incompatível bloqueia a criação');
  const company=await rpc(service,'register_business_authoritative',{...registration,p_cnpj_id:doc.id});
  check(company.font_key==='classic'&&company.cnpj_document_id===doc.id,'criação persiste identidade visual e CNPJ compatível');
@@ -20,7 +20,7 @@ try {
  check(page.cnpjs.length===2&&page.cnpjs.some(d=>d.activity===types[1].name),'página pública mostra CNPJs e suas atividades');
  check(!('bank_account_id'in page)&&!('monthly_revenue'in page),'projeção pública não revela dados financeiros privados');
  let changed=false;await subscribe(observer.client.channel('company-public-identity').on('broadcast',{event:'public-company-changed'},({payload})=>{if(payload.id===company.id){assert.deepEqual(Object.keys(payload),['id']);changed=true;}}));await new Promise(r=>setTimeout(r,1500));
- await rpc(owner.client,'update_company_brand',{p_business_id:company.id,p_brand:{font_key:'modern',color:'#7755AA',logo_url:'https://example.invalid/updated.png'}});
+ await rpc(owner.client,'update_company_brand',{p_business_id:company.id,p_brand:{region_code:'SP',font_key:'modern',color:'#7755AA',logo_url:'https://example.invalid/updated.png'}});
  await waitFor(()=>changed,'identidade pública de empresa');check(changed,'outro cidadão recebe atualização sem abrir RLS financeira');
  check(Boolean((await observer.client.rpc('update_company_brand',{p_business_id:company.id,p_brand:registration.p_brand})).error),'terceiro não personaliza empresa alheia');
  check(Boolean((await owner.client.rpc('update_company_brand',{p_business_id:company.id,p_brand:{...registration.p_brand,font_key:'arbitrary-font'}})).error),'fonte fora da biblioteca é recusada');

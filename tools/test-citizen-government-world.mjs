@@ -48,7 +48,7 @@ try {
  await rpc(deputy.client,'nominate_leadership_candidate',{p_election_id:createdElection,p_member_id:member.id,p_manifesto:'Programa de trabalho da Casa.'});
  const candidate=await request(service.from('parliament_leadership_candidates').select('id').eq('election_id',createdElection).single());
  check(Boolean((await deputy.client.rpc('cast_leadership_vote',{p_election_id:createdElection,p_candidate_id:candidate.id})).error),'votação aguarda encerramento das candidaturas');
- sql(`update public.parliament_leadership_elections set nomination_end_at=now()-interval '1 second' where id='${createdElection}'`);
+ sql(`update public.parliament_leadership_elections set start_at=now()-interval '2 hours',nomination_end_at=now()-interval '2 seconds',voting_start_at=now()-interval '1 second' where id='${createdElection}'`);
  check(Boolean((await deputy.client.rpc('nominate_leadership_candidate',{p_election_id:createdElection,p_member_id:member.id})).error),'candidatura não é alterada durante votação');
  await rpc(deputy.client,'cast_leadership_vote',{p_election_id:createdElection,p_candidate_id:candidate.id});
  check(Boolean((await deputy.client.rpc('cast_leadership_vote',{p_election_id:createdElection,p_candidate_id:candidate.id})).error),'cada parlamentar vota uma única vez');

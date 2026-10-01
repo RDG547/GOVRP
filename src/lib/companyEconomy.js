@@ -1,0 +1,5 @@
+export const COMPANY_REALTIME_TABLES = ['businesses', 'business_employees', 'business_vacancies', 'business_applications', 'business_inventory', 'business_transactions', 'business_balance_cycles', 'accounts', 'economic_regions', 'business_supply_orders', 'business_supply_contracts', 'business_daily_operations'];
+export const SKILL_NAMES = { management: 'Gestão', technology: 'Tecnologia', food: 'Alimentação', transport: 'Transporte', quality: 'Produção e qualidade', sales: 'Vendas', logistics: 'Logística', health: 'Saúde', finance: 'Finanças' };
+export const COMPANY_STATUS = { starting: 'Iniciando operação', operating: 'Em operação', understaffed: 'Equipe abaixo do mínimo', missing_inputs: 'Aguardando insumos', cash_shortage: 'Caixa insuficiente', insolvent: 'Reestruturação financeira', closed: 'Operação encerrada' };
+export const SIZE_NAMES = { micro: 'Microempresa', small: 'Pequena', medium: 'Média', large: 'Grande', national: 'Nacional' };
+export const companyMoney = value => Number(value || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });

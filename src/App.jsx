@@ -1,3 +1,7 @@
+import StockExchange from '@/pages/services/StockExchange';
+import NationalHealth from '@/pages/services/NationalHealth';
+import CitizenPhone from '@/components/CitizenPhone';
+import MyWork from '@/pages/services/MyWork';
 import CompanyPage from '@/pages/services/CompanyPage';
 import { CitizenNeedsProvider } from '@/contexts/CitizenNeedsContext';
 import PresidentialFormationGuide from '@/components/PresidentialFormationGuide';
@@ -138,7 +142,7 @@ const MainLayout = ({ children }) => {
           className="h-[calc(4.75rem+env(safe-area-inset-bottom))] md:hidden"
         />
       )}
-      <ScrollToTop /><CitizenNeedsHUD />
+      <ScrollToTop /><CitizenNeedsHUD /><CitizenPhone />
     </>
   );
 };
@@ -233,7 +237,9 @@ const AppShell = ({ location, theme, isAuthCallback }) => {
                 <Route path="/services/bank" element={<ManagedServiceRoute serviceKey="/services/bank"><Bank /></ManagedServiceRoute>} />
                 <Route path="/services/business" element={<ManagedServiceRoute serviceKey="/services/business"><Business /></ManagedServiceRoute>} />
                 <Route path="/services/business/product/:productId" element={<ManagedServiceRoute serviceKey="/services/business"><ProductDetails /></ManagedServiceRoute>} />
-                <Route path="/services/companies/:id" element={<ProtectedRoute><CompanyPage /></ProtectedRoute>} /><Route path="/services/inventory" element={<ProtectedRoute><Navigate to="/dashboard/citizen?tab=inventory" replace /></ProtectedRoute>} />
+                <Route path="/services/stock-exchange" element={<ManagedServiceRoute serviceKey="/services/stock-exchange"><StockExchange /></ManagedServiceRoute>} />
+                <Route path="/services/health" element={<ManagedServiceRoute serviceKey="/services/health"><NationalHealth /></ManagedServiceRoute>} />
+                <Route path="/services/my-work" element={<ManagedServiceRoute serviceKey="/services/my-work"><MyWork /></ManagedServiceRoute>} /><Route path="/services/companies/:id" element={<ProtectedRoute><CompanyPage /></ProtectedRoute>} /><Route path="/services/inventory" element={<ProtectedRoute><Navigate to="/dashboard/citizen?tab=inventory" replace /></ProtectedRoute>} />
                 <Route path="/services/dic" element={<ManagedServiceRoute serviceKey="/services/dic"><DIC /></ManagedServiceRoute>} />
                 <Route path="/services/prison" element={<ManagedServiceRoute serviceKey="/services/prison"><Prison /></ManagedServiceRoute>} />
                 <Route path="/services/entrepreneur-portal" element={<ManagedServiceRoute serviceKey="/services/entrepreneur-portal"><EntrepreneurPortal /></ManagedServiceRoute>} />

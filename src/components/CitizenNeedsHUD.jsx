@@ -28,7 +28,7 @@ export default function CitizenNeedsHUD({ mobile = false }) {
   const [residences, setResidences] = useState([]);
   const [housingBusy, setHousingBusy] = useState(false);
   const loadHomes = async () => {
-    const result = await supabase.from('citizen_residences').select('*').eq('owner_id', user.id).eq('status', 'owned');
+    const result = await supabase.rpc('get_my_residences');
     if (result.error) throw result.error;
     setResidences(result.data || []);
     return result.data || [];
@@ -45,7 +45,7 @@ export default function CitizenNeedsHUD({ mobile = false }) {
     } catch { toast({ title: 'Não foi possível carregar suas moradias', variant: 'destructive' }); }
     finally { setHousingBusy(false); }
   };
-  useDomainRealtime('citizen-residences', user?.id, ['citizen_residences'], () => { void loadHomes().catch(()=>{}); }, Boolean(user?.id && housing));
+  useDomainRealtime('citizen-residences', user?.id, ['citizen_residences', 'residence_leases'], () => { void loadHomes().catch(()=>{}); }, Boolean(user?.id && housing));
   const [open, setOpen] = useState(false);
   const [consumables, setConsumables] = useState(false);
   useEffect(() => {
@@ -68,7 +68,7 @@ export default function CitizenNeedsHUD({ mobile = false }) {
       <button type="button" aria-label="Fechar estado do cidadão" onClick={()=>setOpen(false)} className="float-right flex h-9 w-9 items-center justify-center rounded-md hover:bg-secondary focus-visible:ring-2 focus-visible:ring-ring"><X className="h-4 w-4"/></button><div className="mb-4 flex gap-3"><img src={user.avatar_url || '/logo.png'} alt="" className="h-12 w-12 rounded-full object-cover" /><div className="min-w-0"><h2 className="font-semibold">Estado do cidadão</h2><p className="break-words text-sm">{user.full_name}</p><p className="text-xs text-muted-foreground">{needs?.age_rp ?? '…'} anos no RP</p></div></div>
       {housing ? <CitizenResidences residences={residences} onBack={()=>setHousing(false)}/> : consumables ? <CitizenConsumables onBack={() => { setConsumables(false); void refresh(); }} /> : error ? <p role="status" className="text-sm">{error}</p> : !needs ? <Loader2 className="animate-spin" /> : <div className="space-y-3">{NEEDS.map(({key,name,icon:Icon,color,text}) => { const value=Math.round(Number(needs[key])); return <div key={key}><div className="mb-1 flex justify-between text-sm"><span className={`flex items-center gap-2 ${text}`}><Icon className="h-4 w-4" />{name}</span><span>{value}%{value<20 ? ' · Atenção' : ''}</span></div><div role="progressbar" aria-label={name} aria-valuenow={value} aria-valuemin={0} aria-valuemax={100} className="h-2 overflow-hidden rounded-full bg-secondary"><div className={`h-full rounded-full transition-[width] duration-500 motion-reduce:transition-none ${color}`} style={{width:`${value}%`}} /></div></div>; })}</div>}
       {needs?.grace_until_rp > needs?.rp_now && <p className="mt-3 text-xs text-muted-foreground">Período de adaptação: conheça seu cidadão com tranquilidade.</p>}
-      <div className="mt-4 grid grid-cols-2 gap-2">{!consumables && <Button variant="outline" size="sm" className="h-auto flex-col gap-1 py-2" onClick={()=>{setHousing(false);setConsumables(true);}}><Utensils className="h-4 w-4" />Meus consumíveis</Button>}{[{to:'/services/national-market',label:'Mercado',icon:ShoppingBasket},{to:'/services/x',label:'Socializar',icon:Users}].map(({to,label,icon:Icon})=><Button key={to} asChild variant="outline" size="sm" className="h-auto flex-col gap-1 py-2"><Link to={to} onClick={()=>setOpen(false)}><Icon className="h-4 w-4" />{label}</Link></Button>)}<Button variant="outline" size="sm" className="h-auto flex-col gap-1 py-2" disabled={housingBusy} onClick={showHomes}>{housingBusy?<Loader2 className="h-4 w-4 animate-spin"/>:<Home className="h-4 w-4"/>}Moradia</Button></div>
+      <div className="mt-4 grid grid-cols-2 gap-2">{!consumables && <Button variant="outline" size="sm" className="h-auto flex-col gap-1 py-2" onClick={()=>{setHousing(false);setConsumables(true);}}><Utensils className="h-4 w-4" />Meus consumíveis</Button>}{[{to:'/services/health',label:'SNS · Saúde',icon:HeartPulse},{to:'/services/national-market',label:'Mercado',icon:ShoppingBasket},{to:'/services/x',label:'Socializar',icon:Users}].map(({to,label,icon:Icon})=><Button key={to} asChild variant="outline" size="sm" className="h-auto flex-col gap-1 py-2"><Link to={to} onClick={()=>setOpen(false)}><Icon className="h-4 w-4" />{label}</Link></Button>)}<Button variant="outline" size="sm" className="h-auto flex-col gap-1 py-2" disabled={housingBusy} onClick={showHomes}>{housingBusy?<Loader2 className="h-4 w-4 animate-spin"/>:<Home className="h-4 w-4"/>}Moradia</Button></div>
     </PopoverContent></Popover>
   </div>;
 }

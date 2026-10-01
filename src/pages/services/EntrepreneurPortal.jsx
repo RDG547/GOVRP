@@ -1,3 +1,4 @@
+import { GovSelect } from '@/components/ui/gov-select';
 import { brandFont } from '@/lib/brandFonts';
 import { businessTypeIcon } from '@/lib/commerceIcons';
 import { LEGAL_REALTIME_TABLES } from '@/lib/legalMeasures';
@@ -491,7 +492,7 @@ const BusinessTypeCard = ({ business, index, onSelect }) => {
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: index * 0.05 }}
+      transition={{ delay: Math.min(index, 5) * 0.03 }}
     >
       <Card
         className={`glass-effect h-full ${business.borderColor} hover:border-primary/40 cursor-pointer group transition-all duration-300 hover:shadow-lg hover:shadow-black/20`}
@@ -519,14 +520,15 @@ const BusinessTypeCard = ({ business, index, onSelect }) => {
               <p className="font-semibold text-foreground">{formatCurrency(business.registrationFee)}</p>
             </div>
             <div className="rounded-lg bg-white/5 px-3 py-2">
-              <p className="text-[11px] text-muted-foreground">Custo/mês</p>
+              <p className="text-[11px] text-muted-foreground">Estimativa/semana</p>
               <p className="font-semibold text-foreground">{formatCurrency(totalMonthlyCost)}</p>
             </div>
           </div>
-          <div className="flex items-center justify-between text-sm pt-1">
-            <span className="text-muted-foreground flex items-center gap-1.5"><Users className="w-3.5 h-3.5" /> {business.minEmployees}+ funcionários</span>
+          <div className="flex flex-wrap items-center justify-between gap-2 text-sm pt-1">
+            <span className="text-muted-foreground flex items-center gap-1.5"><Users className="w-3.5 h-3.5" /> Mínimo: {business.minEmployees}+ funcionários</span>
             <span className={`font-medium ${PROFIT_COLOR[business.profitPotential]}`}>Potencial de lucro: {business.profitPotential}</span>
           </div>
+          <p className="text-sm">Estimativa por exercício: <strong>{formatCurrency(business.estimateLow)} – {formatCurrency(business.estimateHigh)}</strong></p><p className="text-xs text-muted-foreground">Faixa estimada para equipe mínima, infraestrutura e concorrência atuais. Não garante lucro. Custos e demanda podem levar a prejuízo.</p>
           <div className="flex items-center justify-end text-primary font-medium text-sm group-hover:translate-x-1 transition-transform">
             Ver detalhes <ChevronRight className="w-4 h-4 ml-1" />
           </div>
@@ -539,8 +541,8 @@ const BusinessTypeCard = ({ business, index, onSelect }) => {
 // ═════════════════════════════════════════════
 // MY BUSINESSES SECTION
 // ═════════════════════════════════════════════
-const MyBusinessCard = ({ biz, index, onSell, onCancelSale }) => {
-  const typeData = BUSINESS_TYPES.find((t) => t.id === biz.type) || BUSINESS_TYPES[0];
+const MyBusinessCard = ({ biz, index, onSell, onCancelSale, types }) => {
+  const typeData = types.find((t) => t.id === biz.type) || BUSINESS_TYPES[0];
   const Icon = typeData.icon;
   const totalMonthlyCost = Object.values(typeData.monthlyCosts).reduce((s, v) => s + v, 0);
 
@@ -582,11 +584,11 @@ const MyBusinessCard = ({ biz, index, onSell, onCancelSale }) => {
               <p className="font-bold text-foreground">{biz.employees}</p>
             </div>
             <div className="rounded-lg bg-white/5 py-2">
-              <p className="text-muted-foreground text-xs">Custo/mês</p>
+              <p className="text-muted-foreground text-xs">Estimativa/semana</p>
               <p className="font-bold text-foreground">{formatCurrency(totalMonthlyCost)}</p>
             </div>
             <div className="rounded-lg bg-white/5 py-2">
-              <p className="text-muted-foreground text-xs">Receita/mês</p>
+              <p className="text-muted-foreground text-xs">Receita registrada</p>
               <p className="font-bold text-emerald-400">{formatCurrency(biz.revenue)}</p>
             </div>
           </div>
@@ -597,20 +599,7 @@ const MyBusinessCard = ({ biz, index, onSell, onCancelSale }) => {
             </div>
           ) : null}
 
-          <div className="flex gap-2 mt-4">
-            <Button variant="outline" size="sm" className="flex-1 text-xs">
-              <Settings className="w-3.5 h-3.5 mr-1.5" />
-              Gerenciar
-            </Button>
-            <Button variant="outline" size="sm" className="flex-1 text-xs">
-              <Eye className="w-3.5 h-3.5 mr-1.5" />
-              Detalhes
-            </Button>
-            <Button variant="outline" size="sm" className="flex-1 text-xs">
-              <Wrench className="w-3.5 h-3.5 mr-1.5" />
-              Operações
-            </Button>
-          </div>
+          <div className="mt-4 flex flex-wrap gap-2"><Button asChild variant="outline" size="sm"><Link to={`/services/companies/${biz.id}`}><Settings className="mr-2 h-4 w-4"/>Gerenciar e operar</Link></Button><Button asChild variant="outline" size="sm"><Link to={`/services/companies/${biz.id}?view=public`}><Eye className="mr-2 h-4 w-4"/>Página pública</Link></Button></div>
           <div className="mt-2">
             {biz.isForSale ? (
               <Button variant="outline" size="sm" className="w-full text-xs" onClick={() => onCancelSale(biz)}>
@@ -682,7 +671,7 @@ const BusinessForSaleCard = ({ listing, index, onBuy, buyingId }) => {
     <motion.div
       initial={{ opacity: 0, y: 14 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: index * 0.05 }}
+      transition={{ delay: Math.min(index, 5) * 0.03 }}
     >
       <Card className="glass-effect h-full border-white/10 hover:border-primary/40 transition-colors">
         <CardHeader>
@@ -733,6 +722,8 @@ const EntrepreneurPortal = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [salesLoading, setSalesLoading] = useState(true);
   const [catalogTypes, setCatalogTypes] = useState([]);
+  const [estimateRegion,setEstimateRegion]=useState('DF'),[regions,setRegions]=useState([]);
+  useEffect(()=>{supabase.from('economic_regions').select('code,name').order('name').then(result=>setRegions(result.data||[]));},[]);
   const [registrationOpen, setRegistrationOpen] = useState(false);
   const [registrationType, setRegistrationType] = useState('');
   const [businessToSell, setBusinessToSell] = useState(null);
@@ -740,23 +731,18 @@ const EntrepreneurPortal = () => {
   const [buyingListingId, setBuyingListingId] = useState(null);
 
   const fetchTariffs = useCallback(async () => {
-    const catalog = await supabase.from('business_types').select('*').eq('is_active', true).order('name');
+    const catalog = await supabase.rpc('get_business_catalog',{p_region_code:estimateRegion});
     if (catalog.error) { console.error('Catálogo empresarial indisponível', catalog.error); return; }
-    const types = await Promise.all((catalog.data || []).map(async type => {
-      const result = await supabase.rpc('quote_legal_levies', { p_basis: 'license', p_amount: 0, p_business: true, p_sector: type.economic_sector_id });
-      if (result.error) throw result.error;
-      return { ...type, registration_fee: Number(result.data.buyer_tax), activity_restricted: result.data.restricted };
-    }));
-    setCatalogTypes(types);
-  }, []);
-  useEffect(() => { void fetchTariffs().catch(error => console.error('Taxas empresariais indisponíveis', error)); }, [fetchTariffs]);
-  useDomainRealtime('legal-rules', 'public', LEGAL_REALTIME_TABLES, fetchTariffs);
+    setCatalogTypes(catalog.data || []);
+  }, [estimateRegion]);
+  useEffect(() => { void fetchTariffs(); }, [fetchTariffs]);
+  useDomainRealtime('business-catalog', 'public', [...LEGAL_REALTIME_TABLES,'business_types','economic_regions','economic_state',{broadcast:'public-company-changed',topic:'company-public-identity'}], fetchTariffs);
 
   const businessTypes = useMemo(() => catalogTypes.map(type => {
     const presentation = BUSINESS_TYPES.find(item => item.id === type.id) || BUSINESS_TYPES.find(item => item.id === 'consultoria') || BUSINESS_TYPES[0];
     return { ...presentation, icon: businessTypeIcon(type), id: type.id, name: type.name, description: type.description, category: type.category,
-      registrationFee: Number(type.registration_fee), requiresCnpj: type.requires_cnpj !== false,
-      minEmployees: type.min_employees, monthlyCosts: type.monthly_costs || presentation.monthlyCosts,
+      registrationFee: Number(type.registration_fee), estimateLow:type.estimate_low,estimateHigh:type.estimate_high,profitPotential:type.profit_potential,risk:type.risk_level,color:type.color,requiresCnpj: type.requires_cnpj !== false,
+      minEmployees: type.min_employees, monthlyCosts: {Pessoal:type.min_employees*300,Infraestrutura:Number(type.daily_overhead)*7},
       requirements: Array.isArray(type.requirements) ? type.requirements : presentation.requirements,
     };
   }), [catalogTypes]);
@@ -807,11 +793,7 @@ const EntrepreneurPortal = () => {
   const fetchSaleListings = useCallback(async () => {
     try {
       const [privateListingsResponse, stateListingsResponse] = await Promise.all([
-        supabase
-          .from('businesses')
-          .select('id, owner_id, business_type_id, name, description, sale_price, sale_listed_at, owner:profiles!businesses_owner_id_fkey(full_name)')
-          .eq('is_for_sale', true)
-          .order('sale_listed_at', { ascending: false }),
+        supabase.rpc('get_company_market'),
         supabase
           .from('state_enterprises')
           .select('id, name, sector, description, privatization_price, updated_at')
@@ -863,7 +845,7 @@ const EntrepreneurPortal = () => {
     fetchSaleListings();
   }, [fetchSaleListings]);
 
-  useDomainRealtime('businesses', user?.id, ['businesses', 'state_enterprises'], () => { void fetchMyBusinesses(); void fetchSaleListings(); });
+  useDomainRealtime('businesses', user?.id, ['businesses', 'state_enterprises',{broadcast:'public-company-changed',topic:'company-public-identity'}], () => { void fetchMyBusinesses(); void fetchSaleListings(); });
 
   const filteredTypes = useMemo(() => {
     if (!searchQuery.trim()) return businessTypes;
@@ -931,7 +913,7 @@ const EntrepreneurPortal = () => {
 
       toast({
         title: '🎉 Empresa registrada com sucesso!',
-        description: payload?.message || `${companyName} foi criada e está pendente de aprovação.`,
+        description: payload?.message || `${companyName} foi criada. Aporte capital e organize sua equipe para começar a operação.`,
       });
     } catch (err) {
       throw new Error(err.message || 'Não foi possível registrar a empresa. Tente novamente.');
@@ -947,15 +929,7 @@ const EntrepreneurPortal = () => {
     }
 
     setSavingSale(true);
-    const { error } = await supabase
-      .from('businesses')
-      .update({
-        is_for_sale: true,
-        sale_price: price,
-        sale_listed_at: new Date().toISOString(),
-      })
-      .eq('id', businessToSell.id)
-      .eq('owner_id', user.id);
+    const { error } = await supabase.rpc('set_company_sale',{p_business_id:businessToSell.id,p_price:price,p_for_sale:true});
 
     if (error) {
       toast({ title: 'Erro ao colocar empresa à venda', description: error.message, variant: 'destructive' });
@@ -975,15 +949,7 @@ const EntrepreneurPortal = () => {
   };
 
   const handleCancelBusinessSale = async (business) => {
-    const { error } = await supabase
-      .from('businesses')
-      .update({
-        is_for_sale: false,
-        sale_price: null,
-        sale_listed_at: null,
-      })
-      .eq('id', business.id)
-      .eq('owner_id', user.id);
+    const { error } = await supabase.rpc('set_company_sale',{p_business_id:business.id,p_price:null,p_for_sale:false});
 
     if (error) {
       toast({ title: 'Erro ao cancelar venda', description: error.message, variant: 'destructive' });
@@ -1089,19 +1055,7 @@ const EntrepreneurPortal = () => {
                 </Link>
               </div>
             </div>
-            <div className="rounded-3xl border border-white/10 bg-black/20 p-6">
-              <p className="text-sm font-semibold uppercase tracking-[0.24em] text-muted-foreground">
-                O que você pode criar
-              </p>
-              <ul className="mt-4 space-y-3 text-sm text-foreground">
-                <li className="flex items-center gap-2"><Landmark className="w-4 h-4 text-emerald-400" /> Bancos e instituições financeiras</li>
-                <li className="flex items-center gap-2"><HardHat className="w-4 h-4 text-amber-400" /> Construtoras e imobiliárias</li>
-                <li className="flex items-center gap-2"><Factory className="w-4 h-4 text-blue-400" /> Fábricas e indústrias</li>
-                <li className="flex items-center gap-2"><Store className="w-4 h-4 text-violet-400" /> Lojas e comércios</li>
-                <li className="flex items-center gap-2"><Truck className="w-4 h-4 text-orange-400" /> Transportadoras e logística</li>
-                <li className="flex items-center gap-2"><Shield className="w-4 h-4 text-red-400" /> Empresas de segurança</li>
-              </ul>
-            </div>
+            <div className="space-y-4 rounded-3xl border border-white/10 bg-black/20 p-6"><h2 className="font-semibold">Empresas e carreiras</h2><p className="text-sm text-muted-foreground">Contrate equipe, mantenha o caixa, compre insumos e acompanhe os resultados de cada exercício.</p><Button asChild variant="outline"><Link to="/services/my-work"><Briefcase className="mr-2 h-4 w-4"/>Meu trabalho e vagas</Link></Button></div>
           </div>
         </motion.section>
 
@@ -1109,8 +1063,8 @@ const EntrepreneurPortal = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           <StatCard icon={Building2} label="Minhas Empresas" value={myBusinesses.length} color="text-cyan-400" delay={0} />
           <StatCard icon={Users} label="Funcionários Totais" value={totalEmployees} color="text-blue-400" delay={0.05} />
-          <StatCard icon={TrendingUp} label="Receita Mensal" value={formatCurrency(totalRevenue)} color="text-emerald-400" delay={0.1} />
-          <StatCard icon={DollarSign} label="Custos Mensais" value={formatCurrency(totalMonthlyCosts)} color="text-amber-400" delay={0.15} />
+          <StatCard icon={TrendingUp} label="Receita registrada" value={formatCurrency(totalRevenue)} color="text-emerald-400" delay={0.1} />
+          <StatCard icon={DollarSign} label="Custos semanais estimados" value={formatCurrency(totalMonthlyCosts)} color="text-amber-400" delay={0.15} />
         </div>
 
         {/* Tabs */}
@@ -1140,6 +1094,7 @@ const EntrepreneurPortal = () => {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
             >
+              <label className="mb-4 block space-y-2 text-sm">Estado para estimar custos e potencial<GovSelect aria-label="Estado da estimativa" value={estimateRegion} onChange={event=>setEstimateRegion(event.target.value)}>{regions.map(region=><option key={region.code} value={region.code}>{region.name}</option>)}</GovSelect></label>
               {/* Search */}
               <div className="relative mb-8">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
@@ -1203,6 +1158,7 @@ const EntrepreneurPortal = () => {
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                   {myBusinesses.map((biz, index) => (
                     <div key={biz.id}><Button asChild variant="outline" className="mb-2"><Link to={`/services/companies/${biz.id}`}>Ver Empresa</Link></Button><MyBusinessCard
+                      types={businessTypes}
                       key={biz.id}
                       biz={biz}
                       index={index}

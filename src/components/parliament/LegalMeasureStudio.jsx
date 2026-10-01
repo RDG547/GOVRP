@@ -20,6 +20,8 @@ export default function LegalMeasureStudio({ houseId = null, onCreated, buttonLa
   const { toast } = useToast();
   const prefix = useId();
   const [category, setCategory] = useState('economy');
+  const [businessTypes,setBusinessTypes]=useState([]);
+  useEffect(()=>{supabase.from('business_types').select('id,name').eq('is_active',true).order('name').then(result=>setBusinessTypes(result.data||[]));},[]);
   const categoryIcons = { Coins, Shield, Scale, Newspaper, Landmark };
   const [open, setOpen] = useState(false);
   const [rules, setRules] = useState([]);
@@ -114,6 +116,7 @@ export default function LegalMeasureStudio({ houseId = null, onCreated, buttonLa
             </>}
             {draft.kind !== 'penalty' && field('sector', templateId.startsWith('incentive') ? 'Setor beneficiado pelo desconto' : 'Setor (quando aplicável)', <GovSelect className={selectClass} value={draft.definition[templateId.startsWith('incentive') ? 'discount_sector_id' : 'sector_id'] || ''} onChange={e => definition({ [templateId.startsWith('incentive') ? 'discount_sector_id' : 'sector_id']: e.target.value })}><option value="">Todos os setores</option>{sectors.map(sector => <option key={sector.id} value={sector.id}>{sector.name}</option>)}</GovSelect>)}
             {draft.definition.basis === 'purchase' && field('category', 'Categoria de produto (opcional)', <Input value={draft.definition.category || ''} placeholder="Nome de uma categoria existente" onChange={e => definition({ category: e.target.value })} />)}
+            {draft.definition.basis === 'license' && field('business-category', 'Atividade empresarial (opcional)', <GovSelect value={draft.definition.category || ''} onChange={event=>definition({category:event.target.value||undefined})}><option value="">Todas as atividades</option>{businessTypes.map(type=><option key={type.id} value={type.id}>{type.name}</option>)}</GovSelect>)}
             {draft.definition.basis === 'document' && field('document', 'Documento', <GovSelect className={selectClass} value={draft.definition.document_type || ''} onChange={e => definition({ document_type: e.target.value })}><option value="">Selecione</option>{['CNH', 'Passport', 'RG', 'CPF', 'CTD', 'CNPJ', 'Título de Eleitor', 'Certificado de Reservista', 'Certidão de Casamento', 'Registro Profissional'].map(type => <option key={type} value={type}>{type}</option>)}</GovSelect>)}
             {templateId.startsWith('incentive') && field('discount', 'Redução da cobrança (%)', <Input type="number" min="0" max="100" value={(draft.definition.discount_rate || 0) * 100} onChange={e => definition({ discount_rate: Number(e.target.value) / 100 })} />)}
             {draft.kind === 'penalty' && ['minimum', 'maximum', 'fine'].map((key, index) => <React.Fragment key={key}>{field(key, ['Pena mínima (anos RP)', 'Pena máxima (anos RP)', 'Multa prevista (R$)'][index], <Input type="number" min="0" step="0.01" value={draft.definition[key] ?? ''} onChange={e => definition({ [key]: Number(e.target.value) })} />)}</React.Fragment>)}

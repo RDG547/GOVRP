@@ -1,3 +1,4 @@
+import { marketplacePolicy } from '@/lib/marketplaceFees';
 import ListingCosts from '@/components/business/ListingCosts';
 import { useMarketplace } from '@/hooks/use-marketplace';
 import { useRef } from 'react';
@@ -38,12 +39,10 @@ const SUBSCRIPTION_INTERVALS = [
 const ProductFormDialog = ({ isOpen, setIsOpen, product, onSuccess }) => {
   const { user } = useAuth();
   const { toast } = useToast();
-  const { enterprise } = useMarketplace();
+  const { enterprise: sourceEnterprise } = useMarketplace();
   const [feeConsent, setFeeConsent] = useState(false);
   const requestKey = useRef(null);
   useEffect(()=>{if(isOpen){requestKey.current=crypto.randomUUID();setFeeConsent(false);}},[isOpen]);
-  useEffect(()=>{setFeeConsent(false);},[enterprise?.active_listing_fee_amount,enterprise?.active_listing_fee_period,enterprise?.active_listing_fee_enabled]);
-  const listingFee = enterprise?.active_listing_fee_enabled ? Number(enterprise.active_listing_fee_amount) : 0;
   const [loading, setLoading] = useState(false);
   const [consumableEffects,setConsumableEffects]=useState({});
   const [imageFile, setImageFile] = useState(null);
@@ -65,6 +64,10 @@ const ProductFormDialog = ({ isOpen, setIsOpen, product, onSuccess }) => {
     promotion_price: '',
     promotion_expires_at: '',
   });
+
+  const enterprise=marketplacePolicy(sourceEnterprise,Boolean(formData.business_id));
+  const listingFee=enterprise?.active_listing_fee_enabled?Number(enterprise.active_listing_fee_amount):0;
+  useEffect(()=>{setFeeConsent(false);},[listingFee,enterprise?.active_listing_fee_period,formData.business_id]);
 
   const formatCurrencyInput = (value) => {
     // Remove tudo que não é dígito
@@ -383,7 +386,7 @@ const ProductFormDialog = ({ isOpen, setIsOpen, product, onSuccess }) => {
               </div>
             )}
           </div>
-          <ListingCosts enterprise={enterprise}/>{!product&&listingFee>0&&<label className="flex items-start gap-2 text-sm"><input type="checkbox" className="mt-1 h-4 w-4" checked={feeConsent} onChange={e=>setFeeConsent(e.target.checked)}/>Autorizo a cobrança da taxa de anúncio exibida, na conta selecionada para a venda.</label>}{product&&<p className="text-xs text-muted-foreground">Editar não renova nem cobra o anúncio. Use Renovar anúncio se o período terminou.</p>}
+          <ListingCosts enterprise={sourceEnterprise} business={Boolean(formData.business_id)}/>{!product&&listingFee>0&&<label className="flex items-start gap-2 text-sm"><input type="checkbox" className="mt-1 h-4 w-4" checked={feeConsent} onChange={e=>setFeeConsent(e.target.checked)}/>Autorizo a cobrança da taxa de anúncio exibida, na conta selecionada para a venda.</label>}{product&&<p className="text-xs text-muted-foreground">Editar não renova nem cobra o anúncio. Use Renovar anúncio se o período terminou.</p>}
           <DialogFooter>
             <Button type="submit" disabled={loading || !enterprise || (!product&&listingFee>0&&!feeConsent) || !formData.image_url && !imageFile}>
               {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}

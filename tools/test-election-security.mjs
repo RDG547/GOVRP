@@ -165,6 +165,7 @@ try {
   if (electionError) throw electionError;
   createdElectionIds.push(activeElection.id);
 
+  const {data: partyNumber}=await adminClient.from('political_parties').select('electoral_number').eq('id',partyId).single();
   const candidacy = await candidate.client.rpc('submit_candidacy', {
     p_election_id: activeElection.id,
     p_party_id: partyId,
@@ -173,6 +174,7 @@ try {
     p_bio: 'Cidadão comprometido com o desenvolvimento do país.',
     p_proposals: 'Integração dos sistemas públicos e responsabilidade institucional.',
     p_campaign_photo_url: null,
+    p_electoral_number: `${partyNumber.electoral_number}12`,
   });
   if (candidacy.error || !candidacy.data?.success) throw candidacy.error || new Error('Candidatura legítima não criada.');
   const approval = await admin.client.rpc('approve_candidacy', {

@@ -79,7 +79,16 @@
     "test:interim-government-interface": "node tools/test-interim-government-interface.mjs",
     "test:shared-identity": "node tools/test-shared-identity.mjs",
     "test:shared-identity-interface": "node tools/test-shared-identity-interface.mjs",
-    "test:independent-candidacy-interface": "node tools/test-independent-candidacy-interface.mjs"
+    "test:independent-candidacy-interface": "node tools/test-independent-candidacy-interface.mjs",
+    "test:economic-access": "node tools/test-economic-expansion-access.mjs",
+    "test:economic-housing": "node tools/test-economic-housing.mjs",
+    "test:economic-workforce": "node tools/test-economic-workforce.mjs",
+    "test:economic-production": "node tools/test-economic-production.mjs",
+    "test:economic-activities": "node tools/test-economic-professional-activities.mjs",
+    "test:economic-regions": "node tools/test-economic-regions-health.mjs",
+    "test:economic-stocks": "node tools/test-economic-stock-exchange.mjs",
+    "test:economic-interface": "node tools/test-economic-expansion-interface.mjs",
+    "test:economic-runtime": "node tools/test-economic-runtime.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.0",

@@ -1253,6 +1253,9 @@ const ResignationManager = ({ onResign }) => {
 };
 
 const ENTERPRISE_SECTORS = [
+    { value: 'Habitação', label: 'Habitação e Patrimônio', icon: Building2, color: 'text-emerald-400', bgColor: 'bg-emerald-500/20' },
+    { value: 'Comércio Varejista', label: 'Comércio e Abastecimento', icon: Store, color: 'text-amber-400', bgColor: 'bg-amber-500/20' },
+    { value: 'Marketplace', label: 'Comércio Digital', icon: Package, color: 'text-cyan-400', bgColor: 'bg-cyan-500/20' },
     { value: 'Banco Nacional', label: 'Banco Nacional', icon: Landmark, color: 'text-emerald-400', bgColor: 'bg-emerald-500/20' },
     { value: 'Internet', label: 'Internet', icon: Wifi, color: 'text-cyan-400', bgColor: 'bg-cyan-500/20' },
     { value: 'Energia Elétrica', label: 'Energia Elétrica', icon: Zap, color: 'text-yellow-400', bgColor: 'bg-yellow-500/20' },
@@ -1423,7 +1426,7 @@ const EnterpriseDetailView = ({ enterprise, onBack, onUpdate }) => {
 
             <Card className="glass-effect border-emerald-500/20">
                 <CardHeader>
-                    <CardTitle className="text-lg flex items-center gap-2"><Scale className="w-5 h-5 text-emerald-400" /> Valor e Saúde da Estatal</CardTitle>
+                    <CardTitle className="text-lg flex items-center gap-2"><TrendingUp className="w-5 h-5 text-emerald-400" /> Valor e Saúde da Estatal</CardTitle>
                     <CardDescription>
                         O balanço semanal usa estes indicadores para calibrar lucro, prejuízo e impacto no cofre público.
                     </CardDescription>
@@ -1807,7 +1810,7 @@ const StateEnterpriseManager = ({ onUpdate }) => {
                                                 <p className="text-xs uppercase tracking-wide text-muted-foreground">Valor de mercado</p>
                                                 <p className="mt-1 text-lg font-semibold text-foreground">{formatCurrency(marketValue)}</p>
                                             </div>
-                                            <Scale className="h-5 w-5 text-emerald-400" />
+                                            <TrendingUp className="h-5 w-5 text-emerald-400" />
                                         </div>
                                         <div className="mt-2">
                                             <div className="mb-1 flex justify-between text-xs text-muted-foreground">

@@ -1,3 +1,5 @@
+import CelebrationBackdrop from '@/components/CelebrationBackdrop';
+import ElectionResultSections from '@/components/elections/ElectionResultSections';
 import CandidateIdentity from '@/components/elections/CandidateIdentity';
 import { partyColor } from '@/lib/partyIdentity';
 import { formatDateTimeBR } from '@/lib/dateTime';
@@ -30,16 +32,18 @@ export default function ElectionOfficeAwardPopup() {
      .eq('user_id', user.id).in('type', ['role_changed','election_candidacy_open','election_voting_open','election_result_published','institutional_result']).is('metadata->>popup_shown_at', null).order('created_at').limit(1).maybeSingle();
    if (sequence !== request.current) return;
    if (error) console.error('Não foi possível consultar mudanças de cargo', error);
-   else setNotification(data);
+   else {
+     if(data?.type==='election_result_published'){const bundle=await supabase.rpc('get_election_result_bundle',{p_notification_id:data.id});if(sequence!==request.current)return;if(bundle.error){console.error('Resultados eleitorais',bundle.error);return;}data.bundle=bundle.data;}
+     setNotification(data);
+   }
  }, [user?.id]);
  useEffect(() => { setNotification(null); void fetchPending(); return () => { request.current++; }; }, [fetchPending]);
- useDomainRealtime('role-notifications', user?.id, [{ table: 'notifications', filter: `user_id=eq.${user?.id}` }], fetchPending, Boolean(user?.id));
+ useDomainRealtime('role-notifications', user?.id, [{ table: 'notifications', filter: `user_id=eq.${user?.id}` }, 'election_settlements', 'elections'], fetchPending, Boolean(user?.id));
  const close = async (destination) => {
    if (!notification || saving) return;
    setSaving(true);
    try {
-     const { error } = await supabase.rpc('acknowledge_role_change', { p_notification_id: notification.id });
-     if (error) throw error;
+     for(const id of notification.bundle?.notification_ids||[notification.id]){const {error}=await supabase.rpc('acknowledge_role_change',{p_notification_id:id});if(error)throw error;}
      setNotification(null);
      if (destination) navigate(destination);
      await fetchPending();
@@ -51,26 +55,29 @@ export default function ElectionOfficeAwardPopup() {
  if (!user || !notification) return null;
  const institutional = notification.type !== 'role_changed';
  const info = institutional ? { title: ({election_candidacy_open:'Candidaturas abertas',election_voting_open:'Votação aberta',election_result_published:'Resultado eleitoral',institutional_result:'Decisão institucional'})[notification.type], role: notification.metadata?.election_name || notification.metadata?.outcome, loss: true, to: notification.link || '/services/elections', action: notification.type === 'institutional_result' ? 'Consultar decisão' : 'Ir ao Portal Eleitoral' } : roleEventPresentation(notification);
+ const isResult=notification.type==='election_result_published';
+ const resultSections=notification.bundle?.sections||[];
+ const resultTitle=resultSections.length===1?`Resultado da ${resultSections[0].name}`:`Resultado das eleições: ${resultSections.map(s=>s.name).join(', ')}`;
  const Icon = institutional ? Landmark : roleIcon(info.role);
- return <Dialog open onOpenChange={open => { if (!open) void close(); }}>
-   <DialogContent className="max-w-md text-center" onInteractOutside={event => event.preventDefault()}>
+ return <><CelebrationBackdrop active={isResult&&resultSections.some(s=>s.winners?.length>0)}/><Dialog open onOpenChange={open => { if (!open) void close(); }}>
+   <DialogContent className="z-[60] max-h-[90dvh] max-w-lg overflow-y-auto text-center" onInteractOutside={event => event.preventDefault()}>
      <DialogHeader className="text-center sm:text-center">
        <Icon className={`mx-auto mb-3 h-10 w-10 ${info.loss ? 'text-slate-400' : 'text-amber-400'}`} />
-       <DialogTitle>{info.title}</DialogTitle>
-       <DialogDescription>{notification.content}</DialogDescription>
+       <DialogTitle>{isResult?resultTitle:info.title}</DialogTitle>
+       <DialogDescription>{isResult?'Conheça os representantes eleitos e suas respectivas chapas.':notification.content}</DialogDescription>
      </DialogHeader>
-     <p className="text-2xl font-semibold">{info.role}</p>
+     {!isResult&&<p className="text-2xl font-semibold">{info.role}</p>}
      {info.description && <p className="text-sm text-muted-foreground">{info.description}</p>}
      {institutional && <div className="space-y-3 text-left text-sm">
        {notification.type === 'election_candidacy_open' && <><p>Candidaturas até {formatDateTimeBR(notification.metadata.candidacy_end_at)}.</p><p>Votação a partir de {formatDateTimeBR(notification.metadata.voting_start_at)}.</p></>}
        {notification.type === 'election_voting_open' && <p>Vote até {formatDateTimeBR(notification.metadata.voting_end_at)}. Horário de Brasília.</p>}
-       {notification.type === 'election_result_published' && <div className="max-h-64 space-y-3 overflow-y-auto">{(notification.metadata.winners || []).map(winner => <div key={`${winner.id}:${winner.office_role}`} className="space-y-2 rounded-lg border p-3"><CandidateIdentity identity={winner} label={winner.office_role}/><p>{winner.votes} votos · {winner.percentage ?? 0}%</p><div className="h-2 overflow-hidden rounded-full bg-secondary"><div className="h-full" style={{width:`${winner.percentage ?? 0}%`,backgroundColor:partyColor(winner.party?.color)}}/></div></div>)}</div>}
+       {isResult&&<ElectionResultSections sections={resultSections}/>}
        {notification.type === 'institutional_result' && <><p>Presidência envolvida: {notification.metadata.former_president?.full_name}.</p><p>{formatDateTimeBR(notification.metadata.occurred_at)}</p>{notification.metadata.successor && <p>Nova Presidência: <strong>{notification.metadata.successor.name || 'Sucessor institucional'}</strong>. As permissões foram atualizadas.</p>}</>}
      </div>}
      <div className="flex flex-col gap-2">
-       <Button disabled={saving} onClick={() => close(info.to)}>{saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ArrowRight className="mr-2 h-4 w-4" />}{info.action}</Button>
-       <Button disabled={saving} variant="outline" onClick={() => close()}><Check className="mr-2 h-4 w-4" />Entendi</Button>
+       {!isResult&&<Button disabled={saving} onClick={() => close(info.to)}>{saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ArrowRight className="mr-2 h-4 w-4" />}{info.action}</Button>}
+       <Button disabled={saving} variant="outline" onClick={() => close()}><Check className="mr-2 h-4 w-4" />{isResult?'Fechar':'Entendi'}</Button>
      </div>
    </DialogContent>
- </Dialog>;
+ </Dialog></>;
 }

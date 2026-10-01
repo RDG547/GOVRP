@@ -6,7 +6,9 @@ import { request, rpc } from './world-test.mjs';
 export async function installWorldNoticeHandlers(page, person) {
   const acknowledge=async(types,field,procedure)=>{
     const pending=await request(person.client.from('notifications').select('id').eq('user_id',person.id).in('type',types).is(`metadata->>${field}`,null));
-    for(const event of pending)await rpc(person.client,procedure,{p_notification_id:event.id});
+    for(let index=0;index<pending.length;index+=10)await Promise.all(pending.slice(index,index+10).map(event=>rpc(person.client,procedure,{p_notification_id:event.id})));
+    const close=page.getByRole('button',{name:'Entendi',exact:true});
+    if(await close.isVisible()&&await close.isEnabled())await close.click({force:true,noWaitAfter:true});
     await page.waitForTimeout(400);
   };
   await page.addLocatorHandler(page.getByRole('button',{name:'Entendi',exact:true}),()=>acknowledge(['role_changed','election_candidacy_open','election_voting_open','election_result_published','institutional_result'],'popup_shown_at','acknowledge_role_change'),{noWaitAfter:true});

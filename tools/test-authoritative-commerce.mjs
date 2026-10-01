@@ -41,13 +41,13 @@ if (businessType.error) throw businessType.error;
 const registrationKey = crypto.randomUUID();
 const registration = await service.rpc('register_business_authoritative', {
   p_owner_id: seller.id, p_business_type_id: businessTypeId, p_company_name: 'Empresa Funcional Integrada',
-  p_description: 'Empresa criada para validar cobrança, conta bancária e receita pública em uma transação.', p_idempotency_key: registrationKey,
+  p_description: 'Empresa criada para validar cobrança, conta bancária e receita pública em uma transação.', p_idempotency_key: registrationKey, p_brand: {region_code:'SP'},
 });
 if (registration.error) throw registration.error;
-assert(registration.data?.bank_account_id === seller.account.id, 'empresa nasce vinculada à conta do proprietário');
+assert(registration.data?.bank_account_id && registration.data.bank_account_id !== seller.account.id, 'empresa nasce com caixa separado da conta do proprietário');
 const repeatedRegistration = await service.rpc('register_business_authoritative', {
   p_owner_id: seller.id, p_business_type_id: businessTypeId, p_company_name: 'Empresa Funcional Integrada',
-  p_description: 'Empresa criada para validar cobrança, conta bancária e receita pública em uma transação.', p_idempotency_key: registrationKey,
+  p_description: 'Empresa criada para validar cobrança, conta bancária e receita pública em uma transação.', p_idempotency_key: registrationKey, p_brand: {region_code:'SP'},
 });
 assert(!repeatedRegistration.error && repeatedRegistration.data.id === registration.data.id, 'registro empresarial é idempotente');
 await service.from('businesses').update({ status: 'active' }).eq('id', registration.data.id);
@@ -63,7 +63,7 @@ assert(product.data.business_id === registration.data.id, 'produto pertence a um
 
 const [treasuryBefore, sellerBefore, levyQuote] = await Promise.all([
   service.from('government_finances').select('treasury_balance').eq('id', 1).single(),
-  service.from('accounts').select('balance').eq('id', seller.account.id).single(),
+  service.from('accounts').select('balance').eq('id', registration.data.bank_account_id).single(),
   service.rpc('quote_legal_levies',{p_basis:'purchase',p_amount:100,p_business:true,p_sector:registration.data.economic_sector_id || null,p_category:'Outros'}),
 ]);
 for (const result of [treasuryBefore, sellerBefore, levyQuote]) if (result.error) throw result.error;
@@ -80,7 +80,7 @@ assert(purchase.data.success && Number(purchase.data.total) === expectedTotal &&
 
 const [buyerAccount, sellerAccount, treasuryAfter, order, revenues, businessLedger, inventory, events] = await Promise.all([
   service.from('accounts').select('balance').eq('id', buyer.account.id).single(),
-  service.from('accounts').select('balance').eq('id', seller.account.id).single(),
+  service.from('accounts').select('balance').eq('id', registration.data.bank_account_id).single(),
   service.from('government_finances').select('treasury_balance').eq('id', 1).single(),
   service.from('commerce_orders').select('*').eq('idempotency_key', purchaseKey).single(),
   service.from('government_revenues').select('revenue_type,amount').eq('source_table', 'commerce_orders').eq('source_id',purchase.data.order_id),

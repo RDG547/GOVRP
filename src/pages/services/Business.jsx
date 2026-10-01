@@ -336,8 +336,8 @@ const Business = () => {
         centered={true}
       />
 
-      <div className="mb-4 flex flex-wrap gap-3"><Button asChild variant="outline"><Link to="/dashboard/citizen?tab=business">Meus anúncios e renovações</Link></Button></div><ListingCosts enterprise={enterprise}/>
-      {enterprise && <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border p-4"><p className="text-sm">{enterprise.is_privatized ? 'Marketplace privatizado' : 'Marketplace estatal'} · Comissão do vendedor: {enterprise.commission_type === 'percentage' ? `${enterprise.commission_value}%` : formatCurrency(enterprise.commission_value)} por venda · {enterprise.publication_mode === 'approval' ? 'Anúncios sujeitos à aprovação' : 'Publicação automática'}{!enterprise.is_active ? ' · Operação suspensa' : ''}</p></div>}
+      <div className="mb-4 flex flex-wrap gap-3"><Button asChild variant="outline"><Link to="/dashboard/citizen?tab=business">Meus anúncios e renovações</Link></Button></div><div className="grid gap-3 sm:grid-cols-2"><ListingCosts enterprise={enterprise}/><ListingCosts enterprise={enterprise} business/></div>
+      {enterprise && <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border p-4"><p className="text-sm">{enterprise.is_privatized ? 'Marketplace privatizado' : 'Marketplace estatal'} · Taxas conforme Pessoa Física ou Jurídica · {enterprise.publication_mode === 'approval' ? 'Anúncios sujeitos à aprovação' : 'Publicação automática'}{!enterprise.is_active ? ' · Operação suspensa' : ''}</p></div>}
       <div className="mb-8 space-y-4">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div className="relative w-full md:max-w-sm">

@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom';
 import { formatLocaleBR } from '@/lib/dateTime';
 import React, { useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
@@ -55,7 +56,7 @@ const InvestmentActionModal = ({ isOpen, setIsOpen, action, investment, onAction
             const { data, error } = await supabase.rpc('trade_investment', {
                 p_investment_id: optionId,
                 p_operation_type: action === 'invest' ? 'buy' : 'sell',
-                p_quantity: numericAmount / currentPrice,
+                p_quantity: Number((numericAmount / currentPrice).toFixed(8)),
                 p_idempotency_key: crypto.randomUUID(),
             });
 
@@ -120,11 +121,14 @@ const getInvestmentProjectedReturn = (amount, rate) =>
     Number(amount || 0) * Number(rate || 0);
 
 const InvestmentsTab = ({ investmentOptions, userInvestments, investmentOperations = [], portfolioSnapshots = [], onUpdate }) => {
+    const navigate = useNavigate();
     const [modalState, setModalState] = useState({ isOpen: false, action: '', investment: null });
     const [activeTab, setActiveTab] = useState('portfolio');
     const [riskFilter, setRiskFilter] = useState('all');
 
     const openModal = (action, investment) => {
+        const option = investment.investment_option || investment;
+        if (option.asset_type === 'stock') { navigate(`/services/stock-exchange?asset=${option.id}`); return; }
         setModalState({ isOpen: true, action, investment });
     };
 
@@ -284,7 +288,7 @@ const InvestmentsTab = ({ investmentOptions, userInvestments, investmentOperatio
                                             <div className="mt-4 grid grid-cols-2 gap-3">
                                                 <div className="rounded-lg bg-white/5 p-3">
                                                     <p className="text-xs text-gray-400">Rentabilidade</p>
-                                                    <p className="text-lg font-bold text-green-400">{getAnnualReturnPercent(opt.annual_return_rate).toFixed(2)}% a.a.</p>
+                                                    <p className="text-lg font-bold text-green-400">{opt.asset_type === 'stock' ? 'Variável' : `${getAnnualReturnPercent(opt.annual_return_rate).toFixed(2)}% a.a.`}</p>
                                                 </div>
                                                 <div className="rounded-lg bg-white/5 p-3">
                                                     <p className="text-xs text-gray-400">Aplicação mínima</p>
@@ -294,7 +298,7 @@ const InvestmentsTab = ({ investmentOptions, userInvestments, investmentOperatio
                                             <div className="mt-4 flex items-center justify-between gap-3">
                                                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
                                                     <ShieldCheck className="h-4 w-4 text-emerald-300" />
-                                                    Liquidez sob demanda
+                                                    {opt.asset_type === 'stock' ? 'Oferta e liquidez limitadas' : 'Resgate sujeito à reserva'}
                                                 </div>
                                                 <Button size="sm" onClick={() => openModal('invest', opt)}>Investir</Button>
                                             </div>

@@ -1,5 +1,7 @@
 import {
+  HeartPulse,
   ShoppingBasket,
+  Briefcase,
   Archive,
   CheckCircle2,
   Building2,
@@ -61,6 +63,7 @@ export const SERVICE_CATEGORIES = [
   {
     name: 'Governo e Cidadania',
     services: [
+      { key: '/services/health', name: 'SNS — Sistema Nacional de Saúde', path: '/services/health', icon: HeartPulse, color: 'text-rose-400', description: 'Atendimento público, hospitais e políticas de saúde do cidadão.' },
       { key: '/services/bank', name: 'Banco Nacional', path: '/services/bank', icon: Landmark, color: 'text-green-400', description: 'Gerencie suas finanças, realize transferências e solicite cartões.' },
       { key: '/services/dic', name: 'Departamento de Identificação Civil', path: '/services/dic', icon: FileText, color: 'text-purple-400', description: 'Emita e gerencie seus documentos de identificação civil.' },
       { key: '/services/elections', name: 'Portal Eleitoral', path: '/services/elections', icon: Vote, color: 'text-teal-400', description: 'Exerça seu direito de voto e acompanhe os resultados eleitorais.' },
@@ -82,7 +85,9 @@ export const SERVICE_CATEGORIES = [
     services: [
       { key: '/services/national-market', name: 'Mercado Nacional', path: '/services/national-market', icon: ShoppingBasket, color: 'text-orange-400', description: 'Compre alimentos e bebidas essenciais para o dia a dia do seu cidadão.' },
       { key: '/services/national-housing', name: 'Imobiliária Nacional', path: '/services/national-housing', icon: Home, color: 'text-emerald-400', description: 'Encontre e adquira sua residência dentro do GOVRP.' },
+      { key: '/services/stock-exchange', name: 'BNV — Bolsa Nacional de Valores', path: '/services/stock-exchange', icon: LineChart, color: 'text-indigo-400', description: 'Negocie ações de empresas, acompanhe o GOVX e sua carteira de investimentos.' },
       { key: '/services/economy', name: 'Economia Nacional', path: '/services/economy', icon: LineChart, color: 'text-cyan-300', description: 'Acompanhe PIB, inflação, emprego, poder de compra e as consequências das decisões econômicas.' },
+      { key: '/services/my-work', name: 'Meu Trabalho', path: '/services/my-work', icon: Briefcase, color: 'text-amber-400', description: 'Vagas, carreira, experiência profissional e remuneração.' },
       { key: '/services/entrepreneur-portal', name: 'Portal do Empreendedor', path: '/services/entrepreneur-portal', icon: Building2, color: 'text-cyan-400', description: 'Hub empresarial para criar, gerir, investir e negociar com empresas da nação.' },
       { key: '/services/business', name: 'Negócios Livres', path: '/services/business', icon: Store, color: 'text-blue-400', description: 'Compre e venda produtos e serviços no marketplace da comunidade.' },
     ],

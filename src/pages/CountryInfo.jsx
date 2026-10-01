@@ -58,6 +58,7 @@ import { loadCountryProfile } from '@/lib/countryProfile';
 import { useCountryRpProfile } from '@/hooks/use-country-rp-profile';
 
 const CONSTITUTION_PDF_PATH = '/constituicao-govrp.pdf';
+const RegionalEconomy = React.lazy(() => import('@/components/business/RegionalEconomy'));
 const EmbeddedEconomyPanel = React.lazy(() => import('@/features/economy/components/EmbeddedEconomyPanel'));
 const regionNames = typeof Intl.DisplayNames === 'function'
   ? new Intl.DisplayNames(['pt-BR'], { type: 'region' })
@@ -111,7 +112,7 @@ const CountryInfo = () => {
   const [eventDecision, setEventDecision] = useState({ eventId: '', optionId: '', reason: '' });
   const [respondingEventId, setRespondingEventId] = useState('');
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('constituticao');
+  const [activeTab, setActiveTab] = useState(() => new URLSearchParams(window.location.search).get('tab') === 'infraestrutura' ? 'infraestrutura' : 'constituticao');
   const countryCode = (user?.residence_country_code || user?.country_code || 'BR').toUpperCase();
   const country = useMemo(() => {
     const iso = isoCountries.whereAlpha2(countryCode) || isoCountries.whereAlpha2('BR');
@@ -631,6 +632,7 @@ const CountryInfo = () => {
             </TabsContent>
 
             <TabsContent value="infraestrutura" className="mt-0 outline-none">
+              {user && <React.Suspense fallback={<p>Carregando território…</p>}><RegionalEconomy /></React.Suspense>}
               <DetailedSection title="Infraestrutura e Tecnologia" icon={BrainCircuit} description="Desenvolvimento físico e bases tecnológicas na nação.">
                  <DetailItem icon={Plane} label="Transporte" value="Extensa rede rodoviária, aeroportos internacionais e portos movimentados." />
                  <DetailItem icon={Lightbulb} label="Energia" value="Matriz energética diversificada com forte presença de hidrelétricas e fontes renováveis." />

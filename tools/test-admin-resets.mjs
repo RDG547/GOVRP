@@ -6,9 +6,11 @@ import { spawnSync } from 'node:child_process';
 // Load the API's safeupdate module as the container administrator, then drop to
 // the usual postgres session identity before running any fixture or assertion.
 const container = process.env.RESET_TEST_CONTAINER || 'govrp-reset-test';
+const database = process.env.RESET_TEST_DATABASE || 'postgres';
 const result = spawnSync('docker', [
   'exec', '-i', container, 'sh', '-c',
-  `PGPASSWORD="$POSTGRES_PASSWORD" exec psql -U supabase_admin -d postgres -v ON_ERROR_STOP=1 -c "load 'safeupdate'; set session authorization postgres;" -f -`,
+  `PGPASSWORD="$POSTGRES_PASSWORD" exec psql -U supabase_admin -d "$1" -v ON_ERROR_STOP=1 -c "load 'safeupdate'; set session authorization postgres;" -f -`,
+  'reset-validation', database,
 ], {
   input: readFileSync(new URL('../supabase/tests/admin_rp_reset.sql', import.meta.url), 'utf8'),
   encoding: 'utf8',
