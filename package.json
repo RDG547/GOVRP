@@ -88,7 +88,10 @@
     "test:economic-regions": "node tools/test-economic-regions-health.mjs",
     "test:economic-stocks": "node tools/test-economic-stock-exchange.mjs",
     "test:economic-interface": "node tools/test-economic-expansion-interface.mjs",
-    "test:economic-runtime": "node tools/test-economic-runtime.mjs"
+    "test:economic-runtime": "node tools/test-economic-runtime.mjs",
+    "test:government-invitations": "node tools/test-government-invitations.mjs",
+    "test:refined-economy": "node tools/test-refined-economy.mjs",
+    "test:refinement-interface": "node tools/test-refinement-interface.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.0",

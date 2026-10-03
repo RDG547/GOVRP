@@ -6,7 +6,7 @@ export const BRAZIL_STATES = [
   ['PE', 'Pernambuco'], ['PI', 'Piauí'], ['RJ', 'Rio de Janeiro'], ['RN', 'Rio Grande do Norte'],
   ['RS', 'Rio Grande do Sul'], ['RO', 'Rondônia'], ['RR', 'Roraima'], ['SC', 'Santa Catarina'],
   ['SP', 'São Paulo'], ['SE', 'Sergipe'], ['TO', 'Tocantins'],
-].map(([code, name]) => ({ code, name }));
+].map(([code, name]) => ({ code, name, countryId: 'BR', stateFlag: code }));
 
 const inMemoryCache = new Map();
 const inFlight = new Map();

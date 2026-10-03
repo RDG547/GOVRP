@@ -121,26 +121,26 @@ const BalanceCard = ({ account, onUpdate, onTransferClick, onPayClick }) => {
       <div className="absolute inset-0 bg-black/20"></div>
       <div className="relative z-10">
         <div className="flex justify-between items-start mb-4">
-          <div className="text-left">
+          <div className="min-w-0 flex-1 text-left">
             <p className="text-sm text-blue-200/80"><span className="text-base">{currencyFlags.BRL}</span> Saldo principal · Real Brasileiro (BRL)</p>
-            <div className="flex items-center gap-2">
-              <p className="text-4xl font-bold">
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="break-all text-2xl font-bold sm:text-4xl">
                 {isBalanceVisible ? formatCurrency(allBalances.BRL || 0) : 'R$ ••••••'}
               </p>
-              <Button variant="ghost" size="icon" className="h-8 w-8 text-blue-200/80 hover:text-white hover:bg-white/10" onClick={() => setIsBalanceVisible(!isBalanceVisible)}>
+              <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-blue-200/80 hover:text-white hover:bg-white/10" onClick={() => setIsBalanceVisible(!isBalanceVisible)}>
                 {isBalanceVisible ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </Button>
             </div>
             <div className="flex items-center text-blue-200/70 text-xs mt-1 font-mono">
-              <span>{accountInfoText}</span>
-               <Button variant="ghost" size="icon" className="h-6 w-6 text-blue-200/80 hover:text-white" onClick={() => copyToClipboard(accountInfoText, "Dados da conta copiados!")}>
+              <span className="min-w-0 break-all">{accountInfoText}</span>
+               <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0 text-blue-200/80 hover:text-white" onClick={() => copyToClipboard(accountInfoText, "Dados da conta copiados!")}>
                 <Copy className="w-3 h-3" />
               </Button>
             </div>
           </div>
           <Popover>
             <PopoverTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-8 w-8 text-blue-200/80 hover:text-white hover:bg-white/10">
+              <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-blue-200/80 hover:text-white hover:bg-white/10">
                  <Eye className="w-4 h-4" />
               </Button>
             </PopoverTrigger>
@@ -201,7 +201,7 @@ const BalanceCard = ({ account, onUpdate, onTransferClick, onPayClick }) => {
               {account?.transfer_key ? (
                 <div className="flex items-center justify-center gap-2 bg-black/20 p-2 rounded-md">
                   <p>Chave de Transferência: <span className="font-bold text-white tracking-widest">{account.transfer_key}</span></p>
-                  <Button variant="ghost" size="icon" className="h-6 w-6 text-blue-200/80 hover:text-white" onClick={() => copyToClipboard(account?.transfer_key, "Chave de transferência copiada!")}>
+                  <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0 text-blue-200/80 hover:text-white" onClick={() => copyToClipboard(account?.transfer_key, "Chave de transferência copiada!")}>
                     <Copy className="w-3 h-3" />
                   </Button>
                 </div>

@@ -3,7 +3,7 @@ import { useDomainRealtime } from '@/hooks/use-domain-realtime';
 import { bankRealtimeTables } from '@/lib/bankRealtime';
 import { CARD_SECTIONS, bankSectionsForEvents, fetchBankSections } from '@/lib/bankData';
 import { useSectionLoader } from '@/hooks/use-section-loader';
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/components/ui/use-toast';
@@ -34,6 +34,17 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { AnimatePresence, motion } from 'framer-motion';
 import CardBrandLogo from './CardBrandLogo';
+
+const ResponsiveBankCard = ({ children }) => {
+    const frame = useRef(null);
+    const [width, setWidth] = useState(290);
+    useEffect(() => {
+        const observer = new ResizeObserver(([entry]) => setWidth(Math.min(290, entry.contentRect.width)));
+        observer.observe(frame.current);
+        return () => observer.disconnect();
+    }, []);
+    return <div ref={frame} className="relative mx-auto w-full max-w-[290px] overflow-hidden" style={{ height: width * 183 / 290 }}><div className="w-[290px] origin-top-left" style={{ transform: `scale(${width / 290})` }}>{children}</div></div>;
+};
 
 const INVOICES_PER_PAGE = 5;
 
@@ -91,16 +102,16 @@ const PayInvoiceDialog = ({ isOpen, setIsOpen, card, onPaymentSuccess }) => {
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
             <DialogContent>
-                <DialogHeader>
+                <DialogHeader className="text-center sm:text-center">
                     <DialogTitle>Pagamento Antecipado de Fatura</DialogTitle>
                     <DialogDescription>Pague o valor utilizado no seu cartão {card.brand} final {card.card_number.slice(-4)}.</DialogDescription>
                 </DialogHeader>
                 <form onSubmit={handlePay} className="space-y-4 pt-4">
-                    <div className="flex items-center space-x-2">
+                    <div className="flex items-center justify-center space-x-2">
                         <input type="radio" id="payFull" name="paymentType" checked={payFull} onChange={() => setPayFull(true)} />
                         <Label htmlFor="payFull">Pagar valor total ({formatCurrency(card.used_limit)})</Label>
                     </div>
-                    <div className="flex items-center space-x-2">
+                    <div className="flex items-center justify-center space-x-2">
                         <input type="radio" id="payPartial" name="paymentType" checked={!payFull} onChange={() => setPayFull(false)} />
                         <Label htmlFor="payPartial">Pagar outro valor</Label>
                     </div>
@@ -110,8 +121,8 @@ const PayInvoiceDialog = ({ isOpen, setIsOpen, card, onPaymentSuccess }) => {
                             <Input id="amount" value={amount} onChange={(e) => setAmount(formatCurrency(e.target.value, true))} placeholder="R$ 0,00" />
                         </div>
                     )}
-                    <DialogFooter>
-                        <Button type="submit" disabled={isLoading}>{isLoading ? <Loader2 className="animate-spin" /> : 'Confirmar Pagamento'}</Button>
+                    <DialogFooter className="justify-center sm:justify-center">
+                        <Button type="submit" disabled={isLoading}>{isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CreditCard className="mr-2 h-4 w-4"/>}Confirmar Pagamento</Button>
                     </DialogFooter>
                 </form>
             </DialogContent>
@@ -388,8 +399,8 @@ const CardsTab = ({ onUpdate }) => {
                     ) : cards.length > 0 ? (
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                             {cards.map(card => (
-                                <div key={card.id}>
-                                    {/* /// SUBSTITUIÇÃO ACONTECEU AQUI /// */}
+                                <div key={card.id} className="min-w-0">
+                                    <ResponsiveBankCard>
                                     <Cards
                                         number={card.card_number}
                                         expiry={card.expiry_date}
@@ -397,7 +408,7 @@ const CardsTab = ({ onUpdate }) => {
                                         name={card.card_holder_name}
                                         focused={isFlipped[card.id] ? 'cvc' : ''}
                                     />
-                                    {/* /////////////////////////////////// */}
+                                    </ResponsiveBankCard>
                                     <div className="mt-4 p-4 bg-background/50 rounded-lg space-y-4">
                                         <div className="flex justify-between items-center">
                                             <p className="font-semibold capitalize">{card.brand} - Final {card.card_number.slice(-4)}</p>

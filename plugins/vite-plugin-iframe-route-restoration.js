@@ -11,7 +11,7 @@ export default function iframeRouteRestorationPlugin() {
       ];
 
         // Check to see if the page is in an iframe
-        if (window.self !== window.top) {
+        if (window.self !== window.top && window.name !== 'govrp-phone-app') {
           const STORAGE_KEY = 'horizons-iframe-saved-route';
 
           const getCurrentRoute = () => location.pathname + location.search + location.hash;

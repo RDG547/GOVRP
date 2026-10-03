@@ -24,15 +24,15 @@ export default function PresidentialFormationGuide() {
     if(!canGovern){setFormation(null);return;}
     const [f,roles]=await Promise.all([
       supabase.rpc('get_presidential_formation'),
-      supabase.from('notifications').select('id').eq('user_id',user.id).in('type',['role_changed','election_candidacy_open','election_voting_open','election_result_published','institutional_result']).is('metadata->>popup_shown_at',null).limit(1),
+      supabase.rpc('get_pending_office_notification'),
     ]);
     if(sequence !== loadSequence.current) return;
     if(f.error||roles.error){console.warn('Formação de governo:',f.error||roles.error);return;}
-    setFormation(current => JSON.stringify(current) === JSON.stringify(f.data) ? current : f.data);setPendingRole(Boolean(roles.data?.length));
+    setFormation(current => JSON.stringify(current) === JSON.stringify(f.data) ? current : f.data);setPendingRole(Boolean(roles.data?.id));
   },[user?.id,canGovern]);
   useEffect(()=>{void load();},[load]);
-  useDomainRealtime('presidential-formation',user?.id,[{table:'notifications',filter:`user_id=eq.${user?.id}`},'ministers','system_settings','presidential_formation','profiles','government_terms'],load,canGovern);
-  const pendingMinistry=formation?.ministries?.find(item=>!item.holder_id);
+  useDomainRealtime('presidential-formation',user?.id,[{table:'notifications',filter:`user_id=eq.${user?.id}`},'ministers','system_settings','presidential_formation','profiles','government_terms','minister_invitations'],load,canGovern);
+  const pendingMinistry=formation?.ministries?.find(item=>!item.holder_id&&!(item.invitation?.status==='pending'&&Date.parse(item.invitation.expires_at)>Date.now()));
   const pendingOffice=formation?.offices?.find(item=>!item.appointment?.user_id);
   const target=pendingMinistry||pendingOffice;
   const candidateOffice = pendingMinistry ? 'minister' : pendingOffice?.office_key;
@@ -44,7 +44,7 @@ export default function PresidentialFormationGuide() {
     try{
       const result=pendingMinistry?await supabase.rpc('appoint_minister',{p_user_id:selected,p_ministry:pendingMinistry.name}):await supabase.rpc('manage_executive_appointment',{p_office_key:pendingOffice.office_key,p_user_id:selected,p_note:'Formação inicial do Governo.'});
       if(result.error)throw result.error;if(result.data?.success===false)throw new Error(result.data.message);
-      setSelected('');await load();toast({title:'Nomeação registrada',description:'A pessoa nomeada receberá sua notificação de cargo.'});
+      setSelected('');await load();toast({title:pendingMinistry?'Convite enviado':'Nomeação registrada',description:pendingMinistry?'O cidadão tem 24 horas reais para aceitar ou recusar.':'A pessoa nomeada receberá sua notificação de cargo.'});
     }catch(error){toast({title:'Nomeação não concluída',description:error.message,variant:'destructive'});}finally{setSaving(false);}
   };
   const chooseCabinet = async choice => {
@@ -54,10 +54,10 @@ export default function PresidentialFormationGuide() {
     else { await load(); toast({ title: choice === 'keep' ? 'Equipe ministerial mantida' : 'Forme sua nova equipe' }); }
     setSaving(false);
   };
-  const complete=async()=>{setSaving(true);const result=await supabase.rpc('complete_presidential_formation');setSaving(false);if(result.error){toast({title:'Não foi possível concluir',description:result.error.message,variant:'destructive'});return;}setDismissed(formation.id);navigate('/dashboard/president');};
+  const complete=async()=>{setSaving(true);const result=await supabase.rpc('complete_presidential_formation');setSaving(false);if(result.error){toast({title:'Não foi possível concluir',description:result.error.message,variant:'destructive'});return;}setDismissed(`${formation.id}:${formation.revision || "initial"}`);navigate('/dashboard/president');};
   // Completed formations loaded in a later session never reopen.
-  const open=Boolean(formation&&!pendingRole&&formation.id!==dismissed&&!formation.completed_at);
-  return <Dialog open={open}><DialogContent className="max-w-xl [&>button]:hidden" onEscapeKeyDown={e=>e.preventDefault()} onInteractOutside={e=>e.preventDefault()}><DialogHeader><Landmark className="mx-auto h-10 w-10 text-primary"/><DialogTitle className="text-center">{cabinetPending?'Como deseja conduzir o Governo?':target?'Forme seu Governo':'Governo formado'}</DialogTitle><DialogDescription className="text-center">{cabinetPending?'Você assumiu por sucessão. Escolha manter a equipe atual ou formar um novo gabinete.':target?'Antes de começar, preencha o gabinete e as nomeações estratégicas. Seu progresso é salvo a cada nomeação.':'Sua equipe está pronta. Você pode começar a governar.'}</DialogDescription></DialogHeader>
-    {cabinetPending?<div className="grid gap-3"><Button disabled={saving} onClick={()=>chooseCabinet('keep')}><Users className="mr-2 h-4 w-4"/>Manter atual equipe ministerial</Button><Button variant="outline" disabled={saving} onClick={()=>chooseCabinet('reform')}><Landmark className="mr-2 h-4 w-4"/>Formar nova equipe ministerial</Button></div>:target?<div className="space-y-4"><p className="text-sm text-muted-foreground">Faltam {formation.remaining} nomeações.</p><h2 className="flex items-center gap-2 font-semibold"><Icon className="h-5 w-5"/>{officeTitle}</h2><p className="text-sm">{pendingMinistry?'Ministros coordenam suas áreas e integram o gabinete presidencial.':pendingOffice.description}</p><CitizenSelector key={`${candidateOffice}:${pendingMinistry?.id || 'office'}`} label="Selecionar cidadão para nomeação" value={selected} onChange={setSelected} executiveOffice={candidateOffice} disabled={saving} /><Button className="w-full" disabled={!selected||saving} onClick={appoint}>{saving?<Loader2 className="mr-2 h-4 w-4 animate-spin"/>:<Check className="mr-2 h-4 w-4"/>}Confirmar nomeação</Button></div>:<div><Button className="w-full" disabled={saving} onClick={complete}><ArrowRight className="mr-2 h-4 w-4"/>Concluir formação do Governo</Button></div>}
+  const open=Boolean(formation&&!pendingRole&&`${formation.id}:${formation.revision || "initial"}`!==dismissed&&!formation.completed_at);
+  return <Dialog open={open}><DialogContent className="max-w-xl [&>button]:hidden" onEscapeKeyDown={e=>e.preventDefault()} onInteractOutside={e=>e.preventDefault()}><DialogHeader><Landmark className="mx-auto h-10 w-10 text-primary"/><DialogTitle className="text-center">{cabinetPending?'Como deseja conduzir o Governo?':target?'Forme seu Governo':formation?.awaiting?'Aguardando sua equipe':'Governo formado'}</DialogTitle><DialogDescription className="text-center">{cabinetPending?'Você assumiu por sucessão. Escolha manter a equipe atual ou formar um novo gabinete.':target?'Convide os ministros e preencha as nomeações estratégicas. Cada etapa é salva automaticamente.':formation?.awaiting?`${formation.awaiting} convite(s) aguardam resposta. Você será avisado sobre aceites, recusas e expirações.`:'Sua equipe está pronta. Você pode começar a governar.'}</DialogDescription></DialogHeader>
+    {cabinetPending?<div className="grid gap-3"><Button disabled={saving} onClick={()=>chooseCabinet('keep')}><Users className="mr-2 h-4 w-4"/>Manter atual equipe ministerial</Button><Button variant="outline" disabled={saving} onClick={()=>chooseCabinet('reform')}><Landmark className="mr-2 h-4 w-4"/>Formar nova equipe ministerial</Button></div>:target?<div className="space-y-4"><p className="text-sm text-muted-foreground">{formation.remaining} cargos ainda não preenchidos · {formation.awaiting || 0} convites pendentes.</p><h2 className="flex items-center gap-2 font-semibold"><Icon className="h-5 w-5"/>{officeTitle}</h2><p className="text-sm">{pendingMinistry?'Ministros coordenam suas áreas e integram o gabinete presidencial.':pendingOffice.description}</p><CitizenSelector key={`${candidateOffice}:${pendingMinistry?.id || 'office'}`} label="Selecionar cidadão" value={selected} onChange={setSelected} executiveOffice={candidateOffice} disabled={saving} /><Button className="w-full" disabled={!selected||saving} onClick={appoint}>{saving?<Loader2 className="mr-2 h-4 w-4 animate-spin"/>:<Check className="mr-2 h-4 w-4"/>}{pendingMinistry?'Enviar convite':'Confirmar nomeação'}</Button></div>:formation?.awaiting?<Button onClick={()=>setDismissed(`${formation.id}:${formation.revision || "initial"}`)}>Continuar enquanto aguardo</Button>:<div><Button className="w-full" disabled={saving} onClick={complete}><ArrowRight className="mr-2 h-4 w-4"/>Concluir formação do Governo</Button></div>}
   </DialogContent></Dialog>;
 }

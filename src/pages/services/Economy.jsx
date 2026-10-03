@@ -1,3 +1,4 @@
+import { SERVICE_REGISTRY } from '@/lib/serviceCatalog';
 import LiveLegalRules from '@/components/parliament/LiveLegalRules';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
@@ -41,7 +42,7 @@ const roleNames = (user) => new Set([
 
 const panelConfig = {
   legal: { label: 'Regras Legais', icon: Scale },
-  public: { label: 'Economia nacional', icon: LineChart, fetcher: fetchPublicEconomy },
+  public: { label: 'Economia nacional', icon: SERVICE_REGISTRY['/services/economy'].icon, fetcher: fetchPublicEconomy },
   citizen: { label: 'Minha economia', icon: User, fetcher: fetchCitizenEconomy },
   business: { label: 'Minhas empresas', icon: Building2, fetcher: fetchBusinessEconomy },
   government: { label: 'Governo', icon: Landmark, fetcher: fetchGovernmentEconomy },
@@ -161,7 +162,7 @@ const Economy = () => {
 
       <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
         <PageHeader
-          icon={LineChart}
+          icon={SERVICE_REGISTRY['/services/economy'].icon}
           title="Economia"
           gradientText="Nacional"
           description="Cada compra, emprego, empresa e decisão pública deixa uma origem auditável — e os fechamentos transformam essas ações em consequências."

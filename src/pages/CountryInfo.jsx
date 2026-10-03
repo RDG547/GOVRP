@@ -1,3 +1,4 @@
+import CompanyRankings from '@/components/business/CompanyRankings';
 import { formatLocaleBR } from '@/lib/dateTime';
 import { useOfficialSalaries, currentSalary } from '@/hooks/use-official-salaries';
 import CitizenRankings from '@/components/CitizenRankings';
@@ -112,7 +113,7 @@ const CountryInfo = () => {
   const [eventDecision, setEventDecision] = useState({ eventId: '', optionId: '', reason: '' });
   const [respondingEventId, setRespondingEventId] = useState('');
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState(() => new URLSearchParams(window.location.search).get('tab') === 'infraestrutura' ? 'infraestrutura' : 'constituticao');
+  const [activeTab, setActiveTab] = useState(() => ['constituticao','transparencia','geografia','demografia','economia','governo','cultura','infraestrutura','internacional','acontecimentos'].includes(new URLSearchParams(window.location.search).get('tab')) ? new URLSearchParams(window.location.search).get('tab') : 'constituticao');
   const countryCode = (user?.residence_country_code || user?.country_code || 'BR').toUpperCase();
   const country = useMemo(() => {
     const iso = isoCountries.whereAlpha2(countryCode) || isoCountries.whereAlpha2('BR');
@@ -165,6 +166,8 @@ const CountryInfo = () => {
     }
     if (!constitutionResponse.error) setConstitution(constitutionResponse.data || null);
   }, [country]);
+
+  useEffect(()=>{const timer=setInterval(()=>{if(document.visibilityState==='visible')void fetchCountryGameplay();},30000);return()=>clearInterval(timer);},[fetchCountryGameplay]);
 
   const respondToNationalEvent = async (event) => {
     if (!eventDecision.optionId || eventDecision.reason.trim().length < 10) {
@@ -328,6 +331,24 @@ const CountryInfo = () => {
           centered={true}
         />
 
+        <div className="mt-10">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <div className="flex justify-center mb-8">
+              <TabsList className="bg-slate-900/50 border border-white/10 h-auto flex flex-wrap justify-center p-1 rounded-2xl gap-1">
+                <TabsTrigger value="constituticao" className="rounded-xl px-4 py-2 data-[state=active]:bg-blue-600 data-[state=active]:text-white"><ScrollText className="w-4 h-4 mr-1.5 inline-block" />Constituição</TabsTrigger>
+                <TabsTrigger value="transparencia" className="rounded-xl px-4 py-2 data-[state=active]:bg-emerald-600 data-[state=active]:text-white"><DollarSign className="w-4 h-4 mr-1.5 inline-block" />Transparência (Salários)</TabsTrigger>
+                <TabsTrigger value="geografia" className="rounded-xl px-4 py-2 data-[state=active]:bg-blue-600 data-[state=active]:text-white"><Mountain className="w-4 h-4 mr-1.5 inline-block" />Geografia</TabsTrigger>
+                <TabsTrigger value="demografia" className="rounded-xl px-4 py-2 data-[state=active]:bg-blue-600 data-[state=active]:text-white"><Users className="w-4 h-4 mr-1.5 inline-block" />Demografia</TabsTrigger>
+                <TabsTrigger value="acontecimentos" className="rounded-xl px-4 py-2"><Clock className="mr-1.5 h-4 w-4"/>Acontecimentos</TabsTrigger>
+                <TabsTrigger value="economia" className="rounded-xl px-4 py-2 data-[state=active]:bg-blue-600 data-[state=active]:text-white"><Landmark className="w-4 h-4 mr-1.5 inline-block" />Economia</TabsTrigger>
+                <TabsTrigger value="governo" className="rounded-xl px-4 py-2 data-[state=active]:bg-blue-600 data-[state=active]:text-white"><Building className="w-4 h-4 mr-1.5 inline-block" />Governo e Política</TabsTrigger>
+                <TabsTrigger value="cultura" className="rounded-xl px-4 py-2 data-[state=active]:bg-blue-600 data-[state=active]:text-white"><BookOpen className="w-4 h-4 mr-1.5 inline-block" />Cultura e Sociedade</TabsTrigger>
+                <TabsTrigger value="infraestrutura" className="rounded-xl px-4 py-2 data-[state=active]:bg-blue-600 data-[state=active]:text-white"><Lightbulb className="w-4 h-4 mr-1.5 inline-block" />Infraestrutura</TabsTrigger>
+                <TabsTrigger value="internacional" className="rounded-xl px-4 py-2 data-[state=active]:bg-blue-600 data-[state=active]:text-white"><Globe className="w-4 h-4 mr-1.5 inline-block" />Relações Internacionais</TabsTrigger>
+              </TabsList>
+            </div>
+
+            <TabsContent value="acontecimentos" className="mt-0 outline-none">
         {nationalEvents.length > 0 && (
           <section className="mt-8 rounded-2xl border border-amber-400/20 bg-amber-500/5 p-5">
             <div className="mb-4 flex items-center gap-2 text-amber-200">
@@ -390,22 +411,8 @@ const CountryInfo = () => {
           </section>
         )}
 
-        <div className="mt-10">
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <div className="flex justify-center mb-8">
-              <TabsList className="bg-slate-900/50 border border-white/10 h-auto flex flex-wrap justify-center p-1 rounded-2xl gap-1">
-                <TabsTrigger value="constituticao" className="rounded-xl px-4 py-2 data-[state=active]:bg-blue-600 data-[state=active]:text-white"><ScrollText className="w-4 h-4 mr-1.5 inline-block" />Constituição</TabsTrigger>
-                <TabsTrigger value="transparencia" className="rounded-xl px-4 py-2 data-[state=active]:bg-emerald-600 data-[state=active]:text-white"><DollarSign className="w-4 h-4 mr-1.5 inline-block" />Transparência (Salários)</TabsTrigger>
-                <TabsTrigger value="geografia" className="rounded-xl px-4 py-2 data-[state=active]:bg-blue-600 data-[state=active]:text-white"><Mountain className="w-4 h-4 mr-1.5 inline-block" />Geografia</TabsTrigger>
-                <TabsTrigger value="demografia" className="rounded-xl px-4 py-2 data-[state=active]:bg-blue-600 data-[state=active]:text-white"><Users className="w-4 h-4 mr-1.5 inline-block" />Demografia</TabsTrigger>
-                <TabsTrigger value="economia" className="rounded-xl px-4 py-2 data-[state=active]:bg-blue-600 data-[state=active]:text-white"><Landmark className="w-4 h-4 mr-1.5 inline-block" />Economia</TabsTrigger>
-                <TabsTrigger value="governo" className="rounded-xl px-4 py-2 data-[state=active]:bg-blue-600 data-[state=active]:text-white"><Building className="w-4 h-4 mr-1.5 inline-block" />Governo e Política</TabsTrigger>
-                <TabsTrigger value="cultura" className="rounded-xl px-4 py-2 data-[state=active]:bg-blue-600 data-[state=active]:text-white"><BookOpen className="w-4 h-4 mr-1.5 inline-block" />Cultura e Sociedade</TabsTrigger>
-                <TabsTrigger value="infraestrutura" className="rounded-xl px-4 py-2 data-[state=active]:bg-blue-600 data-[state=active]:text-white"><Lightbulb className="w-4 h-4 mr-1.5 inline-block" />Infraestrutura</TabsTrigger>
-                <TabsTrigger value="internacional" className="rounded-xl px-4 py-2 data-[state=active]:bg-blue-600 data-[state=active]:text-white"><Globe className="w-4 h-4 mr-1.5 inline-block" />Relações Internacionais</TabsTrigger>
-              </TabsList>
-            </div>
-
+              {!nationalEvents.length&&<p className="rounded-xl border p-6">Nenhum acontecimento nacional em andamento.</p>}
+            </TabsContent>
             <TabsContent value="constituticao" className="mt-0 outline-none">
               <section className="rounded-2xl border border-white/10 bg-slate-950/40 p-6 backdrop-blur-sm">
                 <div className="flex flex-col gap-6 border-b border-white/10 pb-6 sm:flex-row sm:items-start sm:justify-between">
@@ -556,7 +563,8 @@ const CountryInfo = () => {
               )}
             </TabsContent>
 
-            <TabsContent value="economia" className="mt-0 outline-none">
+            <TabsContent value="economia" className="mt-0 space-y-6 outline-none">
+              {country.info.alpha2==='BR'&&<CompanyRankings/>}
               <section className="rounded-2xl border border-cyan-500/20 bg-slate-950/40 p-6 backdrop-blur-sm">
                 <div className="mb-6">
                   <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-cyan-500/30 bg-cyan-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.24em] text-cyan-300">

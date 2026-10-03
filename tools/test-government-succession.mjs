@@ -25,6 +25,9 @@ try {
       select name into ministry from public.government_ministries where is_active order by name limit 1;
       r:=public.appoint_minister('${minister.id}',ministry);
       if not (r->>'success')::boolean then raise exception 'Nomeação falhou %',r; end if;
+      perform set_config('request.jwt.claim.sub','${minister.id}',true);
+      perform public.respond_minister_invitation((r->'invitation'->>'id')::uuid,true);
+      perform set_config('request.jwt.claim.sub','${president.id}',true);
       if not exists(select 1 from public.ministers where user_id='${minister.id}' and government_id=g and status='active') then raise exception 'Ministro sem governo';end if;
       perform public.manage_executive_appointment('federal_police_director','${strategic.id}','Nomeação estratégica para o Governo em teste.');
       if (select value->'specialAppointments'->'federal_police_director'->>'government_id' from public.system_settings where key='executive_governance')<>g::text then raise exception 'Nomeação estratégica sem Governo';end if;
@@ -50,6 +53,9 @@ try {
       if not exists(select 1 from public.ministers where user_id='${minister.id}' and status='dismissed' and government_id=g) then raise exception 'Histórico apagado';end if;
       r:=public.appoint_minister('${minister.id}',ministry);
       if not (r->>'success')::boolean then raise exception 'Interino não nomeia %',r;end if;
+      perform set_config('request.jwt.claim.sub','${minister.id}',true);
+      perform public.respond_minister_invitation((r->'invitation'->>'id')::uuid,true);
+      perform set_config('request.jwt.claim.sub','${chair.id}',true);
       update public.profiles set role='Presidente',manual_role_override=true,role_assigned_at=clock_timestamp() where id='${next.id}';
       if public.is_acting_president('${chair.id}') then raise exception 'Interinidade não terminou';end if;
       if (select ended_at from public.government_terms where id=g) is null then raise exception 'Governo anterior ainda ativo';end if;

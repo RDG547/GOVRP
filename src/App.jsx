@@ -1,3 +1,5 @@
+import { isEmbeddedPhone } from '@/lib/embeddedPhone';
+import StateEnterpriseManagement from '@/components/business/StateEnterpriseManagement';
 import StockExchange from '@/pages/services/StockExchange';
 import NationalHealth from '@/pages/services/NationalHealth';
 import CitizenPhone from '@/components/CitizenPhone';
@@ -119,11 +121,15 @@ import NativeRuntime from '@/components/NativeRuntime';
 const MainLayout = ({ children }) => {
   const location = useLocation();
   const { user } = useAuth();
+  const enterpriseSector = ({'/services/bank':'Banco Nacional','/services/internet':'Internet','/services/phone':'Telefonia','/services/electricity':'Energia Elétrica','/services/water':'Água','/services/gas':'Gás'})[location.pathname];
+  const enterpriseService = ({'/services/national-housing':'national_housing','/services/national-market':'national_market'})[location.pathname];
   const isXPage = location.pathname.startsWith('/services/x');
   const isAuthCallback = location.pathname === '/auth/callback';
   const isCitizenOnboarding = location.pathname === '/registro-cidadania';
   const isLockedPrisonPage =
     isPrisonSentenceActive(user) && location.pathname === '/services/prison';
+
+  if (isEmbeddedPhone()) return <main className="phone-app min-w-0">{(enterpriseSector||enterpriseService)&&<div className="px-4 pt-4"><StateEnterpriseManagement sector={enterpriseSector} serviceKey={enterpriseService}/></div>}{children}</main>;
 
   if (isAuthCallback || isCitizenOnboarding || isLockedPrisonPage) {
     return <>{children}</>;
@@ -133,6 +139,7 @@ const MainLayout = ({ children }) => {
     <>
       <Navbar />
       <main className={isXPage ? "pt-20 w-full" : "pt-20"}>
+        {(enterpriseSector||enterpriseService)&&<div className="mx-auto max-w-6xl px-4 pt-4"><StateEnterpriseManagement sector={enterpriseSector} serviceKey={enterpriseService}/></div>}
         {children}
       </main>
       {!isXPage && <Footer disableTopSpacing={location.pathname === '/'} />}
@@ -298,14 +305,14 @@ const AppShell = ({ location, theme, isAuthCallback }) => {
             </CitizenOnboardingGate>
             </InternetSpeedProvider>
           </PrisonRouteGuard>
-          {!isAuthCallback && !isCitizenOnboarding && !onboardingRequired && <UserActivityTracker />}
+          {!isEmbeddedPhone() && !isAuthCallback && !isCitizenOnboarding && !onboardingRequired && <UserActivityTracker />}
           {!isAuthCallback && <CookieConsent />}
-          {!isAuthCallback && !isCitizenOnboarding && !onboardingRequired && <PwaInstallPrompt />}
-          {!isAuthCallback && !isCitizenOnboarding && !onboardingRequired && <DailyCheckInPopup />}
-          {!isAuthCallback && !isCitizenOnboarding && !onboardingRequired && <SalaryPaymentPopup />}
-          {!isAuthCallback && !isCitizenOnboarding && !onboardingRequired && <BusinessBalancePopup />}
-          {!isAuthCallback && !isCitizenOnboarding && !onboardingRequired && <ViceCandidacyDecisionPopup />}
-          {!isAuthCallback && !isCitizenOnboarding && !onboardingRequired && <><ElectionOfficeAwardPopup /><PresidentialFormationGuide /></>}
+          {!isEmbeddedPhone() && !isAuthCallback && !isCitizenOnboarding && !onboardingRequired && <PwaInstallPrompt />}
+          {!isEmbeddedPhone() && !isAuthCallback && !isCitizenOnboarding && !onboardingRequired && <DailyCheckInPopup />}
+          {!isEmbeddedPhone() && !isAuthCallback && !isCitizenOnboarding && !onboardingRequired && <SalaryPaymentPopup />}
+          {!isEmbeddedPhone() && !isAuthCallback && !isCitizenOnboarding && !onboardingRequired && <BusinessBalancePopup />}
+          {!isEmbeddedPhone() && !isAuthCallback && !isCitizenOnboarding && !onboardingRequired && <ViceCandidacyDecisionPopup />}
+          {!isEmbeddedPhone() && !isAuthCallback && !isCitizenOnboarding && !onboardingRequired && <><ElectionOfficeAwardPopup /><PresidentialFormationGuide /></>}
         </div>
       </div>
     </GlobalSiteAvailabilityGate>

@@ -1,3 +1,5 @@
+import { Trophy } from 'lucide-react';
+import { SERVICE_REGISTRY } from '@/lib/serviceCatalog';
 import { GovSelect } from '@/components/ui/gov-select';
 import { brandFont } from '@/lib/brandFonts';
 import { businessTypeIcon } from '@/lib/commerceIcons';
@@ -1012,7 +1014,7 @@ const EntrepreneurPortal = () => {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <PageHeader
-          icon={Briefcase}
+          icon={SERVICE_REGISTRY['/services/entrepreneur-portal'].icon}
           title="Portal do"
           gradientText="Empreendedor"
           description="O centro operacional da economia privada do GOV.RP. Crie empresas, gerencie operações, controle custos e faça seus negócios prosperarem."
@@ -1020,6 +1022,7 @@ const EntrepreneurPortal = () => {
           centered={true}
         />
 
+        <div className="mb-5 flex justify-center"><Button asChild variant="outline"><Link to="/country-info?tab=economia#maiores-empresas"><Trophy className="mr-2 h-4 w-4 text-amber-400"/>Ranking de Empresas</Link></Button></div>
         {/* Hero Banner */}
         <motion.section
           initial={{ opacity: 0, y: 16 }}

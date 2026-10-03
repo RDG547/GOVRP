@@ -1,5 +1,6 @@
 import PartyColorPicker from '@/components/parties/PartyColorPicker';
 import { politicalOrientations, orientationColors } from '@/lib/partyIdentity';
+import { X } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { useToast } from '@/components/ui/use-toast';
@@ -372,17 +373,17 @@ const PartyManagement = () => {
 
       <AlertDialog open={Boolean(partyToDelete)} onOpenChange={(open) => !open && setPartyToDelete(null)}>
         <AlertDialogContent>
-          <AlertDialogHeader>
+          <AlertDialogHeader className="text-center sm:text-center">
             <AlertDialogTitle>{partyToDelete?.status === 'Encerrado' ? 'Excluir permanentemente?' : 'Encerrar partido?'}</AlertDialogTitle>
             <AlertDialogDescription>
               {partyToDelete?.status === 'Encerrado' ? `Esta ação excluirá permanentemente o partido ${partyToDelete.name}. O histórico eleitoral, as doações e o saldo serão preservados em registros arquivados. Deseja continuar?` : `Esta ação encerra ${partyToDelete?.name} e as filiações atuais. Candidaturas, fundador, doações, saldo e histórico permanecem registrados.`}
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={saving}>Cancelar</AlertDialogCancel>
+          <AlertDialogFooter className="justify-center sm:justify-center">
+            <AlertDialogCancel disabled={saving}><X className="mr-2 h-4 w-4"/>Cancelar</AlertDialogCancel>
             <AlertDialogAction onClick={handleDelete} disabled={saving} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
               {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-              {partyToDelete?.status === 'Encerrado' ? 'Excluir permanentemente' : 'Encerrar'}
+              <Trash2 className="mr-2 h-4 w-4"/>{partyToDelete?.status === 'Encerrado' ? 'Excluir permanentemente' : 'Encerrar'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
