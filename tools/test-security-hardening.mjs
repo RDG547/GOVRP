@@ -58,7 +58,7 @@ try {
   const [publicStats, adminStats, adminUsers, forbiddenUsers] = await Promise.all([
     anonymous.rpc('get_public_dashboard_stats'),
     admin.client.rpc('get_admin_dashboard_stats'),
-    admin.client.rpc('admin_get_all_users'),
+    admin.client.rpc('admin_get_all_users').eq('id', member.id),
     stranger.client.rpc('admin_get_all_users'),
   ]);
   for (const result of [publicStats, adminStats, adminUsers]) if (result.error) throw result.error;
