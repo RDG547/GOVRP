@@ -114,7 +114,10 @@ if (existsSync(envPath)) {
       db.from('ministers').select('id, user_id').limit(1),
       db.from('system_settings').select('key, value').in('key', ['government_budget', 'tax_rates']),
     ]);
-    const errors = results.map((result) => result.error).filter(Boolean);
+    // Police metrics require an authenticated citizen after the API hardening.
+    // This smoke test deliberately uses only the public key.
+    verify('métricas policiais protegidas de acesso anônimo', results[4].error?.code === '42501');
+    const errors = results.filter((_, index) => index !== 4).map((result) => result.error).filter(Boolean);
     verify('smoke test do Supabase remoto', errors.length === 0);
     verify('estrutura ministerial inicial disponível', Number(results[1].count) >= 1);
     verify('popularidade nacional inicializada', Boolean(results[2].data));

@@ -92,7 +92,8 @@
     "test:government-invitations": "node tools/test-government-invitations.mjs",
     "test:refined-economy": "node tools/test-refined-economy.mjs",
     "test:refinement-interface": "node tools/test-refinement-interface.mjs",
-    "test:supabase-security": "node tools/test-supabase-security-advisors.mjs"
+    "test:supabase-security": "node tools/test-supabase-security-advisors.mjs",
+    "test:electoral-calendar": "node tools/test-electoral-calendar.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.0",
