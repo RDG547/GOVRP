@@ -93,7 +93,10 @@
     "test:refined-economy": "node tools/test-refined-economy.mjs",
     "test:refinement-interface": "node tools/test-refinement-interface.mjs",
     "test:supabase-security": "node tools/test-supabase-security-advisors.mjs",
-    "test:electoral-calendar": "node tools/test-electoral-calendar.mjs"
+    "test:electoral-calendar": "node tools/test-electoral-calendar.mjs",
+    "test:currency-dynamics": "node tools/test-currency-dynamics.mjs",
+    "test:enterprise-details": "node tools/test-enterprise-details.mjs",
+    "test:citizen-refinements": "node tools/test-citizen-refinements.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.0",

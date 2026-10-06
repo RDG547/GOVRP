@@ -73,6 +73,18 @@ insert into public.products(id,seller_id,name,description,price,stock,product_ty
 insert into public.marketplace_reports(product_id,reporter_id,reason) values('36000000-0000-0000-0000-000000000004','10000000-0000-0000-0000-000000000002','Denúncia da vida anterior para verificar o reset.');
 update public.state_enterprises set manager_id='10000000-0000-0000-0000-000000000002',commission_value=4,publication_mode='approval' where service_key='marketplace';
 update public.profiles set avatar_config='{"hair":"curly"}' where id='10000000-0000-0000-0000-000000000002';
+-- New economic modules must participate in both individual and world resets.
+insert into public.businesses(id,owner_id,business_type_id,name,region_code) values
+('50000000-0000-0000-0000-000000000002','10000000-0000-0000-0000-000000000002','padaria','Empresa da vida anterior','SP'),
+('50000000-0000-0000-0000-000000000004','10000000-0000-0000-0000-000000000004','padaria','Empresa preservada','SP');
+insert into private.business_daily_effort(business_id,effort_date,boost) values
+('50000000-0000-0000-0000-000000000002',current_date,.1),('50000000-0000-0000-0000-000000000004',current_date,.2);
+insert into private.company_operations(idempotency_key,actor_id,operation,payload,result) values
+(gen_random_uuid(),'10000000-0000-0000-0000-000000000002','workforce','{"business_id":"50000000-0000-0000-0000-000000000002"}','{}'),
+(gen_random_uuid(),'10000000-0000-0000-0000-000000000004','workforce','{"business_id":"50000000-0000-0000-0000-000000000002"}','{}'),
+(gen_random_uuid(),'10000000-0000-0000-0000-000000000004','workforce','{"business_id":"50000000-0000-0000-0000-000000000004"}','{}');
+insert into private.population_demand_runs(operation_date,spent) values(current_date,300);
+update public.profiles set ui_preferences='{"phone_app_order":["bank","x"]}' where id='10000000-0000-0000-0000-000000000002';
 create temporary table before_profiles as select * from public.profiles;
 set constraints all immediate;set constraints all deferred;
 do $$ declare t record; begin for t in select * from test_trigger_modes loop
@@ -140,6 +152,10 @@ select pg_temp.assert_true((select count(*) from public.posts)=1,'old posts and 
 select pg_temp.assert_true((select comments_count=1 and likes_count=0 from public.posts where id='30000000-0000-0000-0000-000000000004') and (select replies_count=0 from public.comments where id='35000000-0000-0000-0000-000000000003'),'remaining comment, reply and like counters match surviving content');
 select pg_temp.assert_true((select count(*) from public.comment_likes)=0 and (select count(*) from public.marketplace_reports)=0,'reset clears new comment likes and marketplace reports for selected citizen');
 select pg_temp.assert_true((select avatar_config is null from public.profiles where id='10000000-0000-0000-0000-000000000002'),'reset clears saved avatar configuration');
+select pg_temp.assert_true((select count(*)=1 from private.business_daily_effort) and exists(select 1 from private.business_daily_effort where business_id='50000000-0000-0000-0000-000000000004'),'individual reset clears private effort only for removed companies');
+select pg_temp.assert_true((select count(*)=1 from private.company_operations) and exists(select 1 from private.company_operations where payload->>'business_id'='50000000-0000-0000-0000-000000000004'),'stale workforce confirmations cannot return results from a removed company');
+select pg_temp.assert_true((select count(*)=1 from private.population_demand_runs),'individual reset preserves the national demand cycle');
+select pg_temp.assert_true((select not(ui_preferences ? 'phone_app_order') from public.profiles where id='10000000-0000-0000-0000-000000000002'),'phone preferences are cleared with the character');
 select pg_temp.assert_true(exists(select 1 from public.products where id='36000000-0000-0000-0000-000000000004'),'reset preserves product belonging to unselected citizen');
 select pg_temp.assert_true((select count(*) from public.documents)=0 and (select count(*) from public.criminal_records)=0,'documents and legal consequences removed');
 select pg_temp.assert_true((select count(*) from public.political_parties)=0 and (select party_affiliation is null from public.profiles where id='10000000-0000-0000-0000-000000000003'),'party dependencies cleared without deleting another citizen');
@@ -193,6 +209,12 @@ reset role;
 select pg_temp.assert_true(not exists(select 1 from public.profiles where onboarding_completed) and (select count(*) from public.accounts)=0,'all users restart without bank accounts');
 
 -- Full reset: a deterministic source fixture, never a network-dependent expected value.
+update public.state_enterprises set fixed_sale_fee=30,active_listing_fee_enabled=true,active_listing_fee_amount=15,seller_fees='{"PF":{"fixed":12}}',management_settings='{"sales_enabled":false}' where service_key='marketplace';
+insert into public.system_settings(key,value) values
+('enterprise_costs','{"old-company":{"employees":900}}'),
+('basic_service_prices','{"Internet_Básico":999}'),
+('national_health_policy','{"daily_budget":1}'),
+('stock_market_session','{"is_open":false}');
 select jsonb_build_array(jsonb_build_object('country_code','BR','country_name','Brasil','fetched_at',clock_timestamp(),
  'economy','{"gdp":2000000000000,"gdpCurrency":"USD","currency":"BRL","growth":2.5,"inflation":4.5,"unemployment":6,"exchangeUsd":5,"exchangeEur":6,"selic":12,"referenceSources":["Test reference"]}'::jsonb,
  'demographics','{"population":200000000,"area":8000000}'::jsonb,'politics','{}'::jsonb,
@@ -246,6 +268,10 @@ select pg_temp.assert_true((select current_selic=12 and public_debt=0 and last_o
 select pg_temp.assert_true((select treasury_balance=0 and loans_balance=0 from public.government_finances),'public funds and government loans reset');
 select pg_temp.assert_true((select count(*) from public.country_rp_economic_snapshots)=1 and (select count(*) from public.economic_events)=0 and (select count(*) from public.transactions)=0,'only new economic baseline remains');
 select pg_temp.assert_true((select count(*) from public.currency_market_states)=6 and (select count(*) from public.currency_market_states where current_strength<>1)=0,'currency market starts from real quotes without old RP pressure');
+select pg_temp.assert_true((select count(distinct volatility)=6 and count(distinct economic_strength)=6 from public.currency_market_states),'reset restores individual currency calibration');
+select pg_temp.assert_true(not exists(select 1 from private.business_daily_effort) and not exists(select 1 from private.company_operations) and not exists(select 1 from private.population_demand_runs),'complete reset clears internal economic operations and demand cycles');
+select pg_temp.assert_true((select bool_and(fixed_sale_fee=0 and not active_listing_fee_enabled and active_listing_fee_amount=0 and seller_fees='{}' and management_settings='{}') from public.state_enterprises where is_system),'complete reset restores marketplace fees and service management defaults');
+select pg_temp.assert_true(not exists(select 1 from public.system_settings where key in('enterprise_costs','basic_service_prices')) and (select (value->>'daily_budget')::numeric=5000 from public.system_settings where key='national_health_policy') and (select (value->>'is_open')::boolean from public.system_settings where key='stock_market_session'),'old service policies and paused market do not survive the new season');
 select pg_temp.assert_true((select count(*) from public.security_audit_log)=1 and (select value from public.system_settings where key='service_availability')='{"bank":true}'::jsonb,'security records and service configuration survive complete reset');
 select pg_temp.assert_true((select count(*) from public.products where state_enterprise_id is not null)=(select total from state_catalog_before),'full reset preserves the state food and housing catalog');
 select pg_temp.assert_true((select count(*) from public.profiles)=4 and (select count(*) from private.account_identities)=4,'full reset preserves all account anchors');

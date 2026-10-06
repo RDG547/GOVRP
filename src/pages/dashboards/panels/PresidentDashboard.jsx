@@ -1245,7 +1245,6 @@ const StateEnterpriseManager = ({ onUpdate }) => {
     const [enterpriseCostsMap, setEnterpriseCostsMap] = useState({});
     const [loading, setLoading] = useState(true);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
-    const [editingEnterprise, setEditingEnterprise] = useState(null);
     const [selectedEnterprise, setSelectedEnterprise] = useState(null);
     const [form, setForm] = useState(() => ({ ...DEFAULT_ENTERPRISE_FORM }));
     const [saving, setSaving] = useState(false);
@@ -1275,20 +1274,7 @@ const StateEnterpriseManager = ({ onUpdate }) => {
     useDomainRealtime('state-enterprises',user?.id,['state_enterprises','system_settings'],fetchEnterprises);
 
     const openCreate = () => {
-        setEditingEnterprise(null);
         setForm({ ...DEFAULT_ENTERPRISE_FORM });
-        setIsDialogOpen(true);
-    };
-
-    const openEdit = (enterprise) => {
-        setEditingEnterprise(enterprise);
-        setForm({
-            name: enterprise.name,
-            sector: enterprise.sector,
-            description: enterprise.description || '',
-            market_value: formatCurrency(getEnterpriseMarketValue(enterprise), true),
-            health_score: getEnterpriseHealthScore(enterprise),
-        });
         setIsDialogOpen(true);
     };
 
@@ -1306,23 +1292,6 @@ const StateEnterpriseManager = ({ onUpdate }) => {
             health_score: Number(form.health_score || 0),
             updated_at: new Date().toISOString(),
         };
-        if (editingEnterprise) {
-            const { error } = await supabase
-                .from('state_enterprises')
-                .update(enterprisePayload)
-                .eq('id', editingEnterprise.id);
-            if (error) {
-                toast({ title: 'Erro ao atualizar', description: error.message, variant: 'destructive' });
-            } else {
-                toast({ title: 'Estatal atualizada com sucesso' });
-                await publishOfficialGazetteEntry(supabase, {
-                    title: `Atualização de Estatal: ${form.name.trim()}`,
-                    content: `A estatal "${form.name.trim()}" (setor: ${form.sector}) foi atualizada pelo Presidente da República.`,
-                    category: 'decree',
-                    author_id: user?.id,
-                });
-            }
-        } else {
             const { error } = await supabase
                 .from('state_enterprises')
                 .insert({ ...enterprisePayload, created_by: user?.id });
@@ -1333,11 +1302,9 @@ const StateEnterpriseManager = ({ onUpdate }) => {
                 await publishOfficialGazetteEntry(supabase, {
                     title: `Criação de Estatal: ${form.name.trim()}`,
                     content: `O Presidente da República criou a estatal "${form.name.trim()}" no setor de ${form.sector}.`,
-                    category: 'decree',
-                    author_id: user?.id,
+                    type: 'Decreto',
                 });
             }
-        }
         setSaving(false);
         setIsDialogOpen(false);
         fetchEnterprises();
@@ -1451,7 +1418,7 @@ const StateEnterpriseManager = ({ onUpdate }) => {
 
     return (
         <div className="space-y-6">
-            <StateEnterpriseManagement enterpriseId={selectedEnterprise?.id} open={Boolean(selectedEnterprise)} onOpenChange={open=>{if(!open)setSelectedEnterprise(null);}} onUpdated={()=>{fetchEnterprises();onUpdate?.();}} />
+            <StateEnterpriseManagement institutional enterpriseId={selectedEnterprise?.id} open={Boolean(selectedEnterprise)} onOpenChange={open=>{if(!open)setSelectedEnterprise(null);}} onUpdated={()=>{fetchEnterprises();onUpdate?.();}} />
             <div className="flex items-center justify-between">
                 <div>
                     <h3 className="text-xl font-semibold flex items-center gap-2"><Building className="w-5 h-5 text-primary" /> Estatais do Governo</h3>
@@ -1478,7 +1445,7 @@ const StateEnterpriseManager = ({ onUpdate }) => {
                                         <div className="flex items-center gap-3">
                                             <div className={`p-2 rounded-lg ${sectorInfo.bgColor}`}><SectorIcon className={`w-5 h-5 ${sectorInfo.color}`} /></div>
                                             <div>
-                                                <CardTitle className="text-base">{enterprise.name}</CardTitle><Button size="sm" variant="outline" className="mt-2" onClick={event=>{event.stopPropagation();setSelectedEnterprise(enterprise);}}><Settings className="mr-2 h-4 w-4"/>Gerenciar</Button>
+                                                <CardTitle className="text-base">{enterprise.name}</CardTitle>
                                                 <CardDescription>{sectorInfo.label}</CardDescription>
                                             </div>
                                         </div>
@@ -1557,7 +1524,7 @@ const StateEnterpriseManager = ({ onUpdate }) => {
                                     </CardContent>
                                 )}
                                 <CardFooter className="gap-2 flex-wrap" onClick={e => e.stopPropagation()}>
-                                    <Button size="sm" variant="outline" onClick={() => openEdit(enterprise)}><Edit className="w-3 h-3 mr-1" /> Editar</Button>
+                                    <Button size="sm" variant="outline" onClick={() => setSelectedEnterprise(enterprise)}><Settings className="w-3 h-3 mr-1" /> Gerenciar</Button>
                                     {isNationalBank ? (
                                         <>
                                             <Button size="sm" onClick={() => setSelectedEnterprise(enterprise)}><Landmark className="w-3 h-3 mr-1" /> Ver Detalhes</Button>
@@ -1626,9 +1593,9 @@ const StateEnterpriseManager = ({ onUpdate }) => {
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                 <DialogContent>
                     <DialogHeader>
-                        <DialogTitle>{editingEnterprise ? 'Editar Estatal' : 'Criar Nova Estatal'}</DialogTitle>
+                        <DialogTitle>Criar Nova Estatal</DialogTitle>
                         <DialogDescription>
-                            {editingEnterprise ? 'Atualize as informações da empresa estatal.' : 'Defina os dados da nova empresa estatal do governo.'}
+                            Defina os dados da nova empresa estatal do governo.
                         </DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4 py-4">
@@ -1688,7 +1655,7 @@ const StateEnterpriseManager = ({ onUpdate }) => {
                         <DialogClose asChild><Button variant="outline">Cancelar</Button></DialogClose>
                         <Button onClick={handleSave} disabled={saving}>
                             {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
-                            {editingEnterprise ? 'Salvar' : 'Criar'}
+                            Criar
                         </Button>
                     </DialogFooter>
                 </DialogContent>

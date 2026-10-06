@@ -1,6 +1,13 @@
+import { useSearchParams } from 'react-router-dom';
+import { useDomainRealtime } from '@/hooks/use-domain-realtime';
+import { electoralCalendarPayload } from '@/lib/electoralCalendar';
+import { toBrasiliaInput, formatDateTimeBR } from '@/lib/dateTime';
+import { userErrorMessage } from '@/lib/userErrors';
+import { GovSelect } from '@/components/ui/gov-select';
+import { ChevronLeft, ChevronRight, Search } from 'lucide-react';
 import DeleteElectionButton from '@/components/admin/DeleteElectionButton';
 import { AlignLeft, CalendarClock, Save } from 'lucide-react';
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
@@ -10,8 +17,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Loader2, PlusCircle, Edit, Trash2, Calendar, Vote } from 'lucide-react';
-import { format } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 
@@ -49,16 +54,18 @@ const ElectionForm = ({ election, onFinish, automaticElectionPlans }) => {
         name: election?.name || '',
         description: election?.description || '',
         election_type_id: election?.election_type_id || '',
-        candidacy_start_date: election?.candidacy_start_date ? format(new Date(election.candidacy_start_date), "yyyy-MM-dd'T'HH:mm") : '',
-        candidacy_end_date: election?.candidacy_end_date ? format(new Date(election.candidacy_end_date), "yyyy-MM-dd'T'HH:mm") : '',
-        voting_start_date: election?.voting_start_date ? format(new Date(election.voting_start_date), "yyyy-MM-dd'T'HH:mm") : '',
-        voting_end_date: election?.voting_end_date ? format(new Date(election.voting_end_date), "yyyy-MM-dd'T'HH:mm") : '',
+        candidacy_start_date: election?.candidacy_start_date ? toBrasiliaInput(election.candidacy_start_date) : '',
+        candidacy_end_date: election?.candidacy_end_date ? toBrasiliaInput(election.candidacy_end_date) : '',
+        voting_start_date: election?.voting_start_date ? toBrasiliaInput(election.voting_start_date) : '',
+        voting_end_date: election?.voting_end_date ? toBrasiliaInput(election.voting_end_date) : '',
     });
     const [autoRecurring, setAutoRecurring] = useState(Boolean(automaticPlanEntry?.[1]?.enabled));
     const [electionTypes, setElectionTypes] = useState([]);
     const [loading, setLoading] = useState(false);
     const { toast } = useToast();
-    const minDateTime = format(new Date(), "yyyy-MM-dd'T'HH:mm");
+    const minDateTime = toBrasiliaInput(new Date());
+    const savedId = useRef(election?.id || null);
+    const [formError, setFormError] = useState('');
 
     useEffect(() => {
         const fetchTypes = async () => {
@@ -79,10 +86,10 @@ const ElectionForm = ({ election, onFinish, automaticElectionPlans }) => {
             name: election?.name || '',
             description: election?.description || '',
             election_type_id: election?.election_type_id || '',
-            candidacy_start_date: election?.candidacy_start_date ? format(new Date(election.candidacy_start_date), "yyyy-MM-dd'T'HH:mm") : '',
-            candidacy_end_date: election?.candidacy_end_date ? format(new Date(election.candidacy_end_date), "yyyy-MM-dd'T'HH:mm") : '',
-            voting_start_date: election?.voting_start_date ? format(new Date(election.voting_start_date), "yyyy-MM-dd'T'HH:mm") : '',
-            voting_end_date: election?.voting_end_date ? format(new Date(election.voting_end_date), "yyyy-MM-dd'T'HH:mm") : '',
+            candidacy_start_date: election?.candidacy_start_date ? toBrasiliaInput(election.candidacy_start_date) : '',
+            candidacy_end_date: election?.candidacy_end_date ? toBrasiliaInput(election.candidacy_end_date) : '',
+            voting_start_date: election?.voting_start_date ? toBrasiliaInput(election.voting_start_date) : '',
+            voting_end_date: election?.voting_end_date ? toBrasiliaInput(election.voting_end_date) : '',
         });
     }, [election]);
 
@@ -146,51 +153,24 @@ const ElectionForm = ({ election, onFinish, automaticElectionPlans }) => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        if (loading) return;
         setLoading(true);
 
-        const { data: statusData, error: statusError } = await supabase.rpc('get_initial_election_status', {
-            p_candidacy_start_date: formData.candidacy_start_date,
-            p_candidacy_end_date: formData.candidacy_end_date,
-            p_voting_start_date: formData.voting_start_date,
-            p_voting_end_date: formData.voting_end_date,
-        });
-
-        if (statusError) {
-            toast({ title: "Erro ao definir status inicial", description: statusError.message, variant: "destructive" });
-            setLoading(false);
-            return;
-        }
-
-        const payload = {
-            ...formData,
-            election_type_id: formData.election_type_id === '' ? null : formData.election_type_id,
-        };
-
-        let query;
-        if (election) {
-            query = supabase.from('elections').update(payload).eq('id', election.id).select('id, name, election_type_id').single();
-        } else {
-            query = supabase.from('elections').insert({ ...payload, status: statusData }).select('id, name, election_type_id').single();
-        }
-
-        const { data: savedElection, error } = await query;
-
-        if (error) {
-            toast({ title: "Erro ao salvar eleição", description: error.message, variant: "destructive" });
-        } else {
-            try {
-                await syncAutomaticElectionPlan(savedElection);
-            } catch (settingsError) {
-                toast({
-                    title: "Eleição salva, mas recorrência não foi atualizada",
-                    description: settingsError.message,
-                    variant: "destructive"
-                });
-                setLoading(false);
-                return;
-            }
-            toast({ title: "Sucesso!", description: `Eleição ${election ? 'atualizada' : 'criada'} com sucesso.` });
+        setFormError('');
+        try {
+            const payload = electoralCalendarPayload(formData);
+            const { data: result, error } = await supabase.rpc('manage_electoral_calendar', {
+                p_election_id: savedId.current,
+                p_data: payload,
+            });
+            if (error) throw error;
+            savedId.current = result.id;
+            await syncAutomaticElectionPlan({ ...payload, id: result.id });
+            toast({ title: 'Eleição salva com sucesso' });
             onFinish();
+        } catch (error) {
+            console.error('Admin: calendário eleitoral', error);
+            setFormError(userErrorMessage(error));
         }
         setLoading(false);
     };
@@ -202,7 +182,7 @@ const ElectionForm = ({ election, onFinish, automaticElectionPlans }) => {
             <div>
                 <Label htmlFor="election_type_id" className="mb-1 flex items-center gap-2"><Vote className="h-4 w-4 text-primary"/>Tipo de Eleição</Label>
                 <Select onValueChange={handleSelectChange} value={formData.election_type_id}>
-                    <SelectTrigger><SelectValue placeholder="Selecione o tipo" /></SelectTrigger>
+                    <SelectTrigger id="election_type_id" aria-label="Tipo de eleição"><SelectValue placeholder="Selecione o tipo" /></SelectTrigger>
                     <SelectContent>
                         {electionTypes.map(type => <SelectItem key={type.id} value={type.id}>{type.name}</SelectItem>)}
                     </SelectContent>
@@ -225,6 +205,8 @@ const ElectionForm = ({ election, onFinish, automaticElectionPlans }) => {
                 </div>
                 <Switch id="auto-recurring-election" checked={autoRecurring} onCheckedChange={setAutoRecurring} />
             </div>
+            <p className="text-xs text-muted-foreground">Datas e horários de Brasília.</p>
+            {formError && <p role="alert" className="text-sm text-destructive">{formError}</p>}
             <DialogFooter className="sm:justify-center">
                 <Button type="submit" disabled={loading}>{loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4"/>}Salvar Eleição</Button>
             </DialogFooter>
@@ -238,14 +220,35 @@ const ElectionManagement = () => {
     const [isFormOpen, setIsFormOpen] = useState(false);
     const [editingElection, setEditingElection] = useState(null);
     const [automaticElectionPlans, setAutomaticElectionPlans] = useState({});
+    const [params, setParams] = useSearchParams();
+    const page = Math.max(1, Number.parseInt(params.get('electionPage'), 10) || 1);
+    const status = params.get('electionStatus') || 'all';
+    const search = params.get('electionSearch') || '';
+    const [count, setCount] = useState(0);
+    const request = useRef(0);
+    const pageSize = 10;
+    const changeFilter = values => setParams(current => {
+        const next = new URLSearchParams(current);
+        Object.entries(values).forEach(([key, value]) => value ? next.set(key, String(value)) : next.delete(key));
+        return next;
+    }, { replace: true, preventScrollReset: true });
     const { toast } = useToast();
 
     const fetchElections = useCallback(async () => {
-        setLoading(true);
+        const sequence = ++request.current;
+        let query = supabase.from('elections').select('*, election_types(name)', { count: 'exact' }).is('archived_at', null).order('created_at', { ascending: false }).order('id');
+        if (status !== 'all') query = query.eq('status', status);
+        if (search.trim()) query = query.ilike('name', `%${search.trim().replaceAll('%', '\\%').replaceAll('_', '\\_')}%`);
         const [electionsResponse, automaticSettingsResponse] = await Promise.all([
-            supabase.from('elections').select('*, election_types(name)').is('archived_at',null).order('created_at', { ascending: false }),
+            query.range((page - 1) * pageSize, page * pageSize - 1),
             supabase.from('system_settings').select('value').eq('key', AUTOMATIC_ELECTIONS_SETTINGS_KEY).maybeSingle(),
         ]);
+        if (sequence !== request.current) return;
+        setCount(electionsResponse.count || 0);
+        if (!electionsResponse.error && page > Math.max(1, Math.ceil(electionsResponse.count / pageSize))) {
+            setParams(current => { const next = new URLSearchParams(current); next.set('electionPage', String(Math.max(1, Math.ceil(electionsResponse.count / pageSize)))); return next; }, { replace: true, preventScrollReset: true });
+            return;
+        }
         if (electionsResponse.error) {
             toast({ title: "Erro ao buscar eleições", description: electionsResponse.error.message, variant: "destructive" });
         } else if (automaticSettingsResponse.error) {
@@ -256,11 +259,13 @@ const ElectionManagement = () => {
             setAutomaticElectionPlans(automaticSettingsResponse.data?.value?.plans || {});
         }
         setLoading(false);
-    }, [toast]);
+    }, [toast, page, status, search, setParams]);
 
     useEffect(() => {
-        fetchElections();
+        void fetchElections();
+        return () => { request.current++; };
     }, [fetchElections]);
+    useDomainRealtime('admin-election-list', 'admin', ['elections', 'election_types', { table: 'system_settings', filter: 'key=eq.automatic_elections' }], fetchElections);
 
     const handleAdd = () => {
         setEditingElection(null);
@@ -279,17 +284,21 @@ const ElectionManagement = () => {
 
     return (
         <div className="space-y-6">
-            <div className="flex justify-between items-center">
+            <div className="flex flex-wrap justify-between items-center gap-3">
                 <h2 className="text-2xl font-bold text-white">Gerenciamento de Eleições</h2>
                 <Button onClick={handleAdd}><PlusCircle className="w-4 h-4 mr-2" /> Criar Eleição</Button>
             </div>
 
+            <div className="grid gap-3 sm:grid-cols-2">
+                <label className="text-sm"><span className="mb-1 flex items-center gap-2"><Search className="h-4 w-4"/>Buscar eleição</span><Input value={search} onChange={event => changeFilter({ electionSearch: event.target.value, electionPage: 1 })} /></label>
+                <label className="text-sm">Status da eleição<GovSelect value={status} onChange={event => changeFilter({ electionStatus: event.target.value, electionPage: 1 })}><option value="all">Todos os status</option>{Object.entries(statusTranslations).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</GovSelect></label>
+            </div>
             {loading ? (
                 <div className="flex justify-center py-10"><Loader2 className="w-8 h-8 animate-spin text-blue-400" /></div>
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {elections.map(election => (
-                        <Card key={election.id} className="glass-effect">
+                        <Card key={election.id} data-election-card className="glass-effect min-w-0">
                             <CardHeader>
                                 <CardTitle>{election.name}</CardTitle>
                                 <CardDescription>
@@ -301,9 +310,9 @@ const ElectionManagement = () => {
                                     ) : null}
                                 </CardDescription>
                             </CardHeader>
-                            <CardContent className="space-y-2 text-sm">
-                                <p className="flex items-center gap-2"><Calendar className="w-4 h-4 text-muted-foreground" /> <strong>Candidaturas:</strong> {format(new Date(election.candidacy_start_date), 'dd/MM/yy HH:mm', { locale: ptBR })} - {format(new Date(election.candidacy_end_date), 'dd/MM/yy HH:mm', { locale: ptBR })}</p>
-                                <p className="flex items-center gap-2"><Vote className="w-4 h-4 text-muted-foreground" /> <strong>Votação:</strong> {format(new Date(election.voting_start_date), 'dd/MM/yy HH:mm', { locale: ptBR })} - {format(new Date(election.voting_end_date), 'dd/MM/yy HH:mm', { locale: ptBR })}</p>
+                            <CardContent className="space-y-2 text-sm [&_p]:flex-wrap">
+                                <p className="flex items-center gap-2"><Calendar className="w-4 h-4 text-muted-foreground" /> <strong>Candidaturas:</strong> {formatDateTimeBR(election.candidacy_start_date)} - {formatDateTimeBR(election.candidacy_end_date)}</p>
+                                <p className="flex items-center gap-2"><Vote className="w-4 h-4 text-muted-foreground" /> <strong>Votação:</strong> {formatDateTimeBR(election.voting_start_date)} - {formatDateTimeBR(election.voting_end_date)}</p>
                                 <p><strong>Status:</strong> {statusTranslations[election.status] || election.status}</p>
                             </CardContent>
                             <CardFooter className="gap-2">
@@ -315,12 +324,18 @@ const ElectionManagement = () => {
                 </div>
             )}
 
+            {!loading && <nav aria-label="Páginas de eleições" className="flex flex-wrap items-center justify-center gap-3">
+                <Button variant="outline" disabled={page <= 1} onClick={() => changeFilter({ electionPage: page - 1 })}><ChevronLeft className="mr-1 h-4 w-4"/>Anterior</Button>
+                <span role="status" className="text-sm">Página {page} de {Math.max(1, Math.ceil(count / pageSize))} · {count} eleições</span>
+                <Button variant="outline" disabled={page * pageSize >= count} onClick={() => changeFilter({ electionPage: page + 1 })}>Próxima<ChevronRight className="ml-1 h-4 w-4"/></Button>
+            </nav>}
+            {!loading && !elections.length && <p className="text-center text-muted-foreground">Nenhuma eleição corresponde aos filtros.</p>}
             <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
-                <DialogContent className="sm:max-w-2xl">
+                <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-2xl">
                     <DialogHeader>
                         <DialogTitle>{editingElection ? 'Editar Eleição' : 'Criar Nova Eleição'}</DialogTitle>
                     </DialogHeader>
-                    <ElectionForm
+                    <ElectionForm key={editingElection?.id || 'new'}
                         election={editingElection}
                         onFinish={handleFormFinish}
                         automaticElectionPlans={automaticElectionPlans}

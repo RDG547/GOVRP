@@ -2,7 +2,7 @@ import { canonicalRole } from '@/lib/roleIcons';
 import { useOfficialSalaries, currentSalary } from '@/hooks/use-official-salaries';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { AlertTriangle, Banknote, Briefcase, Clock3, X } from 'lucide-react';
+import { ArrowRight, AlertTriangle, Banknote, Briefcase, Clock3, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabaseClient';
@@ -249,7 +249,7 @@ const SalaryPaymentPopup = () => {
   const popupStatusText =
     popupMode === 'failure'
       ? 'Não foi possível concluir o repasse semanal por falta de verba no governo.'
-      : 'Repasse semanal concluído automaticamente.';
+      : 'Repasse semanal concluído.';
   const Icon = popupMode === 'failure' ? AlertTriangle : Banknote;
   const accentClassName =
     popupMode === 'failure'
@@ -337,7 +337,7 @@ const SalaryPaymentPopup = () => {
                   : 'bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-700 hover:to-teal-600'
               }`}
             >
-              Continuar
+              <ArrowRight className="mr-2 h-4 w-4" />Continuar
             </Button>
           </div>
         </div>

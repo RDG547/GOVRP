@@ -1,5 +1,4 @@
 import { ASPIRATIONS, ASPIRATION_TONES } from '@/lib/citizenOnboarding';
-import { Link } from 'react-router-dom';
 import { Checkbox } from '@/components/ui/checkbox';
 import { tutorialPath, shouldShowTutorial } from '@/lib/tutorial';
 import React, { useEffect, useState } from 'react';
@@ -90,7 +89,7 @@ export default function WelcomeTutorial() {
       <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 text-center">
         <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl sm:h-16 sm:w-16 ${current.color}`}><Icon className="h-7 w-7 sm:h-8 sm:w-8" /></div>
         <p className="text-sm leading-relaxed sm:text-base">{current.description}</p>
-        {current.links ? <div className="flex flex-wrap justify-center gap-2">{current.links.map(link => { const AreaIcon = areaSteps[link.key].icon; return <Button key={link.to} asChild size="sm" variant="outline"><Link to={link.to} onClick={() => { void finish(false); }}><AreaIcon className={`mr-2 h-4 w-4 ${areaSteps[link.key].color.split(' ')[0]}`} />{link.label}</Link></Button>; })}</div> : current.hint && <p className="rounded-xl bg-secondary p-3 text-xs text-muted-foreground sm:text-sm">{current.hint}</p>}
+        {current.links ? <div className="w-full rounded-xl bg-secondary p-3 text-xs text-muted-foreground sm:text-sm"><p className="mb-2 font-medium">Áreas para conhecer</p><ul className="flex flex-wrap justify-center gap-x-4 gap-y-2">{current.links.map(link => { const AreaIcon = areaSteps[link.key].icon; return <li key={link.key} className="flex items-center gap-2"><AreaIcon className={`h-4 w-4 ${areaSteps[link.key].color.split(' ')[0]}`} />{link.label}</li>; })}</ul></div> : current.hint && <p className="rounded-xl bg-secondary p-3 text-xs text-muted-foreground sm:text-sm">{current.hint}</p>}
       </div>
       <div className="shrink-0 space-y-3">
         <label className="flex items-center justify-center gap-3 text-sm cursor-pointer"><Checkbox checked={dontShowAgain} onCheckedChange={value => setDontShowAgain(value === true)} />Não mostrar novamente</label>

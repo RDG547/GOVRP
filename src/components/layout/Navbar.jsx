@@ -29,7 +29,7 @@ const getServiceInitials = (name = '') => {
   return words.map((word) => word[0]).join('').toUpperCase() || name.slice(0, 1).toUpperCase();
 };
 
-const formatServiceMenuLabel = (serviceName) => /\([A-Z]+\)$/.test(serviceName) || serviceName === 'Bolsa de Valores' ? serviceName : `${serviceName} (${getServiceInitials(serviceName)})`;
+const formatServiceMenuLabel = (name) => name === 'Bolsa de Valores' ? 'Bolsa de Valores (BV)' : /\([A-Z]+\)$/.test(name) ? name : `${name} (${getServiceInitials(name)})`;
 
 const helpLinks = [
     { name: 'Contato e Suporte', path: '/support', icon: Headset, color: "text-blue-400" },
