@@ -1,0 +1,67 @@
+import { execFileSync } from 'node:child_process';
+import { marketplacePolicy } from '../src/lib/marketplaceFees.js';
+import assert from 'node:assert/strict';
+import { actor, service, request, rpc, cleanup } from './lib/world-test.mjs';
+let checks=0;
+const check=(value,label)=>{assert(value,label);checks++;console.log(`✓ ${label}`);};
+try {
+ const seller=await actor('atomic-seller'),buyer=await actor('atomic-buyer'),other=await actor('atomic-other');
+ for(const person of [seller,buyer,other]) await request(service.from('accounts').insert({user_id:person.id,account_number:crypto.randomUUID(),balance:10000}));
+ const market=marketplacePolicy(await request(service.from('state_enterprises').select('*').eq('service_key','marketplace').single()));
+ const create=async(name,type,price,stock=10,effects={})=>rpc(seller.client,'publish_business_product',{p_confirmed_fee:market.active_listing_fee_enabled?Number(market.active_listing_fee_amount):0,p_period_days:market.active_listing_fee_period,p_idempotency_key:crypto.randomUUID(),p_product:{p_product_id:null,p_business_id:null,p_name:name,p_description:'Produto integrado ao checkout atômico.',p_image_url:'https://example.test/product.png',p_price:price,p_category:Object.keys(effects).length?'Bebidas':'Outros',p_stock:type==='one-time'?stock:null,p_product_type:type,p_subscription_interval:type==='subscription'?'7 days':null,p_promotion_price:null,p_promotion_expires_at:null,p_consumable_effects:effects}});
+
+ const product=await create('Produto do carrinho','one-time',25),subscription=await create('Assinatura do carrinho','subscription',60);
+ const items=[{product_id:product.id,quantity:2},{product_id:subscription.id,quantity:1}];
+ const catalog=await rpc(buyer.client,'get_products_with_final_price');
+ const total=Math.round(items.reduce((sum,item)=>sum+Number(catalog.find(p=>p.id===item.product_id).final_price)*item.quantity,0)*100)/100;
+ const snapshot=async()=>({account:await request(service.from('accounts').select('balance').eq('user_id',buyer.id).single()),stock:await request(service.from('products').select('stock,subscribers_count').in('id',[product.id,subscription.id]).order('id')),subscriptions:await request(service.from('user_subscriptions').select('id').eq('user_id',buyer.id)),orders:await request(service.from('commerce_orders').select('id').eq('buyer_id',buyer.id))});
+ const before=await snapshot();
+ const args={p_items:items,p_payment_method:'balance',p_card_id:null,p_checkout_id:crypto.randomUUID(),p_expected_total:total+1};
+ check((await buyer.client.rpc('checkout_marketplace_cart',args)).error?.message==='CART_PRICE_CHANGED','preço divergente rejeita a compra inteira');
+ check(JSON.stringify(await snapshot())===JSON.stringify(before),'falha final desfaz saldo, estoque, assinatura e ordens');
+ await request(service.from('accounts').update({balance:1}).eq('user_id',buyer.id));
+ const poor=await snapshot();
+ check((await buyer.client.rpc('checkout_marketplace_cart',{...args,p_checkout_id:crypto.randomUUID(),p_expected_total:total})).error?.message==='INSUFFICIENT_BALANCE','saldo insuficiente bloqueia carrinho misto');
+ check(JSON.stringify(await snapshot())===JSON.stringify(poor),'pagamento recusado não ativa assinatura nem entrega produtos');
+ await request(service.from('accounts').update({balance:10000}).eq('user_id',buyer.id));
+ args.p_expected_total=total;
+ const [result,repeated]=await Promise.all([rpc(buyer.client,'checkout_marketplace_cart',args),rpc(buyer.client,'checkout_marketplace_cart',args)]);
+ check(result.checkout_id===repeated.checkout_id&&result.orders.length===3,'confirmação concorrente do mesmo carrinho é idempotente');
+ check((await snapshot()).account.balance===10000-total,'débito equivale exatamente à soma dos itens e tributos');
+ check((await snapshot()).subscriptions.length===1,'pagamento ativa uma única assinatura');
+ check((await request(service.from('user_inventory').select('quantity').eq('user_id',buyer.id).eq('product_id',product.id))).reduce((sum,item)=>sum+item.quantity,0)===2,'carrinho entrega a quantidade exata de produtos');
+ check(result.orders.every(item=>Array.isArray(item.levies))&&result.base_amount===110&&Math.abs(result.total-result.base_amount-result.buyer_tax)<.001,'cada ordem preserva a composição tributária aplicada');
+ check((await other.client.rpc('checkout_marketplace_cart',args)).error?.message==='IDEMPOTENCY_KEY_FORBIDDEN','outra conta não reutiliza confirmação de compra');
+ check((await buyer.client.rpc('checkout_marketplace_cart',{...args,p_items:[{product_id:product.id,quantity:1}]})).error?.message==='IDEMPOTENCY_PAYLOAD_MISMATCH','mesma chave não compra um carrinho diferente');
+ const unchanged=await snapshot();
+ check((await buyer.client.rpc('checkout_marketplace_cart',{...args,p_checkout_id:crypto.randomUUID()})).error?.message==='SUBSCRIPTION_ALREADY_ACTIVE','nova confirmação não duplica assinatura ativa');
+ check(JSON.stringify(await snapshot())===JSON.stringify(unchanged),'assinatura já ativa reverte todos os outros itens do carrinho');
+ check((await buyer.client.rpc('buy_product',{p_product_id:subscription.id,p_payment_method:'balance',p_card_id:null,p_idempotency_key:crypto.randomUUID()})).error?.message==='SUBSCRIPTION_ALREADY_ACTIVE','compra individual também evita assinatura duplicada');
+ for(const malformed of [null,[],{},[{product_id:product.id,quantity:0}],[{product_id:product.id,quantity:1.5}],[{product_id:product.id,quantity:101}],[{product_id:product.id,quantity:1},{product_id:product.id,quantity:1}],[{product_id:'inválido',quantity:1}],[{product_id:product.id}]]){
+  check(Boolean((await buyer.client.rpc('checkout_marketplace_cart',{...args,p_checkout_id:crypto.randomUUID(),p_items:malformed})).error),'quantidade e estrutura inválidas são bloqueadas');
+ }
+ const stockProduct=await create('Última unidade concorrente','one-time',10,1);
+ const quote=(await rpc(buyer.client,'get_products_with_final_price')).find(p=>p.id===stockProduct.id);
+ const concurrent=await Promise.all([buyer,other].map(person=>person.client.rpc('checkout_marketplace_cart',{...args,p_items:[{product_id:stockProduct.id,quantity:1}],p_checkout_id:crypto.randomUUID(),p_expected_total:Number(quote.final_price)})));
+ check(concurrent.filter(r=>!r.error).length===1,'dois compradores concorrentes não recebem a mesma unidade');
+ check((await request(service.from('products').select('stock').eq('id',stockProduct.id).single())).stock===0,'estoque final não fica negativo');
+ execFileSync('docker',['exec','supabase_db_GOVRP','psql','-U','postgres','-d','postgres','-v','ON_ERROR_STOP=1','-c',`update public.products set price=200 where id='${product.id}'`]);
+ const historical=await rpc(buyer.client,'checkout_marketplace_cart',args);
+ check(historical.total===total&&historical.base_amount===110,'repetição usa o histórico pago mesmo após alteração de preço');
+ const alcohol=await create('Bebida alcoólica balanceada','one-time',12,4,{thirst:15,social:8,health:-3});
+ const item=await request(service.from('user_inventory').insert({user_id:buyer.id,product_id:alcohol.id,quantity:3,metadata:{consumable_effects:{thirst:15,social:8,health:-3}}}).select('*').single());
+ await rpc(buyer.client,'get_citizen_needs');
+ await request(service.from('citizen_needs').update({thirst:50,social:50,health:50}).eq('user_id',buyer.id));
+ const action={p_action:'consume',p_reference_id:item.id,p_idempotency_key:crypto.randomUUID()};
+ const consumed=await rpc(buyer.client,'citizen_need_action',action);
+ check(Math.abs(consumed.thirst-65)<.1&&Math.abs(consumed.social-58)<.1&&Math.abs(consumed.health-47)<.1,'álcool melhora sede e socialização e reduz três pontos de saúde');
+ await rpc(buyer.client,'citizen_need_action',action);
+ check((await request(service.from('user_inventory').select('quantity').eq('id',item.id).single())).quantity===2,'repetição do consumo não duplica efeitos nem débito no inventário');
+ await request(service.from('citizen_needs').update({thirst:98,social:98,health:28}).eq('user_id',buyer.id));
+ const clamped=await rpc(buyer.client,'citizen_need_action',{...action,p_idempotency_key:crypto.randomUUID()});
+ check(clamped.thirst===100&&clamped.social===100&&clamped.health===25,'necessidades respeitam o teto de cem e o piso de saúde vigente');
+ check(Boolean((await buyer.client.rpc('citizen_need_action',{...action,p_idempotency_key:crypto.randomUUID()})).error),'saúde no piso impede benefício sem contrapartida');
+ check(await create('Bebida sem equilíbrio','one-time',12,4,{thirst:60,social:100,health:1}).then(()=>false,()=>true),'cadastro bloqueia bebida sem contrapartida ou com efeitos excessivos');
+ check((await rpc(buyer.client,'get_business_catalog',{p_region_code:null})).every(type=>type.estimated_for_region===null&&Number.isFinite(type.estimate_low)),'catálogo geral estima valores nacionais sem seletor regional');
+ console.log(`\n${checks} verificações de checkout e consumíveis aprovadas.`);
+}finally{await cleanup();}

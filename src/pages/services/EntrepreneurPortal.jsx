@@ -1,8 +1,10 @@
+import BrazilStateFlag from '@/components/onboarding/BrazilStateFlag';
+import { getStateName } from '@/lib/brazilianLocations';
 import { Trophy } from 'lucide-react';
 import { SERVICE_REGISTRY } from '@/lib/serviceCatalog';
 import { GovSelect } from '@/components/ui/gov-select';
 import { brandFont } from '@/lib/brandFonts';
-import { businessTypeIcon } from '@/lib/commerceIcons';
+import { businessTypeIcon, businessCategoryIcon } from '@/lib/commerceIcons';
 import { LEGAL_REALTIME_TABLES } from '@/lib/legalMeasures';
 import RegisterCompanyDialog from '@/components/business/RegisterCompanyDialog';
 import { useDomainRealtime } from '@/hooks/use-domain-realtime';
@@ -530,7 +532,7 @@ const BusinessTypeCard = ({ business, index, onSelect }) => {
             <span className="text-muted-foreground flex items-center gap-1.5"><Users className="w-3.5 h-3.5" /> Mínimo: {business.minEmployees}+ funcionários</span>
             <span className={`font-medium ${PROFIT_COLOR[business.profitPotential]}`}>Potencial de lucro: {business.profitPotential}</span>
           </div>
-          <p className="text-sm">Estimativa por exercício: <strong>{formatCurrency(business.estimateLow)} – {formatCurrency(business.estimateHigh)}</strong></p><p className="text-xs text-muted-foreground">Faixa estimada para equipe mínima, infraestrutura e concorrência atuais. Não garante lucro. Custos e demanda podem levar a prejuízo.</p>
+          <p className="text-sm">Estimativa de Lucro em Valores: <strong>{formatCurrency(business.estimateLow)} – {formatCurrency(business.estimateHigh)}</strong></p><p className="text-xs text-muted-foreground">Faixa por exercício baseada na equipe mínima e nas médias nacionais de infraestrutura e concorrência. Não garante lucro. Custos e demanda podem levar a prejuízo.</p>
           <div className="flex items-center justify-end text-primary font-medium text-sm group-hover:translate-x-1 transition-transform">
             Ver detalhes <ChevronRight className="w-4 h-4 ml-1" />
           </div>
@@ -601,19 +603,11 @@ const MyBusinessCard = ({ biz, index, onSell, onCancelSale, types }) => {
             </div>
           ) : null}
 
-          <div className="mt-4 flex flex-wrap gap-2"><Button asChild variant="outline" size="sm"><Link to={`/services/companies/${biz.id}`}><Settings className="mr-2 h-4 w-4"/>Gerenciar e operar</Link></Button><Button asChild variant="outline" size="sm"><Link to={`/services/companies/${biz.id}?view=public`}><Eye className="mr-2 h-4 w-4"/>Página pública</Link></Button></div>
-          <div className="mt-2">
-            {biz.isForSale ? (
-              <Button variant="outline" size="sm" className="w-full text-xs" onClick={() => onCancelSale(biz)}>
-                <XCircle className="w-3.5 h-3.5 mr-1.5" />
-                Cancelar Venda
-              </Button>
-            ) : (
-              <Button variant="outline" size="sm" className="w-full text-xs" onClick={() => onSell(biz)}>
-                <Tag className="w-3.5 h-3.5 mr-1.5" />
-                Colocar à Venda
-              </Button>
-            )}
+          <p className="mt-3 flex items-center gap-2 text-sm">{biz.region_code&&<BrazilStateFlag code={biz.region_code} className="h-5 w-7"/>}<span>{getStateName(biz.region_code)||'Sede ainda não informada'}</span></p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Button asChild variant="outline" size="sm" className="border-blue-400/30 text-blue-400 hover:bg-blue-500/10"><Link to={`/services/companies/${biz.id}?view=management`}><Settings className="mr-2 h-4 w-4"/>Gerenciar</Link></Button>
+            <Button asChild variant="outline" size="sm" className="border-cyan-400/30 text-cyan-400 hover:bg-cyan-500/10"><Link to={`/services/companies/${biz.id}?view=public`}><Eye className="mr-2 h-4 w-4"/>Ver Empresa</Link></Button>
+            {biz.isForSale?<Button variant="outline" size="sm" className="border-amber-400/30 text-amber-400 hover:bg-amber-500/10" onClick={()=>onCancelSale(biz)}><XCircle className="mr-2 h-4 w-4"/>Cancelar Venda</Button>:<Button variant="outline" size="sm" className="border-amber-400/30 text-amber-400 hover:bg-amber-500/10" onClick={()=>onSell(biz)}><Tag className="mr-2 h-4 w-4"/>Vender Empresa</Button>}
           </div>
         </CardContent>
       </Card>
@@ -724,8 +718,6 @@ const EntrepreneurPortal = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [salesLoading, setSalesLoading] = useState(true);
   const [catalogTypes, setCatalogTypes] = useState([]);
-  const [estimateRegion,setEstimateRegion]=useState('DF'),[regions,setRegions]=useState([]);
-  useEffect(()=>{supabase.from('economic_regions').select('code,name').order('name').then(result=>setRegions(result.data||[]));},[]);
   const [registrationOpen, setRegistrationOpen] = useState(false);
   const [registrationType, setRegistrationType] = useState('');
   const [businessToSell, setBusinessToSell] = useState(null);
@@ -733,10 +725,10 @@ const EntrepreneurPortal = () => {
   const [buyingListingId, setBuyingListingId] = useState(null);
 
   const fetchTariffs = useCallback(async () => {
-    const catalog = await supabase.rpc('get_business_catalog',{p_region_code:estimateRegion});
+    const catalog = await supabase.rpc('get_business_catalog',{p_region_code:null});
     if (catalog.error) { console.error('Catálogo empresarial indisponível', catalog.error); return; }
     setCatalogTypes(catalog.data || []);
-  }, [estimateRegion]);
+  }, []);
   useEffect(() => { void fetchTariffs(); }, [fetchTariffs]);
   useDomainRealtime('business-catalog', 'public', [...LEGAL_REALTIME_TABLES,'business_types','economic_regions','economic_state',{broadcast:'public-company-changed',topic:'company-public-identity'}], fetchTariffs);
 
@@ -771,7 +763,7 @@ const EntrepreneurPortal = () => {
         (data || []).map((b) => ({
           id: b.id,
           name: b.name, logo_url:b.logo_url,font_key:b.font_key,brand_color:b.brand_color,
-          type: b.business_type_id,
+          type: b.business_type_id, region_code: b.region_code,
           status: b.status,
           employees: b.employees,
           revenue: parseFloat(b.monthly_revenue) || 0,
@@ -1058,7 +1050,7 @@ const EntrepreneurPortal = () => {
                 </Link>
               </div>
             </div>
-            <div className="space-y-4 rounded-3xl border border-white/10 bg-black/20 p-6"><h2 className="font-semibold">Empresas e carreiras</h2><p className="text-sm text-muted-foreground">Contrate equipe, mantenha o caixa, compre insumos e acompanhe os resultados de cada exercício.</p><Button asChild variant="outline"><Link to="/services/my-work"><Briefcase className="mr-2 h-4 w-4"/>Meu trabalho e vagas</Link></Button></div>
+
           </div>
         </motion.section>
 
@@ -1097,7 +1089,7 @@ const EntrepreneurPortal = () => {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
             >
-              <label className="mb-4 block space-y-2 text-sm">Estado para estimar custos e potencial<GovSelect aria-label="Estado da estimativa" value={estimateRegion} onChange={event=>setEstimateRegion(event.target.value)}>{regions.map(region=><option key={region.code} value={region.code}>{region.name}</option>)}</GovSelect></label>
+
               {/* Search */}
               <div className="relative mb-8">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
@@ -1123,16 +1115,7 @@ const EntrepreneurPortal = () => {
                   <p className="text-lg text-muted-foreground">Nenhum tipo de empresa encontrado para "{searchQuery}"</p>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                  {filteredTypes.map((business, index) => (
-                    <BusinessTypeCard
-                      key={business.id}
-                      business={business}
-                      index={index}
-                      onSelect={setSelectedBusiness}
-                    />
-                  ))}
-                </div>
+                <div className="space-y-8">{[...new Set(filteredTypes.map(type=>type.category))].sort().map(category=>{const CategoryIcon=businessCategoryIcon(category);return <section key={category} className="space-y-4"><h2 className="flex items-center gap-2 text-xl font-semibold"><CategoryIcon className="h-6 w-6 text-cyan-400"/>{category}</h2><div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">{filteredTypes.filter(type=>type.category===category).map((business,index)=><BusinessTypeCard key={business.id} business={business} index={index} onSelect={setSelectedBusiness}/>)}</div></section>;})}</div>
               )}
             </motion.div>
           )}
@@ -1160,7 +1143,7 @@ const EntrepreneurPortal = () => {
               ) : (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                   {myBusinesses.map((biz, index) => (
-                    <div key={biz.id}><Button asChild variant="outline" className="mb-2"><Link to={`/services/companies/${biz.id}`}>Ver Empresa</Link></Button><MyBusinessCard
+                    <div key={biz.id}><MyBusinessCard
                       types={businessTypes}
                       key={biz.id}
                       biz={biz}

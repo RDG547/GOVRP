@@ -1,3 +1,4 @@
+import { phonePortal } from '@/contexts/PhoneAppContext'
 import { withServiceSuspension } from '@/contexts/ServiceSuspensionContext'
 import * as React from "react"
 import * as AlertDialogPrimitive from "@radix-ui/react-alert-dialog"
@@ -9,7 +10,7 @@ const AlertDialog = withServiceSuspension(AlertDialogPrimitive.Root)
 
 const AlertDialogTrigger = AlertDialogPrimitive.Trigger
 
-const AlertDialogPortal = AlertDialogPrimitive.Portal
+const AlertDialogPortal = phonePortal(AlertDialogPrimitive.Portal)
 
 const AlertDialogOverlay = React.forwardRef(({ className, ...props }, ref) => (
   <AlertDialogPrimitive.Overlay

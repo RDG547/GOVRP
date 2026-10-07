@@ -65,7 +65,7 @@ export const CartProvider = ({ children, storageKey }) => {
             if (existingItem) {
                 return prevItems.map(item =>
                     item.id === product.id
-                        ? { ...item, quantity: item.quantity + 1 }
+                        ? { ...item, quantity: item.product_type === 'subscription' ? 1 : Math.min(100,item.quantity + 1) }
                         : item
                 );
             }
@@ -84,7 +84,7 @@ export const CartProvider = ({ children, storageKey }) => {
         } else {
             setCartItems(prevItems =>
                 prevItems.map(item =>
-                    item.id === productId ? { ...item, quantity } : item
+                    item.id === productId ? { ...item, quantity: item.product_type === 'subscription' ? 1 : Math.min(100,Math.max(1,Math.floor(quantity))) } : item
                 )
             );
         }

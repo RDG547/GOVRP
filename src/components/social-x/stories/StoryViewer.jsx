@@ -1,3 +1,4 @@
+import { usePhoneApp } from '@/contexts/PhoneAppContext';
 import React, { useState, useEffect, useRef } from 'react';
 import { X, ChevronLeft, ChevronRight, Play, Pause, Volume2, VolumeX, Trash2, Loader2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
@@ -17,6 +18,7 @@ export default function StoryViewer({ stories, initialUserId, initialStoryIndex 
   const [deleting, setDeleting] = useState(false);
   const video = useRef(null);
   const { user } = useAuth();
+    const phone = usePhoneApp();
   const { toast } = useToast();
   const next = () => { const i = allItems.findIndex(entry => entry.id === storyId); if (i >= 0 && allItems[i + 1]) setStoryId(allItems[i + 1].id); else onClose(); };
   const previous = () => { const i = allItems.findIndex(entry => entry.id === storyId); if (i > 0) setStoryId(allItems[i - 1].id); };
@@ -69,7 +71,7 @@ export default function StoryViewer({ stories, initialUserId, initialStoryIndex 
         </div>
         {item && <div className="absolute inset-x-0 bottom-3 flex items-center justify-between gap-3 px-3">
           <Button size="icon" variant="secondary" aria-label="Story anterior" onClick={previous} className="min-h-11 min-w-11"><ChevronLeft /></Button>
-          {(user?.id === item.author.user_id || user?.role === 'Admin') && <AlertDialog open={confirming} onOpenChange={setConfirming}>
+          {(user?.id === item.author.user_id || (!phone && user?.role === 'Admin')) && <AlertDialog open={confirming} onOpenChange={setConfirming}>
             <AlertDialogTrigger asChild><Button variant="destructive" size="icon" aria-label="Excluir Story" className="min-h-11 min-w-11"><Trash2 /></Button></AlertDialogTrigger>
             <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Excluir Story?</AlertDialogTitle><AlertDialogDescription>{user?.id === item.author.user_id ? 'Este Story será removido permanentemente.' : 'A remoção será registrada e o autor será notificado.'}</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel disabled={deleting}>Cancelar</AlertDialogCancel><AlertDialogAction disabled={deleting} onClick={event => { event.preventDefault(); void remove(); }}>{deleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}Excluir Story</AlertDialogAction></AlertDialogFooter></AlertDialogContent>
           </AlertDialog>}

@@ -1,3 +1,4 @@
+import { usePhoneApp } from '@/contexts/PhoneAppContext';
 import MentionText from './MentionText';
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
@@ -80,6 +81,7 @@ const PoliticalSeal = ({ role }) => {
 
 const PostCard = ({ post, onPostUpdate, onPostDelete, onRepostCreated, commentsAlwaysVisible = false }) => {
     const { user } = useAuth();
+    const phone = usePhoneApp();
     const { toast } = useToast();
     const navigate = useNavigate();
     const [isLiked, setIsLiked] = useState(post.is_liked_by_user);
@@ -297,7 +299,7 @@ const PostCard = ({ post, onPostUpdate, onPostDelete, onRepostCreated, commentsA
                         </div>
                         <p className="break-all text-sm text-muted-foreground">@{handle} · {postDateTime}</p>
                     </div>
-                    {(user?.id === post.user_id || user?.role === 'Admin') && (
+                    {(user?.id === post.user_id || (!phone && user?.role === 'Admin')) && (
                         <DropdownMenu onOpenChange={handleDropdownOpenChange}>
                             <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="w-8 h-8 no-navigate"><MoreHorizontal className="w-5 h-5 text-muted-foreground" /></Button></DropdownMenuTrigger>
                             <DropdownMenuContent onClick={event => event.stopPropagation()}>

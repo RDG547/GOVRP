@@ -1,3 +1,4 @@
+import { usePhoneApp } from '@/contexts/PhoneAppContext';
 import { usePublicCompanyChanges } from '@/hooks/use-public-company-changes';
 import ListingCosts from '@/components/business/ListingCosts';
 import { brandFont } from '@/lib/brandFonts';
@@ -56,7 +57,7 @@ const StockBadge = ({ stock }) => {
   return null;
 };
 
-const ProductCard = ({ now, product, onAddToCart, onBuy, onEdit, onDelete, isOwner }) => {
+const ProductCard = ({ now, product, onAddToCart, onBuy, onEdit, onDelete, isOwner, canEdit = isOwner }) => {
   const navigate = useNavigate();
 
   const hasPromotion = product.promotion_price && new Date(product.promotion_expires_at) > new Date();
@@ -106,7 +107,7 @@ const ProductCard = ({ now, product, onAddToCart, onBuy, onEdit, onDelete, isOwn
               <Badge variant="secondary" className="absolute top-2 left-2">{product.category}</Badge>
             )}
             <StockBadge stock={product.stock} />{product.stock<=0&&now<Date.parse(product.metadata?.stock_depleted_at)+5000&&<span role="status" className="absolute bottom-2 right-2 flex h-11 w-11 items-center justify-center rounded-full border-4 border-red-400 bg-background font-bold" aria-label="Movendo para esgotados">{Math.max(1,Math.ceil((Date.parse(product.metadata.stock_depleted_at)+5000-now)/1000))}</span>}
-            {isOwner && (
+            {canEdit && (
               <div className="absolute bottom-2 right-2 no-navigate z-20">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
@@ -172,12 +173,11 @@ const ProductCard = ({ now, product, onAddToCart, onBuy, onEdit, onDelete, isOwn
                 <Button className={`w-full ${product.product_type === 'subscription' ? 'bg-purple-600 hover:bg-purple-500 text-white' : ''}`} onClick={(e) => { e.stopPropagation(); onBuy(product); }} disabled={isOutOfStock || isRestricted}>
                     {isRestricted ? 'Atividade suspensa por norma vigente' : isOutOfStock ? 'Esgotado' : (product.product_type === 'subscription' ? <><Repeat className="w-4 h-4 mr-2" /> Assinar</> : <><ShoppingBag className="w-4 h-4 mr-2" />Comprar</>)}
                 </Button>
-                <ReportProduct product={product} />
-                {product.product_type !== 'subscription' && (
+
                     <Button variant="outline" className="w-full" onClick={(e) => { e.stopPropagation(); onAddToCart(product); }} disabled={isOutOfStock || isRestricted}>
                         <ShoppingCart className="w-4 h-4 mr-2" /> Adicionar ao Carrinho
                     </Button>
-                )}
+                <ReportProduct product={product} />
             </div>
           )}
         </CardFooter>
@@ -187,6 +187,7 @@ const ProductCard = ({ now, product, onAddToCart, onBuy, onEdit, onDelete, isOwn
 };
 
 const Business = () => {
+  const phone=usePhoneApp();
   const { enterprise } = useMarketplace();
   const [serverOffset,setServerOffset] = useState(0);
   const [products, setProducts] = useState([]);
@@ -336,8 +337,6 @@ const Business = () => {
         centered={true}
       />
 
-      <div className="mb-4 flex flex-wrap gap-3"><Button asChild variant="outline"><Link to="/dashboard/citizen?tab=business">Meus anúncios e renovações</Link></Button></div><div className="grid gap-3 sm:grid-cols-2"><ListingCosts enterprise={enterprise}/><ListingCosts enterprise={enterprise} business/></div>
-      {enterprise && <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border p-4"><p className="text-sm">{enterprise.is_privatized ? 'Marketplace privatizado' : 'Marketplace estatal'} · Taxas conforme Pessoa Física ou Jurídica · {enterprise.publication_mode === 'approval' ? 'Anúncios sujeitos à aprovação' : 'Publicação automática'}{!enterprise.is_active ? ' · Operação suspensa' : ''}</p></div>}
       <div className="mb-8 space-y-4">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div className="relative w-full md:max-w-sm">
@@ -381,6 +380,7 @@ const Business = () => {
                   onEdit={handleEditClick}
                   onDelete={handleDeleteClick}
                   isOwner={user?.id === product.seller_id}
+                  canEdit={user?.id === product.seller_id && (!phone || !product.seller?.business_id)}
                 />
               ))}
             </div>

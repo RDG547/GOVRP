@@ -1,9 +1,12 @@
+import { phonePortal } from '@/contexts/PhoneAppContext'
 import { withServiceSuspension } from '@/contexts/ServiceSuspensionContext'
 import * as React from "react"
 import * as SelectPrimitive from "@radix-ui/react-select"
 import { Check, ChevronDown } from "lucide-react"
 
 import { cn } from "@/lib/utils"
+
+const AppPortal = phonePortal(SelectPrimitive.Portal)
 
 const Select = withServiceSuspension(SelectPrimitive.Root)
 
@@ -28,7 +31,7 @@ const SelectTrigger = React.forwardRef(({ className, children, ...props }, ref) 
 SelectTrigger.displayName = SelectPrimitive.Trigger.displayName
 
 const SelectContent = React.forwardRef(({ className, children, position = "popper", ...props }, ref) => (
-  <SelectPrimitive.Portal>
+  <AppPortal>
     <SelectPrimitive.Content
       ref={ref}
       className={cn(
@@ -45,7 +48,7 @@ const SelectContent = React.forwardRef(({ className, children, position = "poppe
         {children}
       </SelectPrimitive.Viewport>
     </SelectPrimitive.Content>
-  </SelectPrimitive.Portal>
+  </AppPortal>
 ))
 SelectContent.displayName = SelectPrimitive.Content.displayName
 

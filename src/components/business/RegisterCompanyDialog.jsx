@@ -1,3 +1,4 @@
+import { businessCategoryIcon } from '@/lib/commerceIcons';
 import { GovSelect } from '@/components/ui/gov-select';
 import { supabase } from '@/lib/supabaseClient';
 import { useAuth } from '@/contexts/AuthContext';
@@ -13,7 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Select, SelectContent, SelectGroup, SelectLabel, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { formatCurrency } from '@/lib/utils';
 
 export default function RegisterCompanyDialog({ open, onOpenChange, types, initialType = '', onRegister, loading }) {
@@ -54,7 +55,7 @@ export default function RegisterCompanyDialog({ open, onOpenChange, types, initi
     <DialogContent className="grid-cols-1 [&>*]:min-w-0 [&_fieldset]:min-w-0 [&_select]:min-w-0 max-h-[90dvh] overflow-y-auto sm:max-w-lg">
       <DialogHeader className="text-center sm:text-center"><DialogTitle className="flex items-center justify-center gap-2"><Building2 className="h-5 w-5" />Criar empresa</DialogTitle><DialogDescription>Dê um nome ao seu negócio e apresente sua atividade.</DialogDescription></DialogHeader>
       <form onSubmit={submit} className="space-y-4">
-        <div className="space-y-2"><Label>🏢 Tipo de empresa</Label><Select value={typeId} onValueChange={setTypeId} disabled={loading}><SelectTrigger aria-label="Tipo de empresa"><SelectValue placeholder="Escolha o tipo de negócio" /></SelectTrigger><SelectContent>{types.map(type => { const Icon = type.icon || Building2; return <SelectItem key={type.id} value={type.id}><span className="flex items-center gap-2"><Icon className={`h-4 w-4 shrink-0 ${type.color || 'text-primary'}`} />{type.name}</span></SelectItem>; })}</SelectContent></Select></div>
+        <div className="space-y-2"><Label>🏢 Tipo de empresa</Label><Select value={typeId} onValueChange={setTypeId} disabled={loading}><SelectTrigger aria-label="Tipo de empresa"><SelectValue placeholder="Escolha o tipo de negócio" /></SelectTrigger><SelectContent>{[...new Set(types.map(type=>type.category))].sort().map(category=>{const CategoryIcon=businessCategoryIcon(category);return <SelectGroup key={category}><SelectLabel className="flex items-center gap-2"><CategoryIcon className="h-4 w-4"/>{category}</SelectLabel>{types.filter(type=>type.category===category).map(type=>{const Icon=type.icon||Building2;return <SelectItem key={type.id} value={type.id}><span className="flex items-center gap-2"><Icon className={`h-4 w-4 shrink-0 ${type.color||'text-primary'}`}/>{type.name}</span></SelectItem>;})}</SelectGroup>;})}</SelectContent></Select></div>
         <div className="space-y-2"><Label htmlFor="new-company-name">🏷️ Nome da empresa</Label><Input id="new-company-name" value={name} onChange={event => setName(event.target.value)} minLength={5} maxLength={120} required disabled={loading} /></div>
         <div className="space-y-2"><Label htmlFor="new-company-description">📝 Descrição da Atividade</Label><Textarea id="new-company-description" value={description} onChange={event => setDescription(event.target.value)} minLength={15} maxLength={2000} required disabled={loading} /><p className="text-xs text-muted-foreground">Descreva o que sua empresa faz, em pelo menos 15 caracteres.</p></div>
         <label className="block text-sm">CNPJ da atividade<GovSelect aria-label="CNPJ da atividade" className="mt-2 h-11 w-full rounded border bg-background px-2" value={cnpjId} onChange={e=>setCnpjId(e.target.value)}><option value="">Selecione um CNPJ compatível</option>{cnpjs.filter(d=>d.metadata?.business_type_id===typeId&&!d.metadata?.business_id).map(d=><option key={d.id} value={d.id}>{d.document_number}</option>)}</GovSelect></label><Link className="block text-sm underline" to="/services/dic">Abrir um CNPJ no DIC</Link>

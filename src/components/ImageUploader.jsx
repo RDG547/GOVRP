@@ -17,6 +17,7 @@ const ImageUploader = ({
   onFileChange,
   initialUrl = '',
   label = 'Imagem',
+  labelIcon: LabelIcon,
   previewOnly = false,
   banner = false,
   allowRemove = false,
@@ -111,7 +112,7 @@ const ImageUploader = ({
 
   return (
     <div className="space-y-2">
-      <Label>{label}</Label>
+      <Label className="inline-flex items-center gap-2">{LabelIcon&&<LabelIcon className="h-4 w-4"/>}{label}</Label>
       {previewOnly && preview && <img src={preview} alt={`Prévia: ${label}`} className={banner ? "aspect-[3/1] w-full rounded-lg border object-cover" : "h-24 w-24 rounded-lg border object-contain"}/>}
       {previewOnly && !editUrl && <Button type="button" variant="ghost" size="sm" onClick={() => setEditUrl(true)}><LinkIcon className="mr-2 h-4 w-4"/>Alterar por link</Button>}
       <div className="flex items-center gap-2">

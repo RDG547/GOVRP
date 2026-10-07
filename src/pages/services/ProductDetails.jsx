@@ -1,3 +1,4 @@
+import ReportProduct from '@/components/business/ReportProduct';
 import BuyDialog from '@/components/business/PurchaseDialog';
 import { formatLocaleBR } from '@/lib/dateTime';
 import { useRef } from 'react';
@@ -211,18 +212,16 @@ const ProductDetails = () => {
                             {isBusiness && businessCnpj && <span className="text-xs block">CNPJ: {formatCNPJ(businessCnpj)}</span>}
                         </div>
                         {product.seller?.activity_restricted && <p role="status" className="text-destructive">Esta atividade está suspensa pela norma vigente.</p>}
-                        <p className="text-4xl font-bold mb-1">{formatCurrency(finalPrice)} {isSubscription && <span className="text-lg text-muted-foreground">/mês</span>}</p>
+                        <p className="text-4xl font-bold mb-1">{formatCurrency(finalPrice)} {isSubscription && <span className="text-lg text-muted-foreground">/{product.subscription_interval === '7 days' ? 'semana' : 'mês'}</span>}</p>
                         {product.tax_rate > 0 && <p className="text-xs text-muted-foreground mb-4">Inclui {formatCurrency(finalPrice - basePrice)} de impostos</p>}
 
                         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mb-6">
                             <Button size="lg" className="w-full sm:w-auto" onClick={() => setIsBuyDialogOpen(true)} disabled={isOutOfStock || product.seller?.activity_restricted}>
                                 {isOutOfStock ? 'Esgotado' : (isSubscription ? <><Star className="mr-2 h-5 w-5" /> Assinar</> : <><ShoppingBag className="mr-2 h-5 w-5" /> Comprar Agora</>)}
                             </Button>
-                            {!isSubscription && (
                                 <Button size="lg" variant="outline" className="w-full sm:w-auto" onClick={() => { if (addToCart(product)) toast({ title: 'Adicionado ao carrinho!' }); }} disabled={isOutOfStock || product.seller?.activity_restricted}>
                                     <ShoppingCart className="mr-2 h-5 w-5" /> Adicionar ao Carrinho
                                 </Button>
-                            )}
                             <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
                                     <Button size="lg" variant="ghost" className="w-full sm:w-auto"><Share2 className="h-5 w-5" /></Button>
@@ -236,6 +235,7 @@ const ProductDetails = () => {
                                 </DropdownMenuContent>
                             </DropdownMenu>
                         </div>
+                        <div className="mb-5"><ReportProduct product={product}/></div>
 
                         <p className="text-muted-foreground mb-6 flex-grow">{product.description}</p>
                     </div>

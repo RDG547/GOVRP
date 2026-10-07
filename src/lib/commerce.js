@@ -1,4 +1,9 @@
+import { userErrorMessage } from './userErrors';
 const PURCHASE_ERRORS = {
+  INVALID_CART: 'Revise os itens e as quantidades do carrinho (até 100 unidades).',
+  SUBSCRIPTION_ALREADY_ACTIVE: 'Você já possui uma assinatura ativa deste produto.',
+  SUBSCRIPTION_QUANTITY_INVALID: 'Adicione apenas uma unidade de cada assinatura.',
+  CART_PRICE_CHANGED: 'O preço ou a tributação mudou. Confira o novo total e confirme novamente. Nenhum item foi cobrado.',
   LISTING_RENEWAL_REQUIRED: 'Este anúncio aguarda renovação pelo vendedor. Nenhum valor foi cobrado.',
   PRODUCT_NOT_AVAILABLE: 'Este anúncio está suspenso, removido ou aguardando aprovação.',
   MARKETPLACE_UNAVAILABLE: 'O marketplace está temporariamente indisponível.',
@@ -96,3 +101,5 @@ export const executeProductPurchase = async ({
     ),
   };
 };
+
+export const purchaseErrorMessage = error => PURCHASE_ERRORS[error?.message] || userErrorMessage(error, DEFAULT_PURCHASE_ERROR_MESSAGE);

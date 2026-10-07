@@ -1,3 +1,4 @@
+import { usePhoneApp } from '@/contexts/PhoneAppContext';
 import MentionText from './MentionText';
 import { formatLocaleBR } from '@/lib/dateTime';
 import React, { useState } from 'react';
@@ -11,6 +12,7 @@ import { supabase } from '@/lib/supabaseClient';
 
 export default function Comment({ comment, childrenByParent, onChange, level = 0 }) {
   const { user } = useAuth();
+    const phone = usePhoneApp();
   const { toast } = useToast();
   const [expanded, setExpanded] = useState(true);
   const [mode, setMode] = useState(null);
@@ -64,7 +66,7 @@ export default function Comment({ comment, childrenByParent, onChange, level = 0
         {!removed && user && <div className="flex flex-wrap gap-1 mt-1"><Button variant="ghost" size="sm" disabled={busy} aria-pressed={Boolean(comment.is_liked)} aria-label={comment.is_liked ? "Descurtir comentário" : "Curtir comentário"} onClick={toggleLike}><Heart className={`mr-1 h-4 w-4 ${comment.is_liked ? "fill-rose-500 text-rose-500" : ""}`}/>{comment.likes_count || 0}</Button>
           <Button variant="ghost" size="sm" onClick={() => { setMode('reply'); setText(handle ? `@${handle} ` : ''); }}><CornerDownRight className="h-4 w-4 mr-1" />Responder</Button>
           {own && <Button variant="ghost" size="sm" aria-label="Editar comentário" onClick={() => { setMode('edit'); setText(comment.content); }}><Pencil className="h-4 w-4" /></Button>}
-          {(own || user.role === 'Admin') && <Button variant="ghost" size="sm" aria-label="Remover comentário" disabled={busy} onClick={remove}><Trash2 className="h-4 w-4 text-red-500" /></Button>}
+          {(own || (!phone && user.role === 'Admin')) && <Button variant="ghost" size="sm" aria-label="Remover comentário" disabled={busy} onClick={remove}><Trash2 className="h-4 w-4 text-red-500" /></Button>}
         </div>}
       </div>
     </div>

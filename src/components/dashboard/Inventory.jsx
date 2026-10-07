@@ -1,3 +1,4 @@
+import NeedEffects from '@/components/NeedEffects';
 import { formatLocaleBR } from '@/lib/dateTime';
 import { useCitizenNeeds } from '@/contexts/CitizenNeedsContext';
 import { useDomainRealtime } from '@/hooks/use-domain-realtime';
@@ -23,7 +24,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 
-const Inventory = () => {
+const Inventory = ({ compact = false }) => {
     const { user } = useAuth();
     const needsContext = useCitizenNeeds();
     const [consuming, setConsuming] = useState(null);
@@ -136,7 +137,7 @@ const Inventory = () => {
                     <CardTitle className="flex items-center gap-2"><Package /> Inventário</CardTitle>
                     <CardDescription>Seus itens e assinaturas.</CardDescription>
                 </CardHeader>
-                <CardContent>
+                <CardContent className={compact ? 'px-3' : undefined}>
                     {loadError && <div role="alert" className="mb-4 rounded-lg border p-3 text-sm">{loadError}<Button variant="link" onClick={fetchInventory}>Tentar novamente</Button></div>}
                     <Tabs defaultValue="products">
                         <TabsList className="grid w-full grid-cols-2">
@@ -148,10 +149,11 @@ const Inventory = () => {
                                 <div className="space-y-4 max-h-96 overflow-y-auto custom-scrollbar pr-2">
                                     {inventory.map(item => (
                                         <div key={item.id} className="flex flex-wrap items-center gap-3 p-3 rounded-lg bg-secondary/50">
-                                            <img src={item.product.image_url || 'https://via.placeholder.com/150'} alt={item.product.name} className="w-16 h-16 rounded-md object-cover" />
-                                            <div className="flex-1">
+                                            <img src={item.product.image_url || '/logo.png'} alt={item.product.name} className="w-16 h-16 rounded-md object-cover" />
+                                            <div className="min-w-0 flex-1 break-words">
                                                 <p className="font-semibold text-foreground">{item.product.name} <span className="text-muted-foreground font-normal">x{item.quantity}</span></p>
                                                 <p className="text-sm text-muted-foreground">Vendido por: @{(item.product.seller?.username || (item.product.state_enterprise_id ? 'Governo do RP' : 'Cidadão'))}</p>
+                                                <NeedEffects effects={item.metadata?.consumable_effects || item.product.consumable_effects}/>
                                                 <p className="text-xs text-muted-foreground">Adquirido em: {formatLocaleBR(new Date(item.acquired_at), 'toLocaleDateString', 'pt-BR')}</p>
                                             </div>
                                             {Object.keys(item.metadata?.consumable_effects || item.product.consumable_effects || {}).length > 0 && <Button size="sm" disabled={Boolean(consuming)} onClick={() => consume(item)}><Utensils className="mr-2 h-4 w-4" />{consuming === item.id ? 'Consumindo…' : 'Consumir'}</Button>}
@@ -169,9 +171,9 @@ const Inventory = () => {
                             {subscriptions.length > 0 ? (
                                 <div className="space-y-4 max-h-96 overflow-y-auto custom-scrollbar pr-2">
                                     {subscriptions.map(sub => (
-                                        <div key={sub.id} className="flex items-start gap-4 p-3 rounded-lg bg-secondary/50">
-                                            <img src={sub.product.image_url || 'https://via.placeholder.com/150'} alt={sub.product.name} className="w-16 h-16 rounded-md object-cover" />
-                                            <div className="flex-1">
+                                        <div key={sub.id} className="flex flex-wrap items-start gap-3 p-3 rounded-lg bg-secondary/50">
+                                            <img src={sub.product.image_url || '/logo.png'} alt={sub.product.name} className="w-16 h-16 rounded-md object-cover" />
+                                            <div className="min-w-0 flex-1 break-words">
                                                 <p className="font-semibold text-foreground">{sub.product.name}</p>
                                                 <p className="text-sm text-muted-foreground">Vendido por: @{sub.product.seller?.username || 'Cidadão'}</p>
                                                 <div className="text-xs mt-1 space-y-1">

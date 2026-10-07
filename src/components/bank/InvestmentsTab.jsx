@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom';
+import StockExchange from '@/pages/services/StockExchange';
 import { formatLocaleBR } from '@/lib/dateTime';
 import React, { useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
@@ -121,14 +121,14 @@ const getInvestmentProjectedReturn = (amount, rate) =>
     Number(amount || 0) * Number(rate || 0);
 
 const InvestmentsTab = ({ investmentOptions, userInvestments, investmentOperations = [], portfolioSnapshots = [], onUpdate }) => {
-    const navigate = useNavigate();
+    const [stockAsset,setStockAsset] = useState('');
     const [modalState, setModalState] = useState({ isOpen: false, action: '', investment: null });
     const [activeTab, setActiveTab] = useState('portfolio');
     const [riskFilter, setRiskFilter] = useState('all');
 
     const openModal = (action, investment) => {
         const option = investment.investment_option || investment;
-        if (option.asset_type === 'stock') { navigate(`/services/stock-exchange?asset=${option.id}`); return; }
+        if (option.asset_type === 'stock') { setStockAsset(option.id); setActiveTab('stocks'); return; }
         setModalState({ isOpen: true, action, investment });
     };
 
@@ -207,9 +207,10 @@ const InvestmentsTab = ({ investmentOptions, userInvestments, investmentOperatio
                 </div>
 
                 <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                    <TabsList className="grid w-full grid-cols-3">
+                    <TabsList className="grid h-auto w-full grid-cols-2 gap-1 sm:grid-cols-4">
                         <TabsTrigger value="portfolio"><PiggyBank className="mr-2 h-4 w-4" />Meu Portfólio</TabsTrigger>
                         <TabsTrigger value="opportunities"><Briefcase className="mr-2 h-4 w-4" />Oportunidades</TabsTrigger>
+                        <TabsTrigger value="stocks"><TrendingUp className="mr-2 h-4 w-4"/>Ações</TabsTrigger>
                         <TabsTrigger value="history"><BarChart3 className="mr-2 h-4 w-4" />Histórico</TabsTrigger>
                     </TabsList>
                     <TabsContent value="portfolio" className="mt-4">
@@ -311,6 +312,7 @@ const InvestmentsTab = ({ investmentOptions, userInvestments, investmentOperatio
                              </CardContent>
                          </Card>
                     </TabsContent>
+                    <TabsContent value="stocks" className="mt-4"><StockExchange embedded initialAsset={stockAsset} onTrade={onUpdate}/></TabsContent>
                     <TabsContent value="history" className="mt-4 space-y-4">
                         <Card className="glass-effect"><CardHeader><CardTitle>Evolução do portfólio</CardTitle><CardDescription>Snapshots gerados pelo servidor após cada compra ou venda.</CardDescription></CardHeader><CardContent>{portfolioSnapshots.length ? <div className="h-64 w-full"><ResponsiveContainer width="100%" height="100%"><LineChart data={portfolioSnapshots.map((item) => ({ ...item, label: formatLocaleBR(new Date(item.captured_at), 'toLocaleDateString', 'pt-BR'), value: Number(item.market_value) }))}><CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,.15)" /><XAxis dataKey="label" stroke="#94a3b8" /><YAxis stroke="#94a3b8" /><Tooltip formatter={(value) => formatCurrency(value)} contentStyle={{ background: '#0f172a', border: '1px solid rgba(148,163,184,.25)', borderRadius: 8 }} /><Line type="monotone" dataKey="value" stroke="#38bdf8" strokeWidth={2} dot={false} /></LineChart></ResponsiveContainer></div> : <p className="py-8 text-center text-muted-foreground">O gráfico surgirá após a primeira operação.</p>}</CardContent></Card>
                         <Card className="glass-effect"><CardHeader><CardTitle>Compras e vendas</CardTitle></CardHeader><CardContent className="space-y-3">{investmentOperations.length ? investmentOperations.map((operation) => <div key={operation.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-white/10 p-3"><div><p className="font-medium">{operation.operation_type === 'buy' ? 'Compra' : 'Venda'} · {operation.investment_option?.asset_symbol || operation.investment_option?.name}</p><p className="text-xs text-muted-foreground">{formatLocaleBR(new Date(operation.executed_at), 'toLocaleString', 'pt-BR')} · {Number(operation.quantity).toLocaleString('pt-BR', { maximumFractionDigits: 8 })} unidades a {formatCurrency(operation.unit_price)}</p></div><p className="font-bold">{formatCurrency(operation.gross_amount)}</p></div>) : <p className="py-6 text-center text-muted-foreground">Nenhuma operação registrada.</p>}</CardContent></Card>

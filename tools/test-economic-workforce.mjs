@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { execFileSync } from 'node:child_process';
-import { actor, service, request, rpc, cleanup } from './lib/world-test.mjs';
+import { actor, service, request, rpc, cleanup, subscribe, waitFor } from './lib/world-test.mjs';
 const sql=query=>execFileSync('docker',['exec','supabase_db_GOVRP','psql','-U','postgres','-d','postgres','-At','-v','ON_ERROR_STOP=1','-c',query],{encoding:'utf8'}).trim();
 let n=0;const check=(value,label)=>{assert(value,label);n++;console.log(`✓ ${label}`);};
 try{
@@ -23,7 +23,21 @@ try{
  const vacancy=await doWork(owner,'open_vacancy',{role_template_id:'software:1',salary:350,min_level:1,positions:1,description:'Desenvolvimento de soluções para empresas.'});
  check((await rpc(employee.client,'get_company_jobs')).some(job=>job.id===vacancy.id),'vaga aparece para cidadãos no mercado de trabalho');
  const application=await rpc(employee.client,'apply_company_vacancy',{p_vacancy_id:vacancy.id,p_message:'Quero iniciar minha carreira em tecnologia.'});
+
+ let withdrawnRealtime=false;
+ await subscribe(owner.client.channel(`application-${application}`).on('postgres_changes',{event:'UPDATE',schema:'public',table:'business_applications',filter:`id=eq.${application}`},event=>{if(event.new.status==='withdrawn')withdrawnRealtime=true;}));
+ check(Boolean((await outsider.client.rpc('withdraw_company_application',{p_application_id:application})).error),'terceiro não retira candidatura alheia');
+ await rpc(employee.client,'withdraw_company_application',{p_application_id:application});
+ check((await request(owner.client.from('business_applications').select('status').eq('id',application).single())).status==='withdrawn','gestor consulta o estado atualizado da candidatura');
+ await waitFor(()=>withdrawnRealtime,'empresa recebe retirada em tempo real');
+ check(withdrawnRealtime,'empresa recebe retirada sem reload');
+ await rpc(employee.client,'withdraw_company_application',{p_application_id:application});
+ check((await request(owner.client.from('notifications').select('id').eq('type','job_application_withdrawn'))).length===1,'retirada repetida não duplica notificações');
+ check(Boolean((await owner.client.rpc('manage_company_workforce',{p_business_id:company.id,p_action:'accept',p_data:{application_id:application},p_idempotency_key:crypto.randomUUID()})).error),'candidatura retirada não pode virar contratação');
+ check((await rpc(employee.client,'get_company_jobs')).find(job=>job.id===vacancy.id).applied===false,'vaga aberta permite nova candidatura após retirada');
+ check(await rpc(employee.client,'apply_company_vacancy',{p_vacancy_id:vacancy.id,p_message:'Nova candidatura.'})===application,'nova candidatura preserva vínculo histórico com a vaga');
  const hired=await doWork(owner,'accept',{application_id:application});
+ check(Boolean((await employee.client.rpc('withdraw_company_application',{p_application_id:application})).error),'contratação concluída não é desfeita pela retirada');
  const work=await rpc(employee.client,'get_my_work');check(work.employments.some(item=>item.id===hired.id&&!item.is_npc&&!item.fired_at),'contratação real aparece em Meu Trabalho');
  check(!(await rpc(employee.client,'get_company_jobs')).some(job=>job.id===vacancy.id),'última contratação fecha vaga sem violar número de posições');
  const otherVacancy=await doWork(owner,'open_vacancy',{role_template_id:'software:2',salary:400,min_level:1,positions:1});

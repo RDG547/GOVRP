@@ -111,7 +111,7 @@ const ConsultCandidates = () => {
         <meta name="description" content="Conheça os candidatos aprovados para as próximas eleições." />
       </Helmet>
 
-      <PageHeader
+      <PageHeader centered
         title="Consultar Candidatos"
         description="Conheça quem está concorrendo nas eleições e suas propostas."
       />

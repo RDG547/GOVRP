@@ -96,7 +96,10 @@
     "test:electoral-calendar": "node tools/test-electoral-calendar.mjs",
     "test:currency-dynamics": "node tools/test-currency-dynamics.mjs",
     "test:enterprise-details": "node tools/test-enterprise-details.mjs",
-    "test:citizen-refinements": "node tools/test-citizen-refinements.mjs"
+    "test:citizen-refinements": "node tools/test-citizen-refinements.mjs",
+    "test:phone-worker": "node tools/test-phone-worker-refinements.mjs",
+    "test:atomic-cart": "node tools/test-atomic-cart.mjs",
+    "test:commerce-company-interface": "node tools/test-commerce-company-interface.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.0",

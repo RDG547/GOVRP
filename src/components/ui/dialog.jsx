@@ -1,3 +1,4 @@
+import { phonePortal } from '@/contexts/PhoneAppContext'
 import { withServiceSuspension } from '@/contexts/ServiceSuspensionContext'
 import * as React from "react"
 import * as DialogPrimitive from "@radix-ui/react-dialog"
@@ -9,7 +10,7 @@ const Dialog = withServiceSuspension(DialogPrimitive.Root)
 
 const DialogTrigger = DialogPrimitive.Trigger
 
-const DialogPortal = DialogPrimitive.Portal
+const DialogPortal = phonePortal(DialogPrimitive.Portal)
 
 const DialogClose = DialogPrimitive.Close
 

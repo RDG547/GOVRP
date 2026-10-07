@@ -1,15 +1,18 @@
+import { phonePortal } from '@/contexts/PhoneAppContext'
 import { withServiceSuspension } from '@/contexts/ServiceSuspensionContext'
 import * as React from "react"
 import * as PopoverPrimitive from "@radix-ui/react-popover"
 
 import { cn } from "@/lib/utils"
 
+const AppPortal = phonePortal(PopoverPrimitive.Portal)
+
 const Popover = withServiceSuspension(PopoverPrimitive.Root)
 
 const PopoverTrigger = PopoverPrimitive.Trigger
 
 const PopoverContent = React.forwardRef(({ className, align = "center", sideOffset = 4, ...props }, ref) => (
-  <PopoverPrimitive.Portal>
+  <AppPortal>
     <PopoverPrimitive.Content
       ref={ref}
       align={align}
@@ -19,7 +22,7 @@ const PopoverContent = React.forwardRef(({ className, align = "center", sideOffs
         className
       )}
       {...props} />
-  </PopoverPrimitive.Portal>
+  </AppPortal>
 ))
 PopoverContent.displayName = PopoverPrimitive.Content.displayName
 

@@ -1,5 +1,5 @@
 import { useServiceAvailability } from '@/hooks/use-service-availability';
-import React, { useEffect, useState } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import ComingSoon from '@/pages/ComingSoon';
 import MaintenanceMode from '@/pages/MaintenanceMode';
@@ -12,6 +12,7 @@ import { ServiceSuspensionContext } from '@/contexts/ServiceSuspensionContext';
 
 const ServiceAvailabilityGate = ({ serviceKey, children }) => {
   const { user } = useAuth();
+  const parentSuspended = useContext(ServiceSuspensionContext);
   const { settings, loading } = useServiceAvailability();
   const [wasAvailable, setWasAvailable] = useState(false);
   const isAdmin = user?.role === 'Admin' || user?.effective_roles?.includes('Admin');
@@ -31,7 +32,7 @@ const ServiceAvailabilityGate = ({ serviceKey, children }) => {
   return <div className="min-w-0">
     {serviceMode === 'coming_soon' && <ComingSoon serviceName={service?.name || 'Este serviço'} serviceDescription={service?.description} />}
     {serviceMode === 'maintenance' && <MaintenanceMode serviceName={service?.name || 'Este serviço'} serviceDescription={service?.description} />}
-    {(wasAvailable || serviceMode === 'active') && <ServiceSuspensionContext.Provider value={serviceMode !== 'active'}><div hidden={serviceMode !== 'active'} inert={serviceMode !== 'active' ? '' : undefined}><fieldset disabled={serviceMode !== 'active'} className="min-w-0">{children}</fieldset></div></ServiceSuspensionContext.Provider>}
+    {(wasAvailable || serviceMode === 'active') && <ServiceSuspensionContext.Provider value={parentSuspended || serviceMode !== 'active'}><div hidden={serviceMode !== 'active'} inert={serviceMode !== 'active' ? '' : undefined}><fieldset disabled={serviceMode !== 'active'} className="min-w-0">{children}</fieldset></div></ServiceSuspensionContext.Provider>}
   </div>;
 };
 export default ServiceAvailabilityGate;

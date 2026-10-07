@@ -1,3 +1,4 @@
+import { usePhoneApp } from '@/contexts/PhoneAppContext';
 import React from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CreditCard, PiggyBank, HeartHandshake as Handshake, Landmark, CandlestickChart } from 'lucide-react';
@@ -12,7 +13,8 @@ import { useAuth } from '@/contexts/AuthContext';
 
 const BankDashboard = ({ account, transactions, investmentOptions, userInvestments, investmentOperations, portfolioSnapshots, loanApplications, onUpdate, onTransferClick, onPayClick, activeTab, setActiveTab }) => {
   const { user } = useAuth();
-  const showManagement = canManageNationalBank(user);
+  const phone=usePhoneApp();
+  const showManagement = !phone && canManageNationalBank(user);
 
   return (
     <div className="space-y-6">

@@ -1,3 +1,6 @@
+import { usePhoneApp } from '@/contexts/PhoneAppContext';
+import NeedEffects from '@/components/NeedEffects';
+import { NEEDS } from '@/lib/citizenNeedsPresentation';
 import { marketplacePolicy } from '@/lib/marketplaceFees';
 import ListingCosts from '@/components/business/ListingCosts';
 import { useMarketplace } from '@/hooks/use-marketplace';
@@ -8,13 +11,13 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/components/ui/use-toast';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, Save } from 'lucide-react';
+import { Loader2, Save, User, Package, FileText, Tag, Coins, Boxes, Image as ImageIcon, Repeat, Calendar, Sparkles, Wine } from 'lucide-react';
 import ImageUploader from '@/components/ImageUploader';
 import { Switch } from '@/components/ui/switch';
 import { parseCurrency, formatCurrency } from '@/lib/utils';
@@ -38,6 +41,7 @@ const SUBSCRIPTION_INTERVALS = [
 
 const ProductFormDialog = ({ isOpen, setIsOpen, product, onSuccess }) => {
   const { user } = useAuth();
+  const phone=usePhoneApp();
   const { toast } = useToast();
   const { enterprise: sourceEnterprise } = useMarketplace();
   const [feeConsent, setFeeConsent] = useState(false);
@@ -143,12 +147,12 @@ const ProductFormDialog = ({ isOpen, setIsOpen, product, onSuccess }) => {
       setShowCustomCategory(false);
       setCustomCategory('');
     }
-    setConsumableEffects(product?.consumable_effects || {});
+    setConsumableEffects(product?.consumable_effects || product?.metadata?.consumable_effects || {});
     setImageFile(null);
   }, [product, isOpen]);
 
   useEffect(() => {
-    if (!isOpen || !user?.id) return;
+    if (!isOpen || !user?.id || phone) return;
     supabase.from('businesses').select('id,name,status').eq('owner_id', user.id).in('status', ['active', 'pending']).order('name')
       .then(({ data, error }) => {
         if (error) {
@@ -158,7 +162,7 @@ const ProductFormDialog = ({ isOpen, setIsOpen, product, onSuccess }) => {
         setBusinesses(data || []);
 
       });
-  }, [isOpen, toast, user?.id]);
+  }, [isOpen, toast, user?.id, Boolean(phone)]);
 
   const handleChange = (e) => {
     const { id, value } = e.target;
@@ -167,6 +171,7 @@ const ProductFormDialog = ({ isOpen, setIsOpen, product, onSuccess }) => {
 
   const handleSelectChange = (id, value) => {
     if (id === 'category') {
+      if(value !== 'Bebidas')setConsumableEffects(previous=>Object.fromEntries(Object.entries(previous).filter(([key])=>['hunger','thirst'].includes(key))));
       setShowCustomCategory(value === 'custom');
     }
 
@@ -263,7 +268,7 @@ const ProductFormDialog = ({ isOpen, setIsOpen, product, onSuccess }) => {
         p_product_type: formData.product_type,
         p_subscription_interval: formData.product_type === 'subscription' ? formData.subscription_interval : null,
         p_category: finalCategory,
-        p_consumable_effects: ['Alimentos','Bebidas'].includes(finalCategory) && formData.product_type==='one-time' ? Object.fromEntries(Object.entries(consumableEffects).filter(([,value])=>Number(value)>0).map(([key,value])=>[key,Number(value)])) : {},
+        p_consumable_effects: ['Alimentos','Bebidas'].includes(finalCategory) && formData.product_type==='one-time' ? Object.fromEntries(Object.entries(consumableEffects).filter(([,value])=>Number(value)!==0).map(([key,value])=>[key,Number(value)])) : {},
         p_stock: formData.product_type === 'one-time' ? normalizedStock : null,
         p_promotion_price: showPromotion && normalizedPromotionPrice > 0 ? normalizedPromotionPrice : null,
         p_promotion_expires_at: showPromotion && normalizedPromotionPrice > 0 && formData.promotion_expires_at
@@ -288,17 +293,18 @@ const ProductFormDialog = ({ isOpen, setIsOpen, product, onSuccess }) => {
   return (
     <Dialog open={isOpen} onOpenChange={open => { if (!loading) setIsOpen(open); }}>
       <DialogContent className="grid-cols-1 [&>*]:min-w-0 sm:max-w-lg max-h-[90vh] overflow-hidden p-0">
-        <DialogHeader className="px-6 pt-6">
+        <DialogHeader className="items-center px-6 pt-6 text-center sm:text-center">
           <DialogTitle>{product ? 'Editar Produto' : 'Adicionar Novo Produto'}</DialogTitle>
+          <DialogDescription>Defina a oferta e confira os custos antes de publicar.</DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="max-h-[calc(90vh-5rem)] space-y-4 overflow-y-auto px-6 pb-6 pt-4 custom-scrollbar">
           <div className="space-y-2">
-            <Label>Vender como</Label>
+            <Label htmlFor="product-seller" className="inline-flex items-center gap-2"><User className="h-4 w-4"/>Vender como</Label>
             <Select value={formData.business_id || 'citizen'} onValueChange={(value) => handleSelectChange('business_id', value === 'citizen' ? '' : value)}>
-              <SelectTrigger><SelectValue placeholder="Pessoa Física" /></SelectTrigger>
+              <SelectTrigger id="product-seller"><SelectValue placeholder="Pessoa Física" /></SelectTrigger>
               <SelectContent className="[&>div]:max-h-[192px]">
                 <SelectItem value="citizen">Pessoa Física — {user?.full_name || 'Meu cidadão'}</SelectItem>
-                {businesses.map((business) => <SelectItem key={business.id} value={business.id}>{business.name}{business.status === 'pending' ? ' (aguardando ativação)' : ''}</SelectItem>)}
+                {(!phone ? businesses : []).map((business) => <SelectItem key={business.id} value={business.id}>{business.name}{business.status === 'pending' ? ' (aguardando ativação)' : ''}</SelectItem>)}
               </SelectContent>
             </Select>
             <p className="text-xs text-muted-foreground">{formData.business_id ? 'A venda será vinculada à empresa selecionada.' : 'Venda em seu nome e receba na sua conta, sem precisar de CNPJ.'}</p>
@@ -307,11 +313,11 @@ const ProductFormDialog = ({ isOpen, setIsOpen, product, onSuccess }) => {
             onUrlChange={(url) => setFormData(p => ({ ...p, image_url: url }))}
             onFileChange={setImageFile}
             initialUrl={formData.image_url}
-            label="Imagem do Produto (Obrigatório)"
+            label="Imagem do Produto (Obrigatório)" labelIcon={ImageIcon}
           />
-          <div><Label htmlFor="name">Nome</Label><Input id="name" value={formData.name} onChange={handleChange} required /></div>
+          <div><Label htmlFor="name" className="inline-flex items-center gap-2"><Package className="h-4 w-4"/>Nome</Label><Input id="name" value={formData.name} onChange={handleChange} required /></div>
           <div>
-            <Label htmlFor="price">Preço</Label>
+            <Label htmlFor="price" className="inline-flex items-center gap-2"><Coins className="h-4 w-4"/>Preço</Label>
             <Input
               id="price"
               value={formData.price}
@@ -320,9 +326,9 @@ const ProductFormDialog = ({ isOpen, setIsOpen, product, onSuccess }) => {
               required
             />
           </div>
-          <div><Label htmlFor="description">Descrição</Label><Textarea id="description" value={formData.description} onChange={handleChange} required /></div>
+          <div><Label htmlFor="description" className="inline-flex items-center gap-2"><FileText className="h-4 w-4"/>Descrição</Label><Textarea id="description" value={formData.description} onChange={handleChange} required /></div>
           <div>
-            <Label htmlFor="category">Categoria</Label>
+            <Label htmlFor="category" className="inline-flex items-center gap-2"><Tag className="h-4 w-4"/>Categoria</Label>
             <Select onValueChange={(value) => handleSelectChange('category', value)} value={formData.category}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent className="[&>div]:max-h-[192px]">
@@ -331,12 +337,16 @@ const ProductFormDialog = ({ isOpen, setIsOpen, product, onSuccess }) => {
               </SelectContent>
           </Select>
           </div>
-          {['Alimentos','Bebidas'].includes(formData.category) && formData.product_type==='one-time' && <fieldset className="space-y-3 rounded-xl border p-3"><legend>Recuperação ao consumir</legend><p className="text-xs text-muted-foreground">Defina de 0 a 60 pontos. Zero mantém o produto sem efeito nessa necessidade.</p>{[{key:'hunger',label:'Fome'},{key:'thirst',label:'Sede'}].map(({key,label})=><label key={key} className="block text-sm">{label}<Input type="number" min="0" max="60" step="1" value={consumableEffects[key]||0} onChange={e=>setConsumableEffects(previous=>({...previous,[key]:e.target.value}))}/></label>)}</fieldset>}
+          {['Alimentos','Bebidas'].includes(formData.category) && formData.product_type==='one-time' && <fieldset className="space-y-3 rounded-xl border p-3"><legend>Efeitos ao consumir</legend>
+            {formData.category==='Bebidas'&&<label className="flex items-center gap-2 text-sm"><Wine className="h-4 w-4"/><input type="checkbox" checked={Number(consumableEffects.health)<0} onChange={e=>setConsumableEffects(e.target.checked?{thirst:15,social:8,health:-3}:{thirst:40})}/>Bebida alcoólica</label>}
+            {Number(consumableEffects.health)<0?<><NeedEffects effects={consumableEffects}/><p className="text-xs text-muted-foreground">Efeitos balanceados: recupera menos sede que a água, melhora a socialização e reduz levemente a saúde.</p></>:<><p className="text-xs text-muted-foreground">Defina de 0 a 60 pontos. Zero mantém o produto sem efeito nessa necessidade.</p>{NEEDS.filter(need=>['hunger','thirst'].includes(need.key)).map(({key,name,icon:Icon,text})=><label key={key} className={`block text-sm ${text}`}><span className="flex items-center gap-2"><Icon className="h-4 w-4"/>{name}</span><Input type="number" min="0" max="60" step="1" value={consumableEffects[key]||0} onChange={e=>setConsumableEffects(previous=>({...previous,[key]:e.target.value}))}/></label>)}</>}
+          </fieldset>}
+
           {showCustomCategory && (
-            <div><Label htmlFor="custom_category">Nome da Categoria Personalizada</Label><Input id="custom_category" value={customCategory} onChange={(e) => setCustomCategory(e.target.value)} required /></div>
+            <div><Label htmlFor="custom_category" className="inline-flex items-center gap-2"><Tag className="h-4 w-4"/>Nome da Categoria Personalizada</Label><Input id="custom_category" value={customCategory} onChange={(e) => setCustomCategory(e.target.value)} required /></div>
           )}
           <div>
-            <Label htmlFor="product_type">Tipo</Label>
+            <Label htmlFor="product_type" className="inline-flex items-center gap-2"><Repeat className="h-4 w-4"/>Tipo</Label>
             <Select onValueChange={(value) => handleSelectChange('product_type', value)} value={formData.product_type}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent className="[&>div]:max-h-[192px]">
@@ -347,7 +357,7 @@ const ProductFormDialog = ({ isOpen, setIsOpen, product, onSuccess }) => {
           </div>
           {formData.product_type === 'subscription' && (
             <div>
-              <Label htmlFor="subscription_interval">Periodicidade</Label>
+              <Label htmlFor="subscription_interval" className="inline-flex items-center gap-2"><Calendar className="h-4 w-4"/>Periodicidade</Label>
               <Select
                 onValueChange={(value) => handleSelectChange('subscription_interval', value)}
                 value={formData.subscription_interval}
@@ -364,17 +374,17 @@ const ProductFormDialog = ({ isOpen, setIsOpen, product, onSuccess }) => {
             </div>
           )}
           {formData.product_type === 'one-time' && (
-            <div><Label htmlFor="stock">Estoque</Label><Input id="stock" type="number" value={formData.stock} onChange={handleChange} required /></div>
+            <div><Label htmlFor="stock" className="inline-flex items-center gap-2"><Boxes className="h-4 w-4"/>Estoque</Label><Input id="stock" type="number" value={formData.stock} onChange={handleChange} required /></div>
           )}
           <div className="space-y-2 rounded-lg border p-4">
             <div className="flex items-center justify-between">
-              <Label htmlFor="show-promotion">Promoção (Opcional)</Label>
+              <Label htmlFor="show-promotion" className="inline-flex items-center gap-2"><Sparkles className="h-4 w-4"/>Promoção (Opcional)</Label>
               <Switch id="show-promotion" checked={showPromotion} onCheckedChange={setShowPromotion} />
             </div>
             {showPromotion && (
               <div className="space-y-4 pt-4">
                 <div>
-                  <Label htmlFor="promotion_price">Preço Promocional</Label>
+                  <Label htmlFor="promotion_price" className="inline-flex items-center gap-2"><Coins className="h-4 w-4"/>Preço Promocional</Label>
                   <Input
                     id="promotion_price"
                     value={formData.promotion_price}
@@ -382,12 +392,12 @@ const ProductFormDialog = ({ isOpen, setIsOpen, product, onSuccess }) => {
                     placeholder="R$ 0,00"
                   />
                 </div>
-                <div><Label htmlFor="promotion_expires_at">Fim da Promoção (Brasília)</Label><Input id="promotion_expires_at" type="datetime-local" value={formData.promotion_expires_at} onChange={handleChange} /></div>
+                <div><Label htmlFor="promotion_expires_at" className="inline-flex items-center gap-2"><Calendar className="h-4 w-4"/>Fim da Promoção (Brasília)</Label><Input id="promotion_expires_at" type="datetime-local" value={formData.promotion_expires_at} onChange={handleChange} /></div>
               </div>
             )}
           </div>
-          <ListingCosts enterprise={sourceEnterprise} business={Boolean(formData.business_id)}/>{!product&&listingFee>0&&<label className="flex items-start gap-2 text-sm"><input type="checkbox" className="mt-1 h-4 w-4" checked={feeConsent} onChange={e=>setFeeConsent(e.target.checked)}/>Autorizo a cobrança da taxa de anúncio exibida, na conta selecionada para a venda.</label>}{product&&<p className="text-xs text-muted-foreground">Editar não renova nem cobra o anúncio. Use Renovar anúncio se o período terminou.</p>}
-          <DialogFooter>
+          <div className="grid gap-3"><ListingCosts enterprise={sourceEnterprise} selected={!formData.business_id}/><ListingCosts enterprise={sourceEnterprise} business selected={Boolean(formData.business_id)}/></div>{!product&&listingFee>0&&<label className="flex items-start gap-2 text-sm"><input type="checkbox" className="mt-1 h-4 w-4" checked={feeConsent} onChange={e=>setFeeConsent(e.target.checked)}/>Autorizo a cobrança da taxa de anúncio exibida, na conta selecionada para a venda.</label>}{product&&<p className="text-xs text-muted-foreground">Editar não renova nem cobra o anúncio. Use Renovar anúncio se o período terminou.</p>}
+          <DialogFooter className="sm:justify-center">
             <Button type="submit" disabled={loading || !enterprise || (!product&&listingFee>0&&!feeConsent) || !formData.image_url && !imageFile}>
               {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
               {product ? 'Salvar Alterações' : 'Anunciar Produto'}

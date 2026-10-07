@@ -88,7 +88,7 @@ export const SERVICE_CATEGORIES = [
       { key: '/services/national-housing', name: 'Imobiliária Nacional', path: '/services/national-housing', icon: Home, color: 'text-emerald-400', description: 'Encontre e adquira sua residência dentro do GOVRP.' },
       { key: '/services/stock-exchange', name: 'Bolsa de Valores', path: '/services/stock-exchange', icon: LineChart, color: 'text-indigo-400', description: 'Negocie ações de empresas, acompanhe o GOVX e sua carteira de investimentos.' },
       { key: '/services/economy', name: 'Economia Nacional', path: '/services/economy', icon: DollarSign, color: 'text-cyan-300', description: 'Acompanhe PIB, inflação, emprego, poder de compra e as consequências das decisões econômicas.' },
-      { key: '/services/my-work', name: 'Meu Trabalho', path: '/services/my-work', icon: Briefcase, color: 'text-amber-400', description: 'Vagas, carreira, experiência profissional e remuneração.' },
+      { key: '/services/my-work', name: 'Portal do Trabalhador', path: '/services/my-work', icon: Briefcase, color: 'text-amber-400', description: 'Vagas, carreira, experiência profissional e remuneração.' },
       { key: '/services/entrepreneur-portal', name: 'Portal do Empreendedor', path: '/services/entrepreneur-portal', icon: Building2, color: 'text-cyan-400', description: 'Hub empresarial para criar, gerir, investir e negociar com empresas da nação.' },
       { key: '/services/business', name: 'Negócios Livres', path: '/services/business', icon: Store, color: 'text-blue-400', description: 'Compre e venda produtos e serviços no marketplace da comunidade.' },
     ],
