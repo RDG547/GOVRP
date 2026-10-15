@@ -8,7 +8,7 @@ import { invalidateDomain } from '@/lib/realtime';
 import StoryViewer from './StoryViewer';
 import UploadStoryModal from './UploadStoryModal';
 
-export default function Stories({ profileId = null, allowUpload = true }) {
+export default function Stories({ profileId = null, allowUpload = true, moderation = false }) {
     const [stories, setStories] = useState([]);
     const [viewingUserId, setViewingUserId] = useState(null);
     const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
@@ -54,7 +54,7 @@ export default function Stories({ profileId = null, allowUpload = true }) {
                 {error && <button className="text-sm text-muted-foreground underline" onClick={fetchStories}>Tentar carregar Stories novamente</button>}
             </div>
         </section>
-        {viewingUserId && <StoryViewer key={viewingUserId} stories={stories} initialUserId={viewingUserId} onClose={() => setViewingUserId(null)} onAction={handleStoryAction} />}
+        {viewingUserId && <StoryViewer moderation={moderation} key={viewingUserId} stories={stories} initialUserId={viewingUserId} onClose={() => setViewingUserId(null)} onAction={handleStoryAction} />}
         <UploadStoryModal isOpen={isUploadModalOpen} onOpenChange={setIsUploadModalOpen} onStoryCreated={handleStoryAction} />
     </>;
 }

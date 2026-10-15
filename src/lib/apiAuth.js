@@ -1,3 +1,4 @@
+import {isAdminPreview,ADMIN_PREVIEW_MESSAGE} from './adminPreview';
 import { supabase } from './supabaseClient';
 
 const refreshes = new WeakMap();
@@ -20,6 +21,7 @@ export async function readySession(client = supabase) {
 // Retry only a rejected authentication, never a denied permission or a mutation error.
 // The server checks the current database role on every request.
 export async function fetchWithSessionAuth(url, options = {}, client = supabase, transport = fetch) {
+  if(isAdminPreview()&&!['GET','HEAD','OPTIONS'].includes((options.method||'GET').toUpperCase()))throw new Error(ADMIN_PREVIEW_MESSAGE);
   let session = await readySession(client);
   const send = token => {
     const headers = new Headers(options.headers || {});

@@ -3,7 +3,7 @@ export const getInternetDelay = (plan) => INTERNET_PLAN_DELAYS[plan] ?? INTERNET
 export const remainingInternetDelay = (plan, elapsed) => Math.max(0, getInternetDelay(plan) - Math.max(0, elapsed));
 
 export function isInternetDelayExempt(pathname, user) {
-  if (!user?.id || user.onboarding_completed === false) return true;
+  if (user?.is_admin_preview || !user?.id || user.onboarding_completed === false) return true;
   return [
     '/registro-cidadania', '/login', '/register', '/auth/callback', '/update-password',
     '/forgot-password', '/community', '/help', '/about', '/donate', '/country-info',

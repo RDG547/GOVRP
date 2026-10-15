@@ -1,3 +1,4 @@
+import {CurrencyInput} from '@/components/ui/currency-input';
 import { readySession, fetchWithSessionAuth } from '@/lib/apiAuth';
 import CitizenCustodyControl from '@/components/admin/CitizenCustodyControl';
 import { canonicalRole, roleIcon } from '@/lib/roleIcons';
@@ -150,7 +151,7 @@ const ModifyBalanceDialog = ({ user, onFinish }) => {
                 </div>
                 <div>
                     <Label htmlFor="amount">Valor</Label>
-                    <Input
+                    <CurrencyInput
                         id="amount"
                         value={amount}
                         onChange={handleAmountChange}
@@ -178,13 +179,15 @@ const EditUserDialog = ({ user, onFinish, onUpdate }) => {
         real_full_name: user.real_full_name || '',
         real_birth_date: user.real_date_of_birth || '',
         onboarding_step: user.onboarding_step || 'identity',
-        role: user.role || 'Cidadão',
+        role: user.role === 'Admin' ? 'Cidadão' : user.role || 'Cidadão',
+        isPlatformAdmin:null,
         titles: user.titles?.join(', ') || ''
     });
     const [isProcessing, setIsProcessing] = useState(false);
     const { toast } = useToast();
     const { loading: authLoading, user: administrator, session } = useAuth();
-    const authReady = !authLoading && administrator?.role === 'Admin' && Boolean(session?.access_token);
+    useEffect(()=>{let active=true;void supabase.rpc('is_admin',{p_user_id:user.id}).then(result=>{if(active&&!result.error)setFormData(current=>({...current,isPlatformAdmin:result.data===true}));});return()=>{active=false;};},[user.id]);
+    const authReady = !authLoading && (administrator?.is_platform_admin || administrator?.role === 'Admin') && Boolean(session?.access_token);
 
     const handleChange = (e) => {
         setFormData(prev => ({ ...prev, [e.target.id]: e.target.value }));
@@ -224,6 +227,7 @@ const EditUserDialog = ({ user, onFinish, onUpdate }) => {
                     username: formData.username,
                     role: formData.role,
                     titles: titlesArray,
+                    isPlatformAdmin:formData.isPlatformAdmin,
                 }),
             });
 
@@ -243,7 +247,7 @@ const EditUserDialog = ({ user, onFinish, onUpdate }) => {
         }
     };
 
-    const availableRoles = ['Usuário', 'Cidadão', 'Admin', 'Presidente', 'Vice-Presidente', 'Presidente da Câmara dos Deputados', 'Vice-Presidente da Câmara dos Deputados', 'Presidente do Senado', 'Vice-Presidente do Senado Federal', 'Presidente do STF', 'Presidente do Banco Nacional', 'Presidente do Portal Eleitoral', 'Deputado', 'Senador', 'Juiz', 'Promotor', 'Policial', 'Ministro', 'Agente Secreto', 'Militar', 'Diretor-Geral de Polícia', 'Comandante-Geral das Forças Armadas', 'Comandante da Agência de Inteligência'];
+    const availableRoles = ['Usuário', 'Cidadão', 'Presidente', 'Vice-Presidente', 'Presidente da Câmara dos Deputados', 'Vice-Presidente da Câmara dos Deputados', 'Presidente do Senado', 'Vice-Presidente do Senado Federal', 'Presidente do STF', 'Presidente do Banco Nacional', 'Presidente do Portal Eleitoral', 'Deputado', 'Senador', 'Juiz', 'Promotor', 'Policial', 'Ministro', 'Agente Secreto', 'Militar', 'Diretor-Geral de Polícia', 'Comandante-Geral das Forças Armadas', 'Comandante da Agência de Inteligência'];
 
     return (
         <DialogContent className="glass-effect max-h-[90vh] overflow-y-auto text-white">
@@ -270,6 +274,7 @@ const EditUserDialog = ({ user, onFinish, onUpdate }) => {
                         </SelectContent>
                     </Select>
                 </div>
+                <label className="flex items-start gap-3 rounded-lg border p-3 text-sm"><input type="checkbox" disabled={formData.isPlatformAdmin===null} checked={formData.isPlatformAdmin===true} onChange={e=>setFormData(current=>({...current,isPlatformAdmin:e.target.checked}))} className="mt-1"/>Administrador técnico da plataforma. Este acesso é independente do cargo do personagem.</label>
                 <div><Label htmlFor="titles" className="flex items-center gap-2"><Award className="h-4 w-4 text-primary"/>Títulos (separados por vírgula)</Label><Input id="titles" value={formData.titles} onChange={handleChange} /></div>
             </div>
             <DialogFooter className="gap-2 sm:justify-center sm:space-x-0">
@@ -402,7 +407,7 @@ const ManageCardLimitDialog = ({ user, onFinish, onUpdate }) => {
                     {selectedCard && (
                         <div>
                             <Label htmlFor="new-limit">Novo Limite</Label>
-                            <Input id="new-limit" value={newLimit} onChange={e => setNewLimit(formatCurrency(e.target.value, true))} />
+                            <CurrencyInput id="new-limit" value={newLimit} onChange={e => setNewLimit(formatCurrency(e.target.value, true))} />
                             <p className="text-xs text-muted-foreground mt-1">Limite atual: {formatCurrency(selectedCard.card_limit)}</p>
                         </div>
                     )}
@@ -454,7 +459,10 @@ const fetchAdminUsers = async () => {
         const { data, error } = await supabase.rpc('admin_get_all_users').order('id').range(offset, offset + 199);
         if (error) return { data: null, error };
         users.push(...(data || []));
-        if (!data || data.length < 200) return { data: users, error: null };
+        if (!data || data.length < 200) {
+            const admins=await supabase.rpc('get_platform_admin_ids');if(admins.error)return {data:null,error:admins.error};
+            const ids=new Set(admins.data||[]);return {data:users.map(person=>({...person,is_platform_admin:ids.has(person.id)})),error:null};
+        }
     }
 };
 
@@ -556,13 +564,13 @@ const UserManagement = () => {
     }, [toast]);
 
     useEffect(() => {
-        if(adminUser?.role === 'Admin') {
+        if((adminUser?.is_platform_admin || adminUser?.role === 'Admin')) {
             setLoading(true);
             fetchUsers();
         } else {
             setLoading(false);
         }
-    }, [fetchUsers, adminUser?.id, adminUser?.role]);
+    }, [fetchUsers, adminUser?.id, adminUser?.role, adminUser?.is_platform_admin]);
 
     const handleDeleteUser = async (userId, userName) => {
         setDeletingUserId(userId);
@@ -606,7 +614,7 @@ const UserManagement = () => {
                                   (user.username || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
                                   (user.email || '').toLowerCase().includes(searchTerm.toLowerCase());
                 const letterMatch = filters.letter === 'all' || (user.full_name || ' ').toLowerCase().startsWith(filters.letter);
-                const roleMatch = filters.role === 'all' || getDisplayRole(user) === filters.role;
+                const roleMatch = filters.role === 'all' || (filters.role==='Admin'?user.is_platform_admin:getDisplayRole(user)===filters.role);
                 const balanceMatch = (user.balance || 0) >= filters.balance[0] && (user.balance || 0) <= filters.balance[1];
                 return nameMatch && letterMatch && roleMatch && balanceMatch;
             })
@@ -630,7 +638,7 @@ const UserManagement = () => {
     }, [sortedAndFilteredUsers, currentPage]);
 
     if (loading) return <div className="flex justify-center py-10"><Loader2 className="w-8 h-8 animate-spin text-blue-400" /></div>;
-    if (adminUser?.role !== 'Admin') return <div className="text-center py-10 text-white">Acesso não autorizado.</div>;
+    if ((!adminUser?.is_platform_admin && adminUser?.role !== 'Admin')) return <div className="text-center py-10 text-white">Acesso não autorizado.</div>;
 
     const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
     const allRoles = [...new Set(users.map((currentUser) => getDisplayRole(currentUser)).filter(Boolean))].sort();
@@ -815,16 +823,16 @@ const UserActionButtons = ({ user, adminUser, setModifyingBalanceUser, setChangi
                         <Trash2 className="w-4 h-4 text-red-400" />
                     </Button>
                 </AlertDialogTrigger>
-                <AlertDialogContent className="max-w-md text-center sm:text-left">
-                    <AlertDialogHeader>
-                        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-red-500/15 text-red-300 sm:mx-0"><AlertTriangle className="h-6 w-6" /></div>
+                <AlertDialogContent className="max-w-md text-center">
+                    <AlertDialogHeader className="sm:text-center">
+                        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-red-500/15 text-red-300"><AlertTriangle className="h-6 w-6" /></div>
                         <AlertDialogTitle>Remover a conta de {user.full_name}?</AlertDialogTitle>
                         <AlertDialogDescription className="text-gray-300">
                             O acesso e os dados pessoais serão apagados. Registros econômicos, legislativos e jurídicos serão anonimizados e preservados para manter a integridade dos históricos.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
-                    <AlertDialogFooter className="mt-2 grid grid-cols-1 gap-3 sm:flex sm:gap-2">
-                        <AlertDialogCancel disabled={isDeleting} className="mt-0">Cancelar</AlertDialogCancel>
+                    <AlertDialogFooter className="mt-2 grid grid-cols-1 gap-3 sm:flex sm:justify-center sm:gap-2">
+                        <AlertDialogCancel disabled={isDeleting} className="mt-0"><X className="mr-2 h-4 w-4"/>Cancelar</AlertDialogCancel>
                         <AlertDialogAction disabled={isDeleting} onClick={() => handleDeleteUser(user.id, user.full_name)} className="bg-red-600 text-white hover:bg-red-700">
                             {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
                             Remover conta

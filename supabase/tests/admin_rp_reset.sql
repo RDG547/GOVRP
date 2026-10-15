@@ -28,11 +28,14 @@ insert into auth.users(id,email,encrypted_password,raw_user_meta_data) values
 insert into public.profiles(id,username,full_name,role,onboarding_completed,onboarding_step,reputation_points,political_points,is_imprisoned,release_date,has_seen_tutorial,character_gender,titles)
 select id,'test_'||right(id::text,1),'Cidadão anterior',case when right(id::text,1)='1' then 'Admin' else 'Ministro' end,
 true,'completed',500,800,true,clock_timestamp()+interval '1 day',true,'male','{Ministro}' from auth.users;
+insert into private.platform_admins(user_id) values('10000000-0000-0000-0000-000000000001');
 insert into private.account_identities(user_id,email,real_full_name,real_date_of_birth,phone) select id,email,'Nome real preservado','1990-01-01','11999999999' from auth.users;
 insert into public.accounts(id,user_id,account_number,agency_number,balance) values
 ('20000000-0000-0000-0000-000000000002','10000000-0000-0000-0000-000000000002','000002','0001',4321),
 ('20000000-0000-0000-0000-000000000003','10000000-0000-0000-0000-000000000003','000003','0001',8765),
 ('20000000-0000-0000-0000-000000000004','10000000-0000-0000-0000-000000000004','000004','0001',9000);
+insert into public.user_services(id,user_id,service_type,plan_name,price) values('29000000-0000-0000-0000-000000000002','10000000-0000-0000-0000-000000000002','Internet','Básico',100);
+insert into private.recurring_billing_cycles(kind,subscription_id,user_id,due_at,amount) values('service','29000000-0000-0000-0000-000000000002','10000000-0000-0000-0000-000000000002',now(),100);
 insert into public.transactions(from_account_id,to_account_id,amount,type) values
 ('20000000-0000-0000-0000-000000000002','20000000-0000-0000-0000-000000000003',50,'transfer'),
 ('20000000-0000-0000-0000-000000000004','20000000-0000-0000-0000-000000000003',80,'transfer');
@@ -272,8 +275,9 @@ select pg_temp.assert_true((select count(distinct volatility)=6 and count(distin
 select pg_temp.assert_true(not exists(select 1 from private.business_daily_effort) and not exists(select 1 from private.company_operations) and not exists(select 1 from private.population_demand_runs),'complete reset clears internal economic operations and demand cycles');
 select pg_temp.assert_true((select bool_and(fixed_sale_fee=0 and not active_listing_fee_enabled and active_listing_fee_amount=0 and seller_fees='{}' and management_settings='{}') from public.state_enterprises where is_system),'complete reset restores marketplace fees and service management defaults');
 select pg_temp.assert_true(not exists(select 1 from public.system_settings where key in('enterprise_costs','basic_service_prices')) and (select (value->>'daily_budget')::numeric=5000 from public.system_settings where key='national_health_policy') and (select (value->>'is_open')::boolean from public.system_settings where key='stock_market_session'),'old service policies and paused market do not survive the new season');
-select pg_temp.assert_true((select count(*) from public.security_audit_log)=1 and (select value from public.system_settings where key='service_availability')='{"bank":true}'::jsonb,'security records and service configuration survive complete reset');
+select pg_temp.assert_true((select count(*) from public.security_audit_log where action='test_security')=1 and (select value from public.system_settings where key='service_availability')='{"bank":true}'::jsonb,'security records and service configuration survive complete reset');
 select pg_temp.assert_true((select count(*) from public.products where state_enterprise_id is not null)=(select total from state_catalog_before),'full reset preserves the state food and housing catalog');
+select pg_temp.assert_true(exists(select 1 from private.platform_admins where user_id='10000000-0000-0000-0000-000000000001') and not exists(select 1 from private.recurring_billing_cycles),'reset preserves technical administration and clears billing cycles');
 select pg_temp.assert_true((select count(*) from public.profiles)=4 and (select count(*) from private.account_identities)=4,'full reset preserves all account anchors');
 select pg_temp.assert_true(not exists(select 1 from test_trigger_modes b join pg_class c on c.relname=b.relname and c.relnamespace='public'::regnamespace join pg_trigger g on g.tgrelid=c.oid and g.tgname=b.tgname where g.tgenabled<>b.tgenabled),'triggers remain enabled after full reset');
 

@@ -1,3 +1,4 @@
+import {assertRealWorldAction,isPlatformAdmin} from '../admin/development.js';
 import process from 'node:process';
 import { randomUUID } from 'node:crypto';
 import { createClient } from '@supabase/supabase-js';
@@ -127,6 +128,7 @@ const ensureAuthenticatedRequester = async (supabase, request) => {
     throw createHttpError('Nao foi possivel validar a sessao do usuario.', 401);
   }
 
+  await assertRealWorldAction(supabase,authData.user.id);
   return authData.user;
 };
 
@@ -143,10 +145,11 @@ const ensureAdminRequester = async (supabase, request) => {
     throw profileError;
   }
 
-  if (profile?.role !== 'Admin') {
+  if (!await isPlatformAdmin(supabase,requester.id)) {
     throw createHttpError('Acesso negado. Somente administradores podem executar esta rotina manualmente.', 403);
   }
 
+  await assertRealWorldAction(supabase,requester.id);
   return requester;
 };
 

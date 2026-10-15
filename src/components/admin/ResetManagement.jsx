@@ -110,7 +110,7 @@ export default function ResetManagement() {
     } finally { inFlight.current = false; setBusy(false); }
   };
 
-  if (user?.role !== 'Admin') return <p>Acesso restrito à administração.</p>;
+  if ((!user?.is_platform_admin && user?.role !== 'Admin')) return <p>Acesso restrito à administração.</p>;
   return (
     <div className="space-y-6">
       <div>

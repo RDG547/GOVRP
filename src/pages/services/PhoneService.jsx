@@ -1,3 +1,5 @@
+import RecurringBillingStatus from '@/components/RecurringBillingStatus';
+import {useDomainRealtime} from '@/hooks/use-domain-realtime';
 import React, { useState, useEffect, useCallback } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -23,7 +25,6 @@ const PhoneService = () => {
 
     const fetchServiceAndPlans = useCallback(async () => {
         if (!user) return;
-        setLoading(true);
         try {
             const { data: serviceData, error: serviceError } = await supabase
                 .from('user_services')
@@ -62,7 +63,7 @@ const PhoneService = () => {
                     serviceData.price = matchingPlan.price;
                 }
                 setCurrentService(serviceData);
-            } else {
+            } else if(!user.is_admin_preview) {
                 const basicPlan = defaultPlans.find(p => p.name === 'Básico');
                 if (basicPlan) {
                     const { data: newService, error: insertError } = await supabase.from('user_services').insert({
@@ -87,6 +88,7 @@ const PhoneService = () => {
     useEffect(() => {
         fetchServiceAndPlans();
     }, [fetchServiceAndPlans]);
+    useDomainRealtime('recurring-phoneservice',user?.id,[{table:'user_services',filter:`user_id=eq.${user?.id}`},'system_settings'],fetchServiceAndPlans,Boolean(user?.id));
 
     const handlePlanChange = async (plan) => {
         if (!currentService) return;
@@ -122,6 +124,7 @@ const PhoneService = () => {
                     iconColor="text-violet-400"
                     centered={true}
                 />
+                <RecurringBillingStatus service={currentService?{...currentService,price:plans.find(plan=>plan.name===currentService.plan_name)?.price??currentService.price}:null} onChanged={fetchServiceAndPlans}/>
                 
                 <div className="mt-12">
                     {loading ? (

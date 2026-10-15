@@ -1,3 +1,4 @@
+import {CurrencyInput} from '@/components/ui/currency-input';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { useAuth } from '@/contexts/AuthContext';
@@ -869,14 +870,14 @@ const BankManagementPanel = () => {
           </div>
           <div className="space-y-2">
             <Label>Limite padrão Visa</Label>
-            <Input
+            <CurrencyInput
               value={formatCurrency(policy.credit_card_brand_limits?.visa || 0, true)}
               onChange={(event) => updateBrandLimit('visa', event.target.value)}
             />
           </div>
           <div className="space-y-2">
             <Label>Limite padrão Mastercard</Label>
-            <Input
+            <CurrencyInput
               value={formatCurrency(policy.credit_card_brand_limits?.mastercard || 0, true)}
               onChange={(event) => updateBrandLimit('mastercard', event.target.value)}
             />
@@ -908,7 +909,7 @@ const BankManagementPanel = () => {
               <>
                 <Label>Valor do câmbio (R$ por operação)</Label>
                 <div className="flex items-center gap-2">
-                  <Input
+                  <CurrencyInput
                     disabled={policy.exchange_fee_free}
                     value={formatCurrency(policy.exchange_fee_fixed_amount || 0, true)}
                     onChange={(event) =>
@@ -1063,7 +1064,7 @@ const BankManagementPanel = () => {
                               <TableCell>{getProfileName(application.user_id)}</TableCell>
                               <TableCell>{pending ? <Select value={cardBrands[application.id] || normalizeCardBrand(application.brand)} onValueChange={(value) => updateApplicationBrand(application, value)}><SelectTrigger className="h-8 w-36"><SelectValue /></SelectTrigger><SelectContent>{CREDIT_CARD_BRANDS.map((brand) => <SelectItem key={brand.value} value={brand.value}>{brand.label}</SelectItem>)}</SelectContent></Select> : <span className="capitalize">{getBrandLabel(application.approved_brand || application.brand)}</span>}</TableCell>
                               <TableCell><Badge className={`border ${getStatusBadgeClass(application.status)}`}>{application.status}</Badge></TableCell>
-                              <TableCell>{pending ? <Input aria-label={`Limite para ${getProfileName(application.user_id)}`} className="h-8 w-32" value={cardLimits[application.id] || ''} onChange={(event) => setCardLimits((current) => ({ ...current, [application.id]: formatCurrency(event.target.value, true) }))} /> : formatCurrency(application.approved_limit || application.requested_limit || 0)}</TableCell>
+                              <TableCell>{pending ? <CurrencyInput aria-label={`Limite para ${getProfileName(application.user_id)}`} className="h-8 w-32" value={cardLimits[application.id] || ''} onChange={(event) => setCardLimits((current) => ({ ...current, [application.id]: formatCurrency(event.target.value, true) }))} /> : formatCurrency(application.approved_limit || application.requested_limit || 0)}</TableCell>
                               <TableCell>{pending ? <Textarea aria-label={`Feedback para ${getProfileName(application.user_id)}`} className="min-h-8 w-48" value={feedbackById[application.id] || ''} onChange={(event) => setFeedbackById((current) => ({ ...current, [application.id]: event.target.value }))} placeholder="Motivo opcional" /> : application.admin_feedback || application.feedback || '-'}</TableCell>
                               <TableCell className="text-right">{pending ? <div className="flex justify-end gap-2"><Button size="sm" onClick={() => handleCardDecision(application, 'approve')} disabled={processingId === application.id}>{processingId === application.id ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-1 h-4 w-4" />}Aprovar</Button><Button size="sm" variant="destructive" onClick={() => handleCardDecision(application, 'reject')} disabled={processingId === application.id}><XCircle className="mr-1 h-4 w-4" />Rejeitar</Button></div> : '-'}</TableCell>
                             </TableRow>

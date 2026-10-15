@@ -1,3 +1,4 @@
+import {CurrencyInput} from '@/components/ui/currency-input';
 import { useDomainRealtime } from '@/hooks/use-domain-realtime';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Building2, Store, Package, Package2, PackageCheck, Landmark, Wifi, Zap, Droplet, Smartphone, Flame, Building, Loader2, ChevronLeft, Lock, TrendingUp, Coins, DollarSign, Save, Wrench } from 'lucide-react';
@@ -242,7 +243,7 @@ export const EnterpriseDetailView = ({ enterprise, onBack, onUpdate }) => {
                                     <ServiceIcon className={`w-4 h-4 ${sectorInfo.color}`} />
                                     <Label htmlFor={`price-${key}`}>{label}</Label>
                                 </div>
-                                <Input
+                                <CurrencyInput
                                     id={`price-${key}`}
                                     value={formatCurrency(prices[key] || 0, true)}
                                     onChange={(e) => handlePriceChange(key, e.target.value)}
@@ -272,7 +273,7 @@ export const EnterpriseDetailView = ({ enterprise, onBack, onUpdate }) => {
                                 <Wrench className="w-4 h-4 text-muted-foreground" />
                                 <Label htmlFor={`cost-${key}`}>{label}</Label>
                             </div>
-                            <Input
+                            <CurrencyInput
                                 id={`cost-${key}`}
                                 value={formatCurrency(costs[key] || 0, true)}
                                 onChange={(e) => handleCostChange(key, e.target.value)}

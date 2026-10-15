@@ -1,3 +1,4 @@
+import {CurrencyInput} from '@/components/ui/currency-input';
 import React, { useState } from 'react';
 import { Calculator, CheckCircle2, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -116,7 +117,15 @@ const PolicyStudio = ({ toast, onApplied, allowedPolicies = DEFAULT_POLICIES }) 
           </div>
           <div className="space-y-2">
             <Label htmlFor="policy-value">Novo valor</Label>
-            <Input
+            {['minimum_wage','public_spending'].includes(form.policyType)?<CurrencyInput decimal
+              id="policy-value"
+              step="0.01"
+              value={form.newValue}
+              onChange={(event) => {
+                setForm((current) => ({ ...current, newValue: event.target.value }));
+                setSimulation(null);
+              }}
+            />:<Input
               id="policy-value"
               type="number"
               step="0.01"
@@ -125,11 +134,19 @@ const PolicyStudio = ({ toast, onApplied, allowedPolicies = DEFAULT_POLICIES }) 
                 setForm((current) => ({ ...current, newValue: event.target.value }));
                 setSimulation(null);
               }}
-            />
+            />}
           </div>
           <div className="space-y-2">
             <Label htmlFor="market-expectation">Expectativa do mercado</Label>
-            <Input
+            {['minimum_wage','public_spending'].includes(form.policyType)?<CurrencyInput decimal
+              id="market-expectation"
+              step="0.01"
+              value={form.marketExpectation}
+              onChange={(event) => setForm((current) => ({
+                ...current,
+                marketExpectation: event.target.value,
+              }))}
+            />:<Input
               id="market-expectation"
               type="number"
               step="0.01"
@@ -138,7 +155,7 @@ const PolicyStudio = ({ toast, onApplied, allowedPolicies = DEFAULT_POLICIES }) 
                 ...current,
                 marketExpectation: event.target.value,
               }))}
-            />
+            />}
           </div>
         </div>
         <Button variant="outline" onClick={simulate} disabled={loading || form.newValue === ''}>

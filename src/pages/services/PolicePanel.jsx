@@ -1,3 +1,4 @@
+import {CurrencyInput} from '@/components/ui/currency-input';
 import { fetchCitizenDirectory } from '@/lib/publicProfileQueries';
 import CitizenSelector from '@/components/CitizenSelector';
 import React, { useState, useEffect, useCallback } from 'react';
@@ -160,7 +161,7 @@ const IssueFineDialog = ({ onFineIssued }) => {
                         <CitizenSelector value={selectedUser} onChange={setSelectedUser} />
                     </div>
                     <div className="grid gap-2"><Label htmlFor="reason">Motivo</Label><Input id="reason" value={reason} onChange={e => setReason(e.target.value)} required /></div>
-                    <div className="grid gap-2"><Label htmlFor="amount">Valor</Label><Input id="amount" type="number" step="0.01" value={amount} onChange={e => setAmount(e.target.value)} required /></div>
+                    <div className="grid gap-2"><Label htmlFor="amount">Valor</Label><CurrencyInput decimal id="amount" step="0.01" value={amount} onChange={e => setAmount(e.target.value)} required /></div>
                     <DialogFooter><Button type="submit" disabled={loading || !selectedUser}>{loading && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>} Emitir Multa</Button></DialogFooter>
                 </form>
             </DialogContent>

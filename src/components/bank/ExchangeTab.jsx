@@ -1,3 +1,4 @@
+import {CurrencyInput} from '@/components/ui/currency-input';
 import { formatLocaleBR } from '@/lib/dateTime';
 import { useDomainRealtime } from '@/hooks/use-domain-realtime';
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
@@ -290,11 +291,11 @@ const ExchangeTab = ({ onUpdate, account }) => {
                 <Label htmlFor="amount">Valor a converter ({getCurrencySymbol(fromCurrency)})</Label>
                 <Button variant="link" size="sm" className="h-auto p-0 text-primary" onClick={handleSetMaxAmount}>Converter Tudo</Button>
               </div>
-              <Input id="amount" type="number" min="0" step="0.01" placeholder="0,00" value={amount} onChange={(event) => setAmount(event.target.value)} className="text-lg" />
+              {fromCurrency==='BRL'?<CurrencyInput decimal id="amount" min="0" step="0.01" placeholder="0,00" value={amount} onChange={(event) => setAmount(event.target.value)} className="text-lg" />:<Input id="amount" type="number" min="0" step="0.01" placeholder="0,00" value={amount} onChange={(event) => setAmount(event.target.value)} className="text-lg" />}
             </div>
             <div>
               <Label>Valor estimado ({getCurrencySymbol(toCurrency)})</Label>
-              <Input readOnly value={result ? Number(result.convertedAmount || 0).toFixed(4) : '0.0000'} className="bg-secondary text-lg" />
+              {toCurrency==='BRL'?<CurrencyInput readOnly value={result?Number(result.convertedAmount||0).toFixed(2):'0.00'} className="bg-secondary text-lg"/>:<Input readOnly value={result ? Number(result.convertedAmount || 0).toFixed(4) : '0.0000'} className="bg-secondary text-lg" />}
               {result && getExchangeFeeMode(bankPolicy) !== 'free' ? (
                 <p className="mt-2 text-xs text-muted-foreground">Taxa estimada: {formatCurrencyAmount(result.feeAmount, fromCurrency)}. Valor convertido após taxa: {formatCurrencyAmount(result.netAmount, fromCurrency)}.</p>
               ) : (

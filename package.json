@@ -99,7 +99,14 @@
     "test:citizen-refinements": "node tools/test-citizen-refinements.mjs",
     "test:phone-worker": "node tools/test-phone-worker-refinements.mjs",
     "test:atomic-cart": "node tools/test-atomic-cart.mjs",
-    "test:commerce-company-interface": "node tools/test-commerce-company-interface.mjs"
+    "test:commerce-company-interface": "node tools/test-commerce-company-interface.mjs",
+    "prebuild": "node tools/sync-modal-catalog.mjs",
+    "test:recurring-billing": "node tools/test-recurring-billing.mjs",
+    "test:admin-development": "node tools/test-admin-development.mjs",
+    "test:election-participation": "node tools/test-election-participation.mjs",
+    "test:commerce-development-interface": "node tools/test-commerce-development-interface.mjs",
+    "test:update-controls": "node tools/test-update-controls.mjs",
+    "test:formation-countdown": "node tools/test-formation-countdown.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.0",

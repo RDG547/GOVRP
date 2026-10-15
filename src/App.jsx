@@ -6,6 +6,7 @@ import CitizenPhone from '@/components/CitizenPhone';
 import MyWork from '@/pages/services/MyWork';
 import CompanyPage from '@/pages/services/CompanyPage';
 import { CitizenNeedsProvider } from '@/contexts/CitizenNeedsContext';
+import AdminDevelopmentBanner from '@/components/admin/AdminDevelopmentBanner';
 import PresidentialFormationGuide from '@/components/PresidentialFormationGuide';
 import CitizenNeedsHUD from '@/components/CitizenNeedsHUD';
 import NationalCitizenCommerce from '@/pages/services/NationalCitizenCommerce';
@@ -179,7 +180,7 @@ const AppShell = ({ location, theme, isAuthCallback }) => {
   const rolePool = Array.isArray(user?.effective_roles)
     ? user.effective_roles
     : [user?.role].filter(Boolean);
-  const isAdmin = rolePool.includes('Admin') || user?.role === 'Admin';
+  const isAdmin = user?.is_platform_admin || rolePool.includes('Admin') || user?.role === 'Admin';
   const isCitizenOnboarding = location.pathname === '/registro-cidadania';
   const onboardingRequired = Boolean(user && user.onboarding_completed === false);
   const citizenScope = user ? `${user.id}:${user.citizen_id || 'pending'}` : 'visitor';
@@ -200,7 +201,7 @@ const AppShell = ({ location, theme, isAuthCallback }) => {
             <InternetSpeedProvider>
             <CitizenOnboardingGate>
             <MainLayout>
-              <ScrollRestoration />
+              <ScrollRestoration /><AdminDevelopmentBanner/>
               {!isAuthCallback && !isCitizenOnboarding && user?.onboarding_completed && <><WelcomeTutorial /><PartyMembershipWelcome /></>}
               <AnimatePresence mode="wait">
                 <Routes location={location} key={routeTransitionKey}>
@@ -305,14 +306,14 @@ const AppShell = ({ location, theme, isAuthCallback }) => {
             </CitizenOnboardingGate>
             </InternetSpeedProvider>
           </PrisonRouteGuard>
-          {!isEmbeddedPhone() && !isAuthCallback && !isCitizenOnboarding && !onboardingRequired && <UserActivityTracker />}
+          {!user?.is_admin_preview && !isEmbeddedPhone() && !isAuthCallback && !isCitizenOnboarding && !onboardingRequired && <UserActivityTracker />}
           {!isAuthCallback && <CookieConsent />}
-          {!isEmbeddedPhone() && !isAuthCallback && !isCitizenOnboarding && !onboardingRequired && <PwaInstallPrompt />}
-          {!isEmbeddedPhone() && !isAuthCallback && !isCitizenOnboarding && !onboardingRequired && <DailyCheckInPopup />}
-          {!isEmbeddedPhone() && !isAuthCallback && !isCitizenOnboarding && !onboardingRequired && <SalaryPaymentPopup />}
-          {!isEmbeddedPhone() && !isAuthCallback && !isCitizenOnboarding && !onboardingRequired && <BusinessBalancePopup />}
-          {!isEmbeddedPhone() && !isAuthCallback && !isCitizenOnboarding && !onboardingRequired && <ViceCandidacyDecisionPopup />}
-          {!isEmbeddedPhone() && !isAuthCallback && !isCitizenOnboarding && !onboardingRequired && <><ElectionOfficeAwardPopup /><PresidentialFormationGuide /></>}
+          {!user?.is_admin_preview && !isEmbeddedPhone() && !isAuthCallback && !isCitizenOnboarding && !onboardingRequired && <PwaInstallPrompt />}
+          {!user?.is_admin_preview && !isEmbeddedPhone() && !isAuthCallback && !isCitizenOnboarding && !onboardingRequired && <DailyCheckInPopup />}
+          {!user?.is_admin_preview && !isEmbeddedPhone() && !isAuthCallback && !isCitizenOnboarding && !onboardingRequired && <SalaryPaymentPopup />}
+          {!user?.is_admin_preview && !isEmbeddedPhone() && !isAuthCallback && !isCitizenOnboarding && !onboardingRequired && <BusinessBalancePopup />}
+          {!user?.is_admin_preview && !isEmbeddedPhone() && !isAuthCallback && !isCitizenOnboarding && !onboardingRequired && <ViceCandidacyDecisionPopup />}
+          {!user?.is_admin_preview && !isEmbeddedPhone() && !isAuthCallback && !isCitizenOnboarding && !onboardingRequired && <><ElectionOfficeAwardPopup /><PresidentialFormationGuide /></>}
         </div>
       </div>
     </GlobalSiteAvailabilityGate>

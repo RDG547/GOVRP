@@ -1,0 +1,34 @@
+import assert from 'node:assert/strict';
+import {execFileSync} from 'node:child_process';
+import {actor,service,request,rpc,cleanup} from './lib/world-test.mjs';
+const sql=query=>execFileSync('docker',['exec','supabase_db_GOVRP','psql','-U','postgres','-d','postgres','-v','ON_ERROR_STOP=1','-qc',query],{encoding:'utf8'});
+try{
+ const admin=await actor('technical-admin','Deputado'),citizen=await actor('technical-outsider'),target=await actor('technical-target');
+ sql(`insert into private.platform_admins(user_id) values('${admin.id}')`);
+ const company=await request(service.from('businesses').insert({owner_id:citizen.id,business_type_id:'consultoria',name:'Empresa para inspeção '+crypto.randomUUID().slice(0,8),region_code:'SP'}).select('*').single());
+ assert((await admin.client.rpc('get_company_management',{p_business_id:company.id})).error);
+ assert.equal(await rpc(admin.client,'is_admin',{p_user_id:admin.id}),true);
+ assert.equal(await rpc(admin.client,'get_user_role',{p_user_id:admin.id}),'Deputado');
+ assert((await citizen.client.rpc('set_admin_development_mode',{p_mode:'total'})).error);
+ assert((await citizen.client.from('profiles').update({role:'Admin'}).eq('id',citizen.id)).error);
+ await rpc(admin.client,'set_admin_development_mode',{p_mode:'simulate',p_simulated_role:'Presidente'});
+ assert.equal(await rpc(admin.client,'get_user_role',{p_user_id:admin.id}),'Deputado');
+ assert((await admin.client.from('profiles').update({bio:'Prévia não pode alterar'}).eq('id',admin.id)).error);
+ assert((await admin.client.rpc('admin_update_user',{p_user_id:target.id,p_full_name:'Nome indevido',p_username:target.handle,p_role:'Juiz',p_titles:[]})).error);
+ assert.throws(()=>sql(`set request.jwt.claim.sub='${admin.id}';select private.assert_reset_admin();`));
+ assert((await service.rpc('assert_admin_real_action',{p_actor_id:admin.id})).error);
+ const original=await request(service.from('profiles').select('role,full_name').eq('id',target.id).single());assert.equal(original.role,'Cidadão');
+ assert.equal((await rpc(admin.client,'get_country_companies')).total>0,true);
+ await rpc(admin.client,'set_admin_development_mode',{p_mode:'total'});
+ assert((await rpc(admin.client,'get_company_page',{p_business_id:company.id})).can_manage);
+ assert.equal((await rpc(admin.client,'get_company_management',{p_business_id:company.id})).business.id,company.id);
+ await rpc(admin.client,'set_admin_development_mode',{p_mode:'total',p_execute_real:true});
+ await rpc(admin.client,'admin_update_user_with_access',{p_user_id:target.id,p_full_name:original.full_name,p_username:target.handle,p_role:'Juiz',p_titles:[],p_platform_admin:false});
+ assert.equal((await request(service.from('profiles').select('role').eq('id',target.id).single())).role,'Juiz');
+ const audits=await request(service.from('security_audit_log').select('*').eq('actor_id',admin.id).eq('target_table','profiles'));
+ assert(audits.some(row=>row.metadata.mode==='total'&&row.metadata.impacts_production===true));
+ await rpc(admin.client,'set_admin_development_mode',{p_mode:'normal'});
+ assert.equal(await rpc(admin.client,'get_user_role',{p_user_id:admin.id}),'Deputado');
+ assert((await rpc(admin.client,'get_admin_dashboard_stats')).length);
+ console.log('✓ Admin técnico + cargo real; simulação preserva cargo; cliente/RPC/API bloqueados na prévia; ações reais auditadas; cidadão sem acesso.');
+}finally{await cleanup();}

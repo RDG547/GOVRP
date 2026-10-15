@@ -1,3 +1,4 @@
+import {CurrencyInput} from '@/components/ui/currency-input';
 import { formatLocaleBR } from '@/lib/dateTime';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, CheckCircle2, Clock3, Loader2, PlusCircle } from 'lucide-react';
@@ -203,7 +204,7 @@ const NationalEventManagement = () => {
                   <Textarea aria-label="Descrição da resposta ativa" required minLength={10} placeholder="Explique o que a autoridade fará" value={form.actionDescription} onChange={(event) => setField('actionDescription', event.target.value)} />
                   <div className="space-y-2">
                     <Label htmlFor="event-cost">Custo ao Tesouro</Label>
-                    <Input id="event-cost" type="number" min="0" step="0.01" value={form.treasuryCost} onChange={(event) => setField('treasuryCost', event.target.value)} />
+                    <CurrencyInput decimal id="event-cost" min="0" step="0.01" value={form.treasuryCost} onChange={(event) => setField('treasuryCost', event.target.value)} />
                   </div>
                 </div>
               </div>

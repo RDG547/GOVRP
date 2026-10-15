@@ -1,3 +1,4 @@
+import QuantityControl from '@/components/business/QuantityControl';
 import CheckoutDialog from '@/components/business/PurchaseDialog';
 import React, { useState, useRef } from 'react';
 import { useCart } from '@/contexts/CartContext';
@@ -28,21 +29,17 @@ const CartItem = ({ item, updateQuantity, removeFromCart }) => (
             <p className="font-semibold text-sm break-words">{item.name}</p>
             <ItemTaxDetails item={item}/>
         </div>
-        <div className="flex items-center gap-2">
-            <Button variant="outline" size="icon" className="h-9 w-9" aria-label={`Diminuir quantidade de ${item.name}`} onClick={() => updateQuantity(item.id, item.quantity - 1)}><Minus className="h-3 w-3" /></Button>
-            <span className="font-bold text-sm w-4 text-center">{item.quantity}</span>
-            <Button variant="outline" size="icon" className="h-9 w-9" aria-label={`Aumentar quantidade de ${item.name}`} disabled={item.product_type === 'subscription' || item.quantity >= 100} onClick={() => updateQuantity(item.id, item.quantity + 1)}><Plus className="h-3 w-3" /></Button>
-        </div>
+        <QuantityControl value={item.quantity} max={item.product_type==='subscription'?1:Math.min(100,Math.max(0,item.stock==null?100:Number(item.stock)||0))} label={item.name} onChange={quantity=>updateQuantity(item.id,quantity)}/>
         <Button variant="ghost" size="icon" className="h-10 w-10 text-destructive" aria-label={`Remover ${item.name}`} onClick={() => removeFromCart(item.id)}><Trash2 className="h-4 w-4" /></Button>
     </div>
 );
 
 const Cart = () => {
     const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
-    const { cartItems, updateQuantity, removeFromCart, clearCart, quoteReady, refreshPrices } = useCart();
+    const { cartItems, updateQuantity, removeFromCart, clearCart, quoteReady, refreshPrices, stockNotice } = useCart();
     const { toast } = useToast();
     const total = cartItems.reduce((sum, item) => sum + Number(item.final_price || 0) * item.quantity, 0);
-    const blocked = cartItems.some(item => item.unavailable || item.seller?.activity_restricted || (item.product_type === 'one-time' && item.stock < item.quantity));
+    const blocked = cartItems.some(item => item.unavailable || item.seller?.activity_restricted || (item.product_type === 'one-time' && item.stock != null && item.stock < item.quantity));
     const purchaseIntent = useRef(null);
     const checkingOut = useRef(false);
     const itemCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
@@ -102,7 +99,7 @@ const Cart = () => {
                         </CardContent>
                         <CardFooter className="flex-col items-stretch gap-2">
                             <Separator />
-                            <PurchaseTotals items={cartItems}/>
+                            <PurchaseTotals items={cartItems}/>{stockNotice&&<p role="status" className="text-xs text-amber-500">{stockNotice}</p>}
                             <Button className="w-full" onClick={handleCheckout} disabled={!quoteReady || blocked || !cartItems.length}><ShoppingCart className="mr-2 h-4 w-4"/>Finalizar Compra</Button>
                         </CardFooter>
                     </Card>

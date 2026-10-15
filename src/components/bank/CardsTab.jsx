@@ -1,3 +1,4 @@
+import {CurrencyInput} from '@/components/ui/currency-input';
 import { formatLocaleBR } from '@/lib/dateTime';
 import { useDomainRealtime } from '@/hooks/use-domain-realtime';
 import { bankRealtimeTables } from '@/lib/bankRealtime';
@@ -118,7 +119,7 @@ const PayInvoiceDialog = ({ isOpen, setIsOpen, card, onPaymentSuccess }) => {
                     {!payFull && (
                         <div>
                             <Label htmlFor="amount">Valor a pagar</Label>
-                            <Input id="amount" value={amount} onChange={(e) => setAmount(formatCurrency(e.target.value, true))} placeholder="R$ 0,00" />
+                            <CurrencyInput id="amount" value={amount} onChange={(e) => setAmount(formatCurrency(e.target.value, true))} placeholder="R$ 0,00" />
                         </div>
                     )}
                     <DialogFooter className="justify-center sm:justify-center">

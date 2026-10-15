@@ -108,8 +108,8 @@ const Navbar = () => {
     navigate('/');
   };
   const effectiveRoles = Array.isArray(user?.effective_roles) ? user.effective_roles : [user?.role].filter(Boolean);
-  const hasPresidentAccess = effectiveRoles.includes('Presidente');
-  const isAdmin = effectiveRoles.includes('Admin') || user?.role === 'Admin';
+  const hasPresidentAccess = effectiveRoles.includes('Presidente')||(user?.is_platform_admin&&user?.admin_development?.mode==='total');
+  const isAdmin = user?.is_platform_admin || effectiveRoles.includes('Admin') || user?.role === 'Admin';
 
   const handleServicesEnter = () => { clearTimeout(servicesTimeoutRef.current); setServicesOpen(true); };
   const handleServicesLeave = () => { servicesTimeoutRef.current = setTimeout(() => setServicesOpen(false), 200); };
@@ -288,6 +288,7 @@ const Navbar = () => {
           navigate(path);
         }}
         hasPresidentAccess={hasPresidentAccess}
+        realRole={user?.admin_development?.mode==='normal'?user.canonical_role:null}
         isAdmin={isAdmin}
       />
     </>

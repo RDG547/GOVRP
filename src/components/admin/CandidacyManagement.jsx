@@ -121,7 +121,7 @@ const CandidacyManagement = () => {
     };
 
     const handleConfirmAction = async () => {
-        if (!selectedCandidate || !actionType || isProcessing || authLoading || user?.role !== 'Admin') return;
+        if (!selectedCandidate || !actionType || isProcessing || authLoading || (!user?.is_platform_admin && user?.role !== 'Admin')) return;
 
         if (actionType === 'reject' && !feedback.trim()) {
             toast({ title: "Erro de validação", description: "O motivo da rejeição é obrigatório.", variant: "destructive" });
@@ -404,7 +404,7 @@ const CandidacyManagement = () => {
                         </DialogClose>
                         <Button
                             onClick={handleConfirmAction}
-                            disabled={isProcessing || authLoading || user?.role !== 'Admin'}
+                            disabled={isProcessing || authLoading || (!user?.is_platform_admin && user?.role !== 'Admin')}
                             variant={actionType === 'reject' || actionType === 'delete' ? 'destructive' : 'default'}
                         >
                             {isProcessing && <Loader2 className="animate-spin mr-2 w-4 h-4"/>}

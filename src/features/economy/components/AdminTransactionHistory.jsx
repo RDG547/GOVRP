@@ -1,3 +1,4 @@
+import {CurrencyInput} from '@/components/ui/currency-input';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ChevronLeft, ChevronRight, Eye, Loader2, RefreshCw, Search } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
@@ -240,11 +241,11 @@ const AdminTransactionHistory = () => {
           </div>
           <div className="space-y-2">
             <Label htmlFor="admin-transaction-min">Valor mínimo</Label>
-            <Input id="admin-transaction-min" inputMode="decimal" value={draftFilters.minAmount} onChange={(event) => updateDraft('minAmount', event.target.value)} placeholder="R$ 0,00" />
+            <CurrencyInput id="admin-transaction-min" inputMode="decimal" value={draftFilters.minAmount} onChange={(event) => updateDraft('minAmount', event.target.value)} placeholder="R$ 0,00" />
           </div>
           <div className="space-y-2">
             <Label htmlFor="admin-transaction-max">Valor máximo</Label>
-            <Input id="admin-transaction-max" inputMode="decimal" value={draftFilters.maxAmount} onChange={(event) => updateDraft('maxAmount', event.target.value)} placeholder="Sem limite" />
+            <CurrencyInput id="admin-transaction-max" inputMode="decimal" value={draftFilters.maxAmount} onChange={(event) => updateDraft('maxAmount', event.target.value)} placeholder="Sem limite" />
           </div>
           <div className="space-y-2 md:col-span-1 xl:col-span-2">
             <Label htmlFor="admin-transaction-sender">Remetente</Label>

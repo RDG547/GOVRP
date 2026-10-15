@@ -1,3 +1,4 @@
+import {CurrencyInput} from '@/components/ui/currency-input';
 import { fetchCitizenDirectory } from '@/lib/publicProfileQueries';
 import CitizenSelector from '@/components/CitizenSelector';
 import { formatLocaleBR } from '@/lib/dateTime';
@@ -122,7 +123,7 @@ const TreasuryManager = ({ onUpdate }) => {
             <CardContent className="space-y-4">
                 <div>
                     <Label htmlFor="treasury-amount">Valor</Label>
-                    <Input id="treasury-amount" type="text" value={inputValue} onChange={handleAmountChange} placeholder="R$ 0,00" />
+                    <CurrencyInput id="treasury-amount" value={inputValue} onChange={handleAmountChange} placeholder="R$ 0,00" />
                 </div>
                 <div>
                     <Label htmlFor="treasury-reason">Motivo da Operação</Label>
@@ -178,7 +179,7 @@ const GovCardManager = ({ onUpdate }) => {
             <CardContent className="space-y-4">
                 <div>
                     <Label htmlFor="card-limit">Novo Limite</Label>
-                    <Input id="card-limit" type="text" value={inputValue} onChange={handleLimitChange} placeholder="R$ 0,00" />
+                    <CurrencyInput id="card-limit" value={inputValue} onChange={handleLimitChange} placeholder="R$ 0,00" />
                 </div>
             </CardContent>
             <CardFooter>
@@ -228,7 +229,7 @@ const GovLoanManager = ({ onUpdate }) => {
             <CardContent className="space-y-4">
                 <div>
                     <Label htmlFor="loan-limit">Novo Limite de Empréstimos</Label>
-                    <Input id="loan-limit" type="text" value={inputValue} onChange={handleLimitChange} placeholder="R$ 0,00" />
+                    <CurrencyInput id="loan-limit" value={inputValue} onChange={handleLimitChange} placeholder="R$ 0,00" />
                 </div>
             </CardContent>
             <CardFooter>
@@ -289,7 +290,7 @@ const ForgiveDebtManager = ({ finances, onUpdate }) => {
             <CardContent className="space-y-4">
                  <div>
                     <Label htmlFor="debt-amount">Valor para Abater</Label>
-                    <Input id="debt-amount" type="text" value={inputValue} onChange={handleAmountChange} placeholder="R$ 0,00" disabled={currentDebt <= 0} />
+                    <CurrencyInput id="debt-amount" value={inputValue} onChange={handleAmountChange} placeholder="R$ 0,00" disabled={currentDebt <= 0} />
                 </div>
                  <Button onClick={() => handleAction('abate')} disabled={saving || currentDebt <= 0 || amount <= 0 || amount > currentDebt} className="w-full">
                     {saving ? <Loader2 className="animate-spin mr-2" /> : <Save className="mr-2 h-4 w-4" />} Abater Valor Específico
@@ -574,7 +575,7 @@ const AssetManager = ({ onUpdate, assetType }) => {
                 )}
                 <div>
                     <Label htmlFor={`${assetType}-amount`}>Valor</Label>
-                    <Input id={`${assetType}-amount`} type="text" value={inputValue} onChange={handleAmountChange} placeholder="R$ 0,00" />
+                    <CurrencyInput id={`${assetType}-amount`} value={inputValue} onChange={handleAmountChange} placeholder="R$ 0,00" />
                 </div>
             </CardContent>
             <CardFooter className="gap-2">
@@ -887,7 +888,7 @@ const SystemSettings = () => {
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div>
                                     <Label htmlFor="income-amount">Valor do Pagamento</Label>
-                                    <Input id="income-amount" value={formatCurrency(settings.citizen_income.amount, true)} onChange={(e) => handleIncomeChange('amount', parseCurrency(e.target.value))} disabled={!settings.citizen_income.enabled} placeholder="R$ 0,00" />
+                                    <CurrencyInput id="income-amount" value={formatCurrency(settings.citizen_income.amount, true)} onChange={(e) => handleIncomeChange('amount', parseCurrency(e.target.value))} disabled={!settings.citizen_income.enabled} placeholder="R$ 0,00" />
                                 </div>
                                 <div>
                                     <Label htmlFor="income-day">Dia do Pagamento</Label>

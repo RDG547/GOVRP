@@ -1,3 +1,4 @@
+import {previewRequestBlocked,ADMIN_PREVIEW_MESSAGE} from './adminPreview';
 import { createClient } from '@supabase/supabase-js';
 import {
   getOptionalPublicEnv,
@@ -13,6 +14,7 @@ const supabasePublishableKey =
 export { supabaseUrl, supabasePublishableKey };
 
 export const supabase = createClient(supabaseUrl, supabasePublishableKey, {
+  global:{fetch:(input,options)=>previewRequestBlocked(input,options)?Promise.resolve(new Response(JSON.stringify({code:'42501',message:ADMIN_PREVIEW_MESSAGE}),{status:403,headers:{'Content-Type':'application/json'}})):globalThis.fetch(input,options)},
   auth: {
     autoRefreshToken: true,
     persistSession: true,

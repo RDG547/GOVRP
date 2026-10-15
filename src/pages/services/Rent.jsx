@@ -81,7 +81,7 @@ const Rent = () => {
     const handleCancelRent = async () => {
         if (!rentedProperty) return;
         setActionLoading(true);
-        const { error } = await supabase.from('user_services').delete().eq('id', rentedProperty.id);
+        const { error } = await supabase.from('user_services').update({is_active:false}).eq('id', rentedProperty.id);
         if (error) {
             toast({ title: 'Erro ao cancelar', variant: 'destructive' });
         } else {

@@ -33,7 +33,7 @@ const ContentModeration = () => {
         fetchAllPosts();
     }, [fetchAllPosts]);
 
-    useDomainRealtime('x-moderation', user?.id, ['posts', 'stories'], fetchAllPosts, user?.role === 'Admin');
+    useDomainRealtime('x-moderation', user?.id, ['posts', 'stories'], fetchAllPosts, (user?.is_platform_admin || user?.role === 'Admin'));
 
     const handleDeletePost = async (postId, postAuthor) => {
         const { error } = await supabase.rpc('admin_delete_post', { p_post_id: postId });
@@ -58,7 +58,7 @@ const ContentModeration = () => {
     return (
         <div className="space-y-6">
             <h2 className="text-2xl font-bold text-white">Moderação de Conteúdo</h2>
-            <Stories allowUpload={false} />
+            <Stories moderation allowUpload={false} />
             <div className="relative max-w-sm">
                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5"/>
                 <Input 

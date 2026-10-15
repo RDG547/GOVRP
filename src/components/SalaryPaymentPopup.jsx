@@ -1,6 +1,6 @@
 import { canonicalRole } from '@/lib/roleIcons';
 import { useOfficialSalaries, currentSalary } from '@/hooks/use-official-salaries';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ArrowRight, AlertTriangle, Banknote, Briefcase, Clock3, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -225,6 +225,17 @@ const SalaryPaymentPopup = () => {
     return null;
   }
 
+  return <SalaryPaymentView payment={payment} failureNotification={failureNotification} salaryInfo={salaryInfo} onDismiss={handleDismiss}/>;
+};
+export function SalaryPaymentView({payment,failureNotification=null,salaryInfo={},onDismiss:handleDismiss}) {
+  const dialogRef=useRef(null);
+  useEffect(()=>{
+    const previous=document.activeElement;
+    const buttons=()=>[...dialogRef.current.querySelectorAll('button:not(:disabled),a[href],[tabindex="0"]')];
+    buttons()[0]?.focus();
+    const keydown=event=>{if(event.key==='Escape'){event.preventDefault();handleDismiss();}if(event.key==='Tab'){const items=buttons(),first=items[0],last=items.at(-1);if(event.shiftKey&&document.activeElement===first){event.preventDefault();last?.focus();}else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first?.focus();}}};
+    document.addEventListener('keydown',keydown);return()=>{document.removeEventListener('keydown',keydown);previous?.focus?.();};
+  },[handleDismiss]);
   const popupMode = failureNotification ? 'failure' : 'success';
   const paymentAmount =
     popupMode === 'failure'
@@ -278,8 +289,9 @@ const SalaryPaymentPopup = () => {
         transition={{ type: 'spring', stiffness: 280, damping: 22 }}
         className="fixed inset-0 z-[73] flex items-center justify-center p-4 pointer-events-none"
       >
-        <div className={`relative w-full max-w-md pointer-events-auto rounded-3xl border p-6 shadow-2xl ${containerClassName}`}>
+        <div ref={dialogRef} role="dialog" aria-modal="true" aria-label={popupTitle} className={`relative w-full max-w-md pointer-events-auto rounded-3xl border p-6 shadow-2xl ${containerClassName}`}>
           <button
+            aria-label="Fechar aviso de salário"
             onClick={handleDismiss}
             className="absolute right-4 top-4 rounded-full p-2 text-muted-foreground transition-colors hover:bg-white/10 hover:text-foreground"
           >

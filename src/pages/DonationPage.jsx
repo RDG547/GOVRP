@@ -1,3 +1,4 @@
+import {CurrencyInput} from '@/components/ui/currency-input';
 import { formatLocaleBR } from '@/lib/dateTime';
 import React, { useEffect, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
@@ -468,8 +469,8 @@ const DonationPage = () => {
                       </div>
                       <div className="relative">
                         <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground">R$</span>
-                        <Input
-                          type="text"
+                        <CurrencyInput
+
                           placeholder="5,00"
                           value={customAmount}
                           onChange={handleCustomAmountChange}

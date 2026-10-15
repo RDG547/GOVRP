@@ -17,6 +17,7 @@ const DashboardSelectorDialog = ({
   onSelect,
   hasPresidentAccess = false,
   isAdmin = false,
+  realRole = null,
 }) => {
   const navigate = useNavigate();
 
@@ -48,7 +49,8 @@ const DashboardSelectorDialog = ({
             <User className="h-5 w-5" />
             <span>Central do Cidadão</span>
           </Button>
-          {(hasPresidentAccess || isAdmin) && (
+          {realRole&&!['Cidadão','Usuário','Admin','Presidente'].includes(realRole)&&<Button type="button" variant="outline" className="w-full justify-center gap-3" onClick={()=>selectDashboard('/role-dashboard')}><FolderKanban className="h-5 w-5"/>Painel de {realRole}</Button>}
+          {hasPresidentAccess && (
             <Button
               type="button"
               onClick={() => selectDashboard('/dashboard/president')}

@@ -1,3 +1,4 @@
+import {CurrencyInput} from '@/components/ui/currency-input';
 import React, { useEffect, useRef, useState } from 'react';
 import { AlignLeft, Building2, HeartPulse, Layers, Loader2, Save, TrendingUp } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
@@ -42,7 +43,7 @@ export default function EnterpriseDetailsForm({ enterprise, onSaved }) {
     <label className="block text-sm"><span className="mb-1 flex items-center gap-2"><Layers className="h-4 w-4"/>Setor</span><GovSelect disabled={enterprise.is_system} value={draft.sector} onChange={event => change('sector', event.target.value)}>{ENTERPRISE_SECTORS.map(item => <option key={item.value} value={item.value}>{item.label}</option>)}</GovSelect></label>
     {enterprise.is_system && <p className="text-xs text-muted-foreground">O setor é vinculado ao serviço essencial prestado por esta empresa.</p>}
     <div className="grid gap-4 sm:grid-cols-2">
-      <label className="text-sm"><span className="mb-1 flex items-center gap-2"><TrendingUp className="h-4 w-4"/>Valor de mercado (R$)</span><Input required type="number" min={0} max={1000000000000} step="0.01" value={draft.market_value} onChange={event => change('market_value', event.target.value)}/></label>
+      <label className="text-sm"><span className="mb-1 flex items-center gap-2"><TrendingUp className="h-4 w-4"/>Valor de mercado (R$)</span><CurrencyInput decimal required min={0} max={1000000000000} step="0.01" value={draft.market_value} onChange={event => change('market_value', event.target.value)}/></label>
       <label className="text-sm"><span className="mb-1 flex items-center gap-2"><HeartPulse className="h-4 w-4"/>Saúde operacional (%)</span><Input required type="number" min={0} max={100} value={draft.health_score} onChange={event => change('health_score', event.target.value)}/></label>
     </div>
     <label className="block text-sm"><span className="mb-1 flex items-center gap-2"><AlignLeft className="h-4 w-4"/>Descrição</span><Textarea maxLength={3000} value={draft.description} onChange={event => change('description', event.target.value)}/></label>

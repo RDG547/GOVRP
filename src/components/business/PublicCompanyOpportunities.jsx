@@ -1,0 +1,21 @@
+import React,{useEffect,useRef,useState} from 'react';
+import {Link} from 'react-router-dom';
+import {Package,Briefcase,Loader2} from 'lucide-react';
+import {supabase} from '@/lib/supabaseClient';
+import {useAuth} from '@/contexts/AuthContext';
+import {useToast} from '@/components/ui/use-toast';
+import {Button} from '@/components/ui/button';
+import {Input} from '@/components/ui/input';
+import {GovSelect} from '@/components/ui/gov-select';
+import {Dialog,DialogContent,DialogHeader,DialogTitle,DialogDescription,DialogFooter} from '@/components/ui/dialog';
+import {companyMoney} from '@/lib/companyEconomy';
+export default function PublicCompanyOpportunities({company,onChanged}){
+ const {user}=useAuth(),{toast}=useToast();const [companies,setCompanies]=useState([]),[offer,setOffer]=useState(null),[buyer,setBuyer]=useState(''),[quantity,setQuantity]=useState('1'),[busy,setBusy]=useState(false);const key=useRef(null);
+ useEffect(()=>{void supabase.from('businesses').select('id,name').eq('owner_id',user.id).eq('status','active').neq('id',company.id).then(result=>setCompanies(result.data||[]));},[user.id,company.id]);
+ const buy=async()=>{if(busy||!buyer||!offer)return;setBusy(true);try{const r=await supabase.rpc('buy_company_resource',{p_business_id:buyer,p_supplier_id:company.id,p_resource_code:offer.resource_code,p_quantity:Number(quantity),p_max_unit_price:offer.unit_price,p_idempotency_key:key.current});if(r.error)throw r.error;setOffer(null);await onChanged();toast({title:'Insumos recebidos pela sua empresa'});}catch(error){toast({title:'Compra não concluída',description:error.message,variant:'destructive'});}finally{setBusy(false);}};
+ return <>
+  {!!company.offers?.length&&<section className="space-y-3"><h2 className="flex items-center gap-2 text-xl font-semibold"><Package/>Insumos e serviços para empresas</h2><div className="grid gap-3 sm:grid-cols-2">{company.offers.map(item=><article key={item.resource_code} className="space-y-2 rounded-xl border p-4"><h3 className="font-semibold">{item.resource_name}</h3><p>{companyMoney(item.unit_price)} / {item.unit} · {Number(item.quantity).toLocaleString('pt-BR')} disponíveis</p><Button disabled={!companies.length} onClick={()=>{key.current=crypto.randomUUID();setOffer(item);setQuantity('1');setBuyer(companies[0]?.id||'');}}>Comprar para minha empresa</Button>{!companies.length&&<p className="text-xs text-muted-foreground">A negociação de insumos utiliza o caixa e o estoque de uma empresa ativa.</p>}</article>)}</div></section>}
+  {!!company.vacancies?.length&&<section className="space-y-3"><h2 className="flex items-center gap-2 text-xl font-semibold"><Briefcase/>Oportunidades de trabalho</h2>{company.vacancies.map(job=><article key={job.id} className="space-y-2 rounded-xl border p-4"><h3 className="font-semibold">{job.role}</h3><p>{companyMoney(job.salary)} / semana · {job.positions} posições · nível mínimo {job.min_level}</p><p className="text-sm text-muted-foreground">{job.description}</p><Button asChild variant="outline"><Link to="/services/my-work">{job.applied?'Acompanhar candidatura':'Consultar vaga e candidatar-se'}</Link></Button></article>)}</section>}
+  <Dialog open={Boolean(offer)} onOpenChange={open=>{if(!open&&!busy)setOffer(null);}}><DialogContent><DialogHeader><DialogTitle>Comprar insumo de {company.name}</DialogTitle><DialogDescription>{offer?.resource_name} · pagamento pelo caixa empresarial</DialogDescription></DialogHeader><label className="block space-y-1 text-sm">Empresa compradora<GovSelect value={buyer} onChange={e=>setBuyer(e.target.value)}>{companies.map(b=><option key={b.id} value={b.id}>{b.name}</option>)}</GovSelect></label><label className="block space-y-1 text-sm">Quantidade<Input type="number" min="0.001" step="0.001" max={offer?.quantity} value={quantity} onChange={e=>setQuantity(e.target.value)}/></label><p className="text-sm">Valor dos insumos: {companyMoney(Number(offer?.unit_price)*Number(quantity))}. Tributos vigentes são conferidos na compra.</p><DialogFooter><Button variant="outline" disabled={busy} onClick={()=>setOffer(null)}>Cancelar</Button><Button disabled={busy||!buyer||Number(quantity)<=0||Number(quantity)>Number(offer?.quantity)} onClick={buy}>{busy&&<Loader2 className="mr-2 h-4 w-4 animate-spin"/>}Confirmar compra</Button></DialogFooter></DialogContent></Dialog>
+ </>;
+}

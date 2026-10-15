@@ -1,3 +1,4 @@
+import {CurrencyInput} from '@/components/ui/currency-input';
 import React, { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
@@ -127,7 +128,7 @@ const PayBillDialog = ({ isOpen, setIsOpen, onPaymentSuccess, initialBillCode = 
                     </div>
                      <div>
                         <Label htmlFor="amount">Valor a Pagar</Label>
-                        <Input id="amount" value={amount} placeholder="R$ 0,00" readOnly disabled />
+                        <CurrencyInput id="amount" value={amount} placeholder="R$ 0,00" readOnly disabled />
                     </div>
                     <DialogFooter>
                         <Button type="submit" disabled={isProcessing || billStatus.status !== 'valid' || !amount} className="w-full">

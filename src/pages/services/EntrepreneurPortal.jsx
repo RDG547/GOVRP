@@ -12,7 +12,9 @@ import { invalidateDomain } from '@/lib/realtime';
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
+import CountryCompanies from '@/components/business/CountryCompanies';
+import {CurrencyInput} from '@/components/ui/currency-input';
 import {
   ArrowRight,
   Briefcase,
@@ -603,7 +605,7 @@ const MyBusinessCard = ({ biz, index, onSell, onCancelSale, types }) => {
             </div>
           ) : null}
 
-          <p className="mt-3 flex items-center gap-2 text-sm">{biz.region_code&&<BrazilStateFlag code={biz.region_code} className="h-5 w-7"/>}<span>{getStateName(biz.region_code)||'Sede ainda não informada'}</span></p>
+          <p className="mt-3 flex items-center gap-2 text-sm">Sede: {biz.region_code&&<BrazilStateFlag code={biz.region_code} className="h-5 w-7"/>}<span>{getStateName(biz.region_code)||'Sede ainda não informada'}</span></p>
           <div className="mt-4 flex flex-wrap gap-2">
             <Button asChild variant="outline" size="sm" className="border-blue-400/30 text-blue-400 hover:bg-blue-500/10"><Link to={`/services/companies/${biz.id}?view=management`}><Settings className="mr-2 h-4 w-4"/>Gerenciar</Link></Button>
             <Button asChild variant="outline" size="sm" className="border-cyan-400/30 text-cyan-400 hover:bg-cyan-500/10"><Link to={`/services/companies/${biz.id}?view=public`}><Eye className="mr-2 h-4 w-4"/>Ver Empresa</Link></Button>
@@ -633,23 +635,23 @@ const SalePriceDialog = ({ open, onOpenChange, title, description, onConfirm, lo
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="glass-effect">
         <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
-          {description ? <p className="text-sm text-muted-foreground">{description}</p> : null}
+          <Tag className="mx-auto h-9 w-9 text-amber-400"/><DialogTitle className="text-center">{title}</DialogTitle>
+          {description ? <p className="text-center text-sm text-muted-foreground">{description}</p> : null}
         </DialogHeader>
         <div className="space-y-2 py-4">
           <Label htmlFor="sale-price">Preço de venda</Label>
-          <Input
+          <CurrencyInput
             id="sale-price"
             value={price}
             onChange={(event) => setPrice(formatCurrencyInput(event.target.value))}
             placeholder="R$ 0,00"
           />
         </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>Cancelar</Button>
+        <DialogFooter className="sm:justify-center">
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}><X className="mr-2 h-4 w-4"/>Cancelar</Button>
           <Button onClick={handleConfirm} disabled={loading || parseCurrencyInput(price) <= 0}>
             {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Tag className="mr-2 h-4 w-4" />}
-            Confirmar
+            Confirmar Venda
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -687,6 +689,7 @@ const BusinessForSaleCard = ({ listing, index, onBuy, buyingId }) => {
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
+          <p className="flex flex-wrap items-center gap-2 text-sm">Sede: {listing.region_code&&<BrazilStateFlag code={listing.region_code} className="h-5 w-7"/>}{getStateName(listing.region_code)||'Não informada'}</p>
           <p className="text-sm text-muted-foreground line-clamp-3">{listing.description || 'Sem descrição.'}</p>
           <div className="rounded-lg bg-white/5 p-4">
             <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Preço de venda</p>
@@ -712,7 +715,9 @@ const EntrepreneurPortal = () => {
   const [selectedBusiness, setSelectedBusiness] = useState(null);
   const [isRegistering, setIsRegistering] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeTab, setActiveTab] = useState('catalog');
+  const [portalParams,setPortalParams]=useSearchParams();
+  const activeTab=portalParams.get('tab')||'catalog';
+  const setActiveTab=value=>setPortalParams(current=>{const next=new URLSearchParams(current);next.set('tab',value);return next;});
   const [myBusinesses, setMyBusinesses] = useState([]);
   const [saleListings, setSaleListings] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -812,6 +817,7 @@ const EntrepreneurPortal = () => {
           name: business.name,
           description: business.description,
           type: business.business_type_id,
+          region_code: business.region_code,
           price: Number(business.sale_price || 0),
           sellerName: business.owner?.full_name || 'Empreendedor',
         }));
@@ -989,6 +995,7 @@ const EntrepreneurPortal = () => {
   };
 
   const tabs = [
+    { id: 'country', label: 'Empresas do País', icon: Building2 },
     { id: 'catalog', label: 'Catálogo de Empresas', icon: ShoppingBag },
     { id: 'my-businesses', label: `Minhas Empresas (${myBusinesses.length})`, icon: Building2 },
     { id: 'for-sale', label: `Empresas à Venda (${saleListings.length})`, icon: Tag },
@@ -1063,7 +1070,7 @@ const EntrepreneurPortal = () => {
         </div>
 
         {/* Tabs */}
-        <div className="grid grid-cols-3 gap-1 mb-8 border-b border-white/10 pb-1">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-1 mb-8 border-b border-white/10 pb-1">
           {tabs.map((tab) => (
             <button
               key={tab.id}
@@ -1082,6 +1089,7 @@ const EntrepreneurPortal = () => {
 
         {/* TAB: Catalog */}
         <AnimatePresence mode="wait">
+          {activeTab==='country'&&<CountryCompanies key="country" types={catalogTypes}/>}
           {activeTab === 'catalog' && (
             <motion.div
               key="catalog"

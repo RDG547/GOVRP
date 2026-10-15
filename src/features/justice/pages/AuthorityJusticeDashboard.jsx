@@ -1,3 +1,4 @@
+import {CurrencyInput} from '@/components/ui/currency-input';
 import { Archive, FileWarning } from 'lucide-react';
 import CaseEvidence from '@/features/justice/components/CaseEvidence';
 import { fromBrasiliaInput } from '@/lib/dateTime';
@@ -398,6 +399,7 @@ const AuthorityJusticeDashboard = () => {
         </TabsList>
 
         <TabsContent value="missions" className="space-y-4">
+          {user?.admin_development?.mode==='total'&&<p className="text-xs text-amber-400">Normalmente disponível para: Polícia.</p>}
           {!isPolice ? (
             <JusticeEmptyState
               title="Fila exclusiva da Polícia"
@@ -445,6 +447,7 @@ const AuthorityJusticeDashboard = () => {
         </TabsContent>
 
         <TabsContent value="investigations" className="space-y-4">
+          {user?.admin_development?.mode==='total'&&<p className="text-xs text-amber-400">Normalmente disponível para: Polícia e Delegados.</p>}
           {data.investigations.length ? data.investigations.map((investigation) => (
             <Card key={investigation.id} className="glass-effect">
               <CardHeader>
@@ -482,6 +485,7 @@ const AuthorityJusticeDashboard = () => {
         </TabsContent>
 
         <TabsContent value="requests" className="space-y-4">
+          {user?.admin_development?.mode==='total'&&<p className="text-xs text-amber-400">Normalmente disponível para: Ministério Público e Justiça.</p>}
           {data.requests.length ? data.requests.map((request) => (
             <Card
               key={request.id}
@@ -540,6 +544,7 @@ const AuthorityJusticeDashboard = () => {
         </TabsContent>
 
         <TabsContent value="warrants" className="space-y-4">
+          {user?.admin_development?.mode==='total'&&<p className="text-xs text-amber-400">Normalmente disponível para: Polícia e Justiça.</p>}
           {data.warrants.length ? data.warrants.map((warrant) => {
             const target = data.profiles.find((profile) => profile.id === warrant.target_profile_id);
             const typeLabel = {
@@ -572,6 +577,7 @@ const AuthorityJusticeDashboard = () => {
         </TabsContent>
 
         <TabsContent value="cases" className="space-y-4">
+          {user?.admin_development?.mode==='total'&&<p className="text-xs text-amber-400">Normalmente disponível para: Promotores, Advogados e Juízes.</p>}
           {(isJudge || isProsecutor || isLawyer) && data.cases.length ? data.cases.map((criminalCase) => (
             <Card key={criminalCase.id} className="glass-effect">
               <CardHeader>
@@ -625,6 +631,7 @@ const AuthorityJusticeDashboard = () => {
         </TabsContent>
 
         <TabsContent value="custody" className="space-y-4">
+          {user?.admin_development?.mode==='total'&&<p className="text-xs text-amber-400">Normalmente disponível para: Sistema prisional e Justiça.</p>}
           {(isPrisonStaff || isJudge) && data.custody.length ? data.custody.map((term) => (
             <Card key={term.id} className="glass-effect">
               <CardHeader>
@@ -669,6 +676,7 @@ const AuthorityJusticeDashboard = () => {
         </TabsContent>
 
         <TabsContent value="sanctions" className="space-y-4">
+          {user?.admin_development?.mode==='total'&&<p className="text-xs text-amber-400">Normalmente disponível para: Polícia e Justiça.</p>}
           {(isJudge || isPolice) && <Button onClick={() => setAction({ type: 'issue-fine', userId: '', amount: '' })}><Banknote className="mr-2 h-4 w-4" />Emitir multa</Button>}
           {(isJudge || isPolice) && (data.fineAppeals.length || data.fineHearings.length) ? (
             <>
@@ -691,6 +699,7 @@ const AuthorityJusticeDashboard = () => {
 
 
         <TabsContent value="integrity" className="space-y-4">
+          {user?.admin_development?.mode==='total'&&<p className="text-xs text-amber-400">Normalmente disponível para: Autoridades de controle institucional.</p>}
           {data.integrityCases.length ? data.integrityCases.map((item) => <Card key={item.id} className="glass-effect"><CardHeader><div className="flex items-start justify-between gap-3"><div><CardTitle>{item.title}</CardTitle><CardDescription>{item.case_number} · fluxo sem presunção automática de culpa</CardDescription></div><Badge variant="outline">{justiceStatus(item.status)}</Badge></div></CardHeader><CardContent className="space-y-4"><p className="text-sm text-muted-foreground">{item.summary}</p>{item.status === 'suspicion' ? <div className="flex gap-2"><Button size="sm" onClick={() => setAction({ type: 'integrity', item, status: 'police_investigation' })}>Abrir investigação</Button><Button size="sm" variant="outline" onClick={() => setAction({ type: 'integrity', item, status: 'archived' })}>Arquivar</Button></div> : null}</CardContent></Card>) : <JusticeEmptyState title="Nenhum caso de integridade" description="Suspeitas, investigações, processos e decisões finais ficam historicamente separados." />}
         </TabsContent>
       </Tabs>
@@ -708,9 +717,9 @@ const AuthorityJusticeDashboard = () => {
             {action?.type === 'evidence' ? <><Label htmlFor="evidence-title">Identificação da prova</Label><Input id="evidence-title" value={action.title} onChange={(event) => updateAction({ title: event.target.value })} placeholder="Ex.: Laudo pericial nº 14" /><label className="flex items-center gap-2 py-2 text-sm"><input type="checkbox" checked={Boolean(action.seal)} disabled={!isDelegate} onChange={(event) => updateAction({ seal: event.target.checked })} />Lacrar prova ao registrar</label></> : null}
             {action?.type === 'file-charge' ? <><Label htmlFor="charge-title">Título da ação penal</Label><Input id="charge-title" value={action.title} onChange={(event) => updateAction({ title: event.target.value })} /><Label>Acusado</Label><Select value={action.defendantId} onValueChange={(value) => updateAction({ defendantId: value })}><SelectTrigger><SelectValue placeholder="Selecione o investigado" /></SelectTrigger><SelectContent>{data.investigationParties.filter((party) => party.investigation_id === action.item.id && party.party_type === 'suspect').map((party) => { const profile = data.profiles.find((item) => item.id === party.profile_id); return <SelectItem key={party.id} value={party.profile_id}><UserSelectOption user={profile || { id: party.profile_id, full_name: party.profile_id }} /></SelectItem>; })}</SelectContent></Select><Label>Tipo penal</Label><Select value={action.penalCodeId} onValueChange={(value) => updateAction({ penalCodeId: value })}><SelectTrigger><SelectValue placeholder="Selecione o enquadramento" /></SelectTrigger><SelectContent>{data.penalCodes.map((code) => <SelectItem key={code.id} value={code.id}>{code.code} — {code.name}</SelectItem>)}</SelectContent></Select></> : null}
             {action?.type === 'schedule-case-hearing' ? <><Label htmlFor="case-hearing-date">Data e hora (Brasília)</Label><Input id="case-hearing-date" type="datetime-local" value={scheduledAt} onChange={(event) => setScheduledAt(event.target.value)} /><Label htmlFor="case-hearing-location">Local ou sala virtual</Label><Input id="case-hearing-location" value={action.location} onChange={(event) => updateAction({ location: event.target.value })} /></> : null}
-            {action?.type === 'convict' ? <div className="grid grid-cols-2 gap-3"><div><Label htmlFor="sentence-units">Pena (anos RP)</Label><Input id="sentence-units" type="number" min="0.1" step="0.1" value={action.sentenceUnits} onChange={(event) => updateAction({ sentenceUnits: event.target.value })} /></div><div><Label htmlFor="sentence-fine">Multa</Label><Input id="sentence-fine" type="number" min="0" step="0.01" value={action.fineAmount} onChange={(event) => updateAction({ fineAmount: event.target.value })} /></div><div className="col-span-2"><Label>Regime</Label><Select value={action.prisonRegime} onValueChange={(value) => updateAction({ prisonRegime: value })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="open">Aberto</SelectItem><SelectItem value="semi_open">Semiaberto</SelectItem><SelectItem value="closed">Fechado</SelectItem><SelectItem value="maximum_security">Segurança máxima</SelectItem></SelectContent></Select></div></div> : null}
+            {action?.type === 'convict' ? <div className="grid grid-cols-2 gap-3"><div><Label htmlFor="sentence-units">Pena (anos RP)</Label><Input id="sentence-units" type="number" min="0.1" step="0.1" value={action.sentenceUnits} onChange={(event) => updateAction({ sentenceUnits: event.target.value })} /></div><div><Label htmlFor="sentence-fine">Multa</Label><CurrencyInput decimal id="sentence-fine" min="0" step="0.01" value={action.fineAmount} onChange={(event) => updateAction({ fineAmount: event.target.value })} /></div><div className="col-span-2"><Label>Regime</Label><Select value={action.prisonRegime} onValueChange={(value) => updateAction({ prisonRegime: value })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="open">Aberto</SelectItem><SelectItem value="semi_open">Semiaberto</SelectItem><SelectItem value="closed">Fechado</SelectItem><SelectItem value="maximum_security">Segurança máxima</SelectItem></SelectContent></Select></div></div> : null}
             {action?.type === 'fine-hearing' && action.status === 'scheduled' ? <><Label htmlFor="hearing-date">Data e hora (Brasília)</Label><Input id="hearing-date" type="datetime-local" value={scheduledAt} onChange={(event) => setScheduledAt(event.target.value)} /></> : null}
-            {action?.type === 'issue-fine' && <><Label>Cidadão</Label><CitizenSelector value={action.userId} onChange={value => updateAction({userId:value})}/><Label htmlFor="fine-amount">Valor da multa (R$)</Label><Input id="fine-amount" type="number" min="0.01" step="0.01" value={action.amount} onChange={event => updateAction({ amount: event.target.value })} /><Label htmlFor="fine-due-date">Vencimento (Brasília)</Label><Input id="fine-due-date" type="datetime-local" value={scheduledAt} onChange={event => setScheduledAt(event.target.value)} /></>}
+            {action?.type === 'issue-fine' && <><Label>Cidadão</Label><CitizenSelector value={action.userId} onChange={value => updateAction({userId:value})}/><Label htmlFor="fine-amount">Valor da multa (R$)</Label><CurrencyInput decimal id="fine-amount" min="0.01" step="0.01" value={action.amount} onChange={event => updateAction({ amount: event.target.value })} /><Label htmlFor="fine-due-date">Vencimento (Brasília)</Label><Input id="fine-due-date" type="datetime-local" value={scheduledAt} onChange={event => setScheduledAt(event.target.value)} /></>}
             {action?.type === 'convict' && <div className="space-y-2"><Label htmlFor="sentence-special-justification">Justificativa especial para pena fora dos limites legais</Label><Textarea id="sentence-special-justification" value={action.specialJustification || ''} onChange={event => updateAction({ specialJustification: event.target.value })} minLength={40} rows={4} aria-describedby="sentence-special-help"/><p id="sentence-special-help" className="text-xs text-muted-foreground">Obrigatória quando a pena ultrapassa os limites da norma aplicável ao caso. Mínimo de 40 caracteres; não substitui a fundamentação da sentença. {(action.specialJustification || '').trim().length} / 40</p></div>}
             <Label htmlFor="authority-reason">Fundamentação (mínimo de {actionReasonMinimum} caracteres)</Label>
             <Textarea

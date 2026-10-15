@@ -1,3 +1,4 @@
+import {CurrencyInput} from '@/components/ui/currency-input';
 import { formatLocaleBR } from '@/lib/dateTime';
 import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -70,7 +71,7 @@ const PayInvoiceDialog = ({ isOpen, setIsOpen, invoice, onPaymentSuccess }) => {
                     {!payFull && (
                         <div>
                             <Label htmlFor="amount">Valor a pagar</Label>
-                            <Input id="amount" value={amount} onChange={(e) => setAmount(formatCurrency(e.target.value, true))} placeholder="R$ 0,00" />
+                            <CurrencyInput id="amount" value={amount} onChange={(e) => setAmount(formatCurrency(e.target.value, true))} placeholder="R$ 0,00" />
                         </div>
                     )}
                     <DialogFooter>

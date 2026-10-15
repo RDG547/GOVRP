@@ -1,3 +1,4 @@
+import {CurrencyInput} from '@/components/ui/currency-input';
 import { useDomainRealtime } from '@/hooks/use-domain-realtime';
 import { LEGAL_REALTIME_TABLES } from '@/lib/legalMeasures';
 import TransactionTaxBreakdown from './TransactionTaxBreakdown';
@@ -147,7 +148,7 @@ const TransferDialog = ({ isOpen, setIsOpen, onTransferSuccess }) => {
                                         <Input value={account} onChange={e => setAccount(formatAccount(e.target.value))} placeholder="Conta (8 dígitos)" maxLength={9} />
                                     </TabsContent>
                                 </Tabs>
-                                <div><Label htmlFor="amount">Valor</Label><Input id="amount" value={amount} onChange={(e) => setAmount(formatCurrency(e.target.value, true))} placeholder="R$ 0,00" required /></div>
+                                <div><Label htmlFor="amount">Valor</Label><CurrencyInput id="amount" value={amount} onChange={(e) => setAmount(formatCurrency(e.target.value, true))} placeholder="R$ 0,00" required /></div>
                                 <div><Label htmlFor="description">Descrição (Opcional)</Label><Input id="description" value={description} onChange={e => setDescription(e.target.value)} placeholder="Ex: Pagamento de aluguel" /></div>
                                 <DialogFooter>
                                     <Button type="submit" disabled={isChecking} className="w-full">

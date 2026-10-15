@@ -1,5 +1,6 @@
+import {setAdminPreview} from '@/lib/adminPreview';
 import { officialRoleCapabilities } from '@/lib/roleIcons';
-import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { isPrisonSentenceActive } from '@/lib/prison';
 import { fetchExecutiveConstitutionalState } from '@/lib/executiveGovernance';
@@ -48,7 +49,7 @@ export const AuthProvider = ({ children }) => {
   const attachPrivateAccountIdentity = useCallback(async (profile, currentSession) => {
     if (!profile) return profile;
 
-    const { data, error } = await supabase.rpc('get_my_account_identity');
+    const [{ data, error },adminState] = await Promise.all([supabase.rpc('get_my_account_identity'),supabase.rpc('get_admin_development_state')]);
     if (error) {
       console.error('Error fetching private account identity:', error);
     }
@@ -59,6 +60,8 @@ export const AuthProvider = ({ children }) => {
       // These aliases only exist in the authenticated user's in-memory object.
       // They are never persisted in the public profiles table.
       account_identity: accountIdentity || null,
+      is_platform_admin: adminState.data?.is_platform_admin===true,
+      admin_development: adminState.data||{mode:'normal'},
       real_full_name: accountIdentity?.real_full_name || null,
       real_date_of_birth: accountIdentity?.real_date_of_birth || null,
       phone: accountIdentity?.phone || null,
@@ -176,12 +179,12 @@ export const AuthProvider = ({ children }) => {
         } else if (error) {
           throw error;
         } else {
-          if (profile.role === 'Admin') {
+          const privateProfile = await attachPrivateAccountIdentity(profile, currentSession);
+          if (privateProfile.is_platform_admin && (privateProfile.admin_development?.mode==='normal'||privateProfile.admin_development?.execute_real)) {
             await syncElectionOffices({ accessToken: currentSession.access_token }).catch((syncError) => {
               console.error('Error syncing election offices for administrator:', syncError);
             });
           }
-          const privateProfile = await attachPrivateAccountIdentity(profile, currentSession);
           return decorateProfileWithEffectiveRoles(privateProfile);
         }
       } catch (e) {
@@ -237,7 +240,7 @@ export const AuthProvider = ({ children }) => {
     const refreshId = ++profileRefreshRef.current;
     if (session?.user?.id) {
       try {
-        if (!skipSync && user?.role === 'Admin') {
+        if (!skipSync && user?.is_platform_admin && (user.admin_development?.mode==='normal'||user.admin_development?.execute_real)) {
           await syncElectionOffices({ accessToken: session.access_token }).catch((error) => {
             console.error('Error syncing election offices during refresh:', error);
           });
@@ -511,8 +514,21 @@ export const AuthProvider = ({ children }) => {
     return data;
   };
 
+  const setAdminDevelopmentMode=useCallback(async({mode,simulatedRole=null,executeReal=false})=>{
+    const result=await supabase.rpc('set_admin_development_mode',{p_mode:mode,p_simulated_role:simulatedRole,p_execute_real:executeReal});
+    if(result.error)throw result.error;
+    setAdminPreview(result.data.mode!=='normal'&&!result.data.execute_real);
+    setUser(current=>({...current,admin_development:result.data}));
+  },[]);
+  const displayUser=useMemo(()=>{
+    if(!user)return null;
+    const state=user.admin_development,mode=user.is_platform_admin?state?.mode:'normal';
+    const role=mode==='total'?'Admin':mode==='simulate'?state.simulated_role:user.role;
+    return {...user,canonical_role:user.role,role,stored_role:role,effective_roles:mode&&mode!=='normal'?officialRoleCapabilities(role):user.effective_roles,is_admin_preview:Boolean(user.is_platform_admin&&mode!=='normal'&&!state.execute_real)};
+  },[user]);
+  useEffect(()=>{setAdminPreview(displayUser?.is_admin_preview===true);},[displayUser?.is_admin_preview]);
   const value = {
-    user,
+    user:displayUser, canonicalUser:user, setAdminDevelopmentMode,
     session,
     login,
     register,

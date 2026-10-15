@@ -1,3 +1,5 @@
+import RecurringBillingStatus from '@/components/RecurringBillingStatus';
+import {useDomainRealtime} from '@/hooks/use-domain-realtime';
 import React, { useState, useEffect, useCallback } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { motion } from 'framer-motion';
@@ -23,7 +25,6 @@ const Water = () => {
 
     const fetchService = useCallback(async () => {
         if (!user) return;
-        setLoading(true);
         try {
             const { data: serviceData, error: serviceError } = await supabase
                 .from('user_services')
@@ -53,10 +54,7 @@ const Water = () => {
             setService(currentService);
 
             if (currentService && presidentialPrice !== undefined && currentService.price !== presidentialPrice) {
-                await supabase
-                    .from('user_services')
-                    .update({ price: presidentialPrice })
-                    .eq('id', currentService.id);
+
                 setService({ ...currentService, price: presidentialPrice });
             }
 
@@ -71,6 +69,7 @@ const Water = () => {
     useEffect(() => {
         fetchService();
     }, [fetchService]);
+    useDomainRealtime('recurring-water',user?.id,[{table:'user_services',filter:`user_id=eq.${user?.id}`},'system_settings'],fetchService,Boolean(user?.id));
 
     const handleAction = (message) => {
         toast({ title: 'Aviso', description: message });
@@ -94,6 +93,7 @@ const Water = () => {
                     iconColor="text-blue-400"
                     centered={true}
                 />
+                <RecurringBillingStatus service={service} onChanged={fetchService}/>
 
                 <div className="mt-12">
                      {loading ? (

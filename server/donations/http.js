@@ -1,3 +1,4 @@
+import {assertRealWorldAction} from '../admin/development.js';
 import { Buffer } from 'node:buffer';
 import process from 'node:process';
 import Stripe from 'stripe';
@@ -172,6 +173,7 @@ const authenticateRequest = async (request) => {
   const admin = getSupabaseAdmin();
   const { data, error } = await admin.auth.getUser(token);
   if (error || !data.user) throw new HttpError('Sessão inválida ou expirada.', 401);
+  await assertRealWorldAction(admin,data.user.id);
   return { admin, user: data.user };
 };
 

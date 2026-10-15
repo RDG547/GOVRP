@@ -1,9 +1,10 @@
+import {useDomainRealtime} from '@/hooks/use-domain-realtime';
 import { formatLocaleBR } from '@/lib/dateTime';
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/components/ui/use-toast';
-import { Loader2, FileCheck2, FileX2, Clock, HelpCircle, Trash2 } from 'lucide-react';
+import { Loader2, FileCheck2, FileX2, Clock, HelpCircle, Trash2, ArrowLeft } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -57,13 +58,12 @@ const TrackCandidacy = () => {
 
   const fetchCandidacies = useCallback(async () => {
     if (!user) return;
-    setLoading(true);
     try {
       const [candidaciesResponse, viceRequestsResponse] = await Promise.all([
         supabase
           .from('candidates')
           .select('*, elections(name), vice:profiles!candidates_vice_candidate_id_fkey(full_name)')
-          .eq('user_id', user.id)
+          .or(`user_id.eq.${user.id},vice_candidate_id.eq.${user.id}`)
           .order('created_at', { ascending: false }),
         supabase
           .from('notifications')
@@ -85,7 +85,7 @@ const TrackCandidacy = () => {
         })
       );
     } catch (error) {
-      toast({ title: "Erro ao buscar candidaturas", description: error.message, variant: "destructive" });
+      toast({ title: "Erro ao buscar candidaturas", description: "Não foi possível atualizar as candidaturas. Tente novamente.", variant: "destructive" });
     } finally {
       setLoading(false);
     }
@@ -94,6 +94,8 @@ const TrackCandidacy = () => {
   useEffect(() => {
     fetchCandidacies();
   }, [fetchCandidacies]);
+
+  useDomainRealtime('tracked-candidacies',user?.id,['candidates','elections',{table:'notifications',filter:`user_id=eq.${user?.id}`}],fetchCandidacies,Boolean(user?.id));
 
   const handleCancelCandidacy = async () => {
     if (!cancelingTarget?.id) return;
@@ -205,7 +207,7 @@ const TrackCandidacy = () => {
                           Registrado em: {formatLocaleBR(new Date(candidacy.created_at), 'toLocaleDateString', 'pt-BR')}
                       </p>
                   </div>
-                  {(candidacy.status === 'Pendente' || candidacy.status === 'Approved') && (
+                  {candidacy.user_id===user.id&&(candidacy.status === 'Pendente' || candidacy.status === 'Approved') && (
                     <Button 
                       variant="destructive" 
                       size="sm"
@@ -227,16 +229,16 @@ const TrackCandidacy = () => {
 
       <AlertDialog open={!!cancelingTarget} onOpenChange={() => setCancelingTarget(null)}>
         <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Cancelar Candidatura</AlertDialogTitle>
+          <AlertDialogHeader className="sm:text-center">
+            <Trash2 className="mx-auto h-8 w-8 text-destructive"/><AlertDialogTitle>Cancelar Candidatura</AlertDialogTitle>
             <AlertDialogDescription>
               Tem certeza de que deseja cancelar esta candidatura? Esta ação é irreversível e você precisará registrar uma nova candidatura se desejar concorrer.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDeleting}>Voltar</AlertDialogCancel>
+          <AlertDialogFooter className="sm:justify-center">
+            <AlertDialogCancel disabled={isDeleting}><ArrowLeft className="mr-2 h-4 w-4"/>Voltar</AlertDialogCancel>
             <AlertDialogAction onClick={handleCancelCandidacy} disabled={isDeleting} className="bg-destructive hover:bg-destructive/90">
-              {isDeleting ? <Loader2 className="animate-spin mr-2 h-4 w-4" /> : null}
+              {isDeleting ? <Loader2 className="animate-spin mr-2 h-4 w-4" /> : <Trash2 className="mr-2 h-4 w-4"/>}
               Confirmar Cancelamento
             </AlertDialogAction>
           </AlertDialogFooter>

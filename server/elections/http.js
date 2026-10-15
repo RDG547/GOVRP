@@ -1,3 +1,4 @@
+import {assertRealWorldAction,isPlatformAdmin} from '../admin/development.js';
 import process from 'node:process';
 import { createClient } from '@supabase/supabase-js';
 import {
@@ -316,6 +317,7 @@ const ensureAuthenticatedRequester = async (supabase, request) => {
     throw createHttpError('Nao foi possivel validar a sessao do usuario.', 401);
   }
 
+  await assertRealWorldAction(supabase,authData.user.id);
   return {
     user: authData.user,
     accessToken: token,
@@ -326,10 +328,11 @@ const ensureAdminRequester = async (supabase, request) => {
   const requester = await ensureAuthenticatedRequester(supabase, request);
   const profile = await fetchProfileById(supabase, requester.user.id);
 
-  if (profile?.role !== 'Admin') {
+  if (!await isPlatformAdmin(supabase,requester.user.id)) {
     throw createHttpError('Apenas administradores podem sincronizar cargos eleitorais.', 403);
   }
 
+  await assertRealWorldAction(supabase,requester.user.id);
   return { ...requester, profile };
 };
 

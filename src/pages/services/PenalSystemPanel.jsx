@@ -1,3 +1,4 @@
+import {CurrencyInput} from '@/components/ui/currency-input';
 import React, { useState, useEffect, useCallback } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { supabase } from '@/lib/supabaseClient';
@@ -227,7 +228,7 @@ const NewFineDialog = ({ onFineAdded }) => {
                     <div className="grid grid-cols-2 gap-4">
                         <div className="grid gap-2">
                             <Label htmlFor="amount">Valor</Label>
-                            <Input id="amount" value={formData.amount} onChange={handleChange} required placeholder="R$ 0,00" />
+                            <CurrencyInput id="amount" value={formData.amount} onChange={handleChange} required placeholder="R$ 0,00" />
                         </div>
                         <div className="grid gap-2">
                             <Label htmlFor="due_date">Data de Vencimento</Label>

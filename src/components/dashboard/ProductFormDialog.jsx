@@ -1,3 +1,4 @@
+import {CurrencyInput} from '@/components/ui/currency-input';
 import { usePhoneApp } from '@/contexts/PhoneAppContext';
 import NeedEffects from '@/components/NeedEffects';
 import { NEEDS } from '@/lib/citizenNeedsPresentation';
@@ -318,7 +319,7 @@ const ProductFormDialog = ({ isOpen, setIsOpen, product, onSuccess }) => {
           <div><Label htmlFor="name" className="inline-flex items-center gap-2"><Package className="h-4 w-4"/>Nome</Label><Input id="name" value={formData.name} onChange={handleChange} required /></div>
           <div>
             <Label htmlFor="price" className="inline-flex items-center gap-2"><Coins className="h-4 w-4"/>Preço</Label>
-            <Input
+            <CurrencyInput
               id="price"
               value={formData.price}
               onChange={(e) => handleCurrencyChange(e, 'price')}
@@ -385,7 +386,7 @@ const ProductFormDialog = ({ isOpen, setIsOpen, product, onSuccess }) => {
               <div className="space-y-4 pt-4">
                 <div>
                   <Label htmlFor="promotion_price" className="inline-flex items-center gap-2"><Coins className="h-4 w-4"/>Preço Promocional</Label>
-                  <Input
+                  <CurrencyInput
                     id="promotion_price"
                     value={formData.promotion_price}
                     onChange={(e) => handleCurrencyChange(e, 'promotion_price')}

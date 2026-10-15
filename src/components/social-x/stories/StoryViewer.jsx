@@ -8,7 +8,7 @@ import { supabase } from '@/lib/supabaseClient';
 import { useAuth } from '@/contexts/AuthContext';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 
-export default function StoryViewer({ stories, initialUserId, initialStoryIndex = 0, onClose, onAction }) {
+export default function StoryViewer({ stories, initialUserId, initialStoryIndex = 0, onClose, onAction, moderation=false }) {
   const allItems = stories.flatMap(group => group.stories.map(item => ({ ...item, author: group })));
   const [storyId, setStoryId] = useState(() => stories.find(group => group.user_id === initialUserId)?.stories[0]?.id || stories[initialStoryIndex]?.stories[0]?.id);
   const item = allItems.find(entry => entry.id === storyId);
@@ -71,7 +71,7 @@ export default function StoryViewer({ stories, initialUserId, initialStoryIndex 
         </div>
         {item && <div className="absolute inset-x-0 bottom-3 flex items-center justify-between gap-3 px-3">
           <Button size="icon" variant="secondary" aria-label="Story anterior" onClick={previous} className="min-h-11 min-w-11"><ChevronLeft /></Button>
-          {(user?.id === item.author.user_id || (!phone && user?.role === 'Admin')) && <AlertDialog open={confirming} onOpenChange={setConfirming}>
+          {(user?.id === item.author.user_id || (!phone && (user?.role === 'Admin'||(moderation&&user?.is_platform_admin)))) && <AlertDialog open={confirming} onOpenChange={setConfirming}>
             <AlertDialogTrigger asChild><Button variant="destructive" size="icon" aria-label="Excluir Story" className="min-h-11 min-w-11"><Trash2 /></Button></AlertDialogTrigger>
             <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Excluir Story?</AlertDialogTitle><AlertDialogDescription>{user?.id === item.author.user_id ? 'Este Story será removido permanentemente.' : 'A remoção será registrada e o autor será notificado.'}</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel disabled={deleting}>Cancelar</AlertDialogCancel><AlertDialogAction disabled={deleting} onClick={event => { event.preventDefault(); void remove(); }}>{deleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}Excluir Story</AlertDialogAction></AlertDialogFooter></AlertDialogContent>
           </AlertDialog>}

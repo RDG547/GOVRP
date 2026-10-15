@@ -19,7 +19,7 @@ const AdminProtectedRoute = ({ children }) => {
         return <Navigate to="/login" replace />;
     }
 
-    if (user.role !== 'Admin') {
+    if (!user.is_platform_admin && user.role !== 'Admin') {
         return <ErrorPage 
             errorCode="403" 
             errorTitle="Acesso Negado" 

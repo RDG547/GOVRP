@@ -16,6 +16,8 @@ try {
  select name into ministry from public.government_ministries where is_active order by name limit 1;
  perform set_config('request.jwt.claim.sub','${president.id}',true);
  r:=public.appoint_minister('${candidate.id}',ministry);i:=(r->'invitation'->>'id')::uuid;
+ result:=public.search_executive_candidates('minister','${candidate.handle}',0);
+ if not exists(select 1 from jsonb_array_elements(result->'candidates') c where c->>'id'='${candidate.id}' and (c->>'invitation_pending')::boolean) then raise exception 'Convidado não está marcado como aguardando resposta';end if;
  if i is null or (select role from public.profiles where id='${candidate.id}')<>'Cidadão' then raise exception 'Convite concedeu cargo';end if;
  if (public.appoint_minister('${candidate.id}',ministry)->'invitation'->>'id')::uuid<>i then raise exception 'Convite duplicado';end if;
  perform set_config('request.jwt.claim.sub','${other.id}',true);denied:=false;
@@ -25,6 +27,8 @@ try {
  result:=public.respond_minister_invitation(i,false);
  if result->>'status'<>'declined' or (select role from public.profiles where id='${candidate.id}')<>'Cidadão' then raise exception 'Recusa inválida';end if;
  perform set_config('request.jwt.claim.sub','${president.id}',true);
+ result:=public.search_executive_candidates('minister','${candidate.handle}',0);
+ if not exists(select 1 from jsonb_array_elements(result->'candidates') c where c->>'id'='${candidate.id}' and not (c->>'invitation_pending')::boolean) then raise exception 'Cidadão continua bloqueado após recusa';end if;
  r:=public.appoint_minister('${candidate.id}',ministry);i:=(r->'invitation'->>'id')::uuid;
  update public.minister_invitations set created_at=now()-interval '25 hours',expires_at=now()-interval '1 hour' where id=i;
  perform set_config('request.jwt.claim.sub','${candidate.id}',true);

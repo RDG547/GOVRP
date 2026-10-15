@@ -38,7 +38,7 @@ const RoleProtectedRoute = ({ children, roles }) => {
             />;
   }
 
-  return children;
+  return <>{user?.admin_development?.mode==='total'&&<p className="mx-auto max-w-7xl px-4 py-2 text-sm text-amber-400">Normalmente disponível para: {roles.filter(role=>role!=='Admin').join(', ')||'Administração técnica'}.</p>}{children}</>;
 };
 
 export default RoleProtectedRoute;

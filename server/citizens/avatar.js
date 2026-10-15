@@ -1,3 +1,4 @@
+import {assertRealWorldAction} from '../admin/development.js';
 import process from 'node:process';
 import { Buffer } from 'node:buffer';
 import { randomUUID } from 'node:crypto';
@@ -91,6 +92,7 @@ export const citizenAvatarHandler = async (request, response) => {
   try {
     const supabase = getServerSupabase();
     const user = await getUser(supabase, request);
+    await assertRealWorldAction(supabase,user.id);
 
     if (request.method === 'POST') {
       const mimeType = `${request.headers?.['content-type'] || ''}`.split(';')[0].trim().toLowerCase();

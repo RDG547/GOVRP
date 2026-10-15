@@ -1,3 +1,4 @@
+import {CurrencyInput} from '@/components/ui/currency-input';
 import { ENTERPRISE_SECTORS, SECTOR_SERVICE_KEYS, ENTERPRISE_COST_LABELS, WEEKS_PER_MONTH, DEFAULT_ENTERPRISE_FORM, normalizeEnterpriseCosts, sumEnterpriseCosts, getEnterpriseHealthScore, getEnterpriseMarketValue, isNationalBankEnterprise } from '@/components/business/EnterpriseOperations';
 import StateEnterpriseManagement from '@/components/business/StateEnterpriseManagement';
 import ExtraordinaryElectionAction from '@/components/government/ExtraordinaryElectionAction';
@@ -621,7 +622,7 @@ const LoanManager = ({ onUpdate, setActiveTab, govFinances }) => {
                 <div className="grid gap-4 py-4">
                     <div className="grid gap-2">
                         <Label htmlFor="amount">Valor do Empréstimo</Label>
-                        <Input id="amount" type="text" value={formatCurrency(amount, true)} onChange={e => setAmount(parseCurrency(e.target.value))} />
+                        <CurrencyInput id="amount" value={formatCurrency(amount, true)} onChange={e => setAmount(parseCurrency(e.target.value))} />
                     </div>
                     <div className="grid gap-2">
                         <Label htmlFor="installments">Parcelas</Label>
@@ -1509,7 +1510,7 @@ const StateEnterpriseManager = ({ onUpdate }) => {
                                                         <ServiceIcon className={`w-3 h-3 ${sectorInfo.color}`} />
                                                         <span className="text-xs">{label}</span>
                                                     </div>
-                                                    <Input
+                                                    <CurrencyInput
                                                         value={formatCurrency(servicePrices[key] || 0, true)}
                                                         onChange={(e) => handleInlinePriceChange(key, e.target.value)}
                                                         className="w-24 h-7 text-xs"
@@ -1626,7 +1627,7 @@ const StateEnterpriseManager = ({ onUpdate }) => {
                         <div className="grid gap-4 sm:grid-cols-2">
                             <div>
                                 <Label>Valor de mercado</Label>
-                                <Input
+                                <CurrencyInput
                                     value={form.market_value}
                                     onChange={(event) => setForm((current) => ({ ...current, market_value: formatCurrency(event.target.value, true) }))}
                                     placeholder="R$ 0,00"
@@ -1670,7 +1671,7 @@ const StateEnterpriseManager = ({ onUpdate }) => {
                     </DialogHeader>
                     <div className="space-y-2 py-4">
                         <Label>Preço de privatização</Label>
-                        <Input
+                        <CurrencyInput
                             value={privatizationPrice}
                             onChange={(event) => setPrivatizationPrice(formatCurrency(event.target.value, true))}
                             placeholder="R$ 0,00"

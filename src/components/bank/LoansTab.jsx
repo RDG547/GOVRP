@@ -1,3 +1,4 @@
+import {CurrencyInput} from '@/components/ui/currency-input';
 import React, { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
@@ -107,7 +108,7 @@ const LoansTab = ({ loanApplications, onUpdate }) => {
                                 <form onSubmit={handleLoanApplication} className="space-y-4 pt-4">
                                     <div>
                                         <Label htmlFor="loanAmount">Valor desejado</Label>
-                                        <Input id="loanAmount" value={loanAmount} onChange={handleAmountChange} placeholder="R$ 0,00" required />
+                                        <CurrencyInput id="loanAmount" value={loanAmount} onChange={handleAmountChange} placeholder="R$ 0,00" required />
                                     </div>
                                     <DialogFooter>
                                         <Button type="submit" disabled={isApplyingLoan}>

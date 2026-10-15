@@ -1,3 +1,5 @@
+import RecurringBillingStatus from '@/components/RecurringBillingStatus';
+import {useDomainRealtime} from '@/hooks/use-domain-realtime';
 import { useInternetSpeed } from '@/contexts/InternetSpeedContext';
 import { getInternetDelay } from '@/lib/internetPlans';
 import React, { useState, useEffect, useCallback } from 'react';
@@ -25,7 +27,6 @@ const Internet = () => {
 
     const fetchServiceAndPlans = useCallback(async () => {
         if (!user) return;
-        setLoading(true);
         try {
             const serviceData = await refreshPlan();
 
@@ -46,7 +47,7 @@ const Internet = () => {
             ];
             setPlans(defaultPlans);
 
-            if (!serviceData) {
+            if (!serviceData && !user.is_admin_preview) {
                 const basicPlan = defaultPlans[0];
                 const { error: insertError } = await supabase.from('user_services').upsert({
                     user_id: user.id, service_type: serviceType,
@@ -66,6 +67,7 @@ const Internet = () => {
     useEffect(() => {
         fetchServiceAndPlans();
     }, [fetchServiceAndPlans]);
+    useDomainRealtime('recurring-internet',user?.id,[{table:'user_services',filter:`user_id=eq.${user?.id}`},'system_settings'],fetchServiceAndPlans,Boolean(user?.id));
 
     const handlePlanChange = async (plan) => {
         if (!currentService) return;
@@ -107,6 +109,7 @@ const Internet = () => {
                     iconColor="text-cyan-400"
                     centered={true}
                 />
+                <RecurringBillingStatus service={currentService?{...currentService,price:plans.find(plan=>plan.name===currentService.plan_name)?.price??currentService.price}:null} onChanged={fetchServiceAndPlans}/>
 
                 <div className="mt-12">
                     {loading ? (

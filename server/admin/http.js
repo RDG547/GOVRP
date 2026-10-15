@@ -1,3 +1,4 @@
+import {assertRealWorldAction,isPlatformAdmin} from './development.js';
 import process from 'node:process';
 import { createClient } from '@supabase/supabase-js';
 
@@ -145,10 +146,11 @@ const ensureAdminRequester = async (supabase, request) => {
     throw profileError;
   }
 
-  if (profile?.role !== 'Admin') {
+  if (!await isPlatformAdmin(supabase,authData.user.id)) {
     throw createHttpError('Acesso negado. Somente administradores podem executar esta ação.', 403);
   }
 
+  await assertRealWorldAction(supabase,authData.user.id);
   return authData.user;
 };
 
@@ -173,12 +175,13 @@ const updateUserProfile = async (supabase, payload) => {
 
   // The caller's JWT reaches the existing RPC so authorization, audit attribution,
   // profile changes and institutional records commit in one database transaction.
-  const { data, error } = await supabase.rpc('admin_update_user', {
+  const { data, error } = await supabase.rpc('admin_update_user_with_access', {
     p_user_id: userId,
     p_full_name: fullName,
     p_username: username,
     p_role: role,
     p_titles: titles,
+    p_platform_admin: typeof payload?.isPlatformAdmin==='boolean'?payload.isPlatformAdmin:null,
   });
   if (error) {
     if (error.code === '23505') throw createHttpError('Este nome de usuário já está em uso.', 409);

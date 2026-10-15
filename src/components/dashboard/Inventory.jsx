@@ -1,3 +1,4 @@
+import RecurringBillingStatus from '@/components/RecurringBillingStatus';
 import NeedEffects from '@/components/NeedEffects';
 import { formatLocaleBR } from '@/lib/dateTime';
 import { useCitizenNeeds } from '@/contexts/CitizenNeedsContext';
@@ -177,16 +178,17 @@ const Inventory = ({ compact = false }) => {
                                                 <p className="font-semibold text-foreground">{sub.product.name}</p>
                                                 <p className="text-sm text-muted-foreground">Vendido por: @{sub.product.seller?.username || 'Cidadão'}</p>
                                                 <div className="text-xs mt-1 space-y-1">
-                                                    <span className="flex items-center gap-1"><Info className="w-3 h-3" /> Status: <span className={`font-medium ${sub.status === 'active' ? 'text-green-400' : 'text-red-400'}`}>{sub.status === 'active' ? 'Ativa' : 'Cancelada'}</span></span>
+                                                    <span className="flex items-center gap-1"><Info className="w-3 h-3" /> Status: <span className={`font-medium ${sub.status === 'active' ? 'text-green-400' : 'text-red-400'}`}>{sub.status === 'active' ? 'Ativa' : sub.status==='past_due'?'Renovação pendente':'Cancelada'}</span></span>
                                                     {sub.status === 'active' && <span className="flex items-center gap-1"><Calendar className="w-3 h-3" /> Próx. Cobrança: {formatLocaleBR(new Date(sub.next_payment_date), 'toLocaleDateString', 'pt-BR')}</span>}
                                                 </div>
                                             </div>
+                                            {sub.status==='past_due'&&<RecurringBillingStatus service={{...sub,price:sub.product.price}} kind="subscription" onChanged={fetchInventory}/>}
                                             <div className="flex flex-col items-end gap-2">
                                                 <div className="text-right">
                                                     <p className="font-bold text-primary">{formatCurrency(sub.product.price)}</p>
                                                     <p className="text-xs text-muted-foreground">/ {sub.product.subscription_interval === '7 days' ? 'semana' : 'mês'}</p>
                                                 </div>
-                                                {sub.status === 'active' &&
+                                                {['active','past_due'].includes(sub.status) &&
                                                     <Button variant="destructive" size="sm" onClick={() => openCancelDialog(sub)}>
                                                         <Trash2 className="w-4 h-4 mr-2" /> Cancelar
                                                     </Button>

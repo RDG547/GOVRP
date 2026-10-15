@@ -205,7 +205,6 @@ const ElectionForm = ({ election, onFinish, automaticElectionPlans }) => {
                 </div>
                 <Switch id="auto-recurring-election" checked={autoRecurring} onCheckedChange={setAutoRecurring} />
             </div>
-            <p className="text-xs text-muted-foreground">Datas e horários de Brasília.</p>
             {formError && <p role="alert" className="text-sm text-destructive">{formError}</p>}
             <DialogFooter className="sm:justify-center">
                 <Button type="submit" disabled={loading}>{loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4"/>}Salvar Eleição</Button>

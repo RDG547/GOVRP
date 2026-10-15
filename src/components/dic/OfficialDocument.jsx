@@ -606,7 +606,7 @@ export const OfficialDocument = ({ user, doc, onBack, side: initialSide = 'front
   if (!DocumentComponent) return null;
 
   const isFullPageDoc = documentIsFullPage(doc.type);
-  const controls = onBack && <div data-export-ignore className="absolute right-2 top-2 z-50 flex flex-col gap-1 pointer-events-auto">
+  const controls = onBack && <div data-export-ignore className="z-50 flex shrink-0 justify-end gap-2 self-end pointer-events-auto sm:flex-col sm:self-start">
     <Button title="Fechar documento" variant="destructive" size="icon" aria-label="Fechar documento" type="button" onClick={onBack} className="min-h-11 min-w-11 touch-manipulation bg-red-600 text-white hover:bg-red-700 focus-visible:ring-2 focus-visible:ring-red-300"><X className="h-5 w-5" /></Button>
     {hasTwoSides && <Button title="Virar documento" size="icon" aria-label="Virar documento" type="button" onClick={() => setSide(s => s === 'front' ? 'back' : 'front')} className="min-h-11 min-w-11 touch-manipulation bg-cyan-700 text-white hover:bg-cyan-600 focus-visible:ring-2 focus-visible:ring-cyan-300"><RefreshCw className="h-5 w-5" /></Button>}
   </div>;
@@ -614,8 +614,8 @@ export const OfficialDocument = ({ user, doc, onBack, side: initialSide = 'front
   if (isFullPageDoc) {
     if (!onBack) return <DocumentComponent user={user} doc={doc} />;
     return (
-        <div className="relative w-full max-w-2xl mx-auto rounded-lg">
-            <div className="overflow-y-auto max-h-[80vh]">
+        <div className="relative flex w-full max-w-[740px] flex-col-reverse gap-3 mx-auto sm:flex-row">
+            <div className="min-w-0 flex-1 overflow-y-auto max-h-[75vh]">
                 <DocumentComponent user={user} doc={doc} />
             </div>
             {controls}
@@ -624,8 +624,8 @@ export const OfficialDocument = ({ user, doc, onBack, side: initialSide = 'front
   }
 
   return (
-    <div className={`relative mx-auto w-full [&_[data-official-document]]:shadow-none max-w-[470px]`}>
-      <DocumentComponent user={user} doc={doc} side={side}/>
+    <div className={`relative mx-auto flex w-full flex-col-reverse gap-3 sm:flex-row [&_[data-official-document]]:shadow-none ${onBack?'max-w-[526px]':'max-w-[470px]'}`}>
+      <div className="min-w-0 flex-1"><DocumentComponent user={user} doc={doc} side={side}/></div>
       {controls}
     </div>
   )

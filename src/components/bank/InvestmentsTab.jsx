@@ -1,3 +1,4 @@
+import {CurrencyInput} from '@/components/ui/currency-input';
 import StockExchange from '@/pages/services/StockExchange';
 import { formatLocaleBR } from '@/lib/dateTime';
 import React, { useState, useMemo } from 'react';
@@ -85,7 +86,7 @@ const InvestmentActionModal = ({ isOpen, setIsOpen, action, investment, onAction
                 <form onSubmit={handleAction} className="space-y-4 pt-4">
                     <div>
                         <Label htmlFor="amount">{`Valor para ${title.toLowerCase()}`}</Label>
-                        <Input id="amount" value={amount} onChange={(e) => setAmount(formatCurrency(e.target.value, true))} placeholder="R$ 0,00" required />
+                        <CurrencyInput id="amount" value={amount} onChange={(e) => setAmount(formatCurrency(e.target.value, true))} placeholder="R$ 0,00" required />
                         {action === 'invest' && minimumAmount > 0 ? (
                             <p className="mt-1 text-xs text-muted-foreground">Aplicação mínima: {formatCurrency(minimumAmount)}</p>
                         ) : null}

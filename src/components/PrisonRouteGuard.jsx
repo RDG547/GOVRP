@@ -15,7 +15,8 @@ const PrisonRouteGuard = ({ children }) => {
   const { user } = useAuth();
 
   if (
-    isPrisonSentenceActive(user)
+    !(user?.is_platform_admin&&(user.is_admin_preview||location.pathname.startsWith('/admin-dashboard')))
+    && isPrisonSentenceActive(user)
     && !ALLOWED_PRISON_PATHS.has(location.pathname)
   ) {
     return (

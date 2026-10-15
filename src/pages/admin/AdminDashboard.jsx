@@ -1,3 +1,5 @@
+import AdminDevelopment from '@/components/admin/AdminDevelopment';
+import {FlaskConical} from 'lucide-react';
 import ParliamentVotingSettings from '@/components/admin/ParliamentVotingSettings';
 import ExecutiveTransitionSettings from '@/components/admin/ExecutiveTransitionSettings';
 import ParliamentInstitutionalSettings from '@/components/admin/ParliamentInstitutionalSettings';
@@ -40,6 +42,7 @@ import ResetManagement from '@/components/admin/ResetManagement';
 const WorldSettings = () => <div className="space-y-6"><EconomicMixControl /><CitizenNeedsSettings /><ParliamentInstitutionalSettings /><ExecutiveTransitionSettings /><ParliamentVotingSettings /></div>;
 
 const tabs = [
+  {id:'development',label:'Desenvolvimento',icon:FlaskConical,component:AdminDevelopment},
   { id: 'users', label: 'Usuários', icon: Users, component: UserManagement },
   { id: 'settings', label: 'Sistema e Serviços', icon: Settings, component: SystemSettings },
   { id: "world", label: "Simulação e Sociedade", icon: Settings, component: WorldSettings },

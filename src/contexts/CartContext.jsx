@@ -24,6 +24,7 @@ export const CartProvider = ({ children, storageKey }) => {
         localStorage.setItem(storageKey, JSON.stringify(cartItems));
     }, [cartItems, storageKey]);
 
+    const [stockNotice,setStockNotice]=useState('');
     const [quoteReady, setQuoteReady] = useState(false);
     const quoteVersion = useRef(0);
     const itemIds = cartItems.map(item => item.id).sort().join(',');
@@ -35,12 +36,14 @@ export const CartProvider = ({ children, storageKey }) => {
         if (error) { console.error('cart:quote', error); return; }
         setCartItems(items => items.map(item => {
             const live = data?.find(product => product.id === item.id);
-            return live ? { ...live, quantity: item.quantity } : { ...item, unavailable: true };
+            return live ? { ...live, quantity: live.product_type==='subscription'?1:Math.min(item.quantity,Math.max(1,Math.min(100,live.stock==null?100:Number(live.stock)||0))), stockAdjusted: live.product_type==='one-time'&&live.stock!=null&&Number(live.stock)<item.quantity } : { ...item, unavailable: true };
         }));
         setQuoteReady(true);
     }, []);
     useEffect(() => { if (itemIds) refreshPrices(); }, [itemIds, refreshPrices]);
     useDomainRealtime('marketplace', 'public', ['products', 'businesses', 'government_rules'], refreshPrices, Boolean(itemIds));
+
+    useEffect(()=>{setStockNotice(cartItems.some(item=>item.stockAdjusted)?'O estoque mudou. As quantidades foram ajustadas; confira o carrinho antes de comprar.':'');},[cartItems]);
 
     const consumePurchasedItem = (productId) => {
         setCartItems(items => items.flatMap(item => item.id !== productId ? [item] : item.quantity > 1 ? [{ ...item, quantity: item.quantity - 1 }] : []));
@@ -51,7 +54,7 @@ export const CartProvider = ({ children, storageKey }) => {
             toast({ title: 'Compra indisponível', description: 'Este produto está indisponível pela regra vigente.', variant: 'destructive' });
             return false;
         }
-        if (product.product_type === 'one-time' && product.stock <= 0) {
+        if (product.product_type === 'one-time' && product.stock != null && product.stock <= 0) {
             toast({
                 title: "Produto Esgotado",
                 description: "Este produto não está mais disponível em estoque.",
@@ -65,7 +68,7 @@ export const CartProvider = ({ children, storageKey }) => {
             if (existingItem) {
                 return prevItems.map(item =>
                     item.id === product.id
-                        ? { ...item, quantity: item.product_type === 'subscription' ? 1 : Math.min(100,item.quantity + 1) }
+                        ? { ...item, quantity: item.product_type === 'subscription' ? 1 : Math.min(100,Math.max(1,item.stock==null?100:Number(item.stock)||0),item.quantity + 1) }
                         : item
                 );
             }
@@ -79,15 +82,8 @@ export const CartProvider = ({ children, storageKey }) => {
     };
 
     const updateQuantity = (productId, quantity) => {
-        if (quantity <= 0) {
-            removeFromCart(productId);
-        } else {
-            setCartItems(prevItems =>
-                prevItems.map(item =>
-                    item.id === productId ? { ...item, quantity: item.product_type === 'subscription' ? 1 : Math.min(100,Math.max(1,Math.floor(quantity))) } : item
-                )
-            );
-        }
+        if (!Number.isSafeInteger(quantity) || quantity < 1) return;
+        setCartItems(prevItems=>prevItems.map(item=>item.id===productId?{...item,quantity:item.product_type==='subscription'?1:Math.min(100,Math.max(1,item.stock==null?100:Number(item.stock)||0),quantity)}:item));
     };
 
     const clearCart = () => {
@@ -97,6 +93,7 @@ export const CartProvider = ({ children, storageKey }) => {
     const value = {
         cartItems,
         quoteReady,
+        stockNotice,
         refreshPrices,
         consumePurchasedItem,
         addToCart,

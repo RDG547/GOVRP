@@ -103,7 +103,7 @@ export const InternetSpeedProvider = ({ children }) => {
   const [serviceState, setServiceState] = useState(null);
   // Missing session and service IDs must not match as undefined === undefined.
   const currentService = serviceState && user?.id && serviceState.userId === user.id ? serviceState.value : null;
-  const userPlan = currentService?.plan_name || 'Básico';
+  const userPlan = currentService?.is_active ? currentService.plan_name : 'Básico';
   const [isLoading, setIsLoading] = useState(false);
   const [currentDelay, setCurrentDelay] = useState(0);
   const previousPath = useRef(location.pathname);
