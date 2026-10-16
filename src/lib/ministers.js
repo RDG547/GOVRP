@@ -1,3 +1,4 @@
+import { fetchPublicProfileRows } from './publicProfileQueries.js';
 const unavailableProfile = (userId) => ({
   id: userId,
   full_name: 'Perfil indisponível',
@@ -20,10 +21,9 @@ export const fetchActiveMinistersWithProfiles = async (client) => {
     return { data: [], error: null, warning: null };
   }
 
-  const { data: profiles, error: profilesError } = await client
-    .rpc('get_public_party_profiles', { p_ids: profileIds });
-
-  const profilesById = new Map((profiles || []).map((profile) => [profile.id, profile]));
+  let profilesById = new Map(), profilesError = null;
+  try { profilesById = await fetchPublicProfileRows(profileIds, client); }
+  catch (error) { profilesError = error; }
 
   return {
     data: ministers.map((minister) => ({

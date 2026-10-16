@@ -106,7 +106,9 @@
     "test:election-participation": "node tools/test-election-participation.mjs",
     "test:commerce-development-interface": "node tools/test-commerce-development-interface.mjs",
     "test:update-controls": "node tools/test-update-controls.mjs",
-    "test:formation-countdown": "node tools/test-formation-countdown.mjs"
+    "test:formation-countdown": "node tools/test-formation-countdown.mjs",
+    "test:admin-total-access": "node tools/test-admin-total-access.mjs",
+    "test:admin-total-interface": "node tools/test-admin-total-interface.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.0",

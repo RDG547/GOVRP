@@ -135,6 +135,10 @@ const BusinessBalancePopup = () => {
     return null;
   }
 
+  return <BusinessBalanceView notification={notification} onDismiss={handleDismiss} />;
+};
+
+export function BusinessBalanceView({ notification, onDismiss }) {
   const metadata = notification.metadata || {};
   const netResult = Number(metadata.net_result || 0);
   const isProfit = netResult >= 0;
@@ -155,7 +159,7 @@ const BusinessBalancePopup = () => {
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         className="fixed inset-0 z-[74] bg-black/65 backdrop-blur-sm"
-        onClick={handleDismiss}
+        onClick={onDismiss}
       />
       <motion.div
         initial={{ opacity: 0, scale: 0.9, y: 28 }}
@@ -166,7 +170,8 @@ const BusinessBalancePopup = () => {
       >
         <div className={`relative w-full max-w-md pointer-events-auto rounded-3xl border p-6 shadow-2xl ${containerClassName}`}>
           <button
-            onClick={handleDismiss}
+            onClick={onDismiss}
+            aria-label="Fechar balanço empresarial"
             className="absolute right-4 top-4 rounded-full p-2 text-muted-foreground transition-colors hover:bg-white/10 hover:text-foreground"
           >
             <X className="h-4 w-4" />
@@ -216,7 +221,7 @@ const BusinessBalancePopup = () => {
             </div>
 
             <Button
-              onClick={handleDismiss}
+              onClick={onDismiss}
               className={`w-full text-white ${
                 isProfit
                   ? 'bg-gradient-to-r from-emerald-600 to-cyan-500 hover:from-emerald-700 hover:to-cyan-600'
@@ -230,6 +235,6 @@ const BusinessBalancePopup = () => {
       </motion.div>
     </AnimatePresence>
   );
-};
+}
 
 export default BusinessBalancePopup;

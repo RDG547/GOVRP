@@ -30,7 +30,8 @@ const RoleProtectedRoute = ({ children, roles }) => {
     );
   }
 
-  if (!roles.some((role) => effectiveRoles.includes(role))) {
+  const fullAdminAccess = user.is_platform_admin && user.admin_development?.mode === 'total';
+  if (!fullAdminAccess && !roles.some((role) => effectiveRoles.includes(role))) {
     return <ErrorPage 
               title="Acesso Negado" 
               message="Você não possui as permissões necessárias para visualizar esta página." 

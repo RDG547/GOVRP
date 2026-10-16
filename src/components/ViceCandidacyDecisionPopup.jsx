@@ -117,6 +117,10 @@ const ViceCandidacyDecisionPopup = () => {
     return null;
   }
 
+  return <ViceCandidacyDecisionView pendingInvitation={pendingInvitation} isSubmitting={isSubmitting} onDecision={handleDecision} />;
+};
+
+export function ViceCandidacyDecisionView({ pendingInvitation, isSubmitting = false, onDecision }) {
   const metadata = pendingInvitation.metadata || {};
 
   return (
@@ -152,7 +156,7 @@ const ViceCandidacyDecisionPopup = () => {
               type="button"
               variant="outline"
               className="flex-1 border-red-500/40 text-red-200 hover:bg-red-500/10"
-              onClick={() => handleDecision(false)}
+              onClick={() => onDecision(false)}
               disabled={isSubmitting}
             >
               {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <XCircle className="mr-2 h-4 w-4" />}
@@ -161,7 +165,7 @@ const ViceCandidacyDecisionPopup = () => {
             <Button
               type="button"
               className="flex-1"
-              onClick={() => handleDecision(true)}
+              onClick={() => onDecision(true)}
               disabled={isSubmitting}
             >
               {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-2 h-4 w-4" />}
@@ -172,6 +176,6 @@ const ViceCandidacyDecisionPopup = () => {
       </Card>
     </div>
   );
-};
+}
 
 export default ViceCandidacyDecisionPopup;

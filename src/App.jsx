@@ -236,6 +236,7 @@ const AppShell = ({ location, theme, isAuthCallback }) => {
                 <Route path="/dashboard/citizen" element={<ProtectedRoute><IntegratedCitizenDashboard /></ProtectedRoute>} />
                 <Route path="/role-dashboard" element={<ProtectedRoute><RoleDashboard /></ProtectedRoute>} />
                 <Route path="/dashboard/president" element={<RoleProtectedRoute roles={['Presidente', 'Admin']}><RoleDashboard forcedRole="Presidente" /></RoleProtectedRoute>} />
+                <Route path="/dashboard/bank-management" element={<RoleProtectedRoute roles={['Presidente do Banco Nacional', 'Admin']}><RoleDashboard forcedRole="Presidente do Banco Nacional" /></RoleProtectedRoute>} />
                 <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
 
                 <Route path="/services" element={<ServiceProtectedRoute><Services /></ServiceProtectedRoute>} />

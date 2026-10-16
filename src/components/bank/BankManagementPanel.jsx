@@ -1,4 +1,5 @@
 import {CurrencyInput} from '@/components/ui/currency-input';
+import { fetchPublicProfileRows } from '@/lib/publicProfileQueries';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { useAuth } from '@/contexts/AuthContext';
@@ -314,19 +315,11 @@ const BankManagementPanel = () => {
       return;
     }
 
-    const { data, error } = await supabase
-      .rpc('get_public_party_profiles', { p_ids: ids });
-
-    if (error) {
-      throw error;
-    }
+    const profiles = await fetchPublicProfileRows(ids, supabase);
 
     setProfilesById((current) => ({
       ...current,
-      ...(data || []).reduce((accumulator, profile) => {
-        accumulator[profile.id] = profile;
-        return accumulator;
-      }, {}),
+      ...Object.fromEntries(profiles),
     }));
   }, []);
 

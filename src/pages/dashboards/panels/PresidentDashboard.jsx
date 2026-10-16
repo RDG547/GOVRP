@@ -37,7 +37,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import {
     getGovernmentBudgetTotal,
-    haveGovernmentBudgetAreasChanged,
     rebalanceGovernmentBudgetAreas,
 } from '@/lib/governmentBudget';
 import {
@@ -385,16 +384,6 @@ const BudgetManager = ({ budget, treasuryBalance, onUpdate, setActiveTab }) => {
             const adjustedAreas = rebalanceGovernmentBudgetAreas(budget.areas, safeTreasuryBalance);
             setAreas(adjustedAreas);
 
-            if (haveGovernmentBudgetAreasChanged(budget.areas, adjustedAreas)) {
-                const saveAdjusted = async () => {
-                    await supabase
-                        .from('system_settings')
-                        .update({ value: { ...budget, areas: adjustedAreas } })
-                        .eq('key', 'government_budget');
-                };
-
-                saveAdjusted();
-            }
         }
     }, [budget, safeTreasuryBalance]);
 
@@ -1760,17 +1749,8 @@ const PresidentDashboard = () => {
             );
             const normalizedBudgetData = { ...budgetData, areas: adjustedBudgetAreas };
 
-            if (haveGovernmentBudgetAreasChanged(budgetData.areas, adjustedBudgetAreas)) {
-                const { error: budgetSaveError } = await supabase
-                    .from('system_settings')
-                    .update({ value: normalizedBudgetData })
-                    .eq('key', 'government_budget');
-
-                if (budgetSaveError) {
-                    throw budgetSaveError;
-                }
-            }
-
+            // Reading a panel must never save world state. Persist the normalized
+            // allocation only through the explicit budget action below.
             setBudget(normalizedBudgetData);
             setServicePrices(settingsMap.basic_service_prices || {});
             setBaseTariffs(settingsMap.base_tariffs || {});

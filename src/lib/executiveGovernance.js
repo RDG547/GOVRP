@@ -1,4 +1,4 @@
-import { fetchCitizenDirectory } from './publicProfileQueries.js';
+import { fetchCitizenDirectory, fetchPublicProfileRows } from './publicProfileQueries.js';
 import { mapBillTypeToGazetteType, publishOfficialGazetteEntry } from './officialGazette.js';
 import { PARLIAMENT_HOUSE_IDS } from './parliamentGovernance.js';
 import { fetchElectionOfficeSyncState } from './electionOfficeSync.js';
@@ -198,14 +198,7 @@ const fetchProfilesMap = async (supabase, profileIds = []) => {
     return {};
   }
 
-  const { data, error } = await supabase
-    .rpc('get_public_party_profiles', { p_ids: ids });
-
-  if (error) {
-    throw error;
-  }
-
-  return mapById(data || []);
+  return Object.fromEntries(await fetchPublicProfileRows(ids, supabase));
 };
 
 const fetchPartiesMap = async (supabase, partyIds = []) => {

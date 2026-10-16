@@ -1,4 +1,5 @@
 import { fetchPublicProfileRows as fetchPublicProfiles } from './publicProfileQueries.js';
+import { isAdminPreview } from './adminPreview.js';
 import {
   HOUSE_PRESIDENT_ROLES,
   HOUSE_VICE_PRESIDENT_ROLES,
@@ -224,6 +225,9 @@ export const getLeadershipElectionStatusMeta = (status = '') => {
 };
 
 export const refreshParliamentGovernanceState = async (supabase, houseId = null) => {
+  // Preview reads the persisted institutions; closing votes or mandates is a
+  // real world action, handled by the scheduler and authorized live sessions.
+  if (isAdminPreview()) return { schemaReady: true, error: null };
   void autoCloseExpiredVotings(supabase, houseId);
 
   const { error } = await supabase.rpc('refresh_parliament_leadership_terms');

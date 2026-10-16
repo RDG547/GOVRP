@@ -151,8 +151,6 @@ export const AuthProvider = ({ children }) => {
   const fetchUserProfile = useCallback(async (currentSession) => {
     if (currentSession?.user) {
       try {
-        await supabase.rpc('check_and_update_prisoner_status');
-
         const { data: profile, error } = await supabase
           .from('profiles')
           .select('*')
@@ -179,7 +177,14 @@ export const AuthProvider = ({ children }) => {
         } else if (error) {
           throw error;
         } else {
-          const privateProfile = await attachPrivateAccountIdentity(profile, currentSession);
+          let privateProfile = await attachPrivateAccountIdentity(profile, currentSession);
+          const preview = privateProfile.is_platform_admin && privateProfile.admin_development?.mode !== 'normal' && !privateProfile.admin_development?.execute_real;
+          setAdminPreview(preview);
+          if (!preview && isPrisonSentenceActive(privateProfile)) {
+            await supabase.rpc('check_and_update_prisoner_status');
+            const latest = await supabase.from('profiles').select('*').eq('id', currentSession.user.id).single();
+            if (!latest.error) privateProfile = { ...privateProfile, ...latest.data };
+          }
           if (privateProfile.is_platform_admin && (privateProfile.admin_development?.mode==='normal'||privateProfile.admin_development?.execute_real)) {
             await syncElectionOffices({ accessToken: currentSession.access_token }).catch((syncError) => {
               console.error('Error syncing election offices for administrator:', syncError);
@@ -245,7 +250,8 @@ export const AuthProvider = ({ children }) => {
             console.error('Error syncing election offices during refresh:', error);
           });
         }
-        if (!skipSync && isPrisonSentenceActive(user)) await supabase.rpc('check_and_update_prisoner_status');
+        const preview = user?.is_platform_admin && user.admin_development?.mode !== 'normal' && !user.admin_development?.execute_real;
+        if (!skipSync && !preview && isPrisonSentenceActive(user)) await supabase.rpc('check_and_update_prisoner_status');
         const { data: profile, error } = await supabase
           .from('profiles')
           .select('*')

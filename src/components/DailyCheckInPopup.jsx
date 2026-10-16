@@ -114,16 +114,20 @@ const DailyCheckInPopup = () => {
 
   if (!featureAvailable || !user) return null;
 
+  return isVisible ? <DailyCheckInView status={status} claiming={claiming} onClaim={handleClaim} onDismiss={handleDismiss} /> : null;
+};
+
+export function DailyCheckInView({ status, claiming = false, onClaim, onDismiss }) {
   return (
     <AnimatePresence>
-      {isVisible && status && (
+      {status && (
         <>
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm"
-            onClick={handleDismiss}
+            onClick={onDismiss}
           />
           <motion.div
             initial={{ opacity: 0, scale: 0.85, y: 40 }}
@@ -134,7 +138,8 @@ const DailyCheckInPopup = () => {
           >
             <div className="relative w-full max-w-sm pointer-events-auto rounded-2xl border border-emerald-500/30 bg-gradient-to-b from-slate-900 via-slate-900 to-emerald-950/50 p-6 shadow-2xl shadow-emerald-500/10">
               <button
-                onClick={handleDismiss}
+                onClick={onDismiss}
+                aria-label="Fechar check-in diário"
                 className="absolute right-3 top-3 rounded-full p-1.5 text-muted-foreground hover:text-foreground hover:bg-white/10 transition-colors"
               >
                 <X className="h-4 w-4" />
@@ -186,7 +191,7 @@ const DailyCheckInPopup = () => {
 
                 <Button
                   className="w-full bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-700 hover:to-teal-600 text-white font-semibold py-5"
-                  onClick={handleClaim}
+                  onClick={onClaim}
                   disabled={claiming}
                 >
                   {claiming ? (
@@ -203,7 +208,7 @@ const DailyCheckInPopup = () => {
                 </Button>
 
                 <button
-                  onClick={handleDismiss}
+                  onClick={onDismiss}
                   className="text-xs text-muted-foreground hover:text-foreground transition-colors"
                 >
                   Lembrar mais tarde
@@ -215,6 +220,6 @@ const DailyCheckInPopup = () => {
       )}
     </AnimatePresence>
   );
-};
+}
 
 export default DailyCheckInPopup;

@@ -365,6 +365,7 @@ export default defineConfig(({ mode }) => {
 					],
 				},
 				workbox: {
+					globIgnores: ['**/BlueprintPreview-*.js'],
 					cleanupOutdatedCaches: true,
 					clientsClaim: false,
 					skipWaiting: false,
