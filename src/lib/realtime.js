@@ -4,25 +4,39 @@ import { supabase } from './supabaseClient';
 // Never retain payloads when the last consumer (or its authenticated scope) leaves.
 const channels = new Map();
 let sequence = 0;
+// Keep live subscriptions, but avoid a burst of database reads for each change.
+const REALTIME_BATCH_MS = 900;
 
 export function subscribeToDomain(domain, scope, tables, listener) {
   const specs = tables.map((table) => typeof table === 'string' ? { table } : table);
   const key = JSON.stringify([domain, scope, specs]);
   let entry = channels.get(key);
   if (!entry) {
-    entry = { listeners: new Set(), pending: [], timer: null, disposed: false };
+    entry = { listeners: new Set(), pending: [], timer: null, disposed: false, dirtyWhileHidden: false };
     const emit = (payload) => {
       if (entry.disposed) return;
+      // Background tabs still receive websocket events, but read fresh data only
+      // when foregrounded. This reduces duplicated work across open accounts.
+      if (document.visibilityState === 'hidden') {
+        entry.dirtyWhileHidden = true;
+        return;
+      }
       entry.pending.push(payload);
       if (entry.timer) return;
       entry.timer = setTimeout(() => {
         entry.timer = null;
+        if (entry.disposed) return;
+        if (document.visibilityState === 'hidden') {
+          entry.pending = [];
+          entry.dirtyWhileHidden = true;
+          return;
+        }
         const changes = entry.pending.splice(0);
         entry.listeners.forEach((callback) => {
           try { Promise.resolve(callback(changes)).catch(error => console.warn(`Atualização de ${domain} indisponível:`, error?.message)); }
           catch (error) { console.warn(`Atualização de ${domain} indisponível:`, error?.message); }
         });
-      }, 120);
+      }, REALTIME_BATCH_MS);
     };
     entry.sync = () => emit({ eventType: 'SYNC' });
     const broadcast = specs.find(spec => spec.broadcast);
@@ -37,7 +51,10 @@ export function subscribeToDomain(domain, scope, tables, listener) {
       if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') console.error(`Realtime ${domain}: ${status}`, error?.message || 'Verifique publicação e permissões das tabelas.');
     });
     entry.resume = () => {
-      if (document.visibilityState === 'visible') entry.sync();
+      if (document.visibilityState === 'visible') {
+        entry.dirtyWhileHidden = false;
+        entry.sync();
+      }
     };
     document.addEventListener('visibilitychange', entry.resume);
     window.addEventListener('online', entry.sync);
