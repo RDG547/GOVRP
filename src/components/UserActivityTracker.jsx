@@ -272,13 +272,15 @@ const UserActivityTracker = () => {
       }
     };
 
+    // A 60s heartbeat is enough to keep activity tracking fresh without
+    // writing repeatedly from every hidden tab and every signed-in account.
     const intervalId = window.setInterval(() => {
-      heartbeat();
-    }, 30000);
+      if (document.visibilityState === 'visible') void heartbeat();
+    }, 60000);
 
     const handleVisibilityChange = () => {
-      if (document.visibilityState === 'hidden') {
-        heartbeat();
+      if (document.visibilityState === 'hidden' || document.visibilityState === 'visible') {
+        void heartbeat();
       }
     };
 
