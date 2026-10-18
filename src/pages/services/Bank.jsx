@@ -1,3 +1,4 @@
+import {usePhoneStep} from '@/hooks/use-phone-step';
 import { useDomainRealtime } from '@/hooks/use-domain-realtime';
 import { bankRealtimeTables } from '@/lib/bankRealtime';
 import { BANK_SECTIONS, bankSectionsForEvents, fetchBankSections } from '@/lib/bankData';
@@ -24,6 +25,7 @@ const Bank = () => {
     const [isTransferDialogOpen, setIsTransferDialogOpen] = useState(false);
     const [isPayBillDialogOpen, setIsPayBillDialogOpen] = useState(false);
     const [activeTab, setActiveTab] = useState("overview");
+  usePhoneStep(activeTab,setActiveTab,'overview');
 
     const refreshSections = useSectionLoader(user?.id,
         sections => fetchBankSections(supabase, user.id, sections),

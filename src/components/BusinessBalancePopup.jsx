@@ -1,3 +1,5 @@
+import {usePopupSlot,PopupQueueActions} from '@/contexts/PopupQueueContext';
+import SignedProfit from './business/SignedProfit';
 import React, { useCallback, useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Building2, Clock3, TrendingDown, TrendingUp, Wallet, X } from 'lucide-react';
@@ -131,7 +133,8 @@ const BusinessBalancePopup = () => {
     setIsVisible(false);
   }, [notification, user?.id]);
 
-  if (!user || !isVisible || !notification) {
+  const slot=usePopupSlot(isVisible&&notification?.id?`business:${notification.id}`:null,{priority:50,dismissible:true,onDismiss:handleDismiss});
+  if (!slot || !user || !isVisible || !notification) {
     return null;
   }
 
@@ -177,16 +180,16 @@ export function BusinessBalanceView({ notification, onDismiss }) {
             <X className="h-4 w-4" />
           </button>
 
-          <div className="space-y-5 text-center">
+          <PopupQueueActions/><div className="space-y-5 text-center">
             <div className={`mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br shadow-lg ${accentClassName}`}>
               <Icon className="h-8 w-8 text-white" />
             </div>
 
             <div className="space-y-2">
               <p className={`text-sm font-medium uppercase tracking-[0.28em] ${headlineClassName}`}>
-                {isProfit ? 'Lucro empresarial' : 'Prejuízo empresarial'}
+                {netResult===0?'Resultado neutro':isProfit ? 'Lucro empresarial' : 'Prejuízo empresarial'}
               </p>
-              <h3 className="text-2xl font-bold text-foreground">{formatCurrency(Math.abs(netResult))}</h3>
+              <h3 className="text-2xl font-bold text-foreground"><SignedProfit value={netResult}/></h3>
               <p className="text-sm text-muted-foreground">
                 {notification.content || 'O balanço anual da sua empresa foi processado automaticamente.'}
               </p>

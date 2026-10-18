@@ -1390,210 +1390,25 @@ const syncParliamentMemberships = async (supabase, { previousState, activeAssign
   }
 };
 
-const clearStaleProfileOfficeRoles = async (supabase, { previousState, activeAssignments, settlements }) => {
-  const activeOfficeRolesByUser = new Map();
-
-  for (const assignment of activeAssignments || []) {
-    if (!assignment?.userId || !assignment?.officeRole) {
-      continue;
-    }
-
-    if (!activeOfficeRolesByUser.has(assignment.userId)) {
-      activeOfficeRolesByUser.set(assignment.userId, new Set());
-    }
-
-    activeOfficeRolesByUser.get(assignment.userId).add(assignment.officeRole);
-  }
-
-  const previousProfileIds = Array.isArray(previousState?.active_assignments)
-    ? previousState.active_assignments.map((assignment) => assignment.user_id)
-    : [];
-  const activeProfileIds = activeAssignments.map((assignment) => assignment.userId);
-  const supersededManualProfiles = await fetchManualElectionRoleProfilesSupersededBySettlements(
-    supabase,
-    settlements
-  );
-  const candidateProfileIds = dedupe([
-    ...previousProfileIds,
-    ...activeProfileIds,
-    ...supersededManualProfiles.map((profile) => profile.id),
-  ]);
-
-  if (!candidateProfileIds.length) {
-    return;
-  }
-
-  const profiles = await fetchProfilesForRoleCleanup(supabase, candidateProfileIds);
-
-  for (const profile of profiles || []) {
-    const manualOverrideSuperseded = doesElectionSettlementSupersedeManualRole(profile, settlements);
-
-    if (profile.manual_role_override && !manualOverrideSuperseded) {
-      continue;
-    }
-
-    const activeRoles = activeOfficeRolesByUser.get(profile.id) || new Set();
-    const currentRole = profile.role;
-    const nextRole = TERM_BOUND_PROFILE_ROLES.includes(currentRole) && !activeRoles.has(currentRole)
-      ? 'Cidadão'
-      : currentRole;
-    const currentTitles = Array.isArray(profile.titles) ? profile.titles : [];
-    const nextTitles = currentTitles.filter(
-      (title) => !TERM_BOUND_PROFILE_ROLES.includes(title) || activeRoles.has(title)
-    );
-    const patch = {};
-
-    if (nextRole !== currentRole) {
-      patch.role = nextRole;
-    }
-
-    if (nextTitles.length !== currentTitles.length) {
-      patch.titles = nextTitles;
-    }
-
-    if (manualOverrideSuperseded) {
-      patch.manual_role_override = false;
-      patch.role_assigned_at = null;
-      patch.role_assigned_by = null;
-    }
-
-    if (!Object.keys(patch).length) {
-      continue;
-    }
-
-    await updateProfileIfUnchanged(supabase, profile, patch);
-  }
-};
-
 export const syncElectionOfficesState = async ({ accessToken } = {}) => {
   const supabase = getServerSupabase();
-  const automaticElectionIds = await ensureAutomaticRecurringElections(supabase);
-  const latestElections = await fetchLatestFinishedElections(supabase);
   const requesterSupabase = getUserScopedSupabase(accessToken);
-  const previousState = await fetchStoredElectionOfficeState(supabase);
+  const automaticElectionIds = await ensureAutomaticRecurringElections(supabase);
+  const elections = await fetchLatestFinishedElections(supabase);
   const settlements = [];
-  const activeAssignmentsByUser = new Map();
-  const impactedProfileIds = new Set();
-
-  for (const election of latestElections) {
-    const { data: authoritativeSettlement, error: settlementError } = await requesterSupabase.rpc(
-      'settle_election_offices',
-      { p_election_id: election.id }
-    );
-
-    if (settlementError || authoritativeSettlement?.success === false) {
-      throw settlementError || new Error('A apuração autoritativa da eleição falhou.');
-    }
-
-    const settlement = await resolveElectionAssignments(supabase, election);
-    settlements.push(settlement);
-
-    for (const profileId of settlement.impactedProfileIds || []) {
-      impactedProfileIds.add(profileId);
-    }
-
-    for (const assignment of settlement.assignments || []) {
-      addAssignment(activeAssignmentsByUser, assignment.userId, assignment);
-    }
+  for (const election of elections) {
+    const { data, error } = await requesterSupabase.rpc('settle_election_offices', { p_election_id: election.id });
+    if (error || data?.success === false) throw error || new Error('Não foi possível concluir a apuração.');
+    settlements.push({ electionId: election.id, status: data.status, officeRole: election.election_types?.name, winnerCount: data.winners?.length || 0 });
   }
-
-  const activeAssignments = [...activeAssignmentsByUser.values()].flat();
-  const serializedAssignments = activeAssignments.map((assignment) => ({
-    user_id: assignment.userId,
-    office_role: assignment.officeRole,
-    election_id: assignment.electionId,
-    election_name: assignment.electionName,
-    term_start_at: assignment.termStartAt,
-    term_end_at: assignment.termEndAt,
-  }));
-  const serializedSettlements = settlements.map((settlement) => ({
-    election_id: settlement.electionId,
-    office_role: settlement.officeRole,
-    status: settlement.status,
-    winner_count: settlement.assignments.length,
-    term_start_at: settlement.termStartAt,
-    term_end_at: settlement.termEndAt,
-  }));
-
-  await persistElectionOfficeState(supabase, {
-    updated_at: new Date().toISOString(),
-    active_assignments: serializedAssignments,
-    settlements: serializedSettlements,
-  });
-
-  await publishElectionOfficeGazetteEntries(supabase, {
-    previousState,
-    activeAssignments,
-  });
-
-  await syncParliamentMemberships(supabase, {
-    previousState,
-    activeAssignments,
-  });
-
-  // settle_election_offices grants each mandate exactly once. Replaying assignments
-  // here used to undo later Admin decisions and erase their actor/timestamp.
-
-  // Government transitions, cabinet dismissal and history are atomic database operations.
-  const clearedMinisterUserIds = [];
-
-  await clearStaleProfileOfficeRoles(supabase, {
-    previousState,
-    activeAssignments,
-    settlements,
-  });
-
-  await clearExecutiveVacancyIfNeeded(supabase, activeAssignments);
-
-  const existingNotificationKeys = await fetchExistingOfficeNotifications(
-    supabase,
-    dedupe(activeAssignments.map((assignment) => assignment.userId))
-  );
-
-  const notificationsToInsert = [];
-
-  for (const assignment of activeAssignments) {
-    const notificationKey = buildNotificationKey(assignment);
-
-    if (existingNotificationKeys.has(notificationKey)) {
-      continue;
-    }
-
-    notificationsToInsert.push(buildOfficeNotification(assignment));
-    existingNotificationKeys.add(notificationKey);
-  }
-
-  if (notificationsToInsert.length) {
-    const { error } = await supabase.from('notifications').insert(notificationsToInsert);
-
-    if (error) {
-      throw error;
-    }
-  }
-
-  const previousUserIds = Array.isArray(previousState?.active_assignments)
-    ? previousState.active_assignments.map((assignment) => assignment.user_id)
-    : [];
-  const changedUserIds = dedupe([
-    ...previousUserIds,
-    ...serializedAssignments.map((assignment) => assignment.user_id),
-    ...impactedProfileIds,
-    ...clearedMinisterUserIds,
-  ]);
-
-  return {
-    processedElectionIds: settlements.map((settlement) => settlement.electionId),
-    automaticElectionIds,
-    grantedUserIds: dedupe(activeAssignments.map((assignment) => assignment.userId)),
-    changedUserIds,
-    notificationsCreated: notificationsToInsert.length,
-    settlements: settlements.map((settlement) => ({
-      electionId: settlement.electionId,
-      officeRole: settlement.officeRole,
-      status: settlement.status,
-      winnerCount: settlement.assignments.length,
-    })),
-  };
+  // Reconciliation, expiry and the shared snapshot are one locked transaction.
+  // A delayed HTTP response cannot overwrite a newer presidency or membership.
+  const { error } = await requesterSupabase.rpc('reconcile_current_electoral_offices');
+  if (error) throw error;
+  const state = await fetchStoredElectionOfficeState(supabase);
+  const assignments = state.active_assignments || [];
+  return { processedElectionIds: elections.map(e => e.id), automaticElectionIds,
+    grantedUserIds: dedupe(assignments.map(a => a.user_id)), changedUserIds: dedupe(assignments.map(a => a.user_id)), notificationsCreated: 0, settlements };
 };
 
 export const syncElectionOfficesHandler = async (request, response) => {
@@ -2046,6 +1861,13 @@ export const cancelCandidacyHandler = async (request, response) => {
         throw createHttpError('Voce nao tem permissao para retirar esta candidatura.', 403);
       }
 
+      const { data: invitationElection, error: invitationElectionError } = await supabase.from('elections')
+        .select('status,voting_start_date').eq('id', trackerNotification.metadata?.election_id).maybeSingle();
+      if (invitationElectionError) throw invitationElectionError;
+      if (!invitationElection || Date.now() >= Date.parse(invitationElection.voting_start_date) || ['Voting','Finished','Cancelled'].includes(invitationElection.status)) {
+        throw createHttpError('O prazo de retirada terminou. Este convite permanece no histórico eleitoral.', 400);
+      }
+
       await cancelPendingViceInvitation(supabase, {
         trackerNotification,
         requesterId: requester.id,
@@ -2058,57 +1880,9 @@ export const cancelCandidacyHandler = async (request, response) => {
       return;
     }
 
-    const { data: candidacy, error: candidacyError } = await supabase
-      .from('candidates')
-      .select('id, election_id, user_id, vice_candidate_id, status, political_name, election:elections(name)')
-      .eq('id', candidateId)
-      .maybeSingle();
-
-    if (candidacyError) {
-      throw candidacyError;
-    }
-
-    if (!candidacy?.id) {
-      throw createHttpError('Candidatura nao encontrada.', 404);
-    }
-
-    if (candidacy.user_id !== requester.id) {
-      throw createHttpError('Voce nao tem permissao para retirar esta candidatura.', 403);
-    }
-
-    if (!ACTIVE_CANDIDACY_STATUSES.includes(candidacy.status)) {
-      throw createHttpError('Apenas candidaturas pendentes ou aprovadas podem ser retiradas.', 400);
-    }
-
-    const { error: deleteError } = await supabase
-      .from('candidates')
-      .delete()
-      .eq('id', candidacy.id);
-
-    if (deleteError) {
-      throw deleteError;
-    }
-
-    if (candidacy.vice_candidate_id) {
-      const { error: viceNotificationError } = await supabase.from('notifications').insert({
-        user_id: candidacy.vice_candidate_id,
-        sender_id: requester.id,
-        type: 'vice_candidacy_cancelled',
-        content: `A candidatura "${candidacy.political_name || 'presidencial'}" foi retirada pelo candidato principal.`,
-        link: '/services/elections',
-        is_read: false,
-        metadata: {
-          candidate_id: candidacy.id,
-          election_id: candidacy.election_id,
-          election_name: candidacy.election?.name || null,
-          status: 'cancelled',
-        },
-      });
-
-      if (viceNotificationError) {
-        throw viceNotificationError;
-      }
-    }
+    const scoped = getUserScopedSupabase(requester.accessToken);
+    const { error: withdrawalError } = await scoped.rpc('withdraw_my_candidacy', { p_candidate_id: candidateId });
+    if (withdrawalError) throw createHttpError(withdrawalError.message, 400);
 
     json(response, 200, {
       success: true,

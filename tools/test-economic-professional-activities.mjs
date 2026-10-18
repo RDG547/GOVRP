@@ -27,7 +27,7 @@ try {
   check(Number(sql(`select boost from private.business_daily_effort where business_id='${b.id}' and effort_date=current_date+1`))===.04,`${family}: contribuição melhora a próxima produção diária`);
   check((await request(outsider.client.from('professional_work_sessions').select('id').eq('id',session.id))).length===0,`${family}: RLS preserva sessão privada`);
   const catalog=await rpc(person.client,'get_professional_activities',{p_business_id:b.id});
-  check(catalog.catalog.length===3&&new Set(catalog.catalog.map(item=>item.execution_mode)).size===3&&catalog.used_today===1,`${family}: catálogo tem três modos e contador diário persistido`);
+  check(catalog.catalog.length===5&&new Set(catalog.catalog.map(item=>item.execution_mode)).size===3&&catalog.used_today===1,`${family}: catálogo tem cinco atividades em três modos e contador diário persistido`);
   const timed=await rpc(person.client,'start_professional_activity',{p_business_id:b.id,p_activity_key:'routine'});
   check(timed.execution_mode==='timed'&&timed.challenge.mode==='timed'&&timed.duration_seconds>=30,`${family}: próxima atividade inicia sem cooldown e usa duração do servidor`);
   check(Boolean((await person.client.rpc('finish_professional_activity',{p_session_id:timed.id,p_answer:[]})).error),`${family}: cronômetro não pode ser burlado pelo cliente`);

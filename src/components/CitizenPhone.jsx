@@ -31,7 +31,7 @@ export default function CitizenPhone() {
     if(!pendingSave.current&&!drag.current&&validOrder(user?.ui_preferences?.phone_app_order))changeOrder(user.ui_preferences.phone_app_order);
   },[user?.ui_preferences?.phone_app_order]);
   useEffect(()=>{setRecent([]);setAppPath(null);setScreen('home');setOpen(false);changeOrder(validOrder(user?.ui_preferences?.phone_app_order)?user.ui_preferences.phone_app_order:DEFAULT_ORDER);},[user?.id]);
-  const show=useCallback(()=>{setOpen(true);},[]);
+  const show=useCallback(()=>{setOpen(current=>!current);},[]);
   const goHome=useCallback(()=>setScreen('home'),[]);
   const register=useCallback((path,callback)=>back.current.set(path,callback),[]);
   const close=()=>{setOpen(false);launcher.current?.focus();};
@@ -86,7 +86,7 @@ export default function CitizenPhone() {
   }} aria-label={`Abrir ${name}`} aria-describedby="phone-reorder-help" className={`group flex touch-none select-none min-w-0 flex-col items-center gap-1 rounded-xl p-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white ${dragging===path?'ring-2 ring-cyan-300 scale-105':''}`}><span className={`flex h-12 w-12 items-center justify-center rounded-2xl shadow-md transition-transform group-hover:scale-105 ${color}`}><Icon className="h-6 w-6 text-white"/></span><span className="min-h-8 text-center text-[11px] leading-4 text-white">{name}</span></button>;};
   if(!user?.onboarding_completed)return null;
   return <>
-    <button ref={launcher} type="button" aria-label="Abrir celular" title="Celular" aria-expanded={open} aria-controls="citizen-phone" onClick={show} className="fixed bottom-[5.25rem] left-5 z-40 hidden h-12 w-12 items-center justify-center rounded-full border-4 border-background bg-slate-800 text-white shadow-lg hover:bg-slate-700 focus-visible:ring-2 focus-visible:ring-ring md:flex"><Smartphone className="h-6 w-6"/></button>
+    <button ref={launcher} type="button" aria-label={open?"Fechar celular":"Abrir celular"} title="Celular" aria-expanded={open} aria-controls="citizen-phone" onClick={show} className="fixed bottom-[5.25rem] left-5 z-40 hidden h-12 w-12 items-center justify-center rounded-full border-4 border-background bg-slate-800 text-white shadow-lg hover:bg-slate-700 focus-visible:ring-2 focus-visible:ring-ring md:flex"><Smartphone className="h-6 w-6"/></button>
     <section id="citizen-phone" ref={panel} tabIndex={-1} role="region" aria-label="Celular do cidadão" hidden={!open} className="fixed bottom-[calc(5.5rem+env(safe-area-inset-bottom))] left-2 z-[90] h-[min(730px,calc(100dvh-7rem))] w-[min(390px,calc(100vw-1rem))] overflow-hidden rounded-[2.25rem] border-[6px] border-slate-800 bg-slate-950 text-white shadow-2xl outline-none md:bottom-5 md:left-20 md:h-[min(730px,calc(100dvh-2.5rem))]">
       <div className="flex h-full min-h-0 flex-col bg-gradient-to-br from-indigo-950 via-slate-900 to-cyan-950">
         <div className="flex shrink-0 items-center justify-between px-5 pt-3 text-xs"><time>{clock.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}</time><div aria-hidden="true" className="h-5 w-20 rounded-full bg-black"/><span className="flex gap-1" aria-hidden="true"><Signal className="h-3 w-3"/><Wifi className="h-3 w-3"/><BatteryFull className="h-4 w-4"/></span></div>

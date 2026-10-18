@@ -11,3 +11,5 @@ export function phonePortal(Portal) {
     return <Portal {...props} container={container || host}/>;
   };
 }
+
+export const PhoneBackContext = createContext(null);

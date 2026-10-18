@@ -10,7 +10,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
-import { Loader2, Trash2, CreditCard, RefreshCw, CalendarDays, DollarSign, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Clock, XCircle, CheckCircle } from 'lucide-react';
+import { Loader2, Trash2, ArrowLeft, CreditCard, RefreshCw, CalendarDays, DollarSign, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Clock, XCircle, CheckCircle } from 'lucide-react';
 import Cards from 'react-credit-cards-2'; // Importando o componente da biblioteca
 import 'react-credit-cards-2/dist/es/styles-compiled.css'; // Importando o estilo da biblioteca
 import {
@@ -211,6 +211,7 @@ const CardsTab = ({ onUpdate }) => {
     const { user } = useAuth();
     const { toast } = useToast();
     const [cards, setCards] = useState([]);
+    const [cancelingCard, setCancelingCard] = useState(null);
     const [invoices, setInvoices] = useState([]);
     const [cardApplications, setCardApplications] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -300,6 +301,8 @@ const CardsTab = ({ onUpdate }) => {
     };
 
     const handleCancelCard = async (cardId) => {
+        if (cancelingCard) return;
+        setCancelingCard(cardId);
         try {
             const { data, error } = await supabase.rpc('cancel_credit_card', { p_card_id: cardId });
             if (error) throw error;
@@ -312,7 +315,7 @@ const CardsTab = ({ onUpdate }) => {
             if (onUpdate) onUpdate();
         } catch (error) {
             toast({ title: 'Erro ao cancelar cartão', description: error.message, variant: 'destructive' });
-        }
+        } finally { setCancelingCard(null); }
     };
 
     const toggleFlip = (cardId) => {
@@ -403,6 +406,8 @@ const CardsTab = ({ onUpdate }) => {
                                 <div key={card.id} className="min-w-0">
                                     <ResponsiveBankCard>
                                     <Cards
+                                        preview
+                                        issuer={['visa','mastercard'].includes(normalizeCardBrand(card.brand)) ? normalizeCardBrand(card.brand) : 'unknown'}
                                         number={card.card_number}
                                         expiry={card.expiry_date}
                                         cvc={isFlipped[card.id] ? card.cvv : ''}
@@ -444,16 +449,17 @@ const CardsTab = ({ onUpdate }) => {
                                                 </Button>
                                             </AlertDialogTrigger>
                                             <AlertDialogContent>
-                                                <AlertDialogHeader>
-                                                    <AlertDialogTitle>Tem certeza?</AlertDialogTitle>
+                                                <AlertDialogHeader className="items-center text-center sm:text-center">
+                                                    <CreditCard className="h-10 w-10 text-destructive" aria-hidden="true"/>
+                                                    <AlertDialogTitle>Cancelar cartão {getCardBrandLabel(card.brand)}</AlertDialogTitle>
                                                     <AlertDialogDescription>
-                                                        Esta ação não pode ser desfeita. O cartão será cancelado permanentemente.
+                                                        Final {String(card.card_number).slice(-4)}. Esta ação não pode ser desfeita. O cartão será cancelado permanentemente.
                                                         Se houver faturas em aberto, elas deverão ser pagas antes do cancelamento.
                                                     </AlertDialogDescription>
                                                 </AlertDialogHeader>
-                                                <AlertDialogFooter>
-                                                    <AlertDialogCancel>Voltar</AlertDialogCancel>
-                                                    <AlertDialogAction onClick={() => handleCancelCard(card.id)} className="bg-destructive hover:bg-destructive/90">Sim, cancelar</AlertDialogAction>
+                                                <AlertDialogFooter className="sm:justify-center">
+                                                    <AlertDialogCancel disabled={Boolean(cancelingCard)}><ArrowLeft className="mr-2 h-4 w-4"/>Voltar</AlertDialogCancel>
+                                                    <AlertDialogAction disabled={Boolean(cancelingCard)} onClick={event => { event.preventDefault(); void handleCancelCard(card.id); }} className="bg-destructive hover:bg-destructive/90">{cancelingCard === card.id ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Trash2 className="mr-2 h-4 w-4"/>}Sim, Cancelar</AlertDialogAction>
                                                 </AlertDialogFooter>
                                             </AlertDialogContent>
                                         </AlertDialog>

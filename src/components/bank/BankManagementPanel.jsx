@@ -308,6 +308,8 @@ const BankManagementPanel = () => {
   const [requestsLoading, setRequestsLoading] = useState(false);
 
   const canManage = canManageNationalBank(user);
+  const policyRef = useRef(policy); policyRef.current = policy;
+  const requestSequence = useRef(0);
 
   const fetchProfiles = useCallback(async (userIds = []) => {
     const ids = [...new Set(userIds.filter(Boolean))];
@@ -399,6 +401,7 @@ const BankManagementPanel = () => {
 
   const fetchRequests = useCallback(async (type, showLoading = true) => {
     if (!canManage) return;
+    const sequence = ++requestSequence.current;
     const isCards = type === 'cards';
     const page = isCards ? cardPage : loanPage;
     const from = (page - 1) * REQUESTS_PAGE_SIZE;
@@ -413,6 +416,7 @@ const BankManagementPanel = () => {
         .range(from, to);
 
       if (error) throw error;
+      if (sequence !== requestSequence.current) return;
       const rows = data || [];
       const total = count || 0;
       const maximumPage = Math.max(1, Math.ceil(total / REQUESTS_PAGE_SIZE));
@@ -438,7 +442,7 @@ const BankManagementPanel = () => {
           ...rows.reduce((accumulator, application) => {
             const brand = normalizeCardBrand(application.approved_brand || application.brand);
             accumulator[application.id] = current[application.id] || formatCurrency(
-              Number(application.requested_limit || getCardBrandDefaultLimit(policy, brand) || 0),
+              Number(application.requested_limit || getCardBrandDefaultLimit(policyRef.current, brand) || 0),
               true
             );
             return accumulator;
@@ -464,9 +468,9 @@ const BankManagementPanel = () => {
         variant: 'destructive',
       });
     } finally {
-      if (showLoading) setRequestsLoading(false);
+      if (showLoading && sequence === requestSequence.current) setRequestsLoading(false);
     }
-  }, [canManage, cardPage, fetchProfiles, loanPage, policy, toast]);
+  }, [canManage, cardPage, fetchProfiles, loanPage, toast]);
 
   useEffect(() => {
     fetchData();
@@ -480,7 +484,8 @@ const BankManagementPanel = () => {
     if (!canManage) return undefined;
 
     let refreshTimer;
-    const scheduleRefresh = () => {
+    const scheduleRefresh = (payload) => {
+      if (payload?.table==='system_settings' && ![BANK_POLICY_SETTINGS_KEY,ECONOMIC_POLICY_SETTINGS_KEY].includes(payload.new?.key||payload.old?.key)) return;
       window.clearTimeout(refreshTimer);
       refreshTimer = window.setTimeout(() => fetchData(false), 250);
     };

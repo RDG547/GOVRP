@@ -226,7 +226,10 @@ select jsonb_build_array(jsonb_build_object('country_code','BR','country_name','
 insert into public.country_rp_states(country_code,country_name,is_playable) values('PT','Portugal',true);
 select (:'snapshots'::jsonb || jsonb_build_array((:'snapshots'::jsonb->0) || '{"country_code":"PT","country_name":"Portugal"}'::jsonb)) as two_countries \gset
 set local role authenticated;
+reset role;insert into private.platform_admins(user_id) values('10000000-0000-0000-0000-000000000004');set local role authenticated;
 select public.admin_prepare_rp_reset('full_rp','{}','Teste de alteração dos países',:'two_countries'::jsonb) as country_plan \gset
+select public.admin_backup_rp_reset((:'country_plan'::jsonb->>'request_id')::uuid) as country_backup \gset
+select public.admin_confirm_reset_backup((:'country_plan'::jsonb->>'request_id')::uuid,(:'country_backup'::jsonb->>'id')::uuid,:'country_backup'::jsonb->>'digest');
 reset role;
 update public.country_rp_states set is_playable=false where country_code='PT';
 select set_config('test.country_request',:'country_plan'::jsonb->>'request_id',true);
@@ -247,6 +250,8 @@ exception when raise_exception then
   raise notice 'PASS: preview cannot include inactive countries';
 end $$;
 select public.admin_prepare_rp_reset('full_rp','{}','Teste de nova temporada',:'snapshots'::jsonb) as full_plan \gset
+select public.admin_backup_rp_reset((:'full_plan'::jsonb->>'request_id')::uuid) as backup_plan \gset
+select public.admin_confirm_reset_backup((:'full_plan'::jsonb->>'request_id')::uuid,(:'backup_plan'::jsonb->>'id')::uuid,:'backup_plan'::jsonb->>'digest');
 reset role;
 insert into public.posts(user_id,content) values('10000000-0000-0000-0000-000000000004','Must survive failed reset');
 create temporary table before_failed_reset as select id,citizen_id from public.profiles;
@@ -268,6 +273,9 @@ reset role;
 select pg_temp.assert_true((select economic_current=economic_baseline and (economic_current->>'gdp')::numeric=2000000000000
  and revision=0 and economy_influence=0 and reference_snapshot_at is not null from public.country_rp_states where country_code='BR'),'full RP starts from real snapshot and revision zero');
 select pg_temp.assert_true((select current_selic=12 and public_debt=0 and last_operational_run_at is null and player_share=.5 and simulated_share=.5 from public.economic_state),'economy uses reference interest rate with zero RP debt and clean engine');
+select pg_temp.assert_true((select count(*)=2 from private.platform_admins),'technical administrator grants preserved after complete reset');
+select pg_temp.assert_true((select count(*)=4 from auth.users),'all original Auth identities preserved explicitly');
+select pg_temp.assert_true((select count(*)=2 from private.rp_launch_backups),'launch backup survives the reset');
 select pg_temp.assert_true((select treasury_balance=0 and loans_balance=0 from public.government_finances),'public funds and government loans reset');
 select pg_temp.assert_true((select count(*) from public.country_rp_economic_snapshots)=1 and (select count(*) from public.economic_events)=0 and (select count(*) from public.transactions)=0,'only new economic baseline remains');
 select pg_temp.assert_true((select count(*) from public.currency_market_states)=6 and (select count(*) from public.currency_market_states where current_strength<>1)=0,'currency market starts from real quotes without old RP pressure');

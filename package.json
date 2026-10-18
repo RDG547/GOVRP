@@ -108,7 +108,13 @@
     "test:update-controls": "node tools/test-update-controls.mjs",
     "test:formation-countdown": "node tools/test-formation-countdown.mjs",
     "test:admin-total-access": "node tools/test-admin-total-access.mjs",
-    "test:admin-total-interface": "node tools/test-admin-total-interface.mjs"
+    "test:admin-total-interface": "node tools/test-admin-total-interface.mjs",
+    "test:launch-world": "node tools/test-launch-world.mjs",
+    "test:launch-agies": "node tools/test-launch-agies.mjs",
+    "test:launch-government": "node tools/test-launch-government.mjs",
+    "test:launch-stock": "node tools/test-launch-stock.mjs",
+    "test:launch-interface": "node tools/test-launch-interface.mjs",
+    "audit:launch-security": "node tools/audit-launch-security.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.0",

@@ -1,296 +1,87 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Helmet } from 'react-helmet-async';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useParams } from 'react-router-dom';
+import { Eye, Fingerprint, FileText, Plus, Play, Check, Send, Clock, Shield, Loader2, X, Search, LockKeyhole } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
+import { useAuth } from '@/contexts/AuthContext';
+import { useDomainRealtime } from '@/hooks/use-domain-realtime';
 import { useToast } from '@/components/ui/use-toast';
+import { userErrorMessage } from '@/lib/userErrors';
 import { Button } from '@/components/ui/button';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Loader2, Eye, Search, PlusCircle, ArrowRight, ArrowLeft } from 'lucide-react';
-import PageHeader from '@/components/layout/PageHeader';
 import { Input } from '@/components/ui/input';
-import { format } from 'date-fns';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+import { GovSelect } from '@/components/ui/gov-select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import CitizenSelector from '@/components/CitizenSelector';
+import PageHeader from '@/components/layout/PageHeader';
 import { formatCurrency } from '@/lib/utils';
-import UserSelectOption from '@/components/UserSelectOption';
-
-const normalizeSearchValue = (value = '') =>
-    value
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '')
-        .toLowerCase()
-        .trim();
-
-const TransactionViewer = () => {
-    const [users, setUsers] = useState([]);
-    const [selectedUser, setSelectedUser] = useState(null);
-    const [transactions, setTransactions] = useState([]);
-    const [loadingUsers, setLoadingUsers] = useState(true);
-    const [loadingTransactions, setLoadingTransactions] = useState(false);
-    const [isDialogOpen, setIsDialogOpen] = useState(false);
-    const [userSearchTerm, setUserSearchTerm] = useState('');
-    const { toast } = useToast();
-
-    useEffect(() => {
-        if (!isDialogOpen) return;
-        const fetchUsers = async () => {
-            setLoadingUsers(true);
-            const { data, error } = await supabase
-                .from('profiles')
-                .select('id, full_name, username, avatar_url')
-                .order('full_name', { ascending: true });
-            if (error) {
-                toast({ title: "Erro ao buscar usuários", variant: "destructive" });
-            } else {
-                setUsers(data || []);
-            }
-            setLoadingUsers(false);
-        };
-        fetchUsers();
-    }, [isDialogOpen, toast]);
-
-    const handleUserSelect = useCallback(async (userId) => {
-        const user = users.find(u => u.id === userId);
-        if (!user) return;
-
-        setSelectedUser(user);
-        setLoadingTransactions(true);
-        const { data, error } = await supabase.rpc('get_user_transactions_for_admin', { p_user_id: user.id });
-
-        if (error) {
-            toast({ title: "Erro ao buscar transações", description: error.message, variant: "destructive" });
-            setTransactions([]);
-        } else {
-            setTransactions(data || []);
-        }
-        setLoadingTransactions(false);
-    }, [users, toast]);
-
-    const filteredUsers = useMemo(() => {
-        const normalizedSearch = normalizeSearchValue(userSearchTerm);
-
-        if (!normalizedSearch) {
-            return users;
-        }
-
-        return users.filter((user) => {
-            const userLabel = `${user.full_name || ''} ${user.username || ''} ${user.id || ''}`;
-            return normalizeSearchValue(userLabel).includes(normalizedSearch);
-        });
-    }, [userSearchTerm, users]);
-
-    const handleDialogChange = useCallback((open) => {
-        setIsDialogOpen(open);
-
-        if (!open) {
-            setUserSearchTerm('');
-            setSelectedUser(null);
-            setTransactions([]);
-            setLoadingTransactions(false);
-        }
-    }, []);
-
-    return (
-        <Dialog open={isDialogOpen} onOpenChange={handleDialogChange}>
-            <DialogTrigger asChild>
-                <Button variant="outline"><Eye className="mr-2 h-4 w-4" /> Ver Transações de Usuário</Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-4xl h-[80vh]">
-                <DialogHeader>
-                    <DialogTitle>Monitor de Transações</DialogTitle>
-                    <DialogDescription>Selecione um usuário para visualizar seu histórico de transações.</DialogDescription>
-                </DialogHeader>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 h-full overflow-hidden">
-                    <div className="md:col-span-1 h-full flex flex-col">
-                        <div className="rounded-lg border shadow-md h-full bg-background/80 overflow-hidden">
-                            <div className="border-b px-3 py-3">
-                                <div className="relative">
-                                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                                    <Input
-                                        value={userSearchTerm}
-                                        onChange={(event) => setUserSearchTerm(event.target.value)}
-                                        placeholder="Buscar usuário..."
-                                        className="pl-9"
-                                    />
-                                </div>
-                            </div>
-                            <div className="px-3 py-2 text-xs font-medium text-muted-foreground border-b">Usuários</div>
-                            <div className="h-full max-h-[58vh] overflow-y-auto custom-scrollbar p-2 space-y-1">
-                                {loadingUsers ? <div className="flex justify-center p-4"><Loader2 className="animate-spin" /></div> : null}
-                                {!loadingUsers && filteredUsers.length === 0 ? (
-                                    <p className="py-6 text-center text-sm text-muted-foreground">Nenhum usuário encontrado.</p>
-                                ) : null}
-                                {!loadingUsers ? filteredUsers.map((user) => {
-                                    const userLabel = user.full_name || user.username || 'Usuário sem nome';
-                                    const isSelected = selectedUser?.id === user.id;
-
-                                    return (
-                                        <button
-                                            key={user.id}
-                                            type="button"
-                                            onClick={() => handleUserSelect(user.id)}
-                                            className={`flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm transition-colors ${isSelected ? 'bg-white/10 text-foreground' : 'text-muted-foreground hover:bg-white/5 hover:text-foreground'}`}
-                                        >
-                                            <UserSelectOption
-                                                user={user}
-                                                label={userLabel}
-                                                detail={user.username ? `@${user.username}` : ''}
-                                            />
-                                        </button>
-                                    );
-                                }) : null}
-                            </div>
-                        </div>
-                    </div>
-                    <div className="md:col-span-2 h-full overflow-y-auto custom-scrollbar">
-                        {selectedUser ? (
-                            <div>
-                                <h3 className="text-lg font-semibold mb-4">Transações de {selectedUser.full_name}</h3>
-                                {loadingTransactions ? <div className="flex justify-center p-4"><Loader2 className="animate-spin" /></div> : (
-                                    <div className="space-y-4">
-                                        {transactions.length > 0 ? transactions.map(tx => (
-                                            <div key={tx.id} className="p-3 rounded-lg bg-background/50 border border-border">
-                                                <div className="flex justify-between items-center">
-                                                    <div className="flex items-center gap-3">
-                                                        {tx.direction === 'sent' ? <ArrowRight className="w-5 h-5 text-red-400" /> : <ArrowLeft className="w-5 h-5 text-green-400" />}
-                                                        <div>
-                                                            <p className="font-medium">{tx.description}</p>
-                                                            <p className="text-xs text-muted-foreground">
-                                                                {tx.direction === 'sent' ? `Para: ${tx.other_party_name || 'N/A'}` : `De: ${tx.other_party_name || 'N/A'}`}
-                                                            </p>
-                                                        </div>
-                                                    </div>
-                                                    <div className="text-right">
-                                                        <p className={`font-bold ${tx.direction === 'sent' ? 'text-red-400' : 'text-green-400'}`}>
-                                                            {tx.direction === 'sent' ? '-' : '+'} {formatCurrency(tx.amount)}
-                                                        </p>
-                                                        <p className="text-xs text-muted-foreground">{format(new Date(tx.created_at), 'dd/MM/yy HH:mm')}</p>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        )) : <p className="text-muted-foreground text-center">Nenhuma transação encontrada.</p>}
-                                    </div>
-                                )}
-                            </div>
-                        ) : (
-                            <div className="flex items-center justify-center h-full text-muted-foreground">
-                                <p>Selecione um usuário para começar.</p>
-                            </div>
-                        )}
-                    </div>
-                </div>
-            </DialogContent>
-        </Dialog>
-    );
-};
-
-const AGIESPanel = () => {
-    const { toast } = useToast();
-    const [missions, setMissions] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [searchTerm, setSearchTerm] = useState('');
-
-    const fetchMissions = useCallback(async () => {
-        setLoading(true);
-        let query = supabase
-            .from('agies_missions')
-            .select('*, agent:profiles(full_name)')
-            .order('created_at', { ascending: false });
-
-        if (searchTerm) {
-            query = query.ilike('name', `%${searchTerm}%`);
-        }
-
-        const { data, error } = await query;
-        if (error) {
-            toast({ title: "Erro ao carregar missões", variant: "destructive" });
-            console.error("Error fetching missions:", error);
-        } else {
-            setMissions(data || []);
-        }
-
-        setLoading(false);
-    }, [searchTerm, toast]);
-
-    useEffect(() => {
-        fetchMissions();
-    }, [fetchMissions]);
-
-    return (
-        <>
-            <Helmet>
-                <title>Painel AGIES - GOV.RP</title>
-                <meta name="description" content="Painel da Agência de Inteligência e Espionagem Suprema." />
-            </Helmet>
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-                <PageHeader
-                    icon={Eye}
-                    title="Painel"
-                    gradientText="AGIES"
-                    description="Agência de Inteligência e Espionagem Suprema. A vigilância é a nossa virtude."
-                    iconColor="text-red-500"
-                    centered={true}
-                />
-
-                <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
-                     <div className="relative w-full md:w-1/2">
-                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                        <Input
-                        type="text"
-                        placeholder="Pesquisar por missão..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full pl-12 pr-4 py-6 text-lg"
-                        />
-                    </div>
-                    <div className="flex gap-2">
-                        <TransactionViewer />
-                        <Button onClick={() => toast({ title: "🚧 Funcionalidade em desenvolvimento!" })}>
-                            <PlusCircle className="mr-2 h-4 w-4" /> Nova Missão
-                        </Button>
-                    </div>
-                </div>
-
-                <div className="glass-effect rounded-lg overflow-hidden">
-                     {loading ? (
-                        <div className="flex justify-center items-center h-64"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>
-                     ) : (
-                        <Table>
-                            <TableHeader>
-                                <TableRow className="hover:bg-transparent border-b-border">
-                                    <TableHead>Missão</TableHead>
-                                    <TableHead>Agente Responsável</TableHead>
-                                    <TableHead>Data de Início</TableHead>
-                                    <TableHead className="text-right">Status</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {missions.map(mission => (
-                                    <TableRow key={mission.id} className="border-b-border">
-                                        <TableCell className="font-medium">{mission.name}</TableCell>
-                                        <TableCell>{mission.agent?.full_name || 'N/A'}</TableCell>
-                                        <TableCell>{mission.start_date ? format(new Date(mission.start_date), 'dd/MM/yyyy') : 'Não definida'}</TableCell>
-                                        <TableCell className="text-right">
-                                            <span className={`px-2 py-1 text-xs rounded-full ${
-                                                mission.status === 'Em Andamento' ? 'bg-yellow-500/20 text-yellow-300' :
-                                                mission.status === 'Concluída' ? 'bg-green-500/20 text-green-300' :
-                                                'bg-gray-500/20 text-gray-300'
-                                            }`}>{mission.status}</span>
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                    )}
-                </div>
-            </div>
-        </>
-    );
-};
-
-export default AGIESPanel;
+import AGIESRestricted from '@/components/AGIESRestricted';
+const statusNames={awaiting_authorization:'Aguardando autorização',active:'Em andamento',completed:'Concluída',exposed:'Concluída · exposição detectada',cancelled:'Cancelada'};
+const types={political:'Inteligência Política',economic:'Inteligência Econômica',counterintelligence:'Contrainteligência',financial:'Inteligência Financeira'};
+const kinds={citizen:'Cidadão / autoridade',party:'Partido',company:'Empresa',event:'Acontecimento',institution:'Instituição'};
+const tasks={documents:'Análise de documentos',decode:'Decodificação',patterns:'Análise de padrões',planning:'Planejamento',counterintelligence:'Contrainteligência'};
+const countdown=seconds=>{const n=Math.max(0,Math.ceil(seconds));return `${String(Math.floor(n/3600)).padStart(2,'0')}:${String(Math.floor(n/60)%60).padStart(2,'0')}:${String(n%60).padStart(2,'0')}`;};
+const empty={name:'',objective:'',justification:'',type:'political',target_kind:'citizen',target_id:'',classification:'confidential',strategy:'balanced'};
+export function AGIESSharedReport(){
+ const {reportId}=useParams();const [report,setReport]=useState(null),[loaded,setLoaded]=useState(false);
+ useEffect(()=>{let active=true;void supabase.from('agies_reports').select('number,summary,conclusion,classification,created_at').eq('id',reportId).maybeSingle().then(r=>{if(active){setReport(r.error?null:r.data);setLoaded(true);}});return()=>{active=false;};},[reportId]);
+ if(!loaded)return <p role="status">Consultando autorização…</p>;
+ return report?<main className="mx-auto max-w-3xl space-y-5 p-6"><h1 className="text-2xl font-semibold">Relatório de Inteligência nº {report.number}</h1><p>Classificado · Uso institucional no GOVRP</p><p className="whitespace-pre-wrap">{report.summary}</p><p className="whitespace-pre-wrap">{report.conclusion}</p><p className="text-sm text-muted-foreground">Indícios do RP não constituem condenação. Cabe ao órgão competente analisar eventual procedimento.</p></main>:<AGIESRestricted/>;
+}
+export default function AGIESPanel(){
+ const {user}=useAuth(),{toast}=useToast();const [data,setData]=useState(null),[tab,setTab]=useState('overview'),[error,setError]=useState(''),[busy,setBusy]=useState('');
+ const [selected,setSelected]=useState(''),[editor,setEditor]=useState(null),[form,setForm]=useState(empty),[answer,setAnswer]=useState([]),[now,setNow]=useState(Date.now()),[targetRows,setTargetRows]=useState([]),[query,setQuery]=useState(''),[financial,setFinancial]=useState(null);
+ const [investigations,setInvestigations]=useState([]),[judicialStatus,setJudicialStatus]=useState(null);const offset=useRef(0),key=useRef(null),version=useRef(0);
+ const load=useCallback(async()=>{const sequence=++version.current;const r=await supabase.rpc('get_agies_state');if(sequence!==version.current)return;if(r.error){setError(userErrorMessage(r.error));return;}setError('');offset.current=Date.parse(r.data.server_now)-Date.now();setData(r.data);},[]);
+ useEffect(()=>{void load();const timer=setInterval(()=>setNow(Date.now()),1000);return()=>{clearInterval(timer);version.current++;};},[load]);
+ useDomainRealtime('agies-internal',user?.id,['agies_missions','agies_dossiers','agies_tasks','agies_reports','agies_clearances','judicial_requests'],load,Boolean(user?.id));
+ useEffect(()=>{if(editor!=='new'||!['party','company'].includes(form.target_kind))return;let active=true;const timer=setTimeout(async()=>{const r=await supabase.rpc('search_agies_targets',{p_kind:form.target_kind,p_query:query,p_offset:0});if(active)setTargetRows(r.data||[]);},250);return()=>{active=false;clearTimeout(timer);};},[editor,form.target_kind,query]);
+ const operation=data?.missions.find(m=>m.id===selected)||data?.missions[0];
+ useEffect(()=>{let active=true;setJudicialStatus(null);if(operation?.operation_type==='financial'&&operation.judicial_request_id)void supabase.rpc('get_agies_judicial_status',{p_mission_id:operation.id}).then(r=>{if(active&&!r.error)setJudicialStatus(r.data);});return()=>{active=false;};},[operation?.id,operation?.judicial_request_id,data?.server_now]);
+ const run=async(label,rpc,args,after)=>{if(busy)return;setBusy(label);try{const r=await supabase.rpc(rpc,args);if(r.error)throw r.error;await load();after?.(r.data);toast({title:'Ação registrada'});}catch(f){setError(userErrorMessage(f));toast({title:'Ação não concluída',description:userErrorMessage(f),variant:'destructive'});}finally{setBusy('');}};
+ const openNew=()=>{key.current=crypto.randomUUID();setForm({...empty});setQuery('');setEditor('new');};
+ const seconds=date=>(Date.parse(date)-now-offset.current)/1000;
+ const opTasks=data?.tasks.filter(t=>t.mission_id===operation?.id)||[];
+ const task=opTasks.find(t=>!t.completed_at&&t.agent_id===user.id);
+ const dossier=data?.dossiers.find(d=>d.mission_id===operation?.id),report=data?.reports.find(r=>r.mission_id===operation?.id);
+ const change=(field,value)=>setForm(current=>({...current,[field]:value}));
+ if(!data)return <main className="p-6" role="status">{error||'Consultando operações autorizadas…'}{error&&<Button onClick={load}>Tentar novamente</Button>}</main>;
+ const visible=data.missions.filter(m=>tab==='dossiers'?data.dossiers.some(d=>d.mission_id===m.id):tab==='reports'?data.reports.some(r=>r.mission_id===m.id):tab==='political'?m.operation_type==='political':tab==='economic'?['economic','financial'].includes(m.operation_type):tab==='counterintelligence'?m.operation_type==='counterintelligence':true);
+ return <main className="mx-auto min-w-0 max-w-7xl space-y-5 px-3 py-8 sm:px-6"><PageHeader centered icon={Fingerprint} iconColor="text-cyan-400" title="AGIES" description="Inteligência estratégica do universo fictício GOVRP. Operações, análises e indícios sob controle institucional."/>
+ <nav className="flex flex-wrap gap-2" aria-label="Áreas da AGIES">{[['overview','Visão geral'],['operations','Operações'],['dossiers','Dossiês'],['political','Inteligência Política'],['economic','Inteligência Econômica'],['counterintelligence','Contrainteligência'],['reports','Relatórios'],...(data.manager?[['admin','Administração']]:[])].map(([value,label])=><Button key={value} size="sm" variant={tab===value?'default':'outline'} onClick={()=>setTab(value)}>{label}</Button>)}</nav>
+ {error&&<p role="alert" className="rounded-lg border border-destructive p-3 text-sm">{error}</p>}
+ {tab==='overview'&&<div className="grid gap-3 sm:grid-cols-3">{[['Operações ativas',data.missions.filter(m=>m.status==='active').length],['Aguardando direção',data.missions.filter(m=>m.status==='awaiting_authorization').length],['Relatórios produzidos',data.reports.length]].map(([label,value])=><article key={label} className="rounded-xl border p-4"><p className="text-sm text-muted-foreground">{label}</p><strong className="text-2xl">{value}</strong></article>)}</div>}
+ {tab==='admin'?<section className="space-y-4 rounded-xl border p-4"><h2 className="font-semibold">Equipe e recursos institucionais</h2><p className="text-sm">Até {data.rules.daily_operations} operações por agente/dia · {data.rules.concurrent_operations} simultâneas · Prazo: {data.rules.simple_hours}h a {data.rules.complex_hours}h · Custo-base {formatCurrency(data.rules.base_cost)}/hora · Orçamento diário {formatCurrency(data.rules.daily_budget)}</p>{data.staff.map(person=><div key={person.id} className="flex flex-wrap items-center gap-3"><span className="min-w-0 flex-1">{person.name}</span>{person.rank==='director'?<span>Diretor</span>:<GovSelect aria-label={`Permissão de ${person.name}`} disabled={Boolean(busy)||!data.director} value={person.rank} onChange={event=>run('clearance','manage_agies_clearance',{p_user_id:person.id,p_rank:event.target.value})}><option value="agent">Agente</option><option value="analyst">Analista</option><option value="coordinator">Coordenador</option></GovSelect>}</div>)}<Button variant="outline" onClick={()=>{setForm({...data.rules});setEditor('rules');}}>Configurar limites e custos</Button></section>:<>
+ <div className="flex justify-between gap-3"><h2 className="font-semibold">Operações institucionais <span className="text-sm font-normal text-muted-foreground">· 100 registros mais recentes</span></h2><Button onClick={openNew}><Plus className="mr-2 h-4 w-4"/>Criar operação</Button></div>
+ <div className="grid gap-4 lg:grid-cols-[minmax(220px,1fr)_2fr]"><aside className="max-h-[70dvh] space-y-2 overflow-y-auto">{visible.length?visible.map(op=><button type="button" key={op.id} onClick={()=>{setSelected(op.id);setFinancial(null);setAnswer([]);}} className={`block w-full space-y-2 rounded-xl border p-3 text-left ${operation?.id===op.id?'border-cyan-500 bg-cyan-500/10':''}`}><strong className="block break-words">{op.name}</strong><span className="block text-xs">{types[op.operation_type]||'Missão histórica'} · {statusNames[op.status]||op.status}</span><span className="block text-xs text-muted-foreground">{op.status==='active'?`Prazo ${countdown(seconds(op.end_date))}`:`Qualidade ${op.quality}% · Risco ${op.risk}%`}</span></button>):<p className="text-sm">Nenhuma operação nesta área.</p>}</aside>
+ {operation&&<section className="min-w-0 space-y-4 rounded-xl border p-4"><h2 className="text-xl font-semibold">{operation.name}</h2><p className="text-sm">{operation.description}</p><p className="text-sm text-muted-foreground">Fundamento: {operation.justification||'Registro histórico'} · Custo: {formatCurrency(operation.budget)} · Classificação: {operation.classification==='secret'?'Secreto':operation.classification==='restricted'?'Restrito':'Confidencial'}</p>
+ {operation.operation_type==='financial'&&<p className="text-sm">Autorização judicial: {judicialStatus?({pending:'Aguardando decisão',approved:'Autorizada',rejected:'Indeferida',denied:'Indeferida',expired:'Expirada'})[judicialStatus.status]||'Decisão registrada':'Não solicitada'}{judicialStatus?.expires_at&&` · Validade ${new Date(judicialStatus.expires_at).toLocaleString('pt-BR')}`}</p>}
+ {operation.status==='awaiting_authorization'&&data.manager&&<div className="flex flex-wrap gap-2"><Button disabled={Boolean(busy)} onClick={()=>run('authorize','authorize_agies_operation',{p_mission_id:operation.id,p_approve:true})}><Check className="mr-2 h-4 w-4"/>Autorizar e custear</Button><Button variant="outline" disabled={Boolean(busy)} onClick={()=>run('deny','authorize_agies_operation',{p_mission_id:operation.id,p_approve:false})}><X className="mr-2 h-4 w-4"/>Não autorizar</Button></div>}
+ {operation.status==='active'&&<><div className="flex items-center gap-3"><Clock className="h-6 w-6 text-cyan-400"/><div><p role="timer" className="font-mono text-xl">{countdown(seconds(operation.end_date))}</p><p className="text-xs">O prazo continua contando ao sair.</p></div></div><div className="flex flex-wrap gap-2">{Object.entries(tasks).map(([kind,label])=><Button key={kind} size="sm" variant="outline" disabled={Boolean(busy)||Boolean(task)||opTasks.some(t=>t.kind===kind)} onClick={()=>run('start','start_agies_task',{p_mission_id:operation.id,p_kind:kind},()=>setAnswer([]))}><Play className="mr-1 h-4 w-4"/>{label}</Button>)}</div>
+ {task&&<div className="space-y-3 rounded-xl bg-muted/40 p-3"><h3 className="font-semibold">{tasks[task.kind]}</h3><p className="text-sm">{task.challenge.question}</p>{task.challenge.options.map(option=><label key={option.id} className="flex min-h-11 items-center gap-3 rounded-lg border p-3 text-sm"><input type={task.challenge.mode==='single'?'radio':'checkbox'} name={`agies-${task.id}`} checked={answer.includes(option.id)} onChange={()=>setAnswer(current=>task.challenge.mode==='single'?[option.id]:current.includes(option.id)?current.filter(id=>id!==option.id):[...current,option.id])}/>{option.label}</label>)}<Button disabled={Boolean(busy)||seconds(task.ready_at)>0} onClick={()=>run('finish','finish_agies_task',{p_task_id:task.id,p_answer:answer},()=>setAnswer([]))}>{seconds(task.ready_at)>0?`Analisando ${countdown(seconds(task.ready_at))}`:'Concluir análise'}</Button></div>}
+ {operation.operation_type==='financial'&&data.manager&&<Button variant="outline" disabled={Boolean(busy)} onClick={async()=>{const r=await supabase.rpc('get_agies_investigation_links',{p_mission_id:operation.id});if(r.error){setError(userErrorMessage(r.error));return;}setInvestigations(r.data||[]);setForm({investigation_id:''});setEditor('authorization');}}><LockKeyhole className="mr-2 h-4 w-4"/>Solicitar autorização judicial</Button>}
+ <Button disabled={Boolean(busy)||seconds(operation.end_date)>0||!opTasks.some(t=>t.completed_at)} onClick={()=>run('collect','collect_agies_operation',{p_mission_id:operation.id})}><Search className="mr-2 h-4 w-4"/>Coletar resultado</Button></>}
+ {opTasks.some(t=>t.completed_at)&&<p className="text-xs">Análises: {opTasks.filter(t=>t.completed_at).map(t=>`${tasks[t.kind]} ${t.score}%`).join(' · ')}</p>}
+ {dossier&&<article className="space-y-3"><h3 className="flex items-center gap-2 font-semibold"><FileText className="h-5 w-5"/>Dossiê · confiabilidade {dossier.reliability}%</h3><dl className="space-y-2 text-sm">{Object.entries(dossier.confirmed).map(([label,value])=><div key={label}><dt className="text-muted-foreground">{({name:'Nome público',role:'Cargo',public_companies:'Vínculos empresariais públicos',public_party:'Filiação pública',sector:'Setor',region:'Estado',status:'Situação',acronym:'Sigla',ideology:'Ideologia',objective:'Objetivo',scope:'Escopo'})[label]||label}</dt><dd className="break-words">{typeof value==='object'?(Array.isArray(value)?value.map(item=>item.name).join(', '):value?.name||'Sem registro público'):String(value??'Sem registro')}</dd></div>)}</dl>{dossier.unconfirmed.map((text,i)=><p key={i} className="text-xs text-amber-400">{text}</p>)}
+ {operation.operation_type==='financial'&&<Button variant="outline" disabled={Boolean(busy)} onClick={()=>{setForm({reason:''});setEditor('financial');}}><Eye className="mr-2 h-4 w-4"/>Consultar evidência autorizada</Button>}
+ {financial&&<div className="max-h-64 space-y-2 overflow-y-auto text-sm"><p>Dados exclusivamente fictícios, consultados sob autorização judicial.</p>{financial.length?financial.map(t=><p key={t.id}>{new Date(t.created_at).toLocaleString('pt-BR')} · {t.type} · {formatCurrency(t.amount)}</p>):<p>Nenhuma movimentação no escopo autorizado.</p>}</div>}
+ {!report&&<Button onClick={()=>{setForm({summary:'',conclusion:''});setEditor('report');}}><FileText className="mr-2 h-4 w-4"/>Produzir relatório</Button>}</article>}
+ {report&&<article className="space-y-3 rounded-lg border p-3"><h3 className="font-semibold">Relatório de Inteligência nº {report.number}</h3><p className="whitespace-pre-wrap text-sm">{report.summary}</p><p className="whitespace-pre-wrap text-sm">{report.conclusion}</p>{data.manager&&<Button onClick={()=>{setForm({recipient_id:'',reason:''});setEditor('share');}}><Send className="mr-2 h-4 w-4"/>Encaminhar à autoridade</Button>}</article>}
+ </section>}
+ </div></>}
+ <Dialog open={Boolean(editor)} onOpenChange={open=>{if(!open&&!busy)setEditor(null);}}><DialogContent className="max-h-[90dvh] overflow-y-auto"><DialogHeader><DialogTitle>{({new:'Criar operação de inteligência',authorization:'Solicitar autorização judicial',report:'Produzir relatório',share:'Encaminhar relatório',financial:'Consulta financeira autorizada',rules:'Limites e custos institucionais'})[editor]}</DialogTitle><DialogDescription>Todos os dados e desafios pertencem ao universo fictício do GOVRP. Ações sensíveis são auditadas.</DialogDescription></DialogHeader>
+ {editor==='rules'&&<div className="grid gap-3 sm:grid-cols-2">{Object.entries({simple_hours:'Operação simples (horas)',complex_hours:'Operação complexa (horas)',daily_operations:'Operações por agente/dia',concurrent_operations:'Operações simultâneas',base_cost:'Custo-base por hora',daily_budget:'Orçamento diário',task_seconds:'Análise mínima (segundos)',maximum_tasks:'Tipos de análise',financial_access_hours:'Validade judicial (horas)'}).map(([field,label])=><label key={field} className="text-sm">{label}<Input type="number" min="1" max="1000000" disabled={field==='maximum_tasks'} value={form[field]??''} onChange={e=>change(field,Number(e.target.value))}/></label>)}</div>}
+ {editor==='new'&&<div className="space-y-3"><label className="block text-sm">Nome<Input value={form.name} maxLength={120} onChange={e=>change('name',e.target.value)}/></label><label className="block text-sm">Tipo<GovSelect aria-label="Tipo de operação" value={form.type} onChange={e=>change('type',e.target.value)}>{Object.entries(types).map(([v,l])=><option key={v} value={v}>{l}</option>)}</GovSelect></label><label className="block text-sm">Alvo<GovSelect aria-label="Alvo da operação" value={form.target_kind} onChange={e=>{change('target_kind',e.target.value);change('target_id','');}}>{Object.entries(kinds).map(([v,l])=><option key={v} value={v}>{l}</option>)}</GovSelect></label>{form.target_kind==='citizen'?<CitizenSelector value={form.target_id} onChange={id=>change('target_id',id)}/>:['party','company'].includes(form.target_kind)?<><Input aria-label="Buscar alvo" value={query} onChange={e=>setQuery(e.target.value)} placeholder="Buscar por nome"/><GovSelect aria-label="Selecionar alvo" value={form.target_id} onChange={e=>change('target_id',e.target.value)}><option value="">Selecione</option>{targetRows.map(row=><option key={row.id} value={row.id}>{row.name}</option>)}</GovSelect></>:null}<label className="block text-sm">Objetivo<Input value={form.objective} maxLength={2000} onChange={e=>change('objective',e.target.value)}/></label><label className="block text-sm">Justificativa<textarea className="min-h-24 w-full rounded-md border bg-background p-2" minLength={30} maxLength={4000} value={form.justification} onChange={e=>change('justification',e.target.value)}/></label><label className="block text-sm">Classificação<GovSelect aria-label="Classificação" value={form.classification} onChange={e=>change('classification',e.target.value)}><option value="restricted">Restrito</option><option value="confidential">Confidencial</option><option value="secret">Secreto</option></GovSelect></label><label className="block text-sm">Estratégia<GovSelect aria-label="Estratégia" value={form.strategy} onChange={e=>change('strategy',e.target.value)}><option value="discreet">Discreta · menor exposição</option><option value="balanced">Equilibrada</option><option value="intensive">Intensiva · maior tempo, custo e risco</option></GovSelect></label><p className="text-sm">Depende de autorização da direção e saldo do Tesouro. Acesso financeiro exige também decisão judicial.</p></div>}
+ {editor==='authorization'&&<label className="text-sm">Investigação policial vinculada<GovSelect value={form.investigation_id} onChange={e=>change('investigation_id',e.target.value)}><option value="">Selecione uma investigação aberta</option>{investigations.map(i=><option key={i.id} value={i.id}>{i.number}</option>)}</GovSelect>{!investigations.length&&<p>Nenhuma investigação aberta com este alvo. A Polícia precisa formalizar o procedimento primeiro.</p>}</label>}
+ {editor==='report'&&<>{[['summary','Resumo dos indícios'],['conclusion','Conclusão e limites da análise']].map(([field,label])=><label key={field} className="text-sm">{label}<textarea className="min-h-24 w-full rounded-md border bg-background p-2" maxLength={field==='summary'?4000:8000} value={form[field]} onChange={e=>change(field,e.target.value)}/></label>)}</>}
+ {editor==='share'&&<CitizenSelector value={form.recipient_id} onChange={id=>change('recipient_id',id)} roles={['Presidente','Policial','Delegado','Promotor','Juiz']} label="Selecionar autoridade destinatária"/>}
+ {['financial','share'].includes(editor)&&<label className="text-sm">Fundamento da consulta ou encaminhamento<textarea className="min-h-24 w-full rounded-md border bg-background p-2" minLength={20} maxLength={2000} value={form.reason} onChange={e=>change('reason',e.target.value)}/></label>}
+ <DialogFooter><Button variant="outline" disabled={Boolean(busy)} onClick={()=>setEditor(null)}>Cancelar</Button><Button disabled={Boolean(busy)} onClick={()=>{
+ const done=()=>setEditor(null);
+ if(editor==='rules')run('rules','configure_agies_rules',{p_rules:form},done);
+ if(editor==='new')run('create','create_agies_operation',{p_data:form,p_idempotency_key:key.current},r=>{setSelected(r.id);setEditor(null);});
+ if(editor==='authorization')run('judicial','request_agies_financial_authorization',{p_mission_id:operation.id,p_investigation_id:form.investigation_id},done);
+ if(editor==='report')run('report','publish_agies_report',{p_mission_id:operation.id,p_summary:form.summary,p_conclusion:form.conclusion},done);
+ if(editor==='share')run('share','share_agies_report',{p_report_id:report.id,p_recipient_id:form.recipient_id,p_reason:form.reason},done);
+ if(editor==='financial')run('financial','get_agies_financial_evidence',{p_mission_id:operation.id,p_reason:form.reason},rows=>{setFinancial(rows);setEditor(null);});
+ }}>{busy?<Loader2 className="mr-2 h-4 w-4 animate-spin"/>:<Check className="mr-2 h-4 w-4"/>}Confirmar</Button></DialogFooter></DialogContent></Dialog>
+ </main>;
+}

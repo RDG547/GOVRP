@@ -196,7 +196,7 @@ try {
   });
   if (roleUpdateError) throw roleUpdateError;
   const { data: privilegeAudit } = await service.from('security_audit_log')
-    .select('actor_id, action').eq('target_id', stranger.id).single();
+    .select('actor_id, action').eq('target_id', stranger.id).eq('action','profile_privileges_changed').eq('actor_id',admin.id).single();
   assert(privilegeAudit?.actor_id === admin.id, 'alteração de privilégio registra o executor');
   const auditMutation = await service.from('security_audit_log').update({ action: 'tampered' }).eq('target_id', stranger.id);
   assert(Boolean(auditMutation.error), 'auditoria de segurança é imutável até para serviço');

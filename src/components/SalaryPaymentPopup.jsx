@@ -1,3 +1,4 @@
+import {usePopupSlot,PopupQueueActions} from '@/contexts/PopupQueueContext';
 import { canonicalRole } from '@/lib/roleIcons';
 import { useOfficialSalaries, currentSalary } from '@/hooks/use-official-salaries';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -221,7 +222,8 @@ const SalaryPaymentPopup = () => {
     setIsVisible(false);
   }, [failureNotification, markPaymentAsSeen, payment, user?.id]);
 
-  if (!user || !isVisible || (!payment && !failureNotification)) {
+  const slot=usePopupSlot(isVisible&&(payment||failureNotification)?`salary:${failureNotification?.id||payment?.id||payment?.created_at}`:null,{priority:40,dismissible:true,onDismiss:handleDismiss});
+  if (!slot || !user || !isVisible || (!payment && !failureNotification)) {
     return null;
   }
 
@@ -298,7 +300,7 @@ export function SalaryPaymentView({payment,failureNotification=null,salaryInfo={
             <X className="h-4 w-4" />
           </button>
 
-          <div className="space-y-5 text-center">
+          <PopupQueueActions/><div className="space-y-5 text-center">
             <div className={`mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br shadow-lg ${accentClassName}`}>
               <Icon className="h-8 w-8 text-white" />
             </div>

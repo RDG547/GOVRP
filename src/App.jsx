@@ -1,3 +1,5 @@
+import { InvitationsProvider } from '@/contexts/InvitationsContext';
+import { PopupQueueProvider } from '@/contexts/PopupQueueContext';
 import { isEmbeddedPhone } from '@/lib/embeddedPhone';
 import StateEnterpriseManagement from '@/components/business/StateEnterpriseManagement';
 import StockExchange from '@/pages/services/StockExchange';
@@ -94,7 +96,7 @@ import RoleDashboard from '@/pages/dashboards/RoleDashboard';
 import AGIES from '@/pages/services/AGIES';
 import ArmedForces from '@/pages/services/ArmedForces';
 import ArmedForcesPanel from '@/pages/services/ArmedForcesPanel';
-import AGIESPanel from '@/pages/services/AGIESPanel';
+import { AGIESSharedReport } from '@/pages/services/AGIESPanel';
 import ServiceAccess from '@/components/ServiceAccess';
 import RoleProtectedRoute from '@/components/RoleProtectedRoute';
 import ParliamentPanel from '@/pages/services/ParliamentPanel';
@@ -191,7 +193,7 @@ const AppShell = ({ location, theme, isAuthCallback }) => {
       : location.pathname;
 
   return (
-    <CitizenNeedsProvider><CartProvider key={citizenScope} storageKey={`govrp_cart:${citizenScope}`}>
+    <CitizenNeedsProvider><PopupQueueProvider key={citizenScope}><InvitationsProvider><CartProvider key={citizenScope} storageKey={`govrp_cart:${citizenScope}`}>
     <GlobalSiteAvailabilityGate pathname={location.pathname} isAdmin={isAdmin}>
       <div className={`${theme} min-h-screen bg-background text-foreground custom-scrollbar`}>
         <NativeRuntime />
@@ -277,9 +279,10 @@ const AppShell = ({ location, theme, isAuthCallback }) => {
                 <Route path="/services/penal-system/*" element={<Navigate to="/services/justice" replace />} />
                 <Route path="/services/police/*" element={<Navigate to="/services/justice" replace />} />
 
-                <Route path="/services/agies" element={<ManagedServiceRoute serviceKey="/services/agies"><ServiceAccess requiredRoles={['Agente Secreto', 'Admin']} citizenPath="/services/agies/citizen" panelPath="/services/agies/panel" /></ManagedServiceRoute>} />
+                <Route path="/services/agies" element={<ManagedServiceRoute serviceKey="/services/agies"><AGIES /></ManagedServiceRoute>} />
+                <Route path="/services/agies/reports/:reportId" element={<ManagedServiceRoute serviceKey="/services/agies"><AGIESSharedReport /></ManagedServiceRoute>} />
                 <Route path="/services/agies/citizen" element={<ManagedServiceRoute serviceKey="/services/agies"><AGIES /></ManagedServiceRoute>} />
-                <Route path="/services/agies/panel" element={<ManagedServiceRoute serviceKey="/services/agies"><RoleProtectedRoute roles={['Agente Secreto', 'Admin']}><AGIESPanel /></RoleProtectedRoute></ManagedServiceRoute>} />
+                <Route path="/services/agies/panel" element={<ManagedServiceRoute serviceKey="/services/agies"><AGIES /></ManagedServiceRoute>} />
 
                 <Route path="/services/armed-forces" element={<ManagedServiceRoute serviceKey="/services/armed-forces"><ServiceAccess requiredRoles={['Militar', 'Admin']} citizenPath="/services/armed-forces/citizen" panelPath="/services/armed-forces/panel" /></ManagedServiceRoute>} />
                 <Route path="/services/armed-forces/citizen" element={<ManagedServiceRoute serviceKey="/services/armed-forces"><ArmedForces /></ManagedServiceRoute>} />
@@ -318,7 +321,7 @@ const AppShell = ({ location, theme, isAuthCallback }) => {
         </div>
       </div>
     </GlobalSiteAvailabilityGate>
-    </CartProvider></CitizenNeedsProvider>
+    </CartProvider></InvitationsProvider></PopupQueueProvider></CitizenNeedsProvider>
   );
 };
 

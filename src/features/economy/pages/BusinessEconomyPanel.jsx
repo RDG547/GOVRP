@@ -1,3 +1,4 @@
+import SignedProfit from '@/components/business/SignedProfit';
 import React from 'react';
 import { Building2, Factory, Gauge, Landmark, Receipt, TrendingUp } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
@@ -75,7 +76,7 @@ const BusinessEconomyPanel = ({ data }) => {
                 </div>
                 <div className="rounded-xl bg-muted/35 p-4">
                   <p className="text-xs text-muted-foreground">Lucro líquido</p>
-                  <p className="mt-1 font-semibold">{formatCurrency(snapshot?.net_profit)}</p>
+                  <p className="mt-1 font-semibold"><SignedProfit value={snapshot?.net_profit}/></p>
                 </div>
                 <div className="rounded-xl bg-muted/35 p-4">
                   <p className="text-xs text-muted-foreground">Capacidade utilizada</p>

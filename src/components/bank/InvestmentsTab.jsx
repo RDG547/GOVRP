@@ -1,3 +1,4 @@
+import { usePhoneStep } from '@/hooks/use-phone-step';
 import {CurrencyInput} from '@/components/ui/currency-input';
 import StockExchange from '@/pages/services/StockExchange';
 import { formatLocaleBR } from '@/lib/dateTime';
@@ -125,6 +126,8 @@ const InvestmentsTab = ({ investmentOptions, userInvestments, investmentOperatio
     const [stockAsset,setStockAsset] = useState('');
     const [modalState, setModalState] = useState({ isOpen: false, action: '', investment: null });
     const [activeTab, setActiveTab] = useState('portfolio');
+    usePhoneStep(activeTab,setActiveTab,'portfolio',undefined,20);
+    usePhoneStep(stockAsset,setStockAsset,'',undefined,30);
     const [riskFilter, setRiskFilter] = useState('all');
 
     const openModal = (action, investment) => {

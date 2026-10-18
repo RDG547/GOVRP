@@ -24,7 +24,7 @@ export function fetchBankSections(client, userId, sections = BANK_SECTIONS) {
       return { ...fallback, data: Array.isArray(fallback.data) ? fallback.data[0] || null : fallback.data };
     },
     transactions: () => client.rpc('get_user_transactions', { p_user_id: userId }),
-    cards: () => own('cards').order('created_at', { ascending: true }),
+    cards: () => own('cards').eq('is_active', true).order('created_at', { ascending: true }),
     invoices: () => own('card_invoices').order('due_date', { ascending: false }),
     cardApplications: () => own('credit_card_applications').order('created_at', { ascending: false }),
     investments: () => client.from('user_investments').select('*, investment_option:investment_options(*)').eq('user_id', userId).eq('is_active', true),

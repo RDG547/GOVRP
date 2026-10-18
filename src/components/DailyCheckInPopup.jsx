@@ -1,3 +1,4 @@
+import {usePopupSlot,PopupQueueActions} from '@/contexts/PopupQueueContext';
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Calendar, Gift, Flame, X, Loader2, Banknote } from 'lucide-react';
@@ -112,9 +113,10 @@ const DailyCheckInPopup = () => {
     }
   };
 
+  const slot=usePopupSlot(isVisible&&featureAvailable&&user?.id?`checkin:${user.id}`:null,{priority:60,dismissible:true,onDismiss:handleDismiss});
   if (!featureAvailable || !user) return null;
 
-  return isVisible ? <DailyCheckInView status={status} claiming={claiming} onClaim={handleClaim} onDismiss={handleDismiss} /> : null;
+  return isVisible && slot ? <DailyCheckInView status={status} claiming={claiming} onClaim={handleClaim} onDismiss={handleDismiss} /> : null;
 };
 
 export function DailyCheckInView({ status, claiming = false, onClaim, onDismiss }) {
@@ -145,7 +147,7 @@ export function DailyCheckInView({ status, claiming = false, onClaim, onDismiss 
                 <X className="h-4 w-4" />
               </button>
 
-              <div className="text-center space-y-4">
+              <PopupQueueActions/><div className="text-center space-y-4">
                 <div className="relative inline-flex">
                   <motion.div
                     animate={{ rotate: [0, -10, 10, -10, 0] }}

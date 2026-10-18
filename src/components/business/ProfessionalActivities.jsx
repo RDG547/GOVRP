@@ -86,13 +86,13 @@ export default function ProfessionalActivities({ companyId, onCompleted }) {
   const progress = session ? Math.min(100, Math.max(0, 100 * (session.duration_seconds - remaining) / session.duration_seconds)) : 0;
   return <section className="space-y-4 rounded-2xl border p-4 sm:p-5" aria-label="Atividades profissionais">
     <h2 className="flex items-center gap-2 text-lg font-semibold"><Briefcase className="h-5 w-5 text-amber-500"/>Atividades profissionais</h2>
-    <p className="text-sm text-muted-foreground">Escolha uma tarefa da sua função. Você pode sair e voltar enquanto ela acontece. Cada atividade rende até 20 XP e contribui para a produção, até 20% por empresa.</p>
+    <p className="text-sm text-muted-foreground">Escolha uma tarefa da sua função. Você pode sair e voltar enquanto ela acontece. São cinco atividades da sua área, com limite diário de cinco execuções. Lotes consomem insumos e energia reais e entregam produtos ao estoque. A venda desses produtos gera a receita empresarial.</p>
     {error && <p role="alert" className="text-sm text-destructive">{error}<Button variant="link" onClick={load}>Atualizar</Button></p>}
     {!data ? <p role="status" className="flex gap-2 text-sm"><Loader2 className="h-4 w-4 animate-spin"/>Consultando atividades…</p> : <>
       <p className="text-sm">{data.role_name} · {data.company_name}</p>
       <p role="status" className="font-semibold">{data.used_today}/{data.daily_limit} atividades hoje{data.used_today >= data.daily_limit ? ' · Limite diário atingido' : ''}</p>
       {completed && <p role="status" className="flex items-center gap-2 rounded-lg bg-secondary p-3 text-sm"><CheckCircle2 className="h-5 w-5 shrink-0"/>Concluída · Desempenho {completed.score}% · +{completed.experience_earned} XP</p>}
-      <div className="grid gap-3 sm:grid-cols-3">{data.catalog.map(task => {
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{data.catalog.map(task => {
         const Icon = modeIcons[task.execution_mode];
         const current = session?.business_id === companyId && session?.activity_key === task.activity_key;
         const done = data.recent.some(item => item.activity_key === task.activity_key && item.status === 'completed');
@@ -100,7 +100,7 @@ export default function ProfessionalActivities({ companyId, onCompleted }) {
           <h3 className="flex gap-2 font-semibold"><Icon className="h-5 w-5 shrink-0 text-amber-400"/>{task.title}</h3>
           <p className="flex-1 text-sm text-muted-foreground">{task.description}</p>
           <p className="text-xs">{modeNames[task.execution_mode]} · {durationLabel(task.duration_seconds)} · até {task.experience} XP</p>
-          <p className="text-xs font-medium">{current ? remaining ? 'Em andamento' : 'Pronta para concluir' : data.used_today >= data.daily_limit ? 'Limite diário atingido' : done ? 'Concluída · disponível novamente' : 'Disponível'}</p>
+          {task.activity_key==='production'&&<p className="text-xs">Recompensa: produtos da receita no estoque da empresa; consome insumos e energia.</p>}<p className="text-xs font-medium">{current ? remaining ? 'Em andamento' : 'Pronta para concluir' : data.used_today >= data.daily_limit ? 'Limite diário atingido' : done ? 'Concluída · disponível novamente' : 'Disponível'}</p>
           <Button size="sm" disabled={busy || Boolean(session) || data.used_today >= data.daily_limit} onClick={() => start(task.activity_key)}><Play className="mr-2 h-4 w-4"/>Iniciar</Button>
         </article>;
       })}</div>

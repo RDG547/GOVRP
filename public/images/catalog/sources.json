@@ -1,0 +1,232 @@
+[
+  {
+    "key": "water",
+    "path": "/images/catalog/water.webp",
+    "source": "https://www.pexels.com/photo/photo-of-a-person-s-hand-holding-a-glass-bottle-with-water-9263528/",
+    "photographer": "REFARGOTOHP",
+    "license": "Pexels License",
+    "license_url": "https://www.pexels.com/license/",
+    "downloaded_at": "2026-10-18",
+    "representative_only": true
+  },
+  {
+    "key": "rice",
+    "path": "/images/catalog/rice.webp",
+    "source": "https://www.pexels.com/photo/a-person-pouring-rice-grains-in-a-glass-jar-8287250/",
+    "photographer": "Ron Lach",
+    "license": "Pexels License",
+    "license_url": "https://www.pexels.com/license/",
+    "downloaded_at": "2026-10-18",
+    "representative_only": true
+  },
+  {
+    "key": "beer",
+    "path": "/images/catalog/beer.webp",
+    "source": "https://www.pexels.com/photo/close-up-photo-of-a-glass-of-beer-12946713/",
+    "photographer": null,
+    "license": "Pexels License",
+    "license_url": "https://www.pexels.com/license/",
+    "downloaded_at": "2026-10-18",
+    "representative_only": true
+  },
+  {
+    "key": "soap",
+    "path": "/images/catalog/soap.webp",
+    "source": "https://www.pexels.com/photo/bar-soap-on-a-white-table-6682972/",
+    "photographer": null,
+    "license": "Pexels License",
+    "license_url": "https://www.pexels.com/license/",
+    "downloaded_at": "2026-10-18",
+    "representative_only": true
+  },
+  {
+    "key": "studio",
+    "path": "/images/catalog/studio.webp",
+    "source": "https://www.pexels.com/photo/interior-design-of-small-studio-apartment-6969987/",
+    "photographer": null,
+    "license": "Pexels License",
+    "license_url": "https://www.pexels.com/license/",
+    "downloaded_at": "2026-10-18",
+    "representative_only": true
+  },
+  {
+    "key": "apartment",
+    "path": "/images/catalog/apartment.webp",
+    "source": "https://www.pexels.com/photo/luxury-living-room-in-modern-apartment-7534563/",
+    "photographer": null,
+    "license": "Pexels License",
+    "license_url": "https://www.pexels.com/license/",
+    "downloaded_at": "2026-10-18",
+    "representative_only": true
+  },
+  {
+    "key": "house",
+    "path": "/images/catalog/house.webp",
+    "source": "https://www.pexels.com/photo/a-modern-house-with-swimming-pool-8134745/",
+    "photographer": null,
+    "license": "Pexels License",
+    "license_url": "https://www.pexels.com/license/",
+    "downloaded_at": "2026-10-18",
+    "representative_only": true
+  },
+  {
+    "key": "mansion",
+    "path": "/images/catalog/mansion.webp",
+    "source": "https://www.pexels.com/photo/elegant-mansion-exterior-with-lush-garden-36966338/",
+    "photographer": null,
+    "license": "Pexels License",
+    "license_url": "https://www.pexels.com/license/",
+    "downloaded_at": "2026-10-18",
+    "representative_only": true
+  },
+  {
+    "key": "bread",
+    "path": "/images/catalog/bread.webp",
+    "source": "https://www.pexels.com/photo/fresh-loaf-of-bread-11214715/",
+    "photographer": "Nadin Sh",
+    "license": "Pexels License",
+    "license_url": "https://www.pexels.com/license/",
+    "downloaded_at": "2026-10-18",
+    "representative_only": true
+  },
+  {
+    "key": "wine",
+    "path": "/images/catalog/wine.webp",
+    "source": "https://www.pexels.com/photo/glass-of-red-wine-on-the-table-10130815/",
+    "photographer": "Ron Lach",
+    "license": "Pexels License",
+    "license_url": "https://www.pexels.com/license/",
+    "downloaded_at": "2026-10-18",
+    "representative_only": true
+  },
+  {
+    "key": "whisky",
+    "path": "/images/catalog/whisky.webp",
+    "source": "https://www.pexels.com/photo/glass-of-whiskey-in-close-up-photography-13570517/",
+    "photographer": "Joel Zar",
+    "license": "Pexels License",
+    "license_url": "https://www.pexels.com/license/",
+    "downloaded_at": "2026-10-18",
+    "representative_only": true
+  },
+  {
+    "key": "soup",
+    "path": "/images/catalog/soup.webp",
+    "source": "https://www.pexels.com/photo/soup-with-vegetables-in-white-ceramic-bowl-9218646/",
+    "photographer": "Loren Castillo",
+    "license": "Pexels License",
+    "license_url": "https://www.pexels.com/license/",
+    "downloaded_at": "2026-10-18",
+    "representative_only": true
+  },
+  {
+    "key": "milk",
+    "path": "/images/catalog/milk.webp",
+    "source": "https://www.pexels.com/photo/grayscale-photography-of-glass-of-milk-2198626/",
+    "photographer": "Alexas Fotos",
+    "license": "Pexels License",
+    "license_url": "https://www.pexels.com/license/",
+    "downloaded_at": "2026-10-18",
+    "representative_only": true
+  },
+  {
+    "key": "juice",
+    "path": "/images/catalog/juice.webp",
+    "source": "https://www.pexels.com/photo/orange-juice-in-glasses-6412582/",
+    "photographer": "Tymur Khakimov",
+    "license": "Pexels License",
+    "license_url": "https://www.pexels.com/license/",
+    "downloaded_at": "2026-10-18",
+    "representative_only": true
+  },
+  {
+    "key": "sandwich",
+    "path": "/images/catalog/sandwich.webp",
+    "source": "https://www.pexels.com/photo/sandwich-with-salad-on-a-plate-18999548/",
+    "photographer": "Matheus Bertelli",
+    "license": "Pexels License",
+    "license_url": "https://www.pexels.com/license/",
+    "downloaded_at": "2026-10-18",
+    "representative_only": true
+  },
+  {
+    "key": "banana",
+    "path": "/images/catalog/banana.webp",
+    "source": "https://www.pexels.com/photo/yellow-banana-fruits-in-close-up-shot-13211456/",
+    "photographer": "Yelena from Pexels",
+    "license": "Pexels License",
+    "license_url": "https://www.pexels.com/license/",
+    "downloaded_at": "2026-10-18",
+    "representative_only": true
+  },
+  {
+    "key": "apple",
+    "path": "/images/catalog/apple.webp",
+    "source": "https://www.pexels.com/photo/red-apple-fruit-209439/",
+    "photographer": "Pixabay",
+    "license": "Pexels License",
+    "license_url": "https://www.pexels.com/license/",
+    "downloaded_at": "2026-10-18",
+    "representative_only": true
+  },
+  {
+    "key": "cookies",
+    "path": "/images/catalog/cookies.webp",
+    "source": "https://www.pexels.com/photo/cookies-on-plate-15290322/",
+    "photographer": "Velroy Fernandes",
+    "license": "Pexels License",
+    "license_url": "https://www.pexels.com/license/",
+    "downloaded_at": "2026-10-18",
+    "representative_only": true
+  },
+  {
+    "key": "tapioca",
+    "path": "/images/catalog/tapioca.webp",
+    "source": "https://www.pexels.com/photo/delicious-tapioca-crepe-with-strawberries-and-chocolate-37050195/",
+    "photographer": "Caio Niceas",
+    "license": "Pexels License",
+    "license_url": "https://www.pexels.com/license/",
+    "downloaded_at": "2026-10-18",
+    "representative_only": true
+  },
+  {
+    "key": "meal",
+    "path": "/images/catalog/meal.webp",
+    "source": "https://www.pexels.com/photo/delicious-brazilian-rice-and-bean-meal-34284708/",
+    "photographer": "joao Abel",
+    "license": "Pexels License",
+    "license_url": "https://www.pexels.com/license/",
+    "downloaded_at": "2026-10-18",
+    "representative_only": true
+  },
+  {
+    "key": "coconut",
+    "path": "/images/catalog/coconut.webp",
+    "source": "https://www.pexels.com/photo/person-pouring-drink-from-coconut-4395019/",
+    "photographer": "elif tekkaya",
+    "license": "Pexels License",
+    "license_url": "https://www.pexels.com/license/",
+    "downloaded_at": "2026-10-18",
+    "representative_only": true
+  },
+  {
+    "key": "tea",
+    "path": "/images/catalog/tea.webp",
+    "source": "https://www.pexels.com/photo/glass-of-iced-tea-18263138/",
+    "photographer": "Ebru DOĞAN",
+    "license": "Pexels License",
+    "license_url": "https://www.pexels.com/license/",
+    "downloaded_at": "2026-10-18",
+    "representative_only": true
+  },
+  {
+    "key": "salad",
+    "path": "/images/catalog/salad.webp",
+    "source": "https://www.pexels.com/photo/bowl-of-vegetable-soup-1893563/",
+    "photographer": "Valeria Boltneva",
+    "license": "Pexels License",
+    "license_url": "https://www.pexels.com/license/",
+    "downloaded_at": "2026-10-18",
+    "representative_only": true
+  }
+]

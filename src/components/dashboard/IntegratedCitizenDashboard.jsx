@@ -1,3 +1,5 @@
+import {useInvitations} from '@/contexts/InvitationsContext';
+import CitizenInvitations from './CitizenInvitations';
 import CitizenFinancialSummary from './CitizenFinancialSummary';
 import CitizenLegalSummary from './CitizenLegalSummary';
 import { Link, useSearchParams } from 'react-router-dom';
@@ -22,7 +24,8 @@ const PanelFallback = () => (
 
 const IntegratedCitizenDashboard = () => {
   const [params, setParams] = useSearchParams();
-  const selected = ['overview','inventory','economy','business','justice'].includes(params.get('tab')) ? params.get('tab') : 'overview';
+  const {count:invitationCount=0}=useInvitations()||{};
+  const selected = ['overview','inventory','economy','business','justice','invitations'].includes(params.get('tab')) ? params.get('tab') : 'overview';
   return (
   <div className="space-y-6">
     <div className="mx-auto max-w-7xl px-4 pt-8 sm:px-6 lg:px-8">
@@ -35,11 +38,12 @@ const IntegratedCitizenDashboard = () => {
     </div>
 
     <Tabs value={selected} onValueChange={tab=>setParams(previous=>{const next=new URLSearchParams(previous);next.set('tab',tab);return next;},{replace:true,preventScrollReset:true})} className="mx-auto w-full max-w-7xl px-4 pb-12 sm:px-6 lg:px-8">
-      <TabsList className="grid h-auto w-full grid-cols-2 gap-2 bg-muted/50 p-2 lg:grid-cols-5">
+      <TabsList className="grid h-auto w-full grid-cols-2 gap-2 bg-muted/50 p-2 lg:grid-cols-6">
         <TabsTrigger value="overview">
           <LayoutDashboard className="mr-2 h-4 w-4" />
           Visão geral
         </TabsTrigger>
+        <TabsTrigger value="invitations">Meus Convites{invitationCount>0&&<span className="ml-2 rounded-full bg-primary px-2 text-xs text-primary-foreground">{invitationCount}</span>}</TabsTrigger>
         <TabsTrigger value="inventory"><Package className="mr-2 h-4 w-4"/>Meu Inventário</TabsTrigger>
         <TabsTrigger value="economy">
           <Landmark className="mr-2 h-4 w-4" />
@@ -58,6 +62,7 @@ const IntegratedCitizenDashboard = () => {
       <TabsContent value="overview" className="-mx-4 mt-0 sm:-mx-6 lg:-mx-8">
         <CitizenDashboard />
       </TabsContent>
+      <TabsContent value="invitations" className="mt-6"><CitizenInvitations/></TabsContent>
       <TabsContent value="inventory" className="mt-6"><Suspense fallback={<PanelFallback/>}><InventoryPage embedded/></Suspense></TabsContent>
       <TabsContent value="economy" className="mt-6">
         <Suspense fallback={<PanelFallback />}>

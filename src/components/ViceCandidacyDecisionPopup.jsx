@@ -1,3 +1,4 @@
+import {usePopupSlot,PopupQueueActions} from '@/contexts/PopupQueueContext';
 import { formatLocaleBR } from '@/lib/dateTime';
 import React, { useCallback, useEffect, useState } from 'react';
 import { Loader2, Vote, XCircle, CheckCircle2 } from 'lucide-react';
@@ -25,6 +26,7 @@ const ViceCandidacyDecisionPopup = () => {
       .select('id, content, created_at, metadata')
       .eq('user_id', user.id)
       .eq('type', 'vice_candidacy_invitation')
+      .is('metadata->>popup_deferred_at', null)
       .order('created_at', { ascending: false })
       .limit(20);
 
@@ -113,14 +115,16 @@ const ViceCandidacyDecisionPopup = () => {
     }
   };
 
-  if (!user?.id || !pendingInvitation) {
+  const slot=usePopupSlot(pendingInvitation?.id?`vice:${pendingInvitation.id}`:null,{priority:15});
+  const later=async()=>{if(!pendingInvitation||isSubmitting)return;const r=await supabase.rpc('defer_invitation_popup',{p_notification_id:pendingInvitation.id});if(!r.error)setPendingInvitation(null);};
+  if (!slot || !user?.id || !pendingInvitation) {
     return null;
   }
 
-  return <ViceCandidacyDecisionView pendingInvitation={pendingInvitation} isSubmitting={isSubmitting} onDecision={handleDecision} />;
+  return <ViceCandidacyDecisionView onLater={later} pendingInvitation={pendingInvitation} isSubmitting={isSubmitting} onDecision={handleDecision} />;
 };
 
-export function ViceCandidacyDecisionView({ pendingInvitation, isSubmitting = false, onDecision }) {
+export function ViceCandidacyDecisionView({ pendingInvitation, isSubmitting = false, onDecision, onLater }) {
   const metadata = pendingInvitation.metadata || {};
 
   return (
@@ -135,7 +139,8 @@ export function ViceCandidacyDecisionView({ pendingInvitation, isSubmitting = fa
             Você foi convidado para compor uma chapa presidencial. Sua resposta define se a candidatura seguirá para análise.
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-4"><PopupQueueActions/>
+          {onLater&&<Button variant="ghost" disabled={isSubmitting} onClick={onLater}>Responder depois · Meus Convites</Button>}
           <div className="rounded-xl border border-white/10 bg-white/5 p-4 space-y-2">
             <p className="font-semibold text-foreground">
               {metadata.candidate_name || 'Candidato presidencial'}

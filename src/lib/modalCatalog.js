@@ -41,6 +41,11 @@ export const MODAL_CATALOG=[
   "source": "src/components/social-x/stories/UploadStoryModal.jsx"
  },
  {
+  "id": "src/pages/services/AGIESPanel.jsx:1",
+  "title": "AGIESPanel",
+  "source": "src/pages/services/AGIESPanel.jsx"
+ },
+ {
   "id": "src/pages/dashboards/panels/PresidentDashboard.jsx:1",
   "title": "Alterar Ministro / Convidar Novo Ministro",
   "source": "src/pages/dashboards/panels/PresidentDashboard.jsx"
@@ -51,7 +56,7 @@ export const MODAL_CATALOG=[
   "source": "src/components/admin/UserManagement.jsx"
  },
  {
-  "id": "src/components/business/HousingMarket.jsx:2",
+  "id": "src/components/business/HousingMarket.jsx:3",
   "title": "Anunciar imóvel",
   "source": "src/components/business/HousingMarket.jsx"
  },
@@ -99,6 +104,11 @@ export const MODAL_CATALOG=[
   "id": "src/pages/services/elections/TrackCandidacy.jsx:1",
   "title": "Cancelar Candidatura",
   "source": "src/pages/services/elections/TrackCandidacy.jsx"
+ },
+ {
+  "id": "src/components/bank/CardsTab.jsx:2",
+  "title": "Cancelar cartão",
+  "source": "src/components/bank/CardsTab.jsx"
  },
  {
   "id": "src/components/bank/LoansTab.jsx:2",
@@ -446,6 +456,11 @@ export const MODAL_CATALOG=[
   "source": "src/components/elections/ElectoralManagement.jsx"
  },
  {
+  "id": "src/components/business/HousingMarket.jsx:2",
+  "title": "Housing Market",
+  "source": "src/components/business/HousingMarket.jsx"
+ },
+ {
   "id": "src/components/PwaInstallPrompt.jsx:1",
   "title": "Instalar GOVRP",
   "source": "src/components/PwaInstallPrompt.jsx"
@@ -464,11 +479,6 @@ export const MODAL_CATALOG=[
   "id": "src/components/admin/UserManagement.jsx:1",
   "title": "Modificar Saldo de",
   "source": "src/components/admin/UserManagement.jsx"
- },
- {
-  "id": "src/pages/services/AGIESPanel.jsx:1",
-  "title": "Monitor de Transações",
-  "source": "src/pages/services/AGIESPanel.jsx"
  },
  {
   "id": "src/pages/News.jsx:1",
@@ -659,11 +669,6 @@ export const MODAL_CATALOG=[
   "id": "src/pages/services/Parliament.jsx:1",
   "title": "Sugerir Projeto",
   "source": "src/pages/services/Parliament.jsx"
- },
- {
-  "id": "src/components/bank/CardsTab.jsx:2",
-  "title": "Tem certeza?",
-  "source": "src/components/bank/CardsTab.jsx"
  },
  {
   "id": "src/pages/services/PoliticalParties.jsx:2",

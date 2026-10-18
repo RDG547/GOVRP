@@ -81,7 +81,10 @@ export default function ResetManagement() {
     if (next.has(id)) next.delete(id); else next.add(id);
     return next;
   });
+  const [backup,setBackup]=useState(null);
+  const downloadBackup=async()=>{if(busy)return;setBusy(true);try{const r=await supabase.rpc('admin_backup_rp_reset',{p_request_id:preview.request_id});if(r.error)throw r.error;const content=JSON.stringify(r.data,null,2);const url=URL.createObjectURL(new Blob([content],{type:'application/json'}));const link=document.createElement('a');link.href=url;link.download=`govrp-backup-${r.data.id}.json`;link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);const confirmed=await supabase.rpc('admin_confirm_reset_backup',{p_request_id:preview.request_id,p_backup_id:r.data.id,p_digest:r.data.digest});if(confirmed.error)throw confirmed.error;setBackup(r.data);}catch(f){setError(f.message);}finally{setBusy(false);}};
   const openReset = (scope) => {
+    setBackup(null);
     setIntent({ scope, ids: scope === 'selected_users' ? [...selected] : [] });
     setPreview(null); setReason(''); setConfirmation(''); setError('');
   };
@@ -155,6 +158,7 @@ export default function ResetManagement() {
             <p className="text-xs text-muted-foreground">A confirmação vale por 15 minutos. Atividades relacionadas criadas até a execução também serão removidas.</p>
             <details className="text-sm"><summary className="cursor-pointer">Ver dados afetados</summary><div className="mt-2 max-h-40 space-y-1 overflow-auto">{Object.entries(groupRecordCounts(preview.records)).map(([name, count]) => <p key={name}>{name}: {number(count)}</p>)}</div></details>
             {preview.snapshots?.map((snapshot) => <p key={snapshot.country_code} className="text-sm">Referência de {snapshot.country_name}: {snapshot.economy.referenceSources.join(', ')}. Câmbio: {snapshot.economy.exchangeDate}. Indicadores anuais: {Object.values(snapshot.economy.referenceYears).filter(Boolean).filter((value, index, all) => all.indexOf(value) === index).join(', ')}.</p>)}
+            {intent?.scope==='full_rp'&&<div className="space-y-3 rounded-lg border border-amber-500/40 p-3"><p className="text-sm font-semibold">Backup obrigatório e preservação administrativa</p><p className="text-xs">Contas de login comuns e administrativas serão preservadas. Todos os personagens, cargos e patrimônios do RP serão reiniciados. As concessões técnicas de Admin ficam fora do mundo do RP.</p><Button variant="outline" disabled={busy} onClick={downloadBackup}>Criar e baixar backup completo do RP</Button>{backup&&<p className="break-all text-xs">Backup: {backup.id} · SHA-256: {backup.digest} · {backup.admins.length} administradores verificados. Guarde o arquivo em local seguro; ele contém dados privados do RP.</p>}</div>}
             <div className="space-y-2"><Label htmlFor="reset-confirmation">Digite {preview.confirmation} para confirmar</Label><Input id="reset-confirmation" autoComplete="off" value={confirmation} disabled={busy} onChange={(event) => setConfirmation(event.target.value)} /></div>
           </div>}
           {error && <p role="alert" className="text-sm text-red-400">{error}</p>}
@@ -162,7 +166,7 @@ export default function ResetManagement() {
           <DialogFooter>
             <Button variant="outline" disabled={busy} onClick={() => setIntent(null)}><X aria-hidden="true" className="mr-2 h-4 w-4" />Cancelar</Button>
             {preview
-              ? <Button variant="destructive" disabled={busy || confirmation !== preview.confirmation} onClick={execute}><Check aria-hidden="true" className="mr-2 h-4 w-4" />Confirmar reset</Button>
+              ? <Button variant="destructive" disabled={busy || confirmation !== preview.confirmation || (intent?.scope==='full_rp'&&!backup)} onClick={execute}><Check aria-hidden="true" className="mr-2 h-4 w-4" />Confirmar reset</Button>
               : <Button disabled={busy} onClick={prepare}><Eye aria-hidden="true" className="mr-2 h-4 w-4" />Preparar prévia</Button>}
           </DialogFooter>
         </DialogContent>

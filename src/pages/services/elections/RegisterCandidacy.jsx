@@ -1,3 +1,4 @@
+import RunningMateSelector from '@/components/RunningMateSelector';
 import { electionNumberDigits } from '@/lib/electoralNumbers';
 import { formatLocaleBR } from '@/lib/dateTime';
 import React, { useEffect, useState } from 'react';
@@ -200,34 +201,7 @@ const RegisterCandidacy = ({ onFinished }) => {
     fetchData();
   }, [form, toast, user]);
 
-  useEffect(() => {
-    const fetchViceCandidates = async () => {
-      if (!requiresViceCandidate || !selectedElectionId) {
-        setViceCandidates([]);
-        form.setValue('vice_candidate_id', null);
-        return;
-      }
 
-      setLoadingViceCandidates(true);
-      try {
-        const options = await fetchPotentialRunningMates(supabase, {
-          electionId: selectedElectionId,
-          excludeUserId: user?.id,
-        });
-        setViceCandidates(options);
-      } catch (error) {
-        toast({
-          title: 'Erro ao buscar candidatos a vice',
-          description: error.message,
-          variant: 'destructive',
-        });
-      } finally {
-        setLoadingViceCandidates(false);
-      }
-    };
-
-    fetchViceCandidates();
-  }, [form, requiresViceCandidate, selectedElectionId, toast, user?.id]);
 
   const handleCancelCandidacy = async () => {
     if (!existingCandidacy) {
@@ -611,20 +585,7 @@ const RegisterCandidacy = ({ onFinished }) => {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Vice-Presidente da Chapa</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value || undefined} disabled={loadingViceCandidates || presidentialRunBlocked}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder={loadingViceCandidates ? 'Carregando opções...' : 'Selecione o vice-presidente'} />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {viceCandidates.map((candidate) => (
-                          <SelectItem key={candidate.id} value={candidate.id}>
-                            <UserSelectOption user={candidate} detail={candidate.username ? `@${candidate.username}` : candidate.role} />
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <RunningMateSelector electionId={selectedElectionId} value={field.value} onChange={field.onChange} disabled={presidentialRunBlocked}/>
                     <p className="text-xs text-muted-foreground">
                       A candidatura presidencial só será registrada com a indicação simultânea do vice.
                     </p>

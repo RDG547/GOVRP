@@ -42,6 +42,7 @@ const getStatusTranslation = (status) => {
     switch (status) {
         case 'Approved': return 'Aprovado';
         case 'Rejected': return 'Rejeitado';
+        case 'Withdrawn': return 'Retirada';
         case 'Pendente': return 'Pendente';
         default: return status;
     }
@@ -55,6 +56,7 @@ const TrackCandidacy = () => {
   const [loading, setLoading] = useState(true);
   const [cancelingTarget, setCancelingTarget] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [serverNow,setServerNow]=useState(null);
 
   const fetchCandidacies = useCallback(async () => {
     if (!user) return;
@@ -62,7 +64,7 @@ const TrackCandidacy = () => {
       const [candidaciesResponse, viceRequestsResponse] = await Promise.all([
         supabase
           .from('candidates')
-          .select('*, elections(name), vice:profiles!candidates_vice_candidate_id_fkey(full_name)')
+          .select('*, elections(name,status,voting_start_date,voting_end_date), vice:profiles!candidates_vice_candidate_id_fkey(full_name)')
           .or(`user_id.eq.${user.id},vice_candidate_id.eq.${user.id}`)
           .order('created_at', { ascending: false }),
         supabase
@@ -77,6 +79,7 @@ const TrackCandidacy = () => {
       if (candidaciesResponse.error) throw candidaciesResponse.error;
       if (viceRequestsResponse.error) throw viceRequestsResponse.error;
 
+      const clock=await supabase.rpc('get_server_now');setServerNow(clock.error?null:Date.parse(clock.data));
       setCandidacies(candidaciesResponse.data || []);
       setPendingViceRequests(
         (viceRequestsResponse.data || []).filter((notification) => {
@@ -199,7 +202,7 @@ const TrackCandidacy = () => {
                   <StatusIcon status={candidacy.status} />
                   <div className="flex-grow">
                       <p className="text-sm text-muted-foreground">
-                          {candidacy.status === 'Approved' && 'Sua candidatura foi aprovada! Você está oficialmente concorrendo.'}
+                          {candidacy.status === 'Approved' && (candidacy.elections?.status==='Finished'?'Candidatura encerrada · histórico eleitoral.':'Sua candidatura foi aprovada! Você está oficialmente concorrendo.')}
                           {candidacy.status === 'Rejected' && `Sua candidatura foi rejeitada. Motivo: ${candidacy.admin_feedback || 'Não especificado.'}`}
                           {candidacy.status === 'Pendente' && 'Sua candidatura está em análise. Aguarde a avaliação do Tribunal Eleitoral.'}
                       </p>
@@ -207,13 +210,13 @@ const TrackCandidacy = () => {
                           Registrado em: {formatLocaleBR(new Date(candidacy.created_at), 'toLocaleDateString', 'pt-BR')}
                       </p>
                   </div>
-                  {candidacy.user_id===user.id&&(candidacy.status === 'Pendente' || candidacy.status === 'Approved') && (
+                  {serverNow&&candidacy.user_id===user.id&&serverNow<Date.parse(candidacy.elections?.voting_start_date)&&!['Voting','Finished','Cancelled'].includes(candidacy.elections?.status)&&(candidacy.status === 'Pendente' || candidacy.status === 'Approved') && (
                     <Button 
                       variant="destructive" 
                       size="sm"
                       onClick={() => setCancelingTarget({ id: candidacy.id, type: 'candidate', name: candidacy.political_name })}
                     >
-                      <Trash2 className="w-4 h-4 mr-2" /> Cancelar
+                      <Trash2 className="w-4 h-4 mr-2" /> {candidacy.status==='Approved'?'Retirar Candidatura':'Cancelar Candidatura'}
                     </Button>
                   )}
               </CardContent>
@@ -232,7 +235,7 @@ const TrackCandidacy = () => {
           <AlertDialogHeader className="sm:text-center">
             <Trash2 className="mx-auto h-8 w-8 text-destructive"/><AlertDialogTitle>Cancelar Candidatura</AlertDialogTitle>
             <AlertDialogDescription>
-              Tem certeza de que deseja cancelar esta candidatura? Esta ação é irreversível e você precisará registrar uma nova candidatura se desejar concorrer.
+              Tem certeza de que deseja cancelar esta candidatura? A retirada é definitiva nesta eleição. O registro permanece no seu histórico.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="sm:justify-center">

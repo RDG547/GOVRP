@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { MemoryRouter, Routes, Route, Navigate, useLocation, useNavigate, useNavigationType, UNSAFE_LocationContext, UNSAFE_NavigationContext, UNSAFE_RouteContext } from 'react-router-dom';
 import { ExternalLink } from 'lucide-react';
 import { useTheme } from '@/contexts/ThemeContext';
-import { PhoneAppContext, PhonePortalContext } from '@/contexts/PhoneAppContext';
+import { PhoneAppContext, PhonePortalContext, PhoneBackContext } from '@/contexts/PhoneAppContext';
 import { ServiceSuspensionContext } from '@/contexts/ServiceSuspensionContext';
 import ServiceAvailabilityGate from '@/components/ServiceAvailabilityGate';
 import ServiceProtectedRoute from '@/components/ServiceProtectedRoute';
@@ -31,7 +31,7 @@ function FullService({ openFull }) {
   const location = useLocation();
   return <div className="space-y-4 p-5 text-center"><h2 className="font-semibold">Abrir serviço completo</h2><p className="text-sm text-muted-foreground">Esta área está disponível no portal principal.</p><Button onClick={()=>openFull(location.pathname+location.search)}><ExternalLink className="mr-2 h-4 w-4"/>Abrir no GOVRP</Button></div>;
 }
-function AppRoutes({ path, register, goHome, openFull }) {
+function AppRoutes({ path, register, goHome, openFull, backBus }) {
   const location=useLocation(), navigate=useNavigate(), navigationType=useNavigationType();
   const history=useRef([location.key]), index=useRef(0);
   useEffect(()=>{
@@ -39,8 +39,18 @@ function AppRoutes({ path, register, goHome, openFull }) {
     if(found>=0) index.current=found;
     else if(navigationType==='REPLACE') history.current[index.current]=location.key;
     else {history.current=history.current.slice(0,index.current+1);history.current.push(location.key);index.current=history.current.length-1;}
-    register(path,()=>index.current>0?navigate(-1):goHome());
-  },[path,location.key,navigationType,navigate,goHome,register]);
+    register(path,()=>{
+      const doc=document.getElementById('citizen-phone')?.querySelector('iframe:not(.hidden)')?.contentDocument;
+      if(doc){
+        const layers=[...doc.querySelectorAll('[role="dialog"][data-state="open"],[role="alertdialog"][data-state="open"],[role="menu"][data-state="open"],[data-radix-popper-content-wrapper]')];
+        const layer=layers.at(-1);
+        if(layer){layer.dispatchEvent(new doc.defaultView.KeyboardEvent('keydown',{key:'Escape',code:'Escape',bubbles:true,cancelable:true}));return;}
+      }
+      const step=new CustomEvent('govrp:phone-back',{cancelable:true});
+      backBus.dispatchEvent(step);if(step.defaultPrevented)return;
+      if(index.current>0)navigate(-1);else if(location.search){navigate(location.pathname,{replace:true});}else goHome();
+    });
+  },[path,location.key,location.pathname,location.search,navigationType,navigate,goHome,register,backBus]);
   const gate=(key,component)=><ServiceAvailabilityGate serviceKey={key}>{component}</ServiceAvailabilityGate>;
   return <ServiceProtectedRoute><Routes>
     <Route path="/services/bank" element={gate('/services/bank',<Bank/>)}/>
@@ -64,6 +74,7 @@ function AppRoutes({ path, register, goHome, openFull }) {
 }
 export default function PhoneAppViewport({ app, active, register, goHome, openFull }) {
   const frame=useRef(null),[host,setHost]=useState(null);
+  const backBus=useRef(new EventTarget()).current;
   const {theme}=useTheme();
   useEffect(()=>{
     const doc=frame.current.contentDocument;
@@ -82,7 +93,7 @@ export default function PhoneAppViewport({ app, active, register, goHome, openFu
   return <iframe ref={frame} title={`Aplicativo ${app[0]} no celular`} className={`h-full w-full border-0 bg-background ${active?'block':'hidden'}`}>
     {host&&createPortal(<PhonePortalContext.Provider value={host}><PhoneAppContext.Provider value={{openFull}}><ServiceSuspensionContext.Provider value={!active}>
       <UNSAFE_LocationContext.Provider value={null}><UNSAFE_NavigationContext.Provider value={null}><UNSAFE_RouteContext.Provider value={{outlet:null,matches:[],isDataRoute:false}}>
-        <MemoryRouter initialEntries={[app[1]]}><AppRoutes path={app[1]} register={register} goHome={goHome} openFull={openFull}/></MemoryRouter>
+        <PhoneBackContext.Provider value={backBus}><MemoryRouter initialEntries={[app[1]]}><AppRoutes path={app[1]} register={register} goHome={goHome} openFull={openFull} backBus={backBus}/></MemoryRouter></PhoneBackContext.Provider>
       </UNSAFE_RouteContext.Provider></UNSAFE_NavigationContext.Provider></UNSAFE_LocationContext.Provider>
     </ServiceSuspensionContext.Provider></PhoneAppContext.Provider></PhonePortalContext.Provider>,host)}
   </iframe>;
