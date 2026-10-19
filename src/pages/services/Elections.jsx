@@ -209,8 +209,8 @@ const ExecutiveConstitutionCard = ({ executiveState }) => {
                     )}
                     {presidentParty && (
                       <div className="flex items-center gap-1.5 mt-0.5">
-                        {presidentParty.logo_url && <img src={presidentParty.logo_url} alt={presidentParty.acronym} className="w-4 h-4 rounded-full object-cover" />}
-                        <span className="text-xs text-muted-foreground">{presidentParty.acronym}</span>
+                        {presidentParty.logo_url && <img src={presidentParty.logo_url} alt={presidentParty.name ? `${presidentParty.name} - ${presidentParty.acronym}` : 'Independente'} className="w-4 h-4 rounded-full object-cover" />}
+                        <span className="text-xs text-muted-foreground">{presidentParty.name ? `${presidentParty.name} - ${presidentParty.acronym}` : 'Independente'}</span>
                         {presidentParty.ideology && <span className="text-xs text-muted-foreground">· {presidentParty.ideology}</span>}
                       </div>
                     )}
@@ -230,8 +230,8 @@ const ExecutiveConstitutionCard = ({ executiveState }) => {
                     <p className="text-lg font-semibold text-foreground">{currentVice}</p>
                     {viceParty && (
                       <div className="flex items-center gap-1.5 mt-0.5">
-                        {viceParty.logo_url && <img src={viceParty.logo_url} alt={viceParty.acronym} className="w-4 h-4 rounded-full object-cover" />}
-                        <span className="text-xs text-muted-foreground">{viceParty.acronym}</span>
+                        {viceParty.logo_url && <img src={viceParty.logo_url} alt={viceParty.name ? `${viceParty.name} - ${viceParty.acronym}` : 'Independente'} className="w-4 h-4 rounded-full object-cover" />}
+                        <span className="text-xs text-muted-foreground">{viceParty.name ? `${viceParty.name} - ${viceParty.acronym}` : 'Independente'}</span>
                         {viceParty.ideology && <span className="text-xs text-muted-foreground">· {viceParty.ideology}</span>}
                       </div>
                     )}

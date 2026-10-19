@@ -1,3 +1,4 @@
+import {AdminIdentity} from '@/components/social-x/AdminIdentity';
 import React, { useState, useEffect, useCallback } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { Home, Bell, Mail, Search, User, Feather, LogOut } from 'lucide-react';
@@ -114,14 +115,14 @@ const XSidebar = ({ onPostClick }) => {
                             <button className="flex w-full items-center gap-3 rounded-full p-3 text-left transition-colors duration-200 hover:bg-accent">
                                 <img src={user?.x_avatar_url || `https://api.dicebear.com/7.x/micah/svg?seed=${user?.username}`} alt="User avatar" className="h-10 w-10 rounded-full bg-secondary object-cover" />
                                 <div className="hidden flex-1 xl:block">
-                                    <p className="truncate font-bold">{user?.x_username}</p>
+                                    <p className="truncate font-bold">{user?.x_username}<AdminIdentity userId={user?.id}/></p>
                                     <p className="truncate text-sm text-muted-foreground">@{user?.x_handle}</p>
                                 </div>
                             </button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent className="mb-2 w-64" side="top">
                             <DropdownMenuLabel>
-                                <p className="truncate font-semibold">{user?.x_username}</p>
+                                <p className="truncate font-semibold">{user?.x_username}<AdminIdentity userId={user?.id}/></p>
                                 <p className="truncate text-sm text-muted-foreground">@{user?.x_handle}</p>
                             </DropdownMenuLabel>
                             <DropdownMenuSeparator />

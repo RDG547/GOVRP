@@ -125,7 +125,7 @@ const DocumentField = ({ label, value, className = '' }) => {
 
 // The physical card keeps one layout. Mobile scales the entire card instead of
 // independently shrinking rows, photos and the reserved signature region.
-const DocumentContainer = ({ children, className = '' }) => {
+const DocumentContainer = ({ children, className = '', identity }) => {
     const ref = useRef(null);
     const [scale, setScale] = useState(1);
     useLayoutEffect(() => {
@@ -135,7 +135,7 @@ const DocumentContainer = ({ children, className = '' }) => {
         observer.observe(ref.current);
         return () => observer.disconnect();
     }, []);
-    return <div ref={ref} data-official-document className="relative box-border aspect-[47/33] w-full max-w-[470px] shrink-0 overflow-hidden rounded-lg shadow-lg">
+    return <div ref={ref} data-official-document data-document-identity={identity} className="relative box-border aspect-[47/33] w-full max-w-[470px] shrink-0 overflow-hidden rounded-lg shadow-lg">
         <div data-document-layout className={`absolute left-0 top-0 h-[330px] w-[470px] origin-top-left overflow-hidden rounded-lg border ${className}`} style={{ transform: `scale(${scale})` }}>
             <div className="absolute inset-3 flex min-h-0 flex-col">{children}</div>
         </div>
@@ -210,7 +210,7 @@ const RGDocument = ({ user, doc, side }) => {
 const CPFDocument = ({ user, doc, side }) => {
     const dateOfBirth = formatDocumentDate(user.date_of_birth);
     return (
-    <DocumentContainer className="bg-gradient-to-br from-blue-50 to-green-50 text-black font-sans justify-between">
+    <DocumentContainer identity="cpf" className="bg-gradient-to-br from-blue-50 to-green-50 text-black font-sans justify-between">
         {side === 'front' ? (
             <>
                 <header className="flex items-center justify-between">
@@ -243,7 +243,7 @@ const CPFDocument = ({ user, doc, side }) => {
 )};
 
 const CNPJDocument = ({ user, doc, side }) => (
-    <DocumentContainer className="bg-white text-black font-sans justify-between">
+    <DocumentContainer identity="cnpj" className="bg-white text-black font-sans justify-between">
         {side === 'front' ? (
             <>
                 <header className="text-center border-b-2 border-black pb-1 sm:pb-2">
@@ -271,6 +271,7 @@ const CNPJDocument = ({ user, doc, side }) => (
 );
 
 const CTDDocument = ({ user, doc, side }) => {
+    const contracts=doc.metadata?.employment_contracts||[];const contract=contracts.find(row=>!row.fired_at)||contracts[0];
     const dateOfBirth = formatDocumentDate(user.date_of_birth);
     return (
     <DocumentContainer className="bg-[#0A2240] text-white font-sans">
@@ -303,11 +304,11 @@ const CTDDocument = ({ user, doc, side }) => {
             <div className="w-full h-full flex flex-col justify-between text-[0.6rem] sm:text-sm">
                 <p className="font-bold text-center text-lg">CONTRATO DE TRABALHO</p>
                 <div className="border-t border-b border-white/50 py-2 sm:py-3 space-y-1 sm:space-y-2">
-                    <DocumentField label="EMPREGADOR" value="GOVERNO DE RP" className="text-white" />
-                    <DocumentField label="FUNÇÃO" value={user.occupation || 'NÃO ESPECIFICADO'} className="text-white" />
-                    <DocumentField label="DATA DE ADMISSÃO" value={formatDocumentDate(doc.issued_at)} className="text-white" />
+                    <DocumentField label="EMPREGADOR" value={contract?.company||'SEM VÍNCULO REGISTRADO'} className="text-white" />
+                    <DocumentField label="FUNÇÃO" value={contract?.role||user.occupation||'SEM CONTRATO ATIVO'} className="text-white" />
+                    <DocumentField label="DATA DE ADMISSÃO" value={formatDocumentDate(contract?.hired_at||doc.issued_at)} className="text-white" />
                 </div>
-                <p className="text-[0.5rem] sm:text-xs text-center">Este documento substitui a CTPS física. Válido em todo território nacional.</p>
+                <div className="max-h-20 overflow-y-auto text-[9px]">{contracts.filter(row=>row.id!==contract?.id).map(row=><p key={row.id}>{row.company} · {row.role} · {formatDocumentDate(row.hired_at)} — {row.fired_at?formatDocumentDate(row.fired_at):'Atual'}</p>)}{contract?.history?.map((entry,index)=><p key={index}>{entry.role} · até {formatDocumentDate(entry.until)}</p>)}</div><p className="text-[0.5rem] sm:text-xs text-center">Este documento substitui a CTPS física. Válido em todo território nacional.</p>
             </div>
         )}
     </DocumentContainer>
@@ -316,7 +317,7 @@ const CTDDocument = ({ user, doc, side }) => {
 const TituloEleitorDocument = ({ user, doc, side }) => {
     const dateOfBirth = formatDocumentDate(user.date_of_birth);
     return (
-    <DocumentContainer className="bg-white text-black font-mono">
+    <DocumentContainer identity="voter" className="bg-white text-black font-mono">
         {side === 'front' ? (
             <>
                 <header className="flex items-center justify-between border-b-2 border-black pb-1 sm:pb-2">
@@ -414,7 +415,7 @@ const PassportDocument = ({ user, doc, side }) => {
     );
 
     return (
-     <DocumentContainer className={`font-serif ${side === 'front' ? 'bg-[#0A2240] text-white' : 'bg-gray-100 text-black'}`}>
+     <DocumentContainer identity="passport" className={`font-serif ${side === 'front' ? 'bg-[#0A2240] text-white' : 'bg-gray-100 text-black'}`}>
         {side === 'front' ? (
             <div className="w-full h-full flex flex-col items-center justify-center text-center">
                 <img src={SEAL_IMAGE} alt="Brasão" className="w-12 h-12 sm:w-20 sm:h-20 mb-2 sm:mb-3 object-contain" />
@@ -524,7 +525,7 @@ const ClearanceCertificateDocument = ({ user, doc }) => (
 );
 
 const ProfessionalRegistryDocument = ({ user, doc, side }) => (
-    <DocumentContainer className="bg-gradient-to-br from-cyan-50 to-indigo-50 text-black font-sans">
+    <DocumentContainer identity="professional" className="bg-gradient-to-br from-cyan-50 to-indigo-50 text-black font-sans">
         {side === 'front' ? (
             <>
                 <header className="flex items-center justify-between pb-1 sm:pb-2 border-b-2 border-black">
@@ -539,11 +540,11 @@ const ProfessionalRegistryDocument = ({ user, doc, side }) => (
                         <DocumentField label="PROFISSÃO" value={doc.metadata?.profession?.toUpperCase() || 'NÃO ESPECIFICADO'} />
                         <DocumentField label="Nº DE REGISTRO" value={doc.document_number} className="text-red-600 font-mono" />
                         <DocumentField label="CPF" value={formatCPF(user.cpf)} />
-                        <DocumentField label="DATA DE EMISSÃO" value={formatDocumentDate(doc.issued_at)} />
                     </div>
                 </main>
-                <footer className="shrink-0 pt-2 text-center text-[10px]">
-                    <CitizenSignature user={user} className="mx-auto" />
+                <footer className="flex shrink-0 items-end justify-between gap-3 pt-2 text-left text-[10px]">
+                    <DocumentField label="DATA DE EMISSÃO" value={formatDocumentDate(doc.issued_at)} />
+                    <CitizenSignature user={user} className="ml-auto shrink-0" />
                 </footer>
             </>
         ) : (

@@ -1,3 +1,4 @@
+import { MailOpen } from 'lucide-react';
 import {useInvitations} from '@/contexts/InvitationsContext';
 import CitizenInvitations from './CitizenInvitations';
 import CitizenFinancialSummary from './CitizenFinancialSummary';
@@ -43,7 +44,7 @@ const IntegratedCitizenDashboard = () => {
           <LayoutDashboard className="mr-2 h-4 w-4" />
           Visão geral
         </TabsTrigger>
-        <TabsTrigger value="invitations">Meus Convites{invitationCount>0&&<span className="ml-2 rounded-full bg-primary px-2 text-xs text-primary-foreground">{invitationCount}</span>}</TabsTrigger>
+        <TabsTrigger value="invitations"><MailOpen className="mr-2 h-4 w-4"/>Meus Convites{invitationCount>0&&<span className="ml-2 rounded-full bg-primary px-2 text-xs text-primary-foreground">{invitationCount}</span>}</TabsTrigger>
         <TabsTrigger value="inventory"><Package className="mr-2 h-4 w-4"/>Meu Inventário</TabsTrigger>
         <TabsTrigger value="economy">
           <Landmark className="mr-2 h-4 w-4" />

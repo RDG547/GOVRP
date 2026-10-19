@@ -114,7 +114,11 @@
     "test:launch-government": "node tools/test-launch-government.mjs",
     "test:launch-stock": "node tools/test-launch-stock.mjs",
     "test:launch-interface": "node tools/test-launch-interface.mjs",
-    "audit:launch-security": "node tools/audit-launch-security.mjs"
+    "audit:launch-security": "node tools/audit-launch-security.mjs",
+    "test:card-ledger": "node tools/test-oct19-card-ledger.mjs",
+    "test:world-infrastructure": "node tools/test-oct19-world.mjs",
+    "test:documents-bills": "node tools/test-oct19-documents-bills.mjs",
+    "test:bank-phone-map-interface": "node tools/test-oct19-interface.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.0",

@@ -1,3 +1,5 @@
+import PagedResults from '@/components/ui/paged-results';
+import CitizenSelector from '@/components/CitizenSelector';
 import {CurrencyInput} from '@/components/ui/currency-input';
 import { fetchPublicProfileRows } from '@/lib/publicProfileQueries';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -258,7 +260,7 @@ const CardLimitControl = ({ card, brand, draft, onDraftChange, onSave, saving, p
   );
 };
 
-const RequestPagination = ({ page, total, onPageChange }) => {
+const RequestPagination = ({ page, total, onPageChange,loading=false }) => {
   const totalPages = Math.max(1, Math.ceil(total / REQUESTS_PAGE_SIZE));
   const first = total ? (page - 1) * REQUESTS_PAGE_SIZE + 1 : 0;
   const last = Math.min(page * REQUESTS_PAGE_SIZE, total);
@@ -267,11 +269,11 @@ const RequestPagination = ({ page, total, onPageChange }) => {
     <div className="mt-4 flex flex-col items-center justify-between gap-3 border-t border-white/10 pt-4 sm:flex-row">
       <p className="text-sm text-muted-foreground">{first}–{last} de {total}</p>
       <div className="flex items-center gap-2" aria-label="Paginação das solicitações">
-        <Button type="button" size="sm" variant="outline" onClick={() => onPageChange(page - 1)} disabled={page <= 1}>
+        <Button type="button" size="sm" variant="outline" onClick={() => onPageChange(page - 1)} disabled={loading || page <= 1}>
           <ChevronLeft className="mr-1 h-4 w-4" />Anterior
         </Button>
         <span className="min-w-16 text-center text-sm">{page} / {totalPages}</span>
-        <Button type="button" size="sm" variant="outline" onClick={() => onPageChange(page + 1)} disabled={page >= totalPages}>
+        <Button type="button" size="sm" variant="outline" onClick={() => onPageChange(page + 1)} disabled={loading || page >= totalPages}>
           Próxima<ChevronRight className="ml-1 h-4 w-4" />
         </Button>
       </div>
@@ -297,6 +299,7 @@ const BankManagementPanel = () => {
   const [cardLimits, setCardLimits] = useState({});
   const [cardBrands, setCardBrands] = useState({});
   const [issuedCardLimits, setIssuedCardLimits] = useState({});
+  const issuedDirty=useRef(new Set());
   const [loanInstallments, setLoanInstallments] = useState({});
   const [feedbackById, setFeedbackById] = useState({});
   const [savingIssuedCardId, setSavingIssuedCardId] = useState(null);
@@ -306,7 +309,10 @@ const BankManagementPanel = () => {
   const [cardCount, setCardCount] = useState(0);
   const [loanCount, setLoanCount] = useState(0);
   const [requestsLoading, setRequestsLoading] = useState(false);
+  const [holderId,setHolderId]=useState('');
 
+
+  const holderRef=useRef(holderId);holderRef.current=holderId;
   const canManage = canManageNationalBank(user);
   const policyRef = useRef(policy); policyRef.current = policy;
   const requestSequence = useRef(0);
@@ -324,6 +330,8 @@ const BankManagementPanel = () => {
       ...Object.fromEntries(profiles),
     }));
   }, []);
+
+  useEffect(()=>{if(!holderId||!canManage)return;let active=true;void supabase.rpc('get_bank_holder_limits',{p_user_id:holderId}).then(async result=>{if(!active)return;if(result.error){toast({title:'Não foi possível consultar o titular',description:'Confira a conexão e tente novamente.',variant:'destructive'});return;}await fetchProfiles([holderId]);if(!active)return;setAccounts(current=>[...current.filter(a=>a.user_id!==holderId),...(result.data.accounts||[])]);setIssuedCards(current=>[...current.filter(c=>c.user_id!==holderId),...(result.data.cards||[])]);setIssuedCardLimits(current=>({...Object.fromEntries((result.data.cards||[]).map(c=>[c.id,formatCurrency(Number(c.card_limit||0),true)])),...current}));});return()=>{active=false;};},[holderId,canManage,fetchProfiles,toast]);
 
   const fetchData = useCallback(async (showLoading = true) => {
     if (!canManage) {
@@ -375,19 +383,14 @@ const BankManagementPanel = () => {
           DEFAULT_BANK_POLICY
         )
       );
-      const accountRows = accountsResponse.data || [];
-      const issuedCardRows = issuedCardsResponse.data || [];
+      let accountRows = accountsResponse.data || [],issuedCardRows=issuedCardsResponse.data||[];
+      if(holderRef.current){const selected=await supabase.rpc('get_bank_holder_limits',{p_user_id:holderRef.current});if(selected.error)throw selected.error;accountRows=[...accountRows.filter(a=>a.user_id!==holderRef.current),...(selected.data.accounts||[])];issuedCardRows=[...issuedCardRows.filter(c=>c.user_id!==holderRef.current),...(selected.data.cards||[])];}
 
       setEconomicPolicy(normalizedEconomicPolicy);
       if (!policyDirty.current) setPolicy(normalizedPolicy);
       setAccounts(accountRows);
       setIssuedCards(issuedCardRows);
-      setIssuedCardLimits(
-        issuedCardRows.reduce((accumulator, card) => {
-          accumulator[card.id] = formatCurrency(Number(card.card_limit || 0), true);
-          return accumulator;
-        }, {})
-      );
+      setIssuedCardLimits(current=>({...current,...Object.fromEntries(issuedCardRows.filter(c=>!issuedDirty.current.has(c.id)).map(c=>[c.id,formatCurrency(Number(c.card_limit||0),true)]))}));
       await fetchProfiles([
         ...accountRows.map((account) => account.user_id),
         ...issuedCardRows.map((card) => card.user_id),
@@ -413,6 +416,7 @@ const BankManagementPanel = () => {
         .from(isCards ? 'credit_card_applications' : 'loan_applications')
         .select('*', { count: 'exact' })
         .order('created_at', { ascending: false })
+        .order('id', {ascending:false})
         .range(from, to);
 
       if (error) throw error;
@@ -431,6 +435,7 @@ const BankManagementPanel = () => {
         setCreditApplications(rows);
         setCardCount(total);
         setCardBrands((current) => ({
+          ...current,
           ...rows.reduce((accumulator, application) => {
             accumulator[application.id] = current[application.id]
               || normalizeCardBrand(application.approved_brand || application.brand);
@@ -559,7 +564,7 @@ const BankManagementPanel = () => {
           setRows((current) => [
             changedApplication,
             ...current.filter((item) => item.id !== changedApplication.id),
-          ].slice(0, REQUESTS_PAGE_SIZE));
+          ].sort((a,b)=>b.created_at.localeCompare(a.created_at)||b.id.localeCompare(a.id)).slice(0, REQUESTS_PAGE_SIZE));
         }
         return;
       }
@@ -627,10 +632,10 @@ const BankManagementPanel = () => {
       }
     });
 
-    return [...holdersByUserId.values()].sort((left, right) =>
+    return [...holdersByUserId.values()].filter(row=>!holderId||row.userId===holderId).sort((left, right) =>
       getProfileName(left.userId).localeCompare(getProfileName(right.userId), 'pt-BR')
     );
-  }, [accounts, issuedCards, profilesById]);
+  }, [accounts, issuedCards, profilesById,holderId]);
 
   const updatePolicyRate = (field, value) => {
     const nextValue = Number(value);
@@ -805,6 +810,7 @@ const BankManagementPanel = () => {
         throw new Error(data?.message || error?.message || 'Não foi possível atualizar o limite do cartão.');
       }
 
+      issuedDirty.current.delete(card.id);
       toast({ title: 'Limite atualizado', description: data?.message || 'O limite do cartão foi salvo.' });
       void fetchData(false);
     } catch (error) {
@@ -964,7 +970,7 @@ const BankManagementPanel = () => {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {accountHolders.length ? (
+          <CitizenSelector value={holderId} onChange={setHolderId} label="Buscar titular por nome ou usuário"/>{holderId&&<Button variant="ghost" onClick={()=>setHolderId('')}>Todos os titulares carregados</Button>}{accountHolders.length ? (
             <div className={accountHolders.length > 10 ? 'max-h-[75vh] overflow-y-auto pr-2 custom-scrollbar' : ''}>
               <Table>
                 <TableHeader>
@@ -1010,7 +1016,7 @@ const BankManagementPanel = () => {
                                 draft={card ? issuedCardLimits[card.id] : ''}
                                 policy={policy}
                                 saving={savingIssuedCardId === card?.id}
-                                onDraftChange={(value) => setIssuedCardLimits((current) => ({ ...current, [card.id]: value }))}
+                                onDraftChange={(value) => {issuedDirty.current.add(card.id);setIssuedCardLimits((current) => ({ ...current, [card.id]: value }));}}
                                 onSave={() => handleSaveIssuedCardLimit(card)}
                               />
                             </TableCell>
@@ -1047,11 +1053,9 @@ const BankManagementPanel = () => {
               <CardDescription>{pendingCreditApplications.length} pendente(s) nesta página. Mais recentes primeiro.</CardDescription>
             </CardHeader>
             <CardContent>
-              {requestsLoading ? (
-                <div className="flex min-h-52 items-center justify-center"><Loader2 className="h-7 w-7 animate-spin text-primary" /></div>
-              ) : creditApplications.length ? (
+              {(creditApplications.length||requestsLoading) ? (
                 <>
-                  <div className="overflow-x-auto">
+                  <PagedResults page={cardPage} loading={requestsLoading}>{requestsLoading&&<p role="status" className="text-xs">Atualizando resultados…</p>}<div className="overflow-x-auto">
                     <Table>
                       <TableHeader><TableRow><TableHead>Cidadão</TableHead><TableHead>Bandeira</TableHead><TableHead>Status</TableHead><TableHead>Limite</TableHead><TableHead>Feedback</TableHead><TableHead className="text-right">Ações</TableHead></TableRow></TableHeader>
                       <TableBody>
@@ -1071,7 +1075,7 @@ const BankManagementPanel = () => {
                       </TableBody>
                     </Table>
                   </div>
-                  <RequestPagination page={cardPage} total={cardCount} onPageChange={setCardPage} />
+                  <RequestPagination loading={requestsLoading} page={cardPage} total={cardCount} onPageChange={setCardPage} /></PagedResults>
                 </>
               ) : <p className="py-10 text-center text-muted-foreground">Nenhuma solicitação de cartão encontrada.</p>}
             </CardContent>
@@ -1085,11 +1089,9 @@ const BankManagementPanel = () => {
               <CardDescription>{pendingLoanApplications.length} pendente(s) nesta página. Juros atuais: {Number(policy.loan_interest_rate || 0).toFixed(2)}% a.m.</CardDescription>
             </CardHeader>
             <CardContent>
-              {requestsLoading ? (
-                <div className="flex min-h-52 items-center justify-center"><Loader2 className="h-7 w-7 animate-spin text-primary" /></div>
-              ) : loanApplications.length ? (
+              {(loanApplications.length||requestsLoading) ? (
                 <>
-                  <div className="overflow-x-auto">
+                  <PagedResults page={loanPage} loading={requestsLoading}>{requestsLoading&&<p role="status" className="text-xs">Atualizando resultados…</p>}<div className="overflow-x-auto">
                     <Table>
                       <TableHeader><TableRow><TableHead>Cidadão</TableHead><TableHead>Valor</TableHead><TableHead>Status</TableHead><TableHead>Parcelas</TableHead><TableHead>Total estimado</TableHead><TableHead>Feedback</TableHead><TableHead className="text-right">Ações</TableHead></TableRow></TableHeader>
                       <TableBody>
@@ -1110,7 +1112,7 @@ const BankManagementPanel = () => {
                       </TableBody>
                     </Table>
                   </div>
-                  <RequestPagination page={loanPage} total={loanCount} onPageChange={setLoanPage} />
+                  <RequestPagination loading={requestsLoading} page={loanPage} total={loanCount} onPageChange={setLoanPage} /></PagedResults>
                 </>
               ) : <p className="py-10 text-center text-muted-foreground">Nenhuma solicitação de empréstimo encontrada.</p>}
             </CardContent>

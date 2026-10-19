@@ -1,14 +1,15 @@
+import PagedResults from './paged-results';
 import * as React from "react"
 
 import { cn } from "@/lib/utils"
 
-const Table = React.forwardRef(({ className, ...props }, ref) => (
-  <div className="relative w-full overflow-auto">
+const Table = React.forwardRef(({ className, page, loading, ...props }, ref) => (
+  <PagedResults page={page} loading={loading}><div className="relative w-full overflow-auto">
     <table
       ref={ref}
       className={cn("w-full caption-bottom text-sm", className)}
       {...props} />
-  </div>
+  </div></PagedResults>
 ))
 Table.displayName = "Table"
 

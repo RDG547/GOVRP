@@ -1,0 +1,33 @@
+import assert from 'node:assert/strict';
+import {actor,service,request,rpc,cleanup} from './lib/world-test.mjs';
+try{
+ const owner=await actor('documents-owner'),person=await actor('documents-worker'),bank=await actor('documents-bank','Presidente do Banco Nacional');
+ const accounts=await request(service.from('accounts').insert([{user_id:owner.id,account_number:crypto.randomUUID(),balance:50000,created_at:new Date().toISOString()},{user_id:person.id,account_number:crypto.randomUUID(),balance:5000,created_at:'2000-01-01'}]).select('*'));
+ const company=await request(service.from('businesses').insert({owner_id:owner.id,business_type_id:'software',name:'Companhia de contratos '+crypto.randomUUID().slice(0,8),status:'active',region_code:'SP'}).select('*').single());
+ const doc=await request(service.from('documents').insert({user_id:person.id,type:'CTD',document_number:crypto.randomUUID(),metadata:{}}).select('*').single());
+ const employee=await request(service.from('business_employees').insert({business_id:company.id,profile_id:person.id,name:'Funcionário de teste',role:'Desenvolvedor',role_template_id:'software:1',salary:350,is_npc:false}).select('*').single());
+ let contracts=(await request(service.from('documents').select('metadata').eq('id',doc.id).single())).metadata.employment_contracts;
+ assert.equal(contracts[0].company,company.name);assert.equal(contracts[0].role,(await request(service.from('business_role_templates').select('name').eq('id','software:1').single())).name);
+ await request(service.from('business_employees').update({role_template_id:'software:2',role:'Promovido'}).eq('id',employee.id));
+ contracts=(await request(service.from('documents').select('metadata').eq('id',doc.id).single())).metadata.employment_contracts;
+ assert.equal(contracts[0].history.length,1);assert.notEqual(contracts[0].history[0].role,contracts[0].role);assert(contracts[0].history[0].until);
+ await request(service.from('business_employees').update({fired_at:new Date().toISOString()}).eq('id',employee.id));
+ assert((await request(service.from('documents').select('metadata').eq('id',doc.id).single())).metadata.employment_contracts[0].fired_at);
+ console.log('✓ CTD recebe empresa, função real, promoção com snapshot e encerramento do vínculo.');
+ const code='001'+String(Date.now()).padStart(44,'0');assert.equal(code.length,47);
+ await request(service.from('bills_of_exchange').insert({issuer_id:owner.id,payer_id:person.id,bill_code:code,amount:51.5,due_date:'2030-12-31',description:'Cobrança real de teste'}));
+ const formatted=code.slice(0,5)+'.'+code.slice(5,10)+' '+code.slice(10);
+ assert((await rpc(person.client,'validate_and_get_bill',{p_bill_code:formatted})).success);
+ for(const invalid of [code.slice(0,44),code+'0','A'+code])assert(!(await rpc(person.client,'validate_and_get_bill',{p_bill_code:invalid})).success);
+ assert(!(await rpc(person.client,'pay_boleto',{p_bill_code:code,p_amount:1})).success);
+ const own=accounts.find(a=>a.user_id===person.id);assert((await rpc(person.client,'pay_boleto',{p_bill_code:formatted})).success);
+ assert.equal((await request(service.from('accounts').select('balance').eq('id',own.id).single())).balance,own.balance-51.5);
+ assert(!(await rpc(person.client,'pay_boleto',{p_bill_code:code})).success);
+ assert.equal((await request(service.from('accounts').select('balance').eq('id',own.id).single())).balance,own.balance-51.5);
+ console.log('✓ Boleto registrado aceita formatação, recusa tamanhos incompatíveis, valor adulterado e cobrança repetida.');
+ const cardNumber='4999'+String(Math.floor(Math.random()*1e12)).padStart(12,'0');
+ const card=await request(service.from('cards').insert({user_id:person.id,account_id:own.id,brand:'visa',type:'credit',card_type:'credit',is_active:true,card_number:cardNumber,cvv:'678',card_holder_name:'Pessoa',expiry_date:'12/30',card_limit:1000,used_limit:0}).select('id').single());
+ assert(Boolean((await person.client.rpc('get_bank_holder_limits',{p_user_id:owner.id})).error));
+ const limits=await rpc(bank.client,'get_bank_holder_limits',{p_user_id:person.id});assert(limits.accounts.some(a=>a.id===own.id));assert(limits.cards.some(c=>c.id===card.id&&c.card_number==='••••'+cardNumber.slice(-4)&&!('cvv'in c)));
+ console.log('✓ Gestão encontra titular fora da página inicial; consulta exige autoridade e omite CVV/número completo.');
+}finally{await cleanup();}

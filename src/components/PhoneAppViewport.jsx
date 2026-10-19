@@ -31,8 +31,9 @@ function FullService({ openFull }) {
   const location = useLocation();
   return <div className="space-y-4 p-5 text-center"><h2 className="font-semibold">Abrir serviço completo</h2><p className="text-sm text-muted-foreground">Esta área está disponível no portal principal.</p><Button onClick={()=>openFull(location.pathname+location.search)}><ExternalLink className="mr-2 h-4 w-4"/>Abrir no GOVRP</Button></div>;
 }
-function AppRoutes({ path, register, goHome, openFull, backBus }) {
+function AppRoutes({ path, register, goHome, openFull, backBus, destination }) {
   const location=useLocation(), navigate=useNavigate(), navigationType=useNavigationType();
+  useEffect(()=>{if(destination?.path)navigate(destination.path);},[destination?.key,navigate]);
   const history=useRef([location.key]), index=useRef(0);
   useEffect(()=>{
     const found=history.current.indexOf(location.key);
@@ -72,14 +73,19 @@ function AppRoutes({ path, register, goHome, openFull, backBus }) {
     <Route path="*" element={<FullService openFull={openFull}/>}/>
   </Routes></ServiceProtectedRoute>;
 }
-export default function PhoneAppViewport({ app, active, register, goHome, openFull }) {
+export default function PhoneAppViewport({ app, active, register, goHome, openFull, destination }) {
   const frame=useRef(null),[host,setHost]=useState(null);
   const backBus=useRef(new EventTarget()).current;
   const {theme}=useTheme();
   useEffect(()=>{
     const doc=frame.current.contentDocument;
     doc.title=`Aplicativo ${app[0]}`;
-    const syncStyles=()=>{doc.head.querySelectorAll('[data-phone-style]').forEach(node=>node.remove());document.head.querySelectorAll('style,link[rel="stylesheet"]').forEach(node=>{const copy=node.cloneNode(true);copy.setAttribute('data-phone-style','');doc.head.append(copy);});};
+    const copies=new Map();
+    const syncStyles=()=>{
+      const sources=new Set(document.head.querySelectorAll('style,link[rel="stylesheet"]'));
+      for(const [source,copy] of copies)if(!sources.has(source)){copy.remove();copies.delete(source);}
+      for(const source of sources){let copy=copies.get(source);if(!copy){copy=source.cloneNode(true);copy.setAttribute('data-phone-style','');copies.set(source,copy);doc.head.append(copy);}else if(source.tagName==='STYLE'&&copy.textContent!==source.textContent)copy.textContent=source.textContent;}
+    };
     syncStyles();
     const observer=new MutationObserver(syncStyles);observer.observe(document.head,{childList:true,subtree:true,characterData:true});
     doc.body.className='bg-background text-foreground phone-app';doc.body.style.margin='0';
@@ -93,7 +99,7 @@ export default function PhoneAppViewport({ app, active, register, goHome, openFu
   return <iframe ref={frame} title={`Aplicativo ${app[0]} no celular`} className={`h-full w-full border-0 bg-background ${active?'block':'hidden'}`}>
     {host&&createPortal(<PhonePortalContext.Provider value={host}><PhoneAppContext.Provider value={{openFull}}><ServiceSuspensionContext.Provider value={!active}>
       <UNSAFE_LocationContext.Provider value={null}><UNSAFE_NavigationContext.Provider value={null}><UNSAFE_RouteContext.Provider value={{outlet:null,matches:[],isDataRoute:false}}>
-        <PhoneBackContext.Provider value={backBus}><MemoryRouter initialEntries={[app[1]]}><AppRoutes path={app[1]} register={register} goHome={goHome} openFull={openFull} backBus={backBus}/></MemoryRouter></PhoneBackContext.Provider>
+        <PhoneBackContext.Provider value={backBus}><MemoryRouter initialEntries={[app[1]]}><AppRoutes path={app[1]} register={register} goHome={goHome} openFull={openFull} destination={destination} backBus={backBus}/></MemoryRouter></PhoneBackContext.Provider>
       </UNSAFE_RouteContext.Provider></UNSAFE_NavigationContext.Provider></UNSAFE_LocationContext.Provider>
     </ServiceSuspensionContext.Provider></PhoneAppContext.Provider></PhonePortalContext.Provider>,host)}
   </iframe>;

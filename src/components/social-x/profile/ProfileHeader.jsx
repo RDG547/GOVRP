@@ -1,3 +1,4 @@
+import {AdminIdentity} from '@/components/social-x/AdminIdentity';
 import MentionText from '../MentionText';
 import { formatLocaleBR } from '@/lib/dateTime';
 import React, { useState } from 'react';
@@ -128,7 +129,7 @@ const ProfileHeader = ({ profile, followers, following, isFollowingInitial, onFo
     const headerImage = profile.x_header_url || 'https://images.unsplash.com/photo-1557682250-33bd709cbe85?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D';
     const avatarImage = profile.x_avatar_url || `https://api.dicebear.com/7.x/micah/svg?seed=${profile.username}`;
 
-    const displayedTitles = profile.role === 'Admin' ? ['Fundador', ...(profile.titles || [])] : (profile.titles || []);
+    const displayedTitles = profile.titles || [];
     const uniqueTitles = [...new Set(displayedTitles)];
 
     return (
@@ -161,7 +162,7 @@ const ProfileHeader = ({ profile, followers, following, isFollowingInitial, onFo
                         </div>
                     </div>
                     <div className="flex items-center gap-2 mt-4">
-                        <h1 className="text-3xl font-bold text-white">{profileName}</h1>
+                        <h1 className="text-3xl font-bold text-white">{profileName}<AdminIdentity userId={profile.id}/></h1>
                         {uniqueTitles?.map(title => <UserBadge key={title} title={title} />)}
                     </div>
                     <p className="text-gray-400">@{profile.x_handle}</p>

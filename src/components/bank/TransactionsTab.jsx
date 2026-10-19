@@ -150,7 +150,7 @@ const TransactionsTab = ({ transactions }) => {
             </CardHeader>
             <CardContent className="p-0 sm:p-6 sm:pt-0">
                 <div className="overflow-x-auto">
-                    <Table>
+                    <Table page={currentPage}>
                         <TableHeader className="hidden sm:table-header-group">
                             <TableRow>
                                 <TableHead>Descrição</TableHead>

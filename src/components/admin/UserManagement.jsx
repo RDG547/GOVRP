@@ -1,3 +1,4 @@
+import PagedResults from '@/components/ui/paged-results';
 import {CurrencyInput} from '@/components/ui/currency-input';
 import { readySession, fetchWithSessionAuth } from '@/lib/apiAuth';
 import CitizenCustodyControl from '@/components/admin/CitizenCustodyControl';
@@ -696,6 +697,7 @@ const UserManagement = () => {
                     </PopoverContent>
                 </Popover>
             </div>
+            <PagedResults page={currentPage}>
             {/* Mobile: Card Layout */}
             <div className="md:hidden space-y-3">
                 {paginatedUsers.length > 0 ? paginatedUsers.map((user, index) => {
@@ -761,6 +763,7 @@ const UserManagement = () => {
                     </tbody>
                 </table>
             </div>
+            </PagedResults>
             {totalPages > 1 && (
                 <div className="flex justify-center items-center gap-4 mt-4">
                     <Button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} variant="outline"><ChevronLeft className="w-4 h-4" /></Button>

@@ -1,3 +1,4 @@
+import { roleIcon } from '@/lib/roleIcons';
 import CompanyRankings from '@/components/business/CompanyRankings';
 import { formatLocaleBR } from '@/lib/dateTime';
 import { useOfficialSalaries, currentSalary } from '@/hooks/use-official-salaries';
@@ -488,7 +489,7 @@ const CountryInfo = () => {
                         <tr key={item.role} className={`border-b border-white/5 transition-colors hover:bg-white/5 ${index % 2 === 0 ? '' : 'bg-white/[0.02]'}`}>
                           <td className="px-6 py-4">
                             <div className="flex items-center gap-3">
-                              <div className="w-2 h-2 rounded-full bg-emerald-400" />
+                              {React.createElement(roleIcon(item.role),{className:'h-5 w-5 shrink-0 text-cyan-400','aria-hidden':true})}
                               <span className="font-medium text-foreground">{item.title}</span>
                             </div>
                           </td>

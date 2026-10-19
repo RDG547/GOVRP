@@ -243,9 +243,9 @@ const PoliticalParties = () => {
                                                 <TooltipProvider>
                                                     <Tooltip>
                                                         <TooltipTrigger asChild>
-                                                            <div className={`inline-flex items-center gap-2 px-3 py-1 text-xs font-semibold rounded-full ${isActive ? 'bg-green-500/20 text-green-300' : 'bg-amber-500/20 text-amber-300'}`}>
-                                                                {isActive ? <CheckCircle2 className="w-4 h-4" /> : <AlertTriangle className="w-4 h-4" />}
-                                                                {isActive ? 'Ativo' : 'Em Formação'}
+                                                            <div className={`inline-flex items-center gap-2 ${isActive?'text-green-300':'text-amber-300'}`}>
+                                                                {isActive ? <CheckCircle2 className="h-4 w-4 shrink-0"/> : <AlertTriangle className="h-4 w-4 shrink-0"/>}
+                                                                <Badge className={isActive?'bg-green-500/20 text-green-300':'bg-amber-500/20 text-amber-300'}>{isActive?'Ativo':'Em Formação'}</Badge>
                                                             </div>
                                                         </TooltipTrigger>
                                                         <TooltipContent>

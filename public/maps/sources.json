@@ -1,0 +1,24 @@
+{
+  "world": {
+    "source": "Natural Earth via world-atlas 110m",
+    "license": "Public Domain",
+    "url": "https://www.naturalearthdata.com/about/terms-of-use/"
+  },
+  "cities": {
+    "source": "Natural Earth ne_10m_populated_places_simple",
+    "url": "https://github.com/nvkelso/natural-earth-vector",
+    "license": "Public Domain"
+  },
+  "ports": {
+    "source": "Natural Earth ne_10m_ports; port-city proximity is only a planning reference",
+    "license": "Public Domain"
+  },
+  "states": {
+    "source": "Existing GOVRP IBGE-derived Brazilian state boundaries",
+    "file": "brazil-states.json"
+  },
+  "limitations": [
+    "Road/rail paths are proposed RP corridors through adjacent administrative regions, not a street-routing service.",
+    "No street network or municipal statistics are invented."
+  ]
+}

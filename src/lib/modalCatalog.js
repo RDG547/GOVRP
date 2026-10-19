@@ -521,6 +521,11 @@ export const MODAL_CATALOG=[
   "source": "src/pages/dashboards/panels/PresidentDashboard.jsx"
  },
  {
+  "id": "src/pages/WorldMap.jsx:1",
+  "title": "Planejar infraestrutura",
+  "source": "src/pages/WorldMap.jsx"
+ },
+ {
   "id": "src/pages/services/Parliament.jsx:2",
   "title": "Plebiscitos e Referendos",
   "source": "src/pages/services/Parliament.jsx"

@@ -1,144 +1,19 @@
+import React,{useEffect,useRef,useState} from 'react';
 import {CurrencyInput} from '@/components/ui/currency-input';
-import React, { useState, useEffect, useCallback } from 'react';
-import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Loader2, Receipt, CheckCircle, XCircle, AlertTriangle, Clock } from 'lucide-react';
-import { useToast } from "@/components/ui/use-toast";
-import { formatCurrency, formatBoleto, validateBoleto } from '@/lib/utils';
-import { supabase } from '@/lib/supabaseClient';
-
-const PayBillDialog = ({ isOpen, setIsOpen, onPaymentSuccess, initialBillCode = '' }) => {
-    const { toast } = useToast();
-    const [billCode, setBillCode] = useState('');
-    const [amount, setAmount] = useState('');
-    const [isProcessing, setIsProcessing] = useState(false);
-    const [billStatus, setBillStatus] = useState({ status: 'idle', message: '' });
-    const [debounceTimeout, setDebounceTimeout] = useState(null);
-
-    const validateBillWithDebounce = useCallback((code) => {
-        if (debounceTimeout) clearTimeout(debounceTimeout);
-
-        const newTimeout = setTimeout(async () => {
-            setBillStatus({ status: 'checking', message: 'Verificando boleto...' });
-            const { data, error } = await supabase.rpc('validate_and_get_bill', { p_bill_code: code });
-
-            if (error) {
-                setAmount('');
-                setBillStatus({ status: 'invalid', message: 'Erro ao verificar boleto.' });
-                toast({ title: "Erro", description: error.message, variant: "destructive" });
-            } else if (data.success) {
-                setAmount(formatCurrency(data.amount, true));
-                setBillStatus({ status: 'valid', message: data.message });
-            } else {
-                setAmount('');
-                setBillStatus({ status: data.status, message: data.message });
-            }
-        }, 1000);
-
-        setDebounceTimeout(newTimeout);
-    }, [debounceTimeout, toast]);
-
-    useEffect(() => {
-        if (isOpen) {
-            const formatted = formatBoleto(initialBillCode);
-            setBillCode(formatted);
-            if (validateBoleto(formatted)) {
-                validateBillWithDebounce(formatted);
-            }
-        } else {
-            setBillCode('');
-            setAmount('');
-            setBillStatus({ status: 'idle', message: '' });
-            if (debounceTimeout) clearTimeout(debounceTimeout);
-        }
-    }, [isOpen, initialBillCode, debounceTimeout, validateBillWithDebounce]);
-
-    const handleBillCodeChange = (e) => {
-        const formatted = formatBoleto(e.target.value);
-        setBillCode(formatted);
-        const isValid = validateBoleto(formatted);
-        
-        if (isValid) {
-            validateBillWithDebounce(formatted);
-        } else {
-             if (debounceTimeout) clearTimeout(debounceTimeout);
-             setBillStatus({ status: 'idle', message: '' });
-             setAmount('');
-        }
-    };
-
-    const handlePay = async (e) => {
-        e.preventDefault();
-        if (billStatus.status !== 'valid') {
-            toast({ title: "Pagamento não permitido", description: "Verifique o status do boleto.", variant: "destructive" });
-            return;
-        }
-
-        setIsProcessing(true);
-        const { data, error } = await supabase.rpc('pay_boleto', { p_bill_code: billCode });
-
-        if (error || !data.success) {
-            toast({ title: "Erro no Pagamento", description: error?.message || data.message, variant: "destructive" });
-        } else {
-            toast({ title: "Sucesso!", description: data.message });
-            if(onPaymentSuccess) onPaymentSuccess();
-            setIsOpen(false);
-        }
-        setIsProcessing(false);
-    };
-    
-    const BillStatusIndicator = () => {
-        switch(billStatus.status) {
-            case 'checking':
-                return <span className="text-xs text-yellow-400 flex items-center gap-1"><Clock className="w-3 h-3"/> {billStatus.message}</span>
-            case 'valid':
-                 return <span className="text-xs text-green-400 flex items-center gap-1"><CheckCircle className="w-3 h-3"/> {billStatus.message}</span>
-            case 'paid':
-                 return <span className="text-xs text-blue-400 flex items-center gap-1"><AlertTriangle className="w-3 h-3"/> {billStatus.message}</span>
-            case 'invalid':
-                 return <span className="text-xs text-red-400 flex items-center gap-1"><XCircle className="w-3 h-3"/> {billStatus.message}</span>
-            case 'idle':
-            default:
-                const cleanCode = billCode.replace(/\D/g, '');
-                if (cleanCode.length > 0 && cleanCode.length < 47) {
-                    return <p className="text-xs text-red-400 mt-1">O código de barras deve ter 47 dígitos.</p>
-                }
-                return null;
-        }
-    };
-
-    return (
-        <Dialog open={isOpen} onOpenChange={setIsOpen}>
-            <DialogContent>
-                <DialogHeader>
-                    <DialogTitle className="flex items-center gap-2"><Receipt /> Pagar Conta</DialogTitle>
-                    <DialogDescription>Digite o código de barras para verificar e pagar uma conta.</DialogDescription>
-                </DialogHeader>
-                <form onSubmit={handlePay} className="space-y-4 pt-4">
-                    <div>
-                        <Label htmlFor="billCode">Código de Barras</Label>
-                        <div className="relative">
-                            <Input id="billCode" value={billCode} onChange={handleBillCodeChange} placeholder="00000.00000 00000.000000..." required />
-                        </div>
-                        <div className="h-4 mt-1">
-                            <BillStatusIndicator />
-                        </div>
-                    </div>
-                     <div>
-                        <Label htmlFor="amount">Valor a Pagar</Label>
-                        <CurrencyInput id="amount" value={amount} placeholder="R$ 0,00" readOnly disabled />
-                    </div>
-                    <DialogFooter>
-                        <Button type="submit" disabled={isProcessing || billStatus.status !== 'valid' || !amount} className="w-full">
-                            {isProcessing ? <Loader2 className="animate-spin" /> : 'Confirmar Pagamento'}
-                        </Button>
-                    </DialogFooter>
-                </form>
-            </DialogContent>
-        </Dialog>
-    );
-};
-
-export default PayBillDialog;
+import {Button} from '@/components/ui/button';
+import {Dialog,DialogContent,DialogHeader,DialogTitle,DialogDescription,DialogFooter} from '@/components/ui/dialog';
+import {Input} from '@/components/ui/input';
+import {Label} from '@/components/ui/label';
+import {Loader2,Receipt} from 'lucide-react';
+import {useToast} from '@/components/ui/use-toast';
+import {formatCurrency,formatBoleto,validateBoleto} from '@/lib/utils';
+import {supabase} from '@/lib/supabaseClient';
+const normalizeCode=value=>/[a-z]/i.test(value)?value.trim().slice(0,80):formatBoleto(value);
+const completeCode=value=>validateBoleto(value)||/^[a-z][a-z0-9-]{3,79}$/i.test(value);
+export default function PayBillDialog({isOpen,setIsOpen,onPaymentSuccess,initialBillCode=''}){
+ const {toast}=useToast();const [code,setCode]=useState(''),[bill,setBill]=useState(null),[checking,setChecking]=useState(false),[busy,setBusy]=useState(false),[error,setError]=useState('');const sequence=useRef(0);
+ useEffect(()=>{if(isOpen){setCode(normalizeCode(initialBillCode));setBill(null);setError('');}else{sequence.current++;}},[isOpen,initialBillCode]);
+ useEffect(()=>{const version=++sequence.current;setBill(null);setChecking(false);if(!isOpen||!completeCode(code))return;setChecking(true);const timer=setTimeout(async()=>{const r=await supabase.rpc('validate_and_get_bill',{p_bill_code:code});if(version!==sequence.current)return;setChecking(false);if(r.error||!r.data?.success){setError(r.data?.message||'Não foi possível verificar o boleto.');return;}setError('');setBill(r.data);},350);return()=>clearTimeout(timer);},[isOpen,code]);
+ const pay=async event=>{event.preventDefault();if(!bill||busy)return;setBusy(true);try{const r=await supabase.rpc('pay_boleto',{p_bill_code:code});if(r.error||!r.data?.success)throw new Error(r.data?.message||'Não foi possível pagar este boleto.');toast({title:'Pagamento confirmado',description:r.data.message});onPaymentSuccess?.();setIsOpen(false);}catch(f){setError(f.message);}finally{setBusy(false);}};
+ return <Dialog open={isOpen} onOpenChange={open=>{if(!busy)setIsOpen(open);}}><DialogContent><DialogHeader><DialogTitle className="flex items-center gap-2"><Receipt/>Pagar Conta</DialogTitle><DialogDescription>Boletos do GOVRP usam linha digitável de 47 dígitos. Referências antigas de multas e serviços continuam aceitas quando cadastradas para você.</DialogDescription></DialogHeader><form onSubmit={pay} className="space-y-4"><Label htmlFor="billCode">Código de Barras</Label><Input id="billCode" inputMode="numeric" autoComplete="off" maxLength={/[a-z]/i.test(code)?80:54} value={code} onChange={event=>{setCode(normalizeCode(event.target.value));setError('');}} placeholder="Cole a linha digitável completa" required/><p className="text-xs text-muted-foreground">{/[a-z]/i.test(code)?'Referência histórica da plataforma':`${code.replace(/\D/g,'').length}/47 dígitos`}</p>{code&&!completeCode(code)&&<p className="text-sm text-amber-400">Informe os 47 dígitos do boleto emitido pelo GOVRP.</p>}{checking&&<p role="status">Verificando boleto…</p>}{error&&<p role="alert" className="text-sm text-destructive">{error}</p>}<Label htmlFor="amount">Valor a Pagar</Label><CurrencyInput id="amount" value={bill?formatCurrency(bill.amount,true):''} readOnly disabled/><DialogFooter><Button type="submit" disabled={busy||checking||!bill}>{busy&&<Loader2 className="mr-2 h-4 w-4 animate-spin"/>}Confirmar Pagamento</Button></DialogFooter></form></DialogContent></Dialog>;
+}

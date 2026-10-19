@@ -1,6 +1,6 @@
 import {CurrencyInput} from '@/components/ui/currency-input';
 import { formatLocaleBR } from '@/lib/dateTime';
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -21,6 +21,8 @@ const PayInvoiceDialog = ({ isOpen, setIsOpen, invoice, onPaymentSuccess }) => {
     const { toast } = useToast();
     const [amount, setAmount] = useState('');
     const [payFull, setPayFull] = useState(true);
+    const paymentKey=useRef(null);
+    useEffect(()=>{if(isOpen)paymentKey.current=crypto.randomUUID();},[isOpen]);
     const [isLoading, setIsLoading] = useState(false);
 
     useEffect(() => {
@@ -37,6 +39,7 @@ const PayInvoiceDialog = ({ isOpen, setIsOpen, invoice, onPaymentSuccess }) => {
         const { data, error } = await supabase.rpc('pay_card_invoice', {
             p_invoice_id: invoice.id,
             p_pay_full: payFull,
+            p_idempotency_key: paymentKey.current,
             p_amount_to_pay: amountToPay
         });
 
@@ -210,8 +213,8 @@ const InvoicesTab = ({ cards, onUpdate }) => {
                                             <TableRow key={invoice.id}>
                                                 <TableCell>{formatLocaleBR(new Date(invoice.due_date), 'toLocaleDateString', 'pt-BR')}</TableCell>
                                                 <TableCell>{formatLocaleBR(new Date(invoice.closing_date), 'toLocaleDateString', 'pt-BR')}</TableCell>
-                                                <TableCell>{formatCurrency(invoice.amount)}</TableCell>
-                                                <TableCell><Badge variant={getStatusVariant(invoice.status)}>{getStatusText(invoice.status)}</Badge></TableCell>
+                                                <TableCell>{formatCurrency(invoice.amount)}<p className="text-xs text-muted-foreground">Compras: {formatCurrency(invoice.charges_total??invoice.amount)} · Pagamentos: {formatCurrency(invoice.payments_total||0)}</p></TableCell>
+                                                <TableCell><Badge variant={getStatusVariant(Number(invoice.amount)<=0?'paid':invoice.status)}>{getStatusText(Number(invoice.amount)<=0?'paid':invoice.status)}</Badge></TableCell>
                                                 <TableCell>
                                                     {invoice.status !== 'paid' && (
                                                         <Button size="sm" onClick={() => handleOpenPayModal(invoice)}>Pagar</Button>

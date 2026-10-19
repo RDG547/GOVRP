@@ -1,3 +1,4 @@
+import {AdminIdentity} from './AdminIdentity';
 import { usePhoneApp } from '@/contexts/PhoneAppContext';
 import MentionText from './MentionText';
 import React, { useState, useCallback, useRef, useEffect } from 'react';
@@ -231,7 +232,7 @@ const PostCard = ({ post, onPostUpdate, onPostDelete, onRepostCreated, commentsA
         <img src={original.author.x_avatar_url || `https://api.dicebear.com/7.x/micah/svg?seed=${original.author.x_handle}`} alt={original.author.x_username} className="w-6 h-6 rounded-full"/>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1 text-sm text-muted-foreground">
-            <span className="font-bold text-foreground truncate">{original.author.x_username}</span>
+            <span className="font-bold text-foreground truncate">{original.author.x_username}<AdminIdentity userId={original.author.id}/></span>
             <span className="truncate">@{original.author.x_handle}</span>
             <span>· {formatDateBR(original.created_at)}</span>
           </div>
@@ -242,7 +243,7 @@ const PostCard = ({ post, onPostUpdate, onPostDelete, onRepostCreated, commentsA
     );
 
     const baseTitles = author.titles || [];
-    const displayedTitles = author.role === 'Admin' ? ['Fundador', ...baseTitles] : baseTitles;
+    const displayedTitles = baseTitles;
     const uniqueTitles = [...new Set(displayedTitles)].filter(title => roleBadges[title]);
 
     const mediaType = post.metadata?.type;
@@ -295,7 +296,7 @@ const PostCard = ({ post, onPostUpdate, onPostDelete, onRepostCreated, commentsA
                             <Link to={`/services/x/profile/${handle}`} className="min-w-0 break-words font-bold text-foreground hover:underline no-navigate">
                                 {name}
                             </Link>
-                            {uniqueTitles.map(title => <PoliticalSeal key={title} role={title} />)}
+                            <AdminIdentity userId={author.id}/>{uniqueTitles.map(title => <PoliticalSeal key={title} role={title} />)}
                         </div>
                         <p className="break-all text-sm text-muted-foreground">@{handle} · {postDateTime}</p>
                     </div>

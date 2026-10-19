@@ -4,7 +4,7 @@ import { useDomainRealtime } from '@/hooks/use-domain-realtime';
 import { bankRealtimeTables } from '@/lib/bankRealtime';
 import { CARD_SECTIONS, bankSectionsForEvents, fetchBankSections } from '@/lib/bankData';
 import { useSectionLoader } from '@/hooks/use-section-loader';
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/components/ui/use-toast';
@@ -63,6 +63,8 @@ const PayInvoiceDialog = ({ isOpen, setIsOpen, card, onPaymentSuccess }) => {
     const { toast } = useToast();
     const [amount, setAmount] = useState('');
     const [payFull, setPayFull] = useState(true);
+    const paymentKey=useRef(null);
+    useEffect(()=>{if(isOpen)paymentKey.current=crypto.randomUUID();},[isOpen]);
     const [isLoading, setIsLoading] = useState(false);
 
     useEffect(() => {
@@ -85,6 +87,7 @@ const PayInvoiceDialog = ({ isOpen, setIsOpen, card, onPaymentSuccess }) => {
 
         const { data, error } = await supabase.rpc('pay_card_bill', {
             p_card_id: card.id,
+            p_idempotency_key: paymentKey.current,
             p_amount_to_pay: amountToPay
         });
 
@@ -344,7 +347,7 @@ const CardsTab = ({ onUpdate }) => {
     };
 
     const getStatusText = (status) => {
-        const texts = { paid: 'Paga', open: 'Aberta', closed: 'Fechada', overdue: 'Vencida' };
+        const texts = { paid: 'Quitada', open: 'Aberta', closed: 'Fechada', overdue: 'Vencida' };
         return texts[status] || status;
     }
 
@@ -506,7 +509,7 @@ const CardsTab = ({ onUpdate }) => {
                    </div>
                    {paginatedInvoices.length > 0 ? (
                       <>
-                        <Table>
+                        <Table page={invoicePage}>
                           <TableHeader>
                               <TableRow>
                                   <TableHead>Cartão</TableHead>
@@ -525,8 +528,8 @@ const CardsTab = ({ onUpdate }) => {
                                         <TableRow>
                                             <TableCell>{card ? `${card.brand} final ${card.card_number.slice(-4)}` : '-'}</TableCell>
                                             <TableCell>{formatLocaleBR(new Date(invoice.due_date), 'toLocaleDateString', 'pt-BR')}</TableCell>
-                                            <TableCell>{formatCurrency(invoice.amount)}</TableCell>
-                                            <TableCell><Badge variant={getStatusVariant(invoice.status)}>{getStatusText(invoice.status)}</Badge></TableCell>
+                                            <TableCell>{formatCurrency(invoice.amount)}<p className="text-xs text-muted-foreground">Compras: {formatCurrency(invoice.charges_total??invoice.amount)} · Pagamentos: {formatCurrency(invoice.payments_total||0)}</p></TableCell>
+                                            <TableCell><Badge variant={getStatusVariant(Number(invoice.amount)<=0?'paid':invoice.status)}>{getStatusText(Number(invoice.amount)<=0?'paid':invoice.status)}</Badge></TableCell>
                                             <TableCell className="text-right">
                                                 <Button size="icon" variant="ghost" onClick={() => setExpandedInvoice(isExpanded ? null : invoice.id)}>
                                                     {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}

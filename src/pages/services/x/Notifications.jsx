@@ -1,3 +1,4 @@
+import {notificationText} from '@/lib/notificationPresentation';
 import React, { useState, useEffect, useCallback } from 'react';
 import { useDomainRealtime } from '@/hooks/use-domain-realtime';
 import { Helmet } from 'react-helmet-async';
@@ -107,7 +108,7 @@ const XNotifications = () => {
                                             <img src={notification.sender.x_avatar_url} alt="sender avatar" className="w-8 h-8 rounded-full mb-2" />
                                         )}
                                         <p className="text-sm text-foreground">
-                                            <span className="font-bold">{notification.sender?.x_username || 'Alguém'}</span> {notification.content}
+                                            <span className="font-bold">{notification.sender?.x_username || 'Alguém'}</span> {notificationText(notification)}
                                         </p>
                                         <p className="text-sm text-muted-foreground">
                                             {formatDistanceToNow(new Date(notification.created_at), { addSuffix: true, locale: ptBR })}

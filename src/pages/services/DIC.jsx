@@ -614,16 +614,16 @@ const DIC = () => {
             </Dialog>
             <AlertDialog open={!!deletingDoc} onOpenChange={() => setDeletingDoc(null)}>
                 <AlertDialogContent>
-                    <AlertDialogHeader>
+                    <AlertDialogHeader className="items-center text-center sm:text-center"><Building className="h-10 w-10 text-destructive"/>
                         <AlertDialogTitle>Encerrar Empresa</AlertDialogTitle>
                         <AlertDialogDescription>
                             Tem certeza que deseja encerrar a empresa com o CNPJ {deletingDoc?.document_number}? Este registro será encerrado. A empresa, seus produtos e o histórico serão preservados.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
-                    <AlertDialogFooter>
-                        <AlertDialogCancel disabled={!!requesting}>Cancelar</AlertDialogCancel>
+                    <AlertDialogFooter className="sm:justify-center">
+                        <AlertDialogCancel disabled={!!requesting}><X className="mr-2 h-4 w-4"/>Cancelar</AlertDialogCancel>
                         <AlertDialogAction onClick={handleConfirmDelete} disabled={!!requesting} className="bg-destructive hover:bg-destructive/90">
-                            {requesting ? <Loader2 className="animate-spin" /> : "Confirmar Encerramento"}
+                            {requesting ? <Loader2 className="animate-spin" /> : <><Building className="mr-2 h-4 w-4"/>Confirmar Encerramento</>}
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>

@@ -1,3 +1,6 @@
+import {Map as WorldMapIcon} from 'lucide-react';
+import {Link as WorldMapLink} from 'react-router-dom';
+import {NotificationsProvider} from '@/contexts/NotificationsContext';
 import { InvitationsProvider } from '@/contexts/InvitationsContext';
 import { PopupQueueProvider } from '@/contexts/PopupQueueContext';
 import { isEmbeddedPhone } from '@/lib/embeddedPhone';
@@ -152,7 +155,7 @@ const MainLayout = ({ children }) => {
           className="h-[calc(4.75rem+env(safe-area-inset-bottom))] md:hidden"
         />
       )}
-      <ScrollToTop /><CitizenNeedsHUD /><CitizenPhone />
+      <ScrollToTop /><CitizenNeedsHUD /><CitizenPhone />{user?.onboarding_completed&&<WorldMapLink to="/world-map" aria-label="Abrir Mapa Mundial" title="Mapa Mundial" className="fixed bottom-[9.25rem] left-5 z-40 hidden h-12 w-12 items-center justify-center rounded-full border-4 border-background bg-indigo-700 text-white shadow-lg focus-visible:ring-2 focus-visible:ring-ring md:flex"><WorldMapIcon className="h-6 w-6"/></WorldMapLink>}
     </>
   );
 };
@@ -177,6 +180,8 @@ function App() {
   );
 }
 
+const WorldMap=React.lazy(()=>import('@/pages/WorldMap'));
+
 const AppShell = ({ location, theme, isAuthCallback }) => {
   const { user } = useAuth();
   const rolePool = Array.isArray(user?.effective_roles)
@@ -193,7 +198,7 @@ const AppShell = ({ location, theme, isAuthCallback }) => {
       : location.pathname;
 
   return (
-    <CitizenNeedsProvider><PopupQueueProvider key={citizenScope}><InvitationsProvider><CartProvider key={citizenScope} storageKey={`govrp_cart:${citizenScope}`}>
+    <NotificationsProvider><CitizenNeedsProvider><PopupQueueProvider key={citizenScope}><InvitationsProvider><CartProvider key={citizenScope} storageKey={`govrp_cart:${citizenScope}`}>
     <GlobalSiteAvailabilityGate pathname={location.pathname} isAdmin={isAdmin}>
       <div className={`${theme} min-h-screen bg-background text-foreground custom-scrollbar`}>
         <NativeRuntime />
@@ -215,6 +220,7 @@ const AppShell = ({ location, theme, isAuthCallback }) => {
                 <Route path="/forgot-password" element={<ForgotPassword />} />
                 <Route path="/update-password" element={<UpdatePassword />} />
                 <Route path="/about" element={<About />} />
+                <Route path="/world-map" element={<ServiceProtectedRoute><React.Suspense fallback={<p className="p-6" role="status">Carregando mapa…</p>}><WorldMap/></React.Suspense></ServiceProtectedRoute>}/>
                 <Route path="/country-info" element={<CountryInfo />} />
                 <Route path="/contact" element={<Navigate to="/support" replace />} />
                 <Route path="/account-deletion" element={<AccountDeletion />} />
@@ -321,7 +327,7 @@ const AppShell = ({ location, theme, isAuthCallback }) => {
         </div>
       </div>
     </GlobalSiteAvailabilityGate>
-    </CartProvider></InvitationsProvider></PopupQueueProvider></CitizenNeedsProvider>
+    </CartProvider></InvitationsProvider></PopupQueueProvider></CitizenNeedsProvider></NotificationsProvider>
   );
 };
 

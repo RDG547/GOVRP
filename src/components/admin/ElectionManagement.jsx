@@ -1,3 +1,4 @@
+import PagedResults from '@/components/ui/paged-results';
 import { useSearchParams } from 'react-router-dom';
 import { useDomainRealtime } from '@/hooks/use-domain-realtime';
 import { electoralCalendarPayload } from '@/lib/electoralCalendar';
@@ -234,7 +235,7 @@ const ElectionManagement = () => {
     const { toast } = useToast();
 
     const fetchElections = useCallback(async () => {
-        const sequence = ++request.current;
+        const sequence = ++request.current;setLoading(true);
         let query = supabase.from('elections').select('*, election_types(name)', { count: 'exact' }).is('archived_at', null).order('created_at', { ascending: false }).order('id');
         if (status !== 'all') query = query.eq('status', status);
         if (search.trim()) query = query.ilike('name', `%${search.trim().replaceAll('%', '\\%').replaceAll('_', '\\_')}%`);
@@ -292,7 +293,9 @@ const ElectionManagement = () => {
                 <label className="text-sm"><span className="mb-1 flex items-center gap-2"><Search className="h-4 w-4"/>Buscar eleição</span><Input value={search} onChange={event => changeFilter({ electionSearch: event.target.value, electionPage: 1 })} /></label>
                 <label className="text-sm">Status da eleição<GovSelect value={status} onChange={event => changeFilter({ electionStatus: event.target.value, electionPage: 1 })}><option value="all">Todos os status</option>{Object.entries(statusTranslations).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</GovSelect></label>
             </div>
-            {loading ? (
+            {loading && <p role="status" className="text-sm">Atualizando eleições…</p>}
+            <PagedResults page={page} loading={loading}>
+            {loading && !elections.length ? (
                 <div className="flex justify-center py-10"><Loader2 className="w-8 h-8 animate-spin text-blue-400" /></div>
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -323,10 +326,11 @@ const ElectionManagement = () => {
                 </div>
             )}
 
-            {!loading && <nav aria-label="Páginas de eleições" className="flex flex-wrap items-center justify-center gap-3">
-                <Button variant="outline" disabled={page <= 1} onClick={() => changeFilter({ electionPage: page - 1 })}><ChevronLeft className="mr-1 h-4 w-4"/>Anterior</Button>
+            </PagedResults>
+            {<nav aria-label="Páginas de eleições" className="flex flex-wrap items-center justify-center gap-3">
+                <Button variant="outline" disabled={loading || page <= 1} onClick={() => changeFilter({ electionPage: page - 1 })}><ChevronLeft className="mr-1 h-4 w-4"/>Anterior</Button>
                 <span role="status" className="text-sm">Página {page} de {Math.max(1, Math.ceil(count / pageSize))} · {count} eleições</span>
-                <Button variant="outline" disabled={page * pageSize >= count} onClick={() => changeFilter({ electionPage: page + 1 })}>Próxima<ChevronRight className="ml-1 h-4 w-4"/></Button>
+                <Button variant="outline" disabled={loading || page * pageSize >= count} onClick={() => changeFilter({ electionPage: page + 1 })}>Próxima<ChevronRight className="ml-1 h-4 w-4"/></Button>
             </nav>}
             {!loading && !elections.length && <p className="text-center text-muted-foreground">Nenhuma eleição corresponde aos filtros.</p>}
             <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>

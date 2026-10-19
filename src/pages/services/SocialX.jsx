@@ -1,3 +1,4 @@
+import {XIdentityProvider} from '@/components/social-x/AdminIdentity';
 import { usePhoneApp } from '@/contexts/PhoneAppContext';
 import React, { useState, useRef } from 'react';
     import { Routes, Route, Navigate, Outlet, useLocation } from 'react-router-dom';
@@ -33,7 +34,7 @@ import React, { useState, useRef } from 'react';
         }
 
         return (
-            <>
+            <XIdentityProvider>
                 <Helmet>
                     <title>X - GOV.RP</title>
                     <meta name="description" content="Conecte-se, compartilhe e debata na rede social do GOV.RP." />
@@ -71,7 +72,7 @@ import React, { useState, useRef } from 'react';
                         <CreatePostForm ref={postInputRef} onPostCreated={() => setIsPostModalOpen(false)} />
                     </DialogContent>
                 </Dialog>
-            </>
+            </XIdentityProvider>
         );
     };
 

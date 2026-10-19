@@ -1,3 +1,4 @@
+import {notificationText} from '@/lib/notificationPresentation';
 import {usePopupSlot,PopupQueueActions} from '@/contexts/PopupQueueContext';
 import SignedProfit from './business/SignedProfit';
 import React, { useCallback, useEffect, useState } from 'react';
@@ -191,7 +192,7 @@ export function BusinessBalanceView({ notification, onDismiss }) {
               </p>
               <h3 className="text-2xl font-bold text-foreground"><SignedProfit value={netResult}/></h3>
               <p className="text-sm text-muted-foreground">
-                {notification.content || 'O balanço anual da sua empresa foi processado automaticamente.'}
+                {notificationText(notification) || 'O balanço anual da sua empresa foi processado automaticamente.'}
               </p>
             </div>
 

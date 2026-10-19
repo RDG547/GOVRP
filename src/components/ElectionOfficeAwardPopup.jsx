@@ -1,3 +1,4 @@
+import {notificationText} from '@/lib/notificationPresentation';
 import {useInvitations} from '@/contexts/InvitationsContext';
 import {usePopupSlot,PopupQueueActions} from '@/contexts/PopupQueueContext';
 import CelebrationBackdrop from '@/components/CelebrationBackdrop';
@@ -110,7 +111,7 @@ export function OfficeNotificationView({notification,saving=false,now=Date.now()
      <DialogHeader className="text-center sm:text-center">
        <Icon className={`mx-auto mb-3 h-10 w-10 ${info.loss ? 'text-slate-400' : 'text-amber-400'}`} />
        <DialogTitle>{isResult?resultTitle:info.title}</DialogTitle>
-       <DialogDescription>{isResult?'Conheça os representantes eleitos e suas respectivas chapas.':notification.content}</DialogDescription>
+       <DialogDescription>{isResult?'Conheça os representantes eleitos e suas respectivas chapas.':notificationText(notification)}</DialogDescription>
      </DialogHeader><PopupQueueActions/>
      {!isResult&&<p className="text-2xl font-semibold">{info.role}</p>}
      {info.description && <p className="text-sm text-muted-foreground">{info.description}</p>}
