@@ -1,3 +1,4 @@
+import {businessTypeIcon} from '@/lib/commerceIcons';
 import PagedResults from '@/components/ui/paged-results';
 import React, {useCallback,useEffect,useRef,useState} from 'react';
 import {Link,useSearchParams} from 'react-router-dom';
@@ -42,7 +43,7 @@ export default function CountryCompanies({types=[]}) {
   {error&&<p role="alert">{error}<Button onClick={load} variant="link">Tentar novamente</Button></p>}
   {!busy&&!error&&!result.companies.length&&<p className="flex items-center gap-2 py-10 text-muted-foreground"><Search/>Nenhuma empresa corresponde aos filtros.</p>}
   <PagedResults page={offset/36} loading={busy}><div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{result.companies.map(b=><Link key={b.id} to={`/services/companies/${b.id}`} className="min-w-0 space-y-3 rounded-xl border p-4 hover:bg-secondary focus-visible:ring-2 focus-visible:ring-ring">
-   <div className="flex items-center gap-3">{b.logo_url?<img src={b.logo_url} alt="" className="h-12 w-12 shrink-0 rounded object-contain"/>:<Building2 className="h-12 w-12 shrink-0 p-2 text-cyan-400"/>}<h3 className="break-words text-lg font-semibold">{b.name}</h3></div>
+   <div className="flex items-center gap-3">{b.logo_url?<img src={b.logo_url} alt="" className="h-12 w-12 shrink-0 rounded object-contain"/>:React.createElement(businessTypeIcon({id:b.business_type_id||b.type,name:b.activity,category:b.sector}),{className:'h-12 w-12 shrink-0 p-2 text-cyan-400'})}<h3 className="break-words text-lg font-semibold">{b.name}</h3></div>
    <p className="text-sm">{b.activity} · {SIZE_NAMES[b.size_class]}</p><p className="break-words text-sm">Proprietário: {b.owner_name}</p>
    <p className="flex flex-wrap items-center gap-2 text-sm">Sede: {b.region_code&&<BrazilStateFlag code={b.region_code} className="h-5 w-7"/>}{getStateName(b.region_code)||'Não informada'}</p>
    <p>Valor: {companyMoney(b.market_value)}</p><p className="text-sm">{COMPANY_STATUS[b.operational_status]||({active:'Ativa',suspended:'Suspensa',closed:'Encerrada'})[b.status]}</p>

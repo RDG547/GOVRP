@@ -1,0 +1,19 @@
+import React,{useCallback,useEffect,useId,useRef,useState} from 'react';
+import {HeartHandshake,Check,X,Loader2,Wallet} from 'lucide-react';
+import {useAuth} from '@/contexts/AuthContext';
+import {supabase} from '@/lib/supabaseClient';
+import {useDomainRealtime} from '@/hooks/use-domain-realtime';
+import {formatCurrency,parseCurrency} from '@/lib/utils';
+import {useToast} from '@/components/ui/use-toast';
+import {Button} from '@/components/ui/button';
+import {CurrencyInput} from '@/components/ui/currency-input';
+import {Label} from '@/components/ui/label';
+import {Dialog,DialogContent,DialogHeader,DialogTitle,DialogDescription,DialogFooter} from '@/components/ui/dialog';
+export default function PartyDonationDialog({party,label='Doar para o partido',onDonated,className=''}){
+ const {user}=useAuth(),{toast}=useToast(),id=useId(),intent=useRef(null);const [open,setOpen]=useState(false),[amount,setAmount]=useState(''),[balance,setBalance]=useState(null),[busy,setBusy]=useState(false);
+ const load=useCallback(async()=>{if(!user?.id)return;const r=await supabase.from('accounts').select('balance').eq('user_id',user.id).eq('account_kind','personal').limit(1).maybeSingle();if(!r.error)setBalance(r.data?Number(r.data.balance):null);},[user?.id]);
+ useEffect(()=>{if(open)void load();},[open,load]);useDomainRealtime('party-donor-balance',user?.id,[{table:'accounts',filter:`user_id=eq.${user?.id}`}],load,open&&Boolean(user?.id));
+ const donate=async()=>{const value=parseCurrency(amount);if(busy||!Number.isFinite(value)||value<=0)return;if(intent.current?.amount!==value||intent.current?.party!==party.id)intent.current={key:crypto.randomUUID(),amount:value,party:party.id};setBusy(true);try{const r=await supabase.rpc('donate_to_party',{p_party_id:party.id,p_amount:value,p_idempotency_key:intent.current.key});if(r.error)throw r.error;intent.current=null;setOpen(false);setAmount('');void onDonated?.();toast({title:'Doação registrada',description:'O débito está no seu extrato e a entrada está na tesouraria do partido.'});}catch(e){console.error('Doação partidária recusada',e);toast({title:'Doação não concluída',description:/saldo|limite|doaç|partido|norma|período/i.test(e.message||'')?e.message:'Não foi possível confirmar. Tente novamente; a confirmação não duplica a cobrança.',variant:'destructive'});}finally{setBusy(false);}};
+ if(!user||party.status==='Encerrado')return null;
+ return <><Button className={className} onClick={()=>setOpen(true)}><HeartHandshake className="mr-2 h-4 w-4"/>{label}</Button><Dialog open={open} onOpenChange={next=>{if(!busy)setOpen(next);}}><DialogContent className="max-w-md"><DialogHeader>{party.logo_url&&<img src={party.logo_url} alt="" className="mx-auto h-16 w-16 rounded-lg object-contain"/>}<DialogTitle>Doar para {party.name} ({party.acronym})</DialogTitle><DialogDescription>O valor sai da sua conta pessoal e entra no caixa partidário. A doação será registrada na transparência.</DialogDescription></DialogHeader><p className="flex items-center justify-center gap-2 text-sm"><Wallet className="h-4 w-4"/>Saldo disponível: {balance===null?'Conta indisponível':formatCurrency(balance)}</p><Label htmlFor={id}>Valor da doação</Label><CurrencyInput id={id} value={amount} disabled={busy} placeholder="R$ 0,00" onChange={e=>setAmount(formatCurrency(e.target.value,true))}/><DialogFooter><Button variant="outline" disabled={busy} onClick={()=>setOpen(false)}><X className="mr-2 h-4 w-4"/>Cancelar</Button><Button disabled={busy||balance===null||!(parseCurrency(amount)>0)||parseCurrency(amount)>balance} onClick={donate}>{busy?<Loader2 className="mr-2 h-4 w-4 animate-spin"/>:<Check className="mr-2 h-4 w-4"/>}Confirmar doação</Button></DialogFooter></DialogContent></Dialog></>;
+}

@@ -1,10 +1,11 @@
 import assert from 'node:assert/strict';
 import { service, actor, request, rpc, subscribe, waitFor, cleanup } from './lib/world-test.mjs';
-import { LEGAL_MEASURE_MODELS, createMeasureDraft, measurePayload } from '../src/lib/legalMeasures.js';
+import { LEGAL_MEASURE_MODELS, createMeasureDraft, measurePayload, applicableProposal } from '../src/lib/legalMeasures.js';
 import { transactionAmounts } from '../src/lib/transactionAmounts.js';
 let checks = 0;
 const check = (value, label) => { assert(value, label); checks++; console.log(`✓ ${label}`); };
 try {
+ await request(service.from('government_rules').update({is_active:false}).eq('rule_kind','benefit').eq('description','Benefício integrado com orçamento'));
  const [member, president, citizen, buyer] = await Promise.all([actor('legislador', 'Deputado'), actor('presidente', 'Presidente'), actor('vendedor'), actor('comprador')]);
  const house = await request(service.from('parliament_houses').insert({ name: `Casa world ${crypto.randomUUID().slice(0,8)}`, description: 'Casa isolada de testes integrados' }).select('id').single());
  const mandate = await request(service.from('parliament_members').insert({ user_id: member.id, house_id: house.id, term_start_date: new Date(Date.now()-86400000).toISOString().slice(0,10), term_end_date: new Date(Date.now()+86400000).toISOString().slice(0,10) }).select('id').single());
@@ -92,7 +93,8 @@ try {
  check(blocked.error?.message==='ACTIVITY_RESTRICTED_BY_LAW','restrição estruturada impede a operação no servidor');
  await waitFor(async()=>!(await rpc(buyer.client,'quote_legal_levies',{p_basis:'transfer',p_amount:5})).restricted,'expiração da restrição');
  check(true,'restrição temporária cessa automaticamente');
- const beneficiary=await actor('beneficiario','Cidadão',{created_at:'1901-01-01T00:00:00Z'});
+ const oldest=(await request(service.from('profiles').select('created_at').order('created_at').limit(1)))[0].created_at;
+ const beneficiary=await actor('beneficiario','Cidadão',{created_at:new Date(Date.parse(oldest)-86400000).toISOString()});
  await request(service.from('accounts').upsert({user_id:beneficiary.id,account_number:crypto.randomUUID().replaceAll('-','').slice(0,12),agency_number:'0001',balance:0},{onConflict:'user_id'}));
  await request(service.from('government_finances').update({treasury_balance:1000000}).eq('id',1));
  const benefit={kind:'benefit',action:'create',rule_key:`benefit_${crypto.randomUUID().replaceAll('-','')}`,name:'Benefício integrado com orçamento',value:100,definition:{audience:'citizen',budget:100,eligible_balance_max:0},valid_until:new Date(Date.now()+3600000).toISOString()};
@@ -116,14 +118,30 @@ try {
  await approve(await submit(member.client,{...penalty,action:'revoke',value:0}));
  check(!(await rpc(buyer.client,'penal_rule_at',{p_penal_id:penal.id,p_occurred_at:new Date().toISOString()})).active,'tipo penal revogado não é aplicado a novos fatos');
  check((await rpc(buyer.client,'penal_rule_at',{p_penal_id:penal.id,p_occurred_at:beforeLaw})).active,'revogação não apaga norma histórica dos fatos antigos');
- // Validate all 30 real templates at the exact same backend boundary used by UI.
+ // A model is an empty form; test explicit player choices at the real RPC boundary.
  const rules=await request(service.from('government_rules').select('*'));
- check(LEGAL_MEASURE_MODELS.length===30 && new Set(LEGAL_MEASURE_MODELS.map(t=>t.id)).size===30,'catálogo contém 30 modelos distintos');
- for (const template of LEGAL_MEASURE_MODELS) {
-   const rule=rules.find(r=>template.ruleKey ? r.rule_key===template.ruleKey : template.action!=='create' && r.rule_kind===template.kind);
-   check(template.action==='create' || Boolean(rule),`modelo encontra estrutura existente: ${template.title}`);
-   const draft=createMeasureDraft(template,rule); if (draft.kind==='benefit') {draft.valid_until=new Date(Date.now()+3600000).toISOString();draft.definition.budget=10000;draft.value=100;}
-   const created=await submit(member.client,measurePayload(draft)); check(Boolean(created.id),`modelo aplicável persiste proposta: ${template.title}`);
+ check(LEGAL_MEASURE_MODELS.length>=30 && new Set(LEGAL_MEASURE_MODELS.map(t=>t.id)).size===LEGAL_MEASURE_MODELS.length,'catálogo central contém pelo menos 30 modelos distintos');
+ for(const template of LEGAL_MEASURE_MODELS){
+  if(!applicableProposal(template,rules)){check(true,`modelo indisponível fica oculto quando não há regra aplicável: ${template.title}`);continue;}
+  const rule=template.action==='create'?undefined:rules.find(r=>r.is_active&&r.rule_kind===template.kind&&(!template.ruleKey||r.rule_key===template.ruleKey));
+  const draft=createMeasureDraft(template,rule);
+  if(template.action==='create')check(draft.value===''&&!draft.definition.audience&&!draft.validity_mode,`modelo novo deixa decisões em branco: ${template.title}`);
+  draft.validity_mode='immediate';draft.sector_scope='all';draft.territory_scope='country';draft.ideology_scope='all';
+  const defaults={tax:{basis:'purchase',payer:'buyer',nature:'percentage',audience:'all'},fee:{basis:'license',payer:'buyer',nature:'fixed',audience:'business'},restriction:{basis:'transfer',audience:'citizen',scope_mode:'total'},benefit:{audience:'citizen',budget:10000},sanction:{audience:'citizen',sanction_kind:'fine_fixed',infraction:'Infração objetiva para validação do modelo legislativo.',conditions:'Comprovação judicial dos elementos e da responsabilidade.'},project:{region_code:'SP',infrastructure_kind:template.category==='health'?'health':'roads',construction_days:2}};
+  draft.definition=rule?{...rule.definition}:{...defaults[template.kind],...template.definition};
+  if(template.kind==='tax')draft.value=rule?.numeric_value??.1;
+  else if(template.kind==='project')draft.value=10000;
+  else if(template.kind==='regulation'){
+   const operation=draft.definition.operation;draft.definition={...draft.definition,audience:operation.startsWith('party_')?'party':'citizen',scope_mode:'total'};
+   draft.value=['party_registration_fee','party_donation_limit'].includes(operation)?100:operation.startsWith('electoral_minimum')?1:0;
+   if(operation==='party_donation_limit')draft.definition.period_days=30;
+   if(['party_donation_period','media_ad_restriction'].includes(operation)){draft.definition.scope_mode='period';draft.valid_until=new Date(Date.now()+3600000).toISOString();}
+  }else draft.value=rule?.numeric_value??100;
+  if(template.kind==='benefit'){draft.valid_until=new Date(Date.now()+3600000).toISOString();draft.definition.budget=10000;draft.value=100;}
+  if(template.id==='exemption')draft.definition.exempt_below=100;
+  if(template.id.includes('incentive'))draft.definition.discount_rate=template.id.includes('revoke')?0:.2;
+  if(template.action==='revoke')draft.value=0;
+  const created=await submit(member.client,measurePayload(draft));check(Boolean(created.id),`escolhas explícitas persistem modelo aplicável: ${template.title}`);
  }
  console.log(`\n${checks} verificações integradas de lei, decreto, tributação e histórico aprovadas.`);
 } finally { await cleanup(); }

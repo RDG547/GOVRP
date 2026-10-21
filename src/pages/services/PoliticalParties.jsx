@@ -1,3 +1,4 @@
+import PartyDonationDialog from '@/components/parties/PartyDonationDialog';
 import { usePublicProfileChanges } from '@/hooks/use-public-profile-changes';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { brandFont } from '@/lib/brandFonts';
@@ -263,7 +264,7 @@ const PoliticalParties = () => {
                                         </CardContent>
                                         <CardFooter className="flex-col gap-2 items-center">
                                             <div className="w-full flex flex-col sm:flex-row gap-2">
-                                                {renderAffiliationButton(party)}
+                                                {renderAffiliationButton(party)}<PartyDonationDialog party={party} label="Doar" className="w-full"/>
                                                 <Link to={`/services/political-parties/${party.id}`} className="w-full">
                                                     <Button variant="outline" className="w-full"><Info className="mr-2 h-4 w-4" />Detalhes</Button>
                                                 </Link>

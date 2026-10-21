@@ -10,6 +10,7 @@ export function NotificationsProvider({children}){
  useEffect(()=>{setItems([]);setUnread(0);void refresh();},[refresh]);
  useDomainRealtime('notification-feed',user?.id,[{table:'notifications',filter:`user_id=eq.${user?.id}`}],refresh,Boolean(user?.id));
  const markRead=async id=>{const query=supabase.from('notifications').update({is_read:true}).eq('user_id',user.id);const r=await(id?query.eq('id',id):query.eq('is_read',false));if(!r.error)await refresh();};
+ const dismissPhone=async value=>{const ids=Array.isArray(value)?value:[value];const now=new Date().toISOString();setItems(current=>current.map(n=>ids.includes(n.id)?{...n,phone_dismissed_at:now}:n));const r=await supabase.rpc('dismiss_phone_notifications',{p_ids:ids});if(r.error){console.error('Dispensar avisos do celular',r.error);await refresh();}return !r.error;};
  const clear=async()=>{const r=await supabase.from('notifications').delete().eq('user_id',user.id);if(r.error)throw r.error;await refresh();};
- return <Context.Provider value={{items,unread,refresh,markRead,clear}}>{children}</Context.Provider>;
+ return <Context.Provider value={{items,unread,refresh,markRead,clear,dismissPhone}}>{children}</Context.Provider>;
 }

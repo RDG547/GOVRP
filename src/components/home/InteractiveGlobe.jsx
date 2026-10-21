@@ -22,7 +22,7 @@ import {
 import { feature as topoFeature } from 'topojson-client';
 import isoCountries from 'iso-3166-1';
 import worldAtlas from 'world-atlas/countries-110m.json';
-import { loadCountryProfile } from '@/lib/countryProfile';
+import { loadCountryProfile,preloadCountryBasics,getCountryBasics } from '@/lib/countryProfile';
 import { useCountryRpProfile } from '@/hooks/use-country-rp-profile';
 
 const VIEWBOX_SIZE = 620;
@@ -184,6 +184,7 @@ const InteractiveGlobe = () => {
   const [selectedCountryId, setSelectedCountryId] = useState(null);
   const [isCountryMenuOpen, setIsCountryMenuOpen] = useState(false);
   const [countrySearch, setCountrySearch] = useState('');
+  useEffect(()=>{void preloadCountryBasics().catch(()=>{});},[]);
   const [countryProfile, setCountryProfile] = useState(null);
   const [profileStatus, setProfileStatus] = useState('idle');
   const rotationPausedRef = useRef(false);
@@ -287,8 +288,8 @@ const InteractiveGlobe = () => {
       return undefined;
     }
 
-    setCountryProfile(null);
-    setProfileStatus('loading');
+    const cached=getCountryBasics(selectedCountry.info.alpha2);setCountryProfile(cached);setProfileStatus(cached?'refreshing':'loading');
+    void preloadCountryBasics().then(()=>{if(isCurrentSelection){setCountryProfile(previous=>previous||getCountryBasics(selectedCountry.info.alpha2));setProfileStatus(previous=>previous==='loading'?'refreshing':previous);}}).catch(()=>{});
 
     const refreshProfile = (force = false) => loadCountryProfile({
       ...selectedCountry.info,
@@ -296,7 +297,7 @@ const InteractiveGlobe = () => {
     }).then((profile) => {
       if (!isCurrentSelection) return;
 
-      setCountryProfile(profile);
+      setCountryProfile({...getCountryBasics(selectedCountry.info.alpha2),...profile,capital:getCountryBasics(selectedCountry.info.alpha2)?.capital,economy:{...profile.economy,population:profile.economy?.population||getCountryBasics(selectedCountry.info.alpha2)?.economy?.population}});
       setProfileStatus(profile.unavailable ? 'error' : 'ready');
     }).catch(() => {
       if (!isCurrentSelection) return;
@@ -765,7 +766,7 @@ const InteractiveGlobe = () => {
                     Demografia e território
                   </h4>
                   <dl className="grid grid-cols-2 gap-1.5">
-                    <ProfileMetric
+                    <ProfileMetric label="Capital" value={displayedCountryProfile?.capital||'Não cadastrada'}/><ProfileMetric
                       label="População total"
                       value={formatPopulation(economicData?.population?.value)}
                       detail={indicatorDetail(economicData?.population)}

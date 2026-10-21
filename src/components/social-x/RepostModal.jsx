@@ -18,6 +18,7 @@ const RepostModal = ({ post, open, onOpenChange, onReposted }) => {
     if (!post) return null;
 
     const handleRepost = async () => {
+        if (isSubmitting) return;
         setIsSubmitting(true);
         const { error } = await supabase.rpc('create_repost', {
             p_post_id: post.id,

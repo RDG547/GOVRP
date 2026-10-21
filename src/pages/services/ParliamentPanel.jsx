@@ -256,8 +256,6 @@ const ParliamentPanel = () => {
   const [commissionTypeFilter, setCommissionTypeFilter] = useState('all');
   const [commissionStatusFilter, setCommissionStatusFilter] = useState('all');
   const [isProposeBillOpen, setIsProposeBillOpen] = useState(false);
-  const [newBill, setNewBill] = useState({ title: '', summary: '', full_text: '', type: 'PL', effect_key: 'none', effect_operation: 'set', effect_value: '', effect_explanation: '' });
-  const [proposingBill, setProposingBill] = useState(false);
   const [votingOn, setVotingOn] = useState(null);
   const [commissionActionId, setCommissionActionId] = useState('');
   const [leadershipActionId, setLeadershipActionId] = useState('');
@@ -630,58 +628,6 @@ const ParliamentPanel = () => {
       type: 'temporary',
     });
 
-  const handleProposeBill = async () => {
-    if (!house) {
-      return;
-    }
-
-    setProposingBill(true);
-    try {
-      const { data: createdBill, error } = await supabase.rpc('propose_parliament_bill_with_effect', {
-        p_title: newBill.title,
-        p_summary: newBill.summary,
-        p_full_text: newBill.full_text,
-        p_type: newBill.type,
-        p_house_id: house.id,
-        p_effect_key: newBill.effect_key === 'none' ? null : newBill.effect_key,
-        p_effect_operation: newBill.effect_operation,
-        p_effect_value: newBill.effect_key === 'none' ? null : Number(newBill.effect_value),
-        p_effect_explanation: newBill.effect_explanation || newBill.summary,
-      });
-      if (error) {
-        throw error;
-      }
-
-      try {
-        await publishBillProposedNews(supabase, {
-          bill: {
-            ...createdBill,
-            title: newBill.title,
-            summary: newBill.summary,
-            type: newBill.type,
-          },
-          authorName: user.full_name || user.email,
-          houseName: house.name,
-        });
-      } catch (newsError) {
-        console.error('Erro ao publicar notícia de projeto:', newsError);
-      }
-
-      toast({ title: 'Sucesso', description: 'Projeto proposto com sucesso.' });
-      setIsProposeBillOpen(false);
-      setNewBill({ title: '', summary: '', full_text: '', type: 'PL', effect_key: 'none', effect_operation: 'set', effect_value: '', effect_explanation: '' });
-      fetchPanelData();
-    } catch (error) {
-      toast({
-        title: 'Erro ao propor projeto',
-        description: error.message,
-        variant: 'destructive',
-      });
-    } finally {
-      setProposingBill(false);
-    }
-  };
-
   const handleSuggestionStatus = async (suggestionId, status) => {
     try {
       if (status === 'aceita') {
@@ -1045,7 +991,7 @@ const ParliamentPanel = () => {
 
   if (!accessData.hasAccess) {
     return (
-      <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
+      <div className="mx-auto min-w-0 max-w-7xl px-4 py-12 sm:px-6 lg:px-8 [overflow-wrap:anywhere]">
         <Alert variant="destructive">
           <ShieldCheck className="h-4 w-4" />
           <AlertTitle>Acesso negado</AlertTitle>
@@ -1061,7 +1007,7 @@ const ParliamentPanel = () => {
         <title>Painel do Parlamento - GOV.RP</title>
       </Helmet>
 
-      <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
+      <div className="mx-auto min-w-0 max-w-7xl px-4 py-12 sm:px-6 lg:px-8 [overflow-wrap:anywhere]">
         <PageHeader
           icon={Scale}
           title="Painel do"
@@ -1145,7 +1091,6 @@ const ParliamentPanel = () => {
           >
             {house?.name?.toLocaleLowerCase('pt-BR').includes('câmara') && <TabsContent value="institutional"><InstitutionalProceedings houseId={house.id} memberId={parliamentMember?.id || parliamentMember?.parliament_member_id}/></TabsContent>}
             <TabsContent value="projects" className="space-y-6">
-              <LegalMeasureStudio houseId={house?.id} onCreated={() => fetchPanelData({ quiet: true })} />
               <DecreeOversight houseId={house?.id} onUpdated={() => fetchPanelData({ quiet: true })} />
               <Tabs value={activeSubTab} onValueChange={setActiveSubTab}>
                 <TabsList className="grid h-auto w-full grid-cols-2 items-stretch gap-2">
@@ -1219,7 +1164,7 @@ const ParliamentPanel = () => {
                                     <AvatarImage src={bill.author?.avatar_url} alt={bill.author?.full_name} />
                                     <AvatarFallback>{bill.author?.full_name?.charAt(0) || 'P'}</AvatarFallback>
                                   </Avatar>
-                                  <div className="flex-1">
+                                  <div className="min-w-0 flex-1">
                                     <CardTitle>
                                       {bill.title}{' '}
                                       <span className="text-sm font-normal text-muted-foreground">({bill.type})</span>
@@ -1768,7 +1713,7 @@ const ParliamentPanel = () => {
                                         <AvatarImage src={candidate.member?.profile?.avatar_url} />
                                         <AvatarFallback>{candidate.member?.profile?.full_name?.charAt(0) || 'C'}</AvatarFallback>
                                       </Avatar>
-                                      <div className="flex-1">
+                                      <div className="min-w-0 flex-1">
                                         <p className="font-medium text-foreground">
                                           {candidate.member?.profile?.full_name || 'Parlamentar'}
                                         </p>
@@ -1949,71 +1894,7 @@ const ParliamentPanel = () => {
         </Tabs>
       </div>
 
-      <Dialog open={isProposeBillOpen} onOpenChange={setIsProposeBillOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Propor Novo Projeto</DialogTitle>
-            <DialogDescription>Preencha os detalhes do seu projeto legislativo.</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div>
-              <Label htmlFor="bill-type">Tipo de Projeto</Label>
-              <Select value={newBill.type} onValueChange={(value) => setNewBill((current) => ({ ...current, type: value }))}>
-                <SelectTrigger id="bill-type">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="PL">Projeto de Lei (PL)</SelectItem>
-                  <SelectItem value="PEC">Proposta de Emenda à Constituição (PEC)</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label htmlFor="bill-title">Título</Label>
-              <Input
-                id="bill-title"
-                value={newBill.title}
-                onChange={(event) => setNewBill((current) => ({ ...current, title: event.target.value }))}
-              />
-            </div>
-            <div>
-              <Label htmlFor="bill-summary">Resumo</Label>
-              <Textarea
-                id="bill-summary"
-                value={newBill.summary}
-                onChange={(event) => setNewBill((current) => ({ ...current, summary: event.target.value }))}
-              />
-            </div>
-            <div>
-              <Label htmlFor="bill-content">Texto Completo</Label>
-              <Textarea
-                id="bill-content"
-                rows={10}
-                value={newBill.full_text}
-                onChange={(event) => setNewBill((current) => ({ ...current, full_text: event.target.value }))}
-              />
-            </div>
-            <div className="rounded-xl border border-cyan-500/20 bg-cyan-500/5 p-4">
-              <Label>Efeito prático da norma</Label>
-              <p className="mb-3 mt-1 text-xs text-muted-foreground">Se aplicável, defina qual regra do país mudará quando a norma entrar em vigor.</p>
-              <Select value={newBill.effect_key} onValueChange={(value) => setNewBill((current) => ({ ...current, effect_key: value }))}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>{LEGAL_EFFECT_OPTIONS.map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}</SelectContent>
-              </Select>
-              {newBill.effect_key !== 'none' ? <div className="mt-4 grid gap-4 sm:grid-cols-2"><div><Label>Forma da alteração</Label><Select value={newBill.effect_operation} onValueChange={(value) => setNewBill((current) => ({ ...current, effect_operation: value }))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="set">Definir valor</SelectItem><SelectItem value="add">Somar ao valor atual</SelectItem><SelectItem value="multiply">Multiplicar o valor atual</SelectItem></SelectContent></Select></div><div><Label htmlFor="bill-effect-value">Valor</Label>{newBill.effect_key==='business_license_fee'&&newBill.effect_operation!=='multiply'?<CurrencyInput decimal allowNegative={newBill.effect_operation==='add'} id="bill-effect-value" step="0.01" value={newBill.effect_value} onChange={(event) => setNewBill((current) => ({ ...current, effect_value: event.target.value }))} />:<Input id="bill-effect-value" type="number" step="0.01" value={newBill.effect_value} onChange={(event) => setNewBill((current) => ({ ...current, effect_value: event.target.value }))} />}</div><div className="sm:col-span-2"><Label htmlFor="bill-effect-explanation">Como o efeito será aplicado</Label><Textarea id="bill-effect-explanation" value={newBill.effect_explanation} onChange={(event) => setNewBill((current) => ({ ...current, effect_explanation: event.target.value }))} placeholder="Explique a consequência prática prevista no texto da norma." /></div></div> : null}
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsProposeBillOpen(false)}>
-              Cancelar
-            </Button>
-            <Button onClick={handleProposeBill} disabled={proposingBill || (newBill.effect_key !== 'none' && (!newBill.effect_value || newBill.effect_explanation.trim().length < 20))}>
-              {proposingBill ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-              Propor Projeto
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <LegalMeasureStudio hideTrigger open={isProposeBillOpen} onOpenChange={setIsProposeBillOpen} houseId={house?.id} onCreated={() => fetchPanelData({quiet:true})} />
 
       <Dialog open={isCommissionDialogOpen} onOpenChange={setIsCommissionDialogOpen}>
         <DialogContent>

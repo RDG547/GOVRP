@@ -1,3 +1,4 @@
+import PagedResults from '@/components/ui/paged-results';
 import DeleteElectionButton from '@/components/admin/DeleteElectionButton';
 import { AlignLeft, CalendarClock, Save } from 'lucide-react';
 import React, { useState, useEffect, useCallback } from 'react';
@@ -187,7 +188,8 @@ const ElectionManagement = () => {
                 </div>
             </div>
 
-            {loading ? (
+            <PagedResults page={page} loading={loading}>
+            {loading && !elections.length ? (
                 <div className="flex justify-center py-10"><Loader2 className="w-8 h-8 animate-spin text-blue-400" /></div>
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -221,6 +223,7 @@ const ElectionManagement = () => {
                 </div>
             </div>
 
+            </PagedResults>
             <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
                 <DialogContent className="sm:max-w-2xl">
                     <DialogHeader>

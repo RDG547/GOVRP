@@ -7,7 +7,9 @@ import {
 
 export const useCountryRpProfile = (country, realProfile) => {
   const alpha2 = country?.info?.alpha2 ?? null;
-  const [context, setContext] = useState(null);
+  const [loaded,setLoaded]=useState(null);
+  const context=loaded?.alpha2===alpha2?loaded.context:null;
+  const setContext=context=>setLoaded(context?{alpha2,context}:null);
 
   useEffect(() => {
     let active = true;
@@ -17,6 +19,7 @@ export const useCountryRpProfile = (country, realProfile) => {
       return undefined;
     }
 
+    setContext(null);
     const refresh = () => {
       loadCountryRpContext(alpha2)
         .then((nextContext) => {

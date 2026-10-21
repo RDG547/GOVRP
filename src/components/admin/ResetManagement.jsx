@@ -1,3 +1,4 @@
+import PagedResults from '@/components/ui/paged-results';
 import { formatLocaleBR } from '@/lib/dateTime';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
@@ -130,7 +131,7 @@ export default function ResetManagement() {
           <Button variant="ghost" size="sm" disabled={!selected.size} onClick={() => setSelected(new Set())}>Limpar seleção</Button>
           <span className="text-sm text-muted-foreground">{number(selected.size)} selecionado(s), incluindo outras páginas e filtros</span>
         </div>
-        {loading ? <p role="status" className="flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Carregando contas…</p> : (
+        <PagedResults page={currentPage} loading={loading}>{loading ? <p role="status" className="flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Carregando contas…</p> : (
           <div className="divide-y rounded-lg border">
             {visible.map((person) => <label key={person.id} className="flex cursor-pointer items-center gap-3 p-3">
               <Checkbox aria-label={`Selecionar ${person.full_name || person.username}`} checked={selected.has(person.id)} onCheckedChange={() => toggle(person.id)} />
@@ -144,6 +145,7 @@ export default function ResetManagement() {
           <div className="flex items-center gap-2"><Button variant="outline" size="sm" disabled={currentPage === 1} onClick={() => setPage(currentPage - 1)}>Anterior</Button><span className="text-xs">{currentPage} / {pageCount}</span><Button variant="outline" size="sm" disabled={currentPage === pageCount} onClick={() => setPage(currentPage + 1)}>Próxima</Button></div>
           <Button disabled={!selected.size || loading || !!loadError} onClick={() => openReset('selected_users')}><RotateCcw className="mr-2 h-4 w-4" />Resetar selecionados ({number(selected.size)})</Button>
         </div>
+        </PagedResults>
       </section>
       <div className="grid gap-4 lg:grid-cols-2">
         <section className="space-y-3 rounded-xl border p-4"><h3 className="font-semibold">Todos os cidadãos</h3><p className="text-sm text-muted-foreground">Reinicia todas as contas ativas, incluindo administradores. Remove a vida e os vínculos dos cidadãos; mantém o estado nacional e os indicadores do RP.</p><Button variant="outline" disabled={loading || !!loadError || !users.length} onClick={() => openReset('all_users')}>Revisar reset de todos</Button></section>

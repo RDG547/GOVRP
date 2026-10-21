@@ -1,3 +1,4 @@
+import {ModalPresentationContext,modalAction} from '@/contexts/ModalPresentationContext'
 import { phonePortal } from '@/contexts/PhoneAppContext'
 import { withServiceSuspension } from '@/contexts/ServiceSuspensionContext'
 import * as React from "react"
@@ -25,16 +26,16 @@ AlertDialogOverlay.displayName = AlertDialogPrimitive.Overlay.displayName
 
 const AlertDialogContent = React.forwardRef(({ className, ...props }, ref) => (
   <AlertDialogPortal>
-    <div data-modal-layer className="fixed inset-0 z-50 pointer-events-none">
+    <div data-modal-layer className="fixed inset-0 z-50 grid place-items-center pointer-events-none">
     <AlertDialogOverlay />
-    <AlertDialogPrimitive.Content
+    <ModalPresentationContext.Provider value={true}><AlertDialogPrimitive.Content
       ref={ref}
       className={cn(
-        "fixed left-[50vw] top-[50dvh] z-10 pointer-events-auto grid max-h-[calc(100dvh_-_2rem)] w-[calc(100%_-_2rem)] max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 overflow-y-auto rounded-lg border bg-background p-5 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:w-full sm:p-6",
+        "relative z-10 pointer-events-auto grid max-h-[calc(100dvh_-_2rem)] w-[calc(100%_-_2rem)] max-w-lg gap-4 overflow-y-auto rounded-lg border bg-background p-5 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 sm:w-full sm:p-6",
         "glass-effect border-white/10 text-white",
         className
       )}
-      {...props} />
+      {...props} /></ModalPresentationContext.Provider>
     </div>
   </AlertDialogPortal>
 ))
@@ -45,7 +46,7 @@ const AlertDialogHeader = ({
   ...props
 }) => (
   <div
-    className={cn("flex flex-col space-y-2 text-center sm:text-left", className)}
+    className={cn(className,"flex flex-col items-center space-y-2 text-center sm:text-center")}
     {...props} />
 )
 AlertDialogHeader.displayName = "AlertDialogHeader"
@@ -55,7 +56,7 @@ const AlertDialogFooter = ({
   ...props
 }) => (
   <div
-    className={cn("flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2", className)}
+    className={cn(className,"flex flex-col-reverse sm:flex-row items-center justify-center sm:justify-center gap-2")}
     {...props} />
 )
 AlertDialogFooter.displayName = "AlertDialogFooter"
@@ -73,16 +74,16 @@ const AlertDialogDescription = React.forwardRef(({ className, ...props }, ref) =
 ))
 AlertDialogDescription.displayName = AlertDialogPrimitive.Description.displayName
 
-const AlertDialogAction = React.forwardRef(({ className, ...props }, ref) => (
-  <AlertDialogPrimitive.Action ref={ref} className={cn(buttonVariants(), className)} {...props} />
+const AlertDialogAction = React.forwardRef(({ className, children, ...props }, ref) => (
+  <AlertDialogPrimitive.Action ref={ref} className={cn(buttonVariants({variant:modalAction(children).variant}), className)} {...props}>{modalAction(children).icon}{children}</AlertDialogPrimitive.Action>
 ))
 AlertDialogAction.displayName = AlertDialogPrimitive.Action.displayName
 
-const AlertDialogCancel = React.forwardRef(({ className, ...props }, ref) => (
+const AlertDialogCancel = React.forwardRef(({ className, children, ...props }, ref) => (
   <AlertDialogPrimitive.Cancel
     ref={ref}
     className={cn(buttonVariants({ variant: "outline" }), "mt-2 sm:mt-0", className)}
-    {...props} />
+    {...props}>{modalAction(children).icon}{children}</AlertDialogPrimitive.Cancel>
 ))
 AlertDialogCancel.displayName = AlertDialogPrimitive.Cancel.displayName
 

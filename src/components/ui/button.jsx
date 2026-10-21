@@ -1,3 +1,4 @@
+import {ModalPresentationContext,modalAction} from '@/contexts/ModalPresentationContext';
 import { cn } from '@/lib/utils';
 import { Slot } from '@radix-ui/react-slot';
 import { cva } from 'class-variance-authority';
@@ -33,16 +34,17 @@ const buttonVariants = cva(
 	},
 );
 
-const Button = React.forwardRef(({ className, variant, size, asChild = false, ...props }, ref) => {
+const Button = React.forwardRef(({ className, variant, size, asChild = false, children, ...props }, ref) => {
+	const modal=React.useContext(ModalPresentationContext),action=modal&&!asChild?modalAction(children):{};
 	const Comp = asChild ? Slot : motion.button;
 	const motionProps = asChild ? {} : { whileTap: { scale: 0.95 }, transition: { type: "spring", stiffness: 400, damping: 17 } };
 	return (
 		<Comp
-			className={cn(buttonVariants({ variant, size, className }))}
+			className={cn(buttonVariants({ variant:action.variant||variant, size, className }))}
 			ref={ref}
 			{...motionProps}
 			{...props}
-		/>
+		>{asChild?children:<>{action.icon}{children}</>}</Comp>
 	);
 });
 Button.displayName = 'Button';

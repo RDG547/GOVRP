@@ -1,4 +1,11 @@
 const messages = {
+  APPEAL_DECISION_TOO_SHORT: 'Fundamente a decisão do recurso com pelo menos 60 caracteres.',
+  APPEAL_ARGUMENTS_TOO_SHORT: 'Fundamente o recurso com pelo menos 40 caracteres.',
+  APPEAL_REQUIRES_DIFFERENT_JUDGE: 'Outro juiz deverá revisar a decisão recorrida.',
+  APPEAL_ALREADY_DECIDED: 'Este recurso já foi julgado.',
+  APPEAL_NOT_FOUND: 'Este recurso não está disponível.',
+  CASE_ACCESS_DENIED: 'Você não tem acesso a este processo.',
+
   EVIDENCE_NOT_FOUND: 'Esta prova não está disponível.',
   EVIDENCE_TITLE_TOO_SHORT: 'Identifique a prova com pelo menos 5 caracteres.',
   EVIDENCE_DESCRIPTION_TOO_SHORT: 'Descreva a prova com pelo menos 10 caracteres.',

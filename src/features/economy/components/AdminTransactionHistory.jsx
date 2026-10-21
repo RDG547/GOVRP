@@ -1,3 +1,4 @@
+import PagedResults from '@/components/ui/paged-results';
 import {CurrencyInput} from '@/components/ui/currency-input';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ChevronLeft, ChevronRight, Eye, Loader2, RefreshCw, Search } from 'lucide-react';
@@ -299,7 +300,7 @@ const AdminTransactionHistory = () => {
           </div>
         ) : null}
 
-        <div className="overflow-x-auto rounded-xl border border-border/60">
+        <PagedResults page={page} loading={loading}><div className="overflow-x-auto rounded-xl border border-border/60">
           <table className="w-full min-w-[840px] text-left text-sm">
             <thead className="bg-muted/60 text-xs uppercase text-muted-foreground">
               <tr>
@@ -370,6 +371,7 @@ const AdminTransactionHistory = () => {
             </Button>
           </div>
         </div>
+        </PagedResults>
       </CardContent>
 
       <Dialog open={Boolean(selectedRow)} onOpenChange={(open) => !open && setSelectedRow(null)}>

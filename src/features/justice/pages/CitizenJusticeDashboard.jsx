@@ -1,3 +1,4 @@
+import EntityFines from '@/components/justice/EntityFines';
 import { CheckCircle2 } from 'lucide-react';
 import CaseEvidence from '@/features/justice/components/CaseEvidence';
 import { justiceDeadline, justiceRequest } from '@/lib/justice/constants';
@@ -652,7 +653,7 @@ const CitizenJusticeDashboard = () => {
           )}
         </TabsContent>
 
-        <TabsContent value="fines" className="space-y-4">
+        <TabsContent value="fines" className="space-y-4"><EntityFines targetType="citizen" targetId={user.id} includeFines={false}/>
           {data.fines.length ? data.fines.map((fine) => {
             const canAct = ['Pendente', 'Vencida'].includes(fine.status);
             const appeal = data.fineAppeals.find((item) => item.fine_id === fine.id);
@@ -666,6 +667,8 @@ const CitizenJusticeDashboard = () => {
                   {fine.status === 'Paga' && fine.payment_snapshot ? <div className="rounded-lg border border-emerald-500/25 bg-emerald-500/10 p-3 text-sm text-emerald-100">Pagamento confirmado · total {money(fine.payment_snapshot.totalAmount)} · comprovante {fine.payment_snapshot.transactionId}</div> : null}
                   {appeal ? <p className="text-sm text-cyan-200">Recurso: {justiceStatus(appeal.status)}{appeal.decision_reason ? ` · ${appeal.decision_reason}` : ''}</p> : null}{hearing ? <p className="text-sm text-violet-200">Audiência: {justiceStatus(hearing.status)}</p> : null}
                   {canAct ? <div className="flex flex-wrap gap-2"><Button onClick={() => handlePayFine(fine.id)} disabled={Boolean(actionLoading)}>{actionLoading === `pay:${fine.id}` ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Banknote className="mr-2 h-4 w-4"/>}Pagar</Button>{!appeal ? <Button variant="outline" onClick={() => setFineAction({ fineId: fine.id, type: 'appeal', reason: '' })} className="border-cyan-500/40 text-cyan-200"><Scale className="mr-2 h-4 w-4"/>Recorrer</Button> : null}{!hearing ? <Button variant="outline" onClick={() => setFineAction({ fineId: fine.id, type: 'hearing', reason: '' })} className="border-violet-500/40 text-violet-200"><CalendarClock className="mr-2 h-4 w-4"/>Pedir audiência</Button> : null}</div> : null}
+                  {fine.status==='Paga'&&!appeal&&<Button variant="outline" onClick={()=>setFineAction({fineId:fine.id,type:'appeal',reason:''})}><Scale className="mr-2 h-4 w-4"/>Recorrer de multa paga</Button>}
+                  {fine.refund_transaction_id&&<p className="text-sm text-emerald-300">Valor restituído após decisão do recurso. O pagamento original permanece no histórico.</p>}
                   {actionOpen ? <form onSubmit={handleFineRequest} className="space-y-3 rounded-xl border border-white/10 bg-white/5 p-4"><Label htmlFor={`fine-reason-${fine.id}`}>{fineAction.type === 'appeal' ? 'Fundamentação do recurso' : 'Motivo do pedido de audiência'}</Label><Textarea id={`fine-reason-${fine.id}`} minLength={20} required value={fineAction.reason} onChange={(event) => setFineAction((current) => ({ ...current, reason: event.target.value }))} /><div className="flex gap-2"><Button type="submit" disabled={Boolean(actionLoading)}>Enviar</Button><Button type="button" variant="ghost" onClick={() => setFineAction({ fineId: '', type: '', reason: '' })}>Cancelar</Button></div></form> : null}
                 </CardContent>
               </Card>

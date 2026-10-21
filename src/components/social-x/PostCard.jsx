@@ -85,6 +85,7 @@ const PostCard = ({ post, onPostUpdate, onPostDelete, onRepostCreated, commentsA
     const phone = usePhoneApp();
     const { toast } = useToast();
     const navigate = useNavigate();
+    const canModerate=user?.role==='Admin'||(user?.is_platform_admin&&user?.admin_development?.mode==='total');
     const [isLiked, setIsLiked] = useState(post.is_liked_by_user);
     const [isReposted, setIsReposted] = useState(post.is_reposted_by_user);
     const [likesCount, setLikesCount] = useState(post.likes_count || 0);
@@ -95,6 +96,7 @@ const PostCard = ({ post, onPostUpdate, onPostDelete, onRepostCreated, commentsA
     const [editedContent, setEditedContent] = useState(post.original_post_id || post.original_post ? (post.quote_content || '') : post.content);
     const [isSavingEdit, setIsSavingEdit] = useState(false);
     const [isRepostModalOpen, setIsRepostModalOpen] = useState(false);
+    const [deleteOpen,setDeleteOpen]=useState(false),[deleting,setDeleting]=useState(false);
     const dropdownJustClosed = useRef(false);
 
     const interactionBusy = useRef(false);
@@ -135,23 +137,27 @@ const PostCard = ({ post, onPostUpdate, onPostDelete, onRepostCreated, commentsA
         } finally { interactionBusy.current = false; }
     };
 
-    const handleReposted = () => {
+    const handleReposted = async () => {
       setIsReposted(true);
-      setRepostsCount(p => p + 1);
+      const result=await supabase.from('posts').select('reposts_count').eq('id',post.id).maybeSingle();
+      if(!result.error&&result.data)setRepostsCount(result.data.reposts_count||0);
       if(onRepostCreated) onRepostCreated();
     }
 
     const handleDelete = async (event) => {
         event?.stopPropagation();
-        if (user.id !== post.user_id && user.role !== 'Admin') return;
+        if(deleting)return;
+        if (user.id !== post.user_id && !canModerate) return;
+        setDeleting(true);
         try {
             const { data, error } = await supabase.rpc('delete_post', { p_post_id: post.id });
             if (error || !data?.success) throw new Error(data?.message || error.message);
             toast({ title: 'Sucesso', description: 'Post excluído com sucesso.' });
+            setDeleteOpen(false);
             if (onPostDelete) onPostDelete(post.id);
         } catch (error) {
             toast({ title: 'Erro', description: `Não foi possível excluir o post: ${error.message}`, variant: 'destructive' });
-        }
+        }finally{setDeleting(false);}
     };
 
     const handleEdit = async () => {
@@ -300,12 +306,12 @@ const PostCard = ({ post, onPostUpdate, onPostDelete, onRepostCreated, commentsA
                         </div>
                         <p className="break-all text-sm text-muted-foreground">@{handle} · {postDateTime}</p>
                     </div>
-                    {(user?.id === post.user_id || (!phone && user?.role === 'Admin')) && (
+                    {(user?.id === post.user_id || (!phone && canModerate)) && (
                         <DropdownMenu onOpenChange={handleDropdownOpenChange}>
                             <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="w-8 h-8 no-navigate"><MoreHorizontal className="w-5 h-5 text-muted-foreground" /></Button></DropdownMenuTrigger>
                             <DropdownMenuContent onClick={event => event.stopPropagation()}>
                                 {user.id === post.user_id && <DropdownMenuItem onClick={() => (setEditedContent(post.original_post_id || post.original_post ? (post.quote_content || '') : post.content), setIsEditing(true))}><Edit className="mr-2 h-4 w-4" />Editar</DropdownMenuItem>}
-                                <DropdownMenuItem onClick={handleDelete} className="text-destructive focus:text-destructive focus:bg-destructive/10"><Trash2 className="mr-2 h-4 w-4" />Excluir</DropdownMenuItem>
+                                <DropdownMenuItem onClick={event=>{event.stopPropagation();setDeleteOpen(true);}} className="text-destructive focus:text-destructive focus:bg-destructive/10"><Trash2 className="mr-2 h-4 w-4" />Excluir</DropdownMenuItem>
                             </DropdownMenuContent>
                         </DropdownMenu>
                     )}
@@ -322,6 +328,7 @@ const PostCard = ({ post, onPostUpdate, onPostDelete, onRepostCreated, commentsA
                     </div>
                 ) : (
                     <div className="text-foreground whitespace-pre-wrap break-words [overflow-wrap:anywhere] mt-1">
+                        {post.metadata?.sponsored&&<p className="mb-2 text-xs font-medium text-cyan-400">Publicidade · {post.metadata.sponsor_name||'Patrocínio declarado'}{post.metadata.ad_kind==='political'?' · Publicidade política':''}</p>}
                         {post.quote_content && <p className="mb-2">{renderContent(post.quote_content)}</p>}
                         {post.content !== 'repost' && <p>{renderContent(post.content)}</p>}
                     </div>
@@ -375,6 +382,7 @@ const PostCard = ({ post, onPostUpdate, onPostDelete, onRepostCreated, commentsA
                 </AnimatePresence>
             </div>
         </motion.div>
+        <Dialog open={deleteOpen} onOpenChange={value=>{if(!deleting)setDeleteOpen(value);}}><DialogContent onClick={event=>event.stopPropagation()}><DialogHeader><Trash2 className="mx-auto h-8 w-8 text-red-400"/><DialogTitle>Excluir publicação?</DialogTitle><DialogDescription>A publicação será removida do Feed e do perfil para todos os usuários.</DialogDescription></DialogHeader><DialogFooter><Button variant="outline" disabled={deleting} onClick={()=>setDeleteOpen(false)}><X className="mr-2 h-4 w-4"/>Cancelar</Button><Button variant="destructive" disabled={deleting} onClick={handleDelete}>{deleting?<Loader2 className="mr-2 h-4 w-4 animate-spin"/>:<Trash2 className="mr-2 h-4 w-4"/>}Excluir</Button></DialogFooter></DialogContent></Dialog>
         <RepostModal open={isRepostModalOpen} onOpenChange={setIsRepostModalOpen} post={post} onReposted={handleReposted} />
         </>
     );

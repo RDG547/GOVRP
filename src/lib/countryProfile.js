@@ -574,3 +574,11 @@ export const loadCountryProfile = ({ alpha2, alpha3, force = false }) => {
 
   return request;
 };
+
+let countryBasics=null,countryBasicsRequest=null;
+export function preloadCountryBasics(){
+ if(countryBasics)return Promise.resolve(countryBasics);
+ if(!countryBasicsRequest)countryBasicsRequest=fetch('/maps/country-basics.json').then(r=>{if(!r.ok)throw new Error('country-basics');return r.json();}).then(data=>{countryBasics=data.countries;return countryBasics;}).catch(error=>{countryBasicsRequest=null;throw error;});
+ return countryBasicsRequest;
+}
+export function getCountryBasics(alpha2){const b=countryBasics?.[alpha2];return b?{capital:b.capital,economy:{population:b.population},unavailable:false}:null;}

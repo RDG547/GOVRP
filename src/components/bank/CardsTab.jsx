@@ -199,7 +199,7 @@ const InvoiceItems = ({ invoiceId, revision }) => {
                     {items.map(item => (
                         <TableRow key={item.id}>
                             <TableCell>{formatLocaleBR(new Date(item.created_at), 'toLocaleDateString', 'pt-BR')}</TableCell>
-                            <TableCell>{item.description}</TableCell>
+                            <TableCell>{item.description}{item.charge_type&&<p className="text-xs text-muted-foreground">{({late_interest:'Juros por atraso',financing_interest:'Financiamento da fatura',late_fee:'Multa por atraso',additional_charge:'Encargo adicional',legacy_interest:'Encargo histórico'})[item.charge_type]}{item.rate_snapshot!=null&&` · Taxa: ${Number(item.rate_snapshot).toLocaleString('pt-BR')}%`}{item.base_amount!=null&&` · Base: ${formatCurrency(item.base_amount)}`}</p>}</TableCell>
                             <TableCell className="text-right">{formatCurrency(item.amount)}</TableCell>
                         </TableRow>
                     ))}

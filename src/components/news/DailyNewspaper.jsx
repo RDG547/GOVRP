@@ -1,3 +1,4 @@
+import PagedResults from '@/components/ui/paged-results';
 import { newsCategory } from '@/lib/newsCategories';
 import { formatLocaleBR } from '@/lib/dateTime';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -146,7 +147,7 @@ export default function DailyNewspaper() {
     {error && <div role="alert" className="rounded-lg border border-destructive/40 p-4">{error} <Button variant="link" onClick={load}>Tentar novamente</Button></div>}
     {categories.length > 1 && <div className="flex flex-wrap gap-2" aria-label="Editorias">{['Todas', ...categories].map(value => <Button key={value} size="sm" variant={category === value ? 'default' : 'outline'} disabled={Boolean(exporting)} onClick={() => { setCategory(value); setPage(0); }}>{React.createElement(newsCategory(value).icon,{className:`mr-2 h-4 w-4 ${category===value?'':newsCategory(value).color}`})}{value}</Button>)}</div>}
     {loading && !items.length ? <div role="status" className="flex justify-center p-16"><Loader2 className="animate-spin" /><span className="sr-only">Carregando edição</span></div> : !pages.length ? <div className="rounded-lg border p-12 text-center"><Newspaper className="mx-auto mb-4 h-10 w-10" /><h2 className="text-xl font-bold">Nenhuma publicação nesta edição</h2><p className="mt-2 text-muted-foreground">Consulte uma edição anterior no arquivo.</p></div> : <>
-      <NewspaperPage articles={pages[selectedPage]} date={date} number={selectedPage + 1} count={pages.length} teasers={filtered.slice(1, 4)} />
+      <PagedResults page={selectedPage}><NewspaperPage articles={pages[selectedPage]} date={date} number={selectedPage + 1} count={pages.length} teasers={filtered.slice(1, 4)} /></PagedResults>
       <nav className="flex items-center justify-center gap-3" aria-label="Páginas da edição"><Button variant="outline" disabled={selectedPage === 0} onClick={() => setPage(selectedPage - 1)} aria-label="Página anterior"><ChevronLeft className="h-4 w-4" /></Button><span>Página {selectedPage + 1} de {pages.length}</span><Button variant="outline" disabled={selectedPage >= pages.length - 1} onClick={() => setPage(selectedPage + 1)} aria-label="Próxima página"><ChevronRight className="h-4 w-4" /></Button></nav>
     </>}
     {exporting && <div ref={exportHost} data-export-host aria-hidden="true" className="pointer-events-none fixed left-[-10000px] top-0 w-[900px]">{pages.map((articles, index) => <NewspaperPage key={index} articles={articles} date={date} number={index + 1} count={pages.length} teasers={filtered.slice(1, 4)} exporting />)}</div>}

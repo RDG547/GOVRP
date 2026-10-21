@@ -1,4 +1,6 @@
-import React, { useState, useRef, forwardRef, useCallback } from 'react';
+import {Input} from '@/components/ui/input';
+import {GovSelect} from '@/components/ui/gov-select';
+import React, { useEffect, useState, useRef, forwardRef, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from "@/components/ui/use-toast";
 import { Button } from '@/components/ui/button';
@@ -30,6 +32,8 @@ const CreatePostForm = forwardRef(({ onPostCreated }, ref) => {
     const [mediaType, setMediaType] = useState(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const fileInputRef = useRef(null);
+    const [sponsored,setSponsored]=useState(false),[sponsor,setSponsor]=useState(''),[adKind,setAdKind]=useState(''),[sponsorParty,setSponsorParty]=useState(''),[parties,setParties]=useState([]);
+    useEffect(()=>{if(sponsored&&adKind==='political')supabase.from('political_parties').select('id,name,acronym').neq('status','Encerrado').order('name').then(result=>{if(!result.error)setParties(result.data||[]);});},[sponsored,adKind]);
 
     const [mentionQuery, setMentionQuery] = useState('');
     const [mentionSuggestions, setMentionSuggestions] = useState([]);
@@ -148,6 +152,7 @@ const CreatePostForm = forwardRef(({ onPostCreated }, ref) => {
     const handlePostSubmit = async (e) => {
         e.preventDefault();
         if (isSubmitting || (!postContent.trim() && !postMedia)) return;
+        if(sponsored&&(!adKind||sponsor.trim().length<3)){toast({title:'Complete a identificação da publicidade',description:'Informe o patrocinador e o tipo de anúncio.',variant:'destructive'});return;}
         setIsSubmitting(true);
         let mediaUrl = null;
 
@@ -167,13 +172,13 @@ const CreatePostForm = forwardRef(({ onPostCreated }, ref) => {
             content: postContent,
             user_id: user.id,
             image_url: mediaUrl,
-            metadata: { type: mediaType }
+            metadata: { type: mediaType,...(sponsored?{sponsored:true,sponsor_name:sponsor.trim(),ad_kind:adKind,sponsor_party_id:sponsorParty||null}:{}) }
         }).select('*, author:profiles!posts_user_id_fkey(id,username,full_name,x_username,x_handle,x_avatar_url,role,titles)').single();
 
         if (error) {
             toast({ title: 'Erro ao postar', description: error.message, variant: "destructive" });
         } else {
-            setPostContent('');
+            setPostContent('');setSponsored(false);setSponsor('');setAdKind('');setSponsorParty('');
             removeMedia();
             toast({ title: 'Sucesso!', description: 'Seu post foi publicado.' });
             onPostCreated(newPost);
@@ -246,6 +251,7 @@ const CreatePostForm = forwardRef(({ onPostCreated }, ref) => {
                         </div>
                     )}
                 </CardContent>
+                <div className="space-y-3 px-4 pb-4"><label className="flex min-h-11 items-center gap-2 text-sm"><input type="checkbox" checked={sponsored} onChange={event=>setSponsored(event.target.checked)}/>Esta publicação contém publicidade ou patrocínio</label>{sponsored&&<div className="grid gap-3 rounded-lg border p-3 sm:grid-cols-2"><label className="text-sm">Patrocinador<Input value={sponsor} onChange={event=>setSponsor(event.target.value)} required minLength={3} placeholder="Nome do responsável pelo anúncio"/></label><label className="text-sm">Tipo de publicidade<GovSelect value={adKind} onChange={event=>setAdKind(event.target.value)}><option value="">Selecione</option><option value="commercial">Comercial</option><option value="political">Política</option><option value="institutional">Institucional</option></GovSelect></label>{adKind==='political'&&<label className="text-sm sm:col-span-2">Partido responsável<GovSelect value={sponsorParty} onChange={event=>setSponsorParty(event.target.value)}><option value="">Selecione o partido</option>{parties.map(party=><option key={party.id} value={party.id}>{party.name} ({party.acronym})</option>)}</GovSelect></label>}<p className="text-xs text-muted-foreground sm:col-span-2">A identificação aparecerá na publicação. As normas vigentes podem estabelecer condições ou restrições ao anúncio.</p></div>}</div>
                 <CardFooter className="p-4 flex justify-between items-center border-t border-slate-700/50">
                     <div className="flex gap-1">
                         <input type="file" ref={fileInputRef} id="mediaUpload" accept={`${IMAGE_ACCEPT_ATTRIBUTE},${VIDEO_ACCEPT_ATTRIBUTE}`} onChange={handleMediaSelect} className="hidden" />

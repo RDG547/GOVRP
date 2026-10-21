@@ -1,3 +1,4 @@
+import PagedResults from '@/components/ui/paged-results';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { CheckCircle2, ChevronLeft, ChevronRight, Headphones, Loader2, Search, Trash2 } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
@@ -203,8 +204,8 @@ const SupportManagement = () => {
       </div>
 
       <div className="grid min-w-0 gap-5 xl:grid-cols-[22rem_minmax(0,1fr)]">
-        <aside className="space-y-3">
-          {loading ? <div className="flex min-h-56 items-center justify-center"><Loader2 className="h-7 w-7 animate-spin" /></div> : tickets.length ? tickets.map((ticket) => {
+        <aside className="space-y-3"><PagedResults page={page} loading={loading}>
+          {loading && !tickets.length ? <div className="flex min-h-56 items-center justify-center"><Loader2 className="h-7 w-7 animate-spin" /></div> : tickets.length ? tickets.map((ticket) => {
             const meta = SUPPORT_STATUS[ticket.status] || SUPPORT_STATUS.open;
             const priority = SUPPORT_PRIORITY[ticket.priority] || SUPPORT_PRIORITY.normal;
             return (
@@ -223,7 +224,7 @@ const SupportManagement = () => {
               <Button variant="outline" size="icon" onClick={() => setPage((current) => Math.min(totalPages, current + 1))} disabled={page === totalPages}><ChevronRight className="h-4 w-4" /></Button>
             </div>
           ) : null}
-        </aside>
+        </PagedResults></aside>
 
         <div className="min-w-0 space-y-3">
           {selectedTicket ? (

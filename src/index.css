@@ -255,14 +255,10 @@
 [data-document-identity="professional"] header{background:#26394e;color:#f0f5fb;border-radius:6px;padding:4px;}
 [data-document-identity="professional"] footer{border-top:1px solid #617b91;padding-top:2px;}
 
-.phone-hardware{border-color:#293049;box-shadow:-5px 3px 0 #101525,-9px 5px 0 #5b5b78,0 24px 70px #000a,inset 0 0 0 2px #777a;perspective:1200px;}
-.phone-hardware::before,.phone-hardware::after{content:"";position:absolute;left:-10px;width:4px;border-radius:3px;background:linear-gradient(#78829f,#2c3244);}
-.phone-hardware::before{top:110px;height:55px}.phone-hardware::after{top:180px;height:34px}
-.phone-screen{box-shadow:inset 0 0 0 1px #91a1c03d;}
+/* Keep the original flat phone frame while retaining navigation and gestures. */
+.phone-hardware{border-color:#293049;box-shadow:0 18px 50px #0008;}
 .phone-hardware:not([hidden]){animation:phone-arrive .2s ease-out;}
-@keyframes phone-arrive{from{opacity:0;transform:translateX(-18px) rotateY(-5deg)}to{opacity:1;transform:translateX(0) rotateY(0)}}
+@keyframes phone-arrive{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+.phone-hardware[data-closing="true"]:not([hidden]){animation:phone-close 150ms ease-in both;pointer-events:none;}
+@keyframes phone-close{to{opacity:0;transform:translateY(12px)}}
 @media(prefers-reduced-motion:reduce){.phone-hardware:not([hidden]){animation:none;}}
-
-.phone-hardware[data-closing="true"]:not([hidden]) { animation: phone-close 150ms ease-in both;pointer-events:none; }
-@keyframes phone-close { to { opacity:0;transform:perspective(1100px) translateY(16px) rotateY(7deg) scale(.96); } }
-@media (prefers-reduced-motion:reduce) { .phone-hardware[data-closing="true"]:not([hidden]) { animation:none; } }

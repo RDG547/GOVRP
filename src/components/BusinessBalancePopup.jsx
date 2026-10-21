@@ -1,6 +1,6 @@
 import {notificationText} from '@/lib/notificationPresentation';
 import {usePopupSlot,PopupQueueActions} from '@/contexts/PopupQueueContext';
-import SignedProfit from './business/SignedProfit';
+
 import React, { useCallback, useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Building2, Clock3, TrendingDown, TrendingUp, Wallet, X } from 'lucide-react';
@@ -153,7 +153,7 @@ export function BusinessBalanceView({ notification, onDismiss }) {
   const containerClassName = isProfit
     ? 'border-emerald-500/20 bg-gradient-to-b from-slate-900 via-slate-900 to-emerald-950/40 shadow-emerald-500/10'
     : 'border-red-500/20 bg-gradient-to-b from-slate-900 via-slate-900 to-red-950/40 shadow-red-500/10';
-  const headlineClassName = isProfit ? 'text-emerald-300/90' : 'text-red-300/90';
+  const headlineClassName = netResult<0?'text-red-300/90':'text-white';
   const detailIconClassName = isProfit ? 'text-emerald-300' : 'text-amber-300';
 
   return (
@@ -190,7 +190,7 @@ export function BusinessBalanceView({ notification, onDismiss }) {
               <p className={`text-sm font-medium uppercase tracking-[0.28em] ${headlineClassName}`}>
                 {netResult===0?'Resultado neutro':isProfit ? 'Lucro empresarial' : 'Prejuízo empresarial'}
               </p>
-              <h3 className="text-2xl font-bold text-foreground"><SignedProfit value={netResult}/></h3>
+              <h3 className="text-2xl font-bold text-foreground"><span className={netResult<0?'text-red-400':'text-white'}>{`R$ ${netResult<0?'-':''}${Math.abs(netResult).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}`}</span></h3>
               <p className="text-sm text-muted-foreground">
                 {notificationText(notification) || 'O balanço anual da sua empresa foi processado automaticamente.'}
               </p>

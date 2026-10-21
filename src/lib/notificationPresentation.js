@@ -6,6 +6,6 @@ export function notificationText(notification){
  });
 }
 export function notificationDestination(n){
- if(['minister_invitation','government_invitation','vice_candidacy_invitation'].includes(n?.type))return `/dashboard?tab=invitations&invitation=${encodeURIComponent(n.metadata?.invitation_id||n.id)}`;
+ if(n?.metadata?.requires_response===true||(/invitation|invitation_received|convite/.test(n?.type||'')&&!/response|respond|cancel/.test(n?.type||'')))return `/dashboard?tab=invitations&invitation=${encodeURIComponent(n.metadata?.invitation_id||n.metadata?.invitationId||n.id)}`;
  return n?.link||'/dashboard';
 }

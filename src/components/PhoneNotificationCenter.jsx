@@ -1,0 +1,24 @@
+import React,{useCallback,useRef,useState} from 'react';
+import {motion,useMotionValue,useTransform,animate,useReducedMotion} from 'framer-motion';
+import {Bell,ChevronUp,Trash2,X} from 'lucide-react';
+import {Button} from '@/components/ui/button';
+import {phoneNotificationApp} from '@/lib/phoneApps';
+import {notificationText} from '@/lib/notificationPresentation';
+export function usePhoneNotificationDrawer(panel){
+ const progress=useMotionValue(0),[visible,setVisible]=useState(false),[open,setOpen]=useState(false);const gesture=useRef(null),animation=useRef(null),reduced=useReducedMotion();
+ const snap=useCallback(next=>{animation.current?.stop();setOpen(next);if(next)setVisible(true);animation.current=animate(progress,next?1:0,{duration:reduced?0:.22,ease:'easeOut',onComplete:()=>{if(!next)setVisible(false);}});},[progress,reduced]);
+ const start=e=>{if(e.target.closest('button'))return;animation.current?.stop();setVisible(true);gesture.current={y:e.clientY,progress:progress.get(),opened:open};e.currentTarget.setPointerCapture(e.pointerId);};
+ const move=e=>{const g=gesture.current;if(!g)return;const height=panel.current?.clientHeight||650;progress.set(Math.min(1,Math.max(0,g.progress+(e.clientY-g.y)/height)));};
+ const end=e=>{const g=gesture.current;if(!g)return;gesture.current=null;const delta=e.clientY-g.y;const next=g.opened?!(delta< -45||progress.get()<.65):(delta>45&&progress.get()>.12);snap(next);};
+ return {progress,visible,open,snap,handlers:{onPointerDown:start,onPointerMove:move,onPointerUp:end,onPointerCancel:()=>{gesture.current=null;snap(open);}}};
+}
+function SwipeNotice({notice,app,onOpen,onDismiss}){
+ const ref=useRef(null),x=useMotionValue(0),opacity=useTransform(x,[-300,0,300],[0,1,0]),dragged=useRef(false),reduced=useReducedMotion();
+ const dismiss=async direction=>{await new Promise(resolve=>animate(x,direction*(ref.current?.clientWidth||320),{duration:reduced?0:.18,onComplete:resolve}));const success=await onDismiss(notice.id);if(!success)animate(x,0,{duration:reduced?0:.18});};const Icon=app[2];
+ return <motion.div ref={ref} style={{x,opacity}} drag="x" dragDirectionLock onDragStart={()=>{dragged.current=true;}} onDragEnd={(event,info)=>{if(Math.abs(info.offset.x)>Math.max(65,(ref.current?.clientWidth||300)*.3)||Math.abs(info.velocity.x)>650)void dismiss(Math.sign(info.offset.x||info.velocity.x));else animate(x,0,{duration:reduced?0:.18});setTimeout(()=>{dragged.current=false;},0);}} className={`mb-2 flex touch-pan-y rounded-xl border ${notice.is_read?'border-white/10 bg-white/5':'border-cyan-600/50 bg-cyan-950/40'}`}>
+ <button type="button" onClick={()=>{if(!dragged.current)onOpen(notice,app);}} className="min-w-0 flex-1 p-3 text-left focus-visible:outline focus-visible:outline-cyan-300"><span className="mb-2 flex items-center gap-2 text-xs"><Icon className="h-4 w-4"/>{app[0]} · {new Date(notice.created_at).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}</span><p className="break-words text-sm">{notificationText(notice)}</p></button><button type="button" aria-label="Dispensar notificação do celular" title="Dispensar do celular" onClick={()=>void dismiss(1)} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl focus-visible:outline focus-visible:outline-cyan-300"><X className="h-4 w-4"/></button></motion.div>;
+}
+export default function PhoneNotificationCenter({drawer,clock,notifications,onOpen,onDismiss}){
+ const y=useTransform(drawer.progress,[0,1],['-100%','0%']);
+ return <motion.section aria-label="Notificações do celular" aria-hidden={!drawer.visible} inert={!drawer.visible?'':undefined} style={{y,pointerEvents:drawer.visible?'auto':'none',visibility:drawer.visible?'visible':'hidden'}} onKeyDown={e=>{if(e.key==='Escape'){e.stopPropagation();drawer.snap(false);}}} className="absolute inset-0 z-30 flex flex-col overflow-hidden rounded-[1.8rem] bg-slate-950/95 backdrop-blur-md"><header {...drawer.handlers} className="flex touch-none items-center justify-between border-b border-white/10 p-4"><div><h3 className="font-semibold">Notificações</h3><p className="text-xs text-slate-300">{clock.toLocaleDateString('pt-BR')}</p></div><Button size="icon" variant="ghost" aria-label="Fechar notificações do celular" onClick={()=>drawer.snap(false)}><ChevronUp/></Button></header><div className="flex justify-end px-3 pt-2"><Button variant="ghost" size="sm" disabled={!notifications.length} onClick={()=>onDismiss(notifications.map(n=>n.id))}><Trash2 className="mr-2 h-4 w-4"/>Limpar Tudo</Button></div><div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden p-3">{notifications.map(n=><SwipeNotice key={n.id} notice={n} app={phoneNotificationApp(n)} onOpen={onOpen} onDismiss={onDismiss}/>)}{!notifications.length&&<p className="p-6 text-center text-sm text-slate-300">Nenhuma notificação dos aplicativos instalados.</p>}</div></motion.section>;
+}

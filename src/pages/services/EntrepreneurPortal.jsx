@@ -662,7 +662,7 @@ const SalePriceDialog = ({ open, onOpenChange, title, description, onConfirm, lo
 const BusinessForSaleCard = ({ listing, index, onBuy, buyingId }) => {
   const isStateListing = listing.listingType === 'state';
   const typeData = BUSINESS_TYPES.find((type) => type.id === listing.type) || BUSINESS_TYPES[0];
-  const Icon = isStateListing ? Landmark : typeData.icon;
+  const Icon = businessTypeIcon({id:listing.business_type_id||listing.type,name:listing.activity||listing.name,category:listing.category});
   const isBuying = buyingId === `${listing.listingType}:${listing.id}`;
 
   return (

@@ -118,7 +118,12 @@
     "test:card-ledger": "node tools/test-oct19-card-ledger.mjs",
     "test:world-infrastructure": "node tools/test-oct19-world.mjs",
     "test:documents-bills": "node tools/test-oct19-documents-bills.mjs",
-    "test:bank-phone-map-interface": "node tools/test-oct19-interface.mjs"
+    "test:bank-phone-map-interface": "node tools/test-oct19-interface.mjs",
+    "test:notifications-legislation": "node tools/test-notifications-legislation.mjs",
+    "test:legislative-quorums": "node tools/test-legislative-quorums.mjs",
+    "test:citizen-documents-interest": "node tools/test-citizen-documents-interest.mjs",
+    "test:citizen-legislation-interface": "node tools/test-citizen-legislation-interface.mjs",
+    "test:judicial-sanctions-interface": "node tools/test-judicial-sanctions-interface.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.0",

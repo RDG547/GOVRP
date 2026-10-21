@@ -271,7 +271,7 @@ const CNPJDocument = ({ user, doc, side }) => (
 );
 
 const CTDDocument = ({ user, doc, side }) => {
-    const contracts=doc.metadata?.employment_contracts||[];const contract=contracts.find(row=>!row.fired_at)||contracts[0];
+    const contracts=doc.metadata?.employment_contracts||[];const contract=contracts.find(row=>!row.fired_at)||contracts[0];const appointments=doc.metadata?.institutional_appointments||[];const institutional=appointments.find(row=>row.active)||(!contract?appointments[0]:null);
     const dateOfBirth = formatDocumentDate(user.date_of_birth);
     return (
     <DocumentContainer className="bg-[#0A2240] text-white font-sans">
@@ -302,13 +302,16 @@ const CTDDocument = ({ user, doc, side }) => {
             </div>
         ) : (
             <div className="w-full h-full flex flex-col justify-between text-[0.6rem] sm:text-sm">
-                <p className="font-bold text-center text-lg">CONTRATO DE TRABALHO</p>
-                <div className="border-t border-b border-white/50 py-2 sm:py-3 space-y-1 sm:space-y-2">
-                    <DocumentField label="EMPREGADOR" value={contract?.company||'SEM VÍNCULO REGISTRADO'} className="text-white" />
-                    <DocumentField label="FUNÇÃO" value={contract?.role||user.occupation||'SEM CONTRATO ATIVO'} className="text-white" />
-                    <DocumentField label="DATA DE ADMISSÃO" value={formatDocumentDate(contract?.hired_at||doc.issued_at)} className="text-white" />
+                <p className="font-bold text-center text-lg">{institutional?'VÍNCULO INSTITUCIONAL':'CONTRATO DE TRABALHO'}</p>
+                <div className="grid grid-cols-2 gap-2 border-y border-white/50 py-2">
+                    <DocumentField label={institutional?'INSTITUIÇÃO':'EMPREGADOR'} value={institutional?.institution||contract?.company||'SEM VÍNCULO REGISTRADO'} className="col-span-2 text-white"/>
+                    <DocumentField label="FUNÇÃO" value={institutional?.role||contract?.role||'SEM CONTRATO ATIVO'} className="col-span-2 text-white"/>
+                    <DocumentField label="TIPO" value={institutional?.type||(contract?'Vínculo empresarial':'Não registrado')} className="text-white"/>
+                    <DocumentField label="SITUAÇÃO" value={institutional?(institutional.active?'Ativo':'Encerrado'):contract?(contract.fired_at?'Encerrado':'Ativo'):'Sem vínculo'} className="text-white"/>
+                    <DocumentField label={institutional?'INÍCIO':'DATA DE ADMISSÃO'} value={formatDocumentDate(institutional?.started_at||contract?.hired_at)} className="text-white"/>
+                    {contract&&!institutional&&contract.salary!=null&&<DocumentField label="REMUNERAÇÃO CONTRATUAL" value={Number(contract.salary).toLocaleString('pt-BR',{style:'currency',currency:'BRL'})} className="text-white"/>}
                 </div>
-                <div className="max-h-20 overflow-y-auto text-[9px]">{contracts.filter(row=>row.id!==contract?.id).map(row=><p key={row.id}>{row.company} · {row.role} · {formatDocumentDate(row.hired_at)} — {row.fired_at?formatDocumentDate(row.fired_at):'Atual'}</p>)}{contract?.history?.map((entry,index)=><p key={index}>{entry.role} · até {formatDocumentDate(entry.until)}</p>)}</div><p className="text-[0.5rem] sm:text-xs text-center">Este documento substitui a CTPS física. Válido em todo território nacional.</p>
+                <div className="max-h-12 overflow-y-auto text-[9px]" aria-label="Histórico de vínculos">{appointments.filter(row=>row.id!==institutional?.id).map(row=><p key={row.id}>{row.role} · {row.type} · {row.active?'Ativo':`Encerrado ${formatDocumentDate(row.ended_at)}`}</p>)}{contracts.filter(row=>row.id!==contract?.id||institutional).map(row=><p key={row.id}>{row.company} · {row.role} · {row.fired_at?formatDocumentDate(row.fired_at):'Ativo'}</p>)}{contract?.history?.map((entry,index)=><p key={index}>{entry.role} · até {formatDocumentDate(entry.until)}</p>)}</div><p className="text-[0.5rem] sm:text-xs text-center">Registros profissionais e institucionais do GOVRP.</p>
             </div>
         )}
     </DocumentContainer>

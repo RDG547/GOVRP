@@ -11,7 +11,7 @@ export const MODAL_CATALOG=[
   "source": "src/components/bank/OpenAccount.jsx"
  },
  {
-  "id": "src/pages/services/ParliamentPanel.jsx:5",
+  "id": "src/pages/services/ParliamentPanel.jsx:4",
   "title": "Abrir Eleição Interna",
   "source": "src/pages/services/ParliamentPanel.jsx"
  },
@@ -61,6 +61,11 @@ export const MODAL_CATALOG=[
   "source": "src/components/business/HousingMarket.jsx"
  },
  {
+  "id": "src/components/justice/LawSanctionDialog.jsx:1",
+  "title": "Aplicar sanção prevista em lei",
+  "source": "src/components/justice/LawSanctionDialog.jsx"
+ },
+ {
   "id": "src/features/justice/pages/CitizenJusticeDashboard.jsx:1",
   "title": "Apresentar defesa inicial / Protocolar recurso",
   "source": "src/features/justice/pages/CitizenJusticeDashboard.jsx"
@@ -76,7 +81,7 @@ export const MODAL_CATALOG=[
   "source": "src/components/PwaUpdateNotice.jsx"
  },
  {
-  "id": "src/components/ElectionOfficeAwardPopup.jsx:2",
+  "id": "src/components/ElectionOfficeAwardPopup.jsx:1",
   "title": "Avisos institucionais e mudança de cargo",
   "source": "src/components/ElectionOfficeAwardPopup.jsx"
  },
@@ -131,7 +136,7 @@ export const MODAL_CATALOG=[
   "source": "src/components/bank/ReceiptDownloadDialog.jsx"
  },
  {
-  "id": "src/pages/services/ParliamentPanel.jsx:3",
+  "id": "src/pages/services/ParliamentPanel.jsx:2",
   "title": "Composição da Comissão",
   "source": "src/pages/services/ParliamentPanel.jsx"
  },
@@ -236,11 +241,6 @@ export const MODAL_CATALOG=[
   "source": "src/components/business/HousingMarket.jsx"
  },
  {
-  "id": "src/components/ElectionOfficeAwardPopup.jsx:1",
-  "title": "Convite para integrar o Governo",
-  "source": "src/components/ElectionOfficeAwardPopup.jsx"
- },
- {
   "id": "src/components/AvatarCreator.jsx:1",
   "title": "Criador de avatar",
   "source": "src/components/AvatarCreator.jsx"
@@ -281,9 +281,9 @@ export const MODAL_CATALOG=[
   "source": "src/components/government/GovernmentDynamicsPanel.jsx"
  },
  {
-  "id": "src/components/parties/PartyTreasury.jsx:1",
+  "id": "src/components/parties/PartyDonationDialog.jsx:1",
   "title": "Doar para / ( / )",
-  "source": "src/components/parties/PartyTreasury.jsx"
+  "source": "src/components/parties/PartyDonationDialog.jsx"
  },
  {
   "id": "src/components/ServiceDocumentation.jsx:1",
@@ -356,14 +356,9 @@ export const MODAL_CATALOG=[
   "source": "src/components/bank/InvestmentsTab.jsx"
  },
  {
-  "id": "src/pages/services/PolicePanel.jsx:3",
+  "id": "src/components/justice/IssueFineDialog.jsx:1",
   "title": "Emitir Nova Multa",
-  "source": "src/pages/services/PolicePanel.jsx"
- },
- {
-  "id": "src/pages/services/PenalSystemPanel.jsx:2",
-  "title": "Emitir Nova Multa Judicial",
-  "source": "src/pages/services/PenalSystemPanel.jsx"
+  "source": "src/components/justice/IssueFineDialog.jsx"
  },
  {
   "id": "src/pages/services/DIC.jsx:3",
@@ -389,6 +384,11 @@ export const MODAL_CATALOG=[
   "id": "src/components/admin/PartyManagement.jsx:2",
   "title": "Excluir permanentemente? / Encerrar partido?",
   "source": "src/components/admin/PartyManagement.jsx"
+ },
+ {
+  "id": "src/components/social-x/PostCard.jsx:1",
+  "title": "Excluir publicação?",
+  "source": "src/components/social-x/PostCard.jsx"
  },
  {
   "id": "src/components/social-x/Stories.jsx:1",
@@ -471,11 +471,6 @@ export const MODAL_CATALOG=[
   "source": "src/components/parliament/InstitutionalProceedings.jsx"
  },
  {
-  "id": "src/components/parliament/LegalMeasureStudio.jsx:1",
-  "title": "Modelos de Propostas",
-  "source": "src/components/parliament/LegalMeasureStudio.jsx"
- },
- {
   "id": "src/components/admin/UserManagement.jsx:1",
   "title": "Modificar Saldo de",
   "source": "src/components/admin/UserManagement.jsx"
@@ -486,7 +481,7 @@ export const MODAL_CATALOG=[
   "source": "src/pages/News.jsx"
  },
  {
-  "id": "src/pages/services/ParliamentPanel.jsx:2",
+  "id": "src/pages/services/ParliamentPanel.jsx:1",
   "title": "Nova Comissão",
   "source": "src/pages/services/ParliamentPanel.jsx"
  },
@@ -514,6 +509,11 @@ export const MODAL_CATALOG=[
   "id": "src/components/bank/InvoicesTab.jsx:1",
   "title": "Pagar Fatura",
   "source": "src/components/bank/InvoicesTab.jsx"
+ },
+ {
+  "id": "src/components/justice/EntityFines.jsx:1",
+  "title": "Pagar multa com o caixa / Recorrer da sanção legal / Recorrer de multa",
+  "source": "src/components/justice/EntityFines.jsx"
  },
  {
   "id": "src/pages/dashboards/panels/PresidentDashboard.jsx:4",
@@ -556,9 +556,9 @@ export const MODAL_CATALOG=[
   "source": "src/pages/dashboards/panels/PresidentDashboard.jsx"
  },
  {
-  "id": "src/pages/services/ParliamentPanel.jsx:1",
-  "title": "Propor Novo Projeto",
-  "source": "src/pages/services/ParliamentPanel.jsx"
+  "id": "src/components/parliament/LegalMeasureStudio.jsx:1",
+  "title": "Propor Projeto",
+  "source": "src/components/parliament/LegalMeasureStudio.jsx"
  },
  {
   "id": "src/components/parliament/DecreeOversight.jsx:1",
@@ -581,9 +581,14 @@ export const MODAL_CATALOG=[
   "source": "src/pages/services/Elections.jsx"
  },
  {
-  "id": "src/pages/services/ParliamentPanel.jsx:6",
+  "id": "src/pages/services/ParliamentPanel.jsx:5",
   "title": "Registrar Candidatura",
   "source": "src/pages/services/ParliamentPanel.jsx"
+ },
+ {
+  "id": "src/components/justice/JudicialOrders.jsx:1",
+  "title": "Registrar cumprimento da sanção",
+  "source": "src/components/justice/JudicialOrders.jsx"
  },
  {
   "id": "src/pages/services/PenalSystemPanel.jsx:1",
@@ -606,7 +611,7 @@ export const MODAL_CATALOG=[
   "source": "src/components/admin/ResetManagement.jsx"
  },
  {
-  "id": "src/pages/services/ParliamentPanel.jsx:4",
+  "id": "src/pages/services/ParliamentPanel.jsx:3",
   "title": "Relatório Final",
   "source": "src/pages/services/ParliamentPanel.jsx"
  },

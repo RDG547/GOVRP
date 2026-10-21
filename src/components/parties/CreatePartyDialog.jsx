@@ -1,8 +1,10 @@
+import {useDomainRealtime} from '@/hooks/use-domain-realtime';
+import {formatCurrency} from '@/lib/utils';
 import PartyBrandPreview from './PartyBrandPreview';
 import BrandFontPicker from '@/components/BrandFontPicker';
 import PartyColorPicker from '@/components/parties/PartyColorPicker';
 import { politicalOrientations, orientationColors } from '@/lib/partyIdentity';
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
@@ -21,6 +23,10 @@ const CreatePartyDialog = ({ onPartyCreated, userAffiliation }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [loading, setLoading] = useState(false);
     const [formData, setFormData] = useState({ name: '', acronym: '', ideology: '', statute: '', description: '', orientation: '', color: '#64748B', font_key: 'default' });
+    const [quote,setQuote]=useState(null),[quoteError,setQuoteError]=useState('');
+    const loadQuote=useCallback(async()=>{if(!isOpen)return;const result=await supabase.rpc('quote_party_registration',{p_ideology:formData.ideology,p_orientation:formData.orientation||null});if(result.error){setQuoteError('Não foi possível conferir as regras e taxas de fundação.');return;}setQuote(result.data);setQuoteError('');},[isOpen,formData.ideology,formData.orientation]);
+    useEffect(()=>{if(isOpen){setQuote(null);const timer=setTimeout(()=>void loadQuote(),250);return()=>clearTimeout(timer);}},[isOpen,loadQuote]);
+    useDomainRealtime('party-foundation-laws','public',['government_rules','law_effects'],loadQuote,isOpen);
     const [logoUrl, setLogoUrl] = useState('');
     const [logoFile, setLogoFile] = useState(null);
     const [bannerUrl,setBannerUrl]=useState('');
@@ -40,6 +46,8 @@ const CreatePartyDialog = ({ onPartyCreated, userAffiliation }) => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        if(loading||!quote||quoteError)return;
+        if(quote.restricted){toast({title:'Fundação restrita por norma vigente',description:quote.restrictions?.join(' '),variant:'destructive'});return;}
         
         if (!formData.name || !formData.acronym || !formData.ideology || !formData.statute || !formData.description || !formData.orientation || (!logoFile && !logoUrl)) {
             toast({ title: 'Erro de Validação', description: 'Todos os campos, incluindo o logo, são obrigatórios.', variant: 'destructive' });
@@ -102,7 +110,8 @@ const CreatePartyDialog = ({ onPartyCreated, userAffiliation }) => {
                     <ImageUploader previewOnly onUrlChange={setLogoUrl} onFileChange={setLogoFile} initialUrl={logoUrl} label="Logo do Partido (Obrigatório)" />
                     <ImageUploader previewOnly banner allowRemove label="Banner do partido (opcional)" initialUrl={bannerUrl} onUrlChange={setBannerUrl} onFileChange={setBannerFile}/>
                     <PartyBrandPreview name={formData.name} acronym={formData.acronym} logoUrl={logoUrl} logoFile={logoFile} bannerUrl={bannerUrl} bannerFile={bannerFile} color={formData.color} fontKey={formData.font_key}/>
-                    <DialogFooter className="gap-2 sm:justify-center"><Button type="submit" disabled={loading}>{loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <PlusCircle className="mr-2 h-4 w-4"/>}Fundar Partido</Button></DialogFooter>
+                    <section className="space-y-2 rounded-lg border p-3 text-sm" aria-live="polite"><h3 className="font-semibold">Regras e taxas de fundação</h3>{quoteError?<p role="alert">{quoteError}</p>:quote?<><p>Taxas vigentes: <strong>{formatCurrency(quote.fee)}</strong></p>{quote.rules.map(rule=><p key={rule.rule_key} className="text-xs text-muted-foreground">{rule.description}: {formatCurrency(rule.numeric_value)}</p>)}{quote.restricted&&<p className="text-red-300">Fundação restrita: {quote.restrictions.join(' ')}</p>}<p className="text-xs text-muted-foreground">O valor será conferido no servidor e debitado uma única vez da conta pessoal do fundador.</p></>:<p>Conferindo as normas vigentes…</p>}</section>
+                    <DialogFooter className="gap-2 sm:justify-center"><Button type="submit" disabled={loading||!quote||Boolean(quoteError)||quote?.restricted}>{loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <PlusCircle className="mr-2 h-4 w-4"/>}Fundar Partido</Button></DialogFooter>
                 </form>
             </DialogContent>
         </Dialog>

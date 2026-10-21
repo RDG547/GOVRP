@@ -1,3 +1,4 @@
+import IssueFineDialog from '@/components/justice/IssueFineDialog';
 import {CurrencyInput} from '@/components/ui/currency-input';
 import { fetchCitizenDirectory } from '@/lib/publicProfileQueries';
 import CitizenSelector from '@/components/CitizenSelector';
@@ -97,78 +98,6 @@ const NewReportDialog = ({ onReportAdded }) => {
         </Dialog>
     );
 };
-
-const IssueFineDialog = ({ onFineIssued }) => {
-    const { toast } = useToast();
-    const [isOpen, setIsOpen] = useState(false);
-    const [loading, setLoading] = useState(false);
-    const [users, setUsers] = useState([]);
-    const [selectedUser, setSelectedUser] = useState(null);
-    const [reason, setReason] = useState('');
-    const [amount, setAmount] = useState('');
-    const [isUsersComboboxOpen, setIsUsersComboboxOpen] = useState(false);
-
-    useEffect(() => {
-        if(isOpen) {
-            const fetchUsers = async () => {
-                const { data, error } = await fetchCitizenDirectory(supabase);
-                if (error) {
-                    toast({ title: 'Erro ao buscar usuários', variant: 'destructive' });
-                } else {
-                    setUsers(data);
-                }
-            };
-            fetchUsers();
-        }
-    }, [isOpen, toast]);
-
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        setLoading(true);
-
-        const { data, error } = await supabase.rpc('issue_fine', {
-            p_user_id: selectedUser,
-            p_reason: reason,
-            p_amount: parseFloat(amount),
-            p_due_date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() // Vence em 7 dias
-        });
-
-        if (error || !data.success) {
-            toast({ title: 'Erro ao emitir multa', description: data?.message || error?.message, variant: 'destructive' });
-        } else {
-            toast({ title: 'Sucesso!', description: 'Multa emitida.' });
-            onFineIssued();
-            setIsOpen(false);
-            setSelectedUser(null);
-            setReason('');
-            setAmount('');
-        }
-        setLoading(false);
-    };
-
-    return (
-        <Dialog open={isOpen} onOpenChange={setIsOpen}>
-            <DialogTrigger asChild>
-                <Button variant="secondary"><FileText className="mr-2 h-4 w-4" /> Emitir Multa</Button>
-            </DialogTrigger>
-            <DialogContent>
-                <DialogHeader>
-                    <DialogTitle>Emitir Nova Multa</DialogTitle>
-                </DialogHeader>
-                <form onSubmit={handleSubmit} className="grid gap-4 py-4">
-                    <div className="grid gap-2">
-                        <Label>Selecionar Usuário</Label>
-                        <CitizenSelector value={selectedUser} onChange={setSelectedUser} />
-                    </div>
-                    <div className="grid gap-2"><Label htmlFor="reason">Motivo</Label><Input id="reason" value={reason} onChange={e => setReason(e.target.value)} required /></div>
-                    <div className="grid gap-2"><Label htmlFor="amount">Valor</Label><CurrencyInput decimal id="amount" step="0.01" value={amount} onChange={e => setAmount(e.target.value)} required /></div>
-                    <DialogFooter><Button type="submit" disabled={loading || !selectedUser}>{loading && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>} Emitir Multa</Button></DialogFooter>
-                </form>
-            </DialogContent>
-        </Dialog>
-    );
-};
-
 
 const PolicePanel = () => {
     const { user } = useAuth();

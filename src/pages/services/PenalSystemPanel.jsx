@@ -1,3 +1,4 @@
+import IssueFineDialog from '@/components/justice/IssueFineDialog';
 import {CurrencyInput} from '@/components/ui/currency-input';
 import React, { useState, useEffect, useCallback } from 'react';
 import { Helmet } from 'react-helmet-async';
@@ -137,114 +138,6 @@ const NewConvictionDialog = ({ onConvictionAdded }) => {
     );
 };
 
-const NewFineDialog = ({ onFineAdded }) => {
-    const { toast } = useToast();
-    const [isOpen, setIsOpen] = useState(false);
-    const [loading, setLoading] = useState(false);
-    const [users, setUsers] = useState([]);
-    const [formData, setFormData] = useState({ user_id: '', reason: '', amount: '', due_date: '' });
-
-    const minDate = new Date();
-    minDate.setDate(minDate.getDate() + 1);
-    const minDateString = minDate.toISOString().split('T')[0];
-
-    useEffect(() => {
-        if (isOpen) {
-            const fetchUsers = async () => {
-                const { data, error } = await supabase
-                  .from('profiles')
-                  .select('id, full_name, username, avatar_url')
-                  .order('full_name', { ascending: true });
-                if (error) {
-                    toast({ title: 'Erro ao buscar usuários', variant: 'destructive' });
-                } else {
-                    setUsers(data);
-                }
-            };
-            fetchUsers();
-        }
-    }, [isOpen, toast]);
-
-    const handleChange = (e) => {
-        let { id, value } = e.target;
-        if(id === 'amount') {
-            value = formatCurrency(value, false);
-        }
-        setFormData(prev => ({ ...prev, [id]: value }));
-    };
-
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        setLoading(true);
-
-        const { data, error } = await supabase.rpc('issue_fine', {
-            p_user_id: formData.user_id,
-            p_reason: formData.reason,
-            p_amount: parseCurrency(formData.amount),
-            p_due_date: formData.due_date
-        });
-
-        if (error || (data && !data.success)) {
-            toast({ title: 'Erro ao emitir multa', description: error?.message || data?.message, variant: 'destructive' });
-        } else {
-            toast({ title: 'Sucesso!', description: 'Multa emitida com sucesso.' });
-            onFineAdded();
-            setIsOpen(false);
-            setFormData({ user_id: '', reason: '', amount: '', due_date: '' });
-        }
-        setLoading(false);
-    };
-
-    return (
-        <Dialog open={isOpen} onOpenChange={setIsOpen}>
-            <DialogTrigger asChild>
-                <Button variant="secondary"><HandCoins className="mr-2 h-4 w-4" /> Emitir Multa</Button>
-            </DialogTrigger>
-            <DialogContent className="max-h-[90vh] overflow-y-auto">
-                <DialogHeader>
-                    <DialogTitle>Emitir Nova Multa Judicial</DialogTitle>
-                    <DialogDescription>Preencha os detalhes da multa.</DialogDescription>
-                </DialogHeader>
-                <form onSubmit={handleSubmit} className="grid gap-4 py-4">
-                    <div className="grid gap-2">
-                        <Label htmlFor="user_id">Infrator</Label>
-                        <Select onValueChange={(val) => setFormData(p => ({...p, user_id: val}))} value={formData.user_id}>
-                            <SelectTrigger id="user_id"><SelectValue placeholder="Selecione um usuário" /></SelectTrigger>
-                            <SelectContent>
-                                <ScrollArea className="h-72">
-                                    {users.map((currentUser) => (
-                                        <SelectItem key={currentUser.id} value={currentUser.id}>
-                                            <UserSelectOption user={currentUser} detail={currentUser.username ? `@${currentUser.username}` : ''} />
-                                        </SelectItem>
-                                    ))}
-                                </ScrollArea>
-                            </SelectContent>
-                        </Select>
-                    </div>
-                    <div className="grid gap-2">
-                        <Label htmlFor="reason">Motivo</Label>
-                        <Input id="reason" value={formData.reason} onChange={handleChange} required />
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                        <div className="grid gap-2">
-                            <Label htmlFor="amount">Valor</Label>
-                            <CurrencyInput id="amount" value={formData.amount} onChange={handleChange} required placeholder="R$ 0,00" />
-                        </div>
-                        <div className="grid gap-2">
-                            <Label htmlFor="due_date">Data de Vencimento</Label>
-                            <Input id="due_date" type="date" value={formData.due_date} onChange={handleChange} required min={minDateString} />
-                        </div>
-                    </div>
-                    <DialogFooter>
-                        <Button type="submit" disabled={loading}>{loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Emitir Multa</Button>
-                    </DialogFooter>
-                </form>
-            </DialogContent>
-        </Dialog>
-    );
-};
-
-
 const PenalSystemPanel = () => {
     const { user } = useAuth();
     const { toast } = useToast();
@@ -313,7 +206,7 @@ const PenalSystemPanel = () => {
                     </div>
                     {isAuthorized && (
                         <div className="flex gap-2">
-                           <NewFineDialog onFineAdded={() => {}} />
+                           <IssueFineDialog onFineAdded={() => {}} />
                            <NewConvictionDialog onConvictionAdded={fetchRecords} />
                         </div>
                     )}
