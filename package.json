@@ -123,7 +123,16 @@
     "test:legislative-quorums": "node tools/test-legislative-quorums.mjs",
     "test:citizen-documents-interest": "node tools/test-citizen-documents-interest.mjs",
     "test:citizen-legislation-interface": "node tools/test-citizen-legislation-interface.mjs",
-    "test:judicial-sanctions-interface": "node tools/test-judicial-sanctions-interface.mjs"
+    "test:judicial-sanctions-interface": "node tools/test-judicial-sanctions-interface.mjs",
+    "test:controlled-reset": "node tools/test-controlled-reset.mjs",
+    "test:reset-failures": "node tools/test-reset-failures.mjs",
+    "test:reset-interface": "node tools/test-reset-interface.mjs",
+    "test:reset-new-world": "node tools/test-reset-new-world.mjs",
+    "test:world-generation": "node tools/test-world-generation.mjs",
+    "test:reset-recovery": "node tools/rehearse-reset-recovery.mjs",
+    "test:reset-account-recovery": "node tools/test-reset-account-recovery.mjs",
+    "test:reset-domain-coverage": "node tools/test-reset-domain-coverage.mjs",
+    "test:reset-background-jobs": "node tools/test-reset-background-jobs.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.0",

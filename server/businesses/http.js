@@ -1,3 +1,4 @@
+import {withWorldRequest,worldServerFetch} from '../world/request.js';
 import {assertRealWorldAction,isPlatformAdmin} from '../admin/development.js';
 import process from 'node:process';
 import { randomUUID } from 'node:crypto';
@@ -52,7 +53,7 @@ const getServerSupabase = () => {
     serverSupabase = createClient(
       getRequiredServerEnv('VITE_SUPABASE_URL'),
       getRequiredServerEnv('SUPABASE_SECRET_KEY'),
-      {
+      {global:{fetch:worldServerFetch},
         auth: {
           autoRefreshToken: false,
           persistSession: false,
@@ -174,7 +175,7 @@ const ensureAuthorizedAutomationRequest = async (supabase, request) => {
   return { type: 'admin', userId: admin.id };
 };
 
-export const registerBusinessHandler = async (request, response) => {
+const raw_registerBusinessHandler = async (request, response) => {
   if (!ensureMethod(request, response, 'POST')) {
     return;
   }
@@ -235,7 +236,7 @@ export const processWeeklyBusinessBalances = async () => {
   return { ...data, message: `${data.closed_cycles || 0} balanço(s) fechado(s), com operações e pagamentos persistidos.` };
 };
 
-export const processWeeklyBusinessBalancesHandler = async (request, response) => {
+const raw_processWeeklyBusinessBalancesHandler = async (request, response) => {
   if (!ensureMethod(request, response, ['GET', 'POST'])) {
     return;
   }
@@ -252,3 +253,6 @@ export const processWeeklyBusinessBalancesHandler = async (request, response) =>
     });
   }
 };
+
+export const registerBusinessHandler=(request,response)=>withWorldRequest(request,()=>raw_registerBusinessHandler(request,response));
+export const processWeeklyBusinessBalancesHandler=(request,response)=>withWorldRequest(request,()=>raw_processWeeklyBusinessBalancesHandler(request,response));

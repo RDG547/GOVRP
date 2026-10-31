@@ -222,74 +222,9 @@ select jsonb_build_array(jsonb_build_object('country_code','BR','country_name','
  'economy','{"gdp":2000000000000,"gdpCurrency":"USD","currency":"BRL","growth":2.5,"inflation":4.5,"unemployment":6,"exchangeUsd":5,"exchangeEur":6,"selic":12,"referenceSources":["Test reference"]}'::jsonb,
  'demographics','{"population":200000000,"area":8000000}'::jsonb,'politics','{}'::jsonb,
  'exchange_rates','{"USD":5,"EUR":6,"GBP":7,"JPY":0.03,"CNY":0.7}'::jsonb)) as snapshots \gset
--- A country disabled after the preview must not be reactivated by an old request.
-insert into public.country_rp_states(country_code,country_name,is_playable) values('PT','Portugal',true);
-select (:'snapshots'::jsonb || jsonb_build_array((:'snapshots'::jsonb->0) || '{"country_code":"PT","country_name":"Portugal"}'::jsonb)) as two_countries \gset
-set local role authenticated;
-reset role;insert into private.platform_admins(user_id) values('10000000-0000-0000-0000-000000000004');set local role authenticated;
-select public.admin_prepare_rp_reset('full_rp','{}','Teste de alteração dos países',:'two_countries'::jsonb) as country_plan \gset
-select public.admin_backup_rp_reset((:'country_plan'::jsonb->>'request_id')::uuid) as country_backup \gset
-select public.admin_confirm_reset_backup((:'country_plan'::jsonb->>'request_id')::uuid,(:'country_backup'::jsonb->>'id')::uuid,:'country_backup'::jsonb->>'digest');
-reset role;
-update public.country_rp_states set is_playable=false where country_code='PT';
-select set_config('test.country_request',:'country_plan'::jsonb->>'request_id',true);
-select set_config('test.country_snapshots',:'two_countries',true);
-set local role authenticated;
-do $$ begin
-  perform public.admin_execute_rp_reset(current_setting('test.country_request')::uuid,'RESETAR');
-  raise exception 'reset unexpectedly reactivated a disabled country';
-exception when raise_exception then
-  if sqlerrm<>'A lista de países mudou. Consulte novamente as referências reais.' then raise; end if;
-  raise notice 'PASS: changed countries require a fresh preview';
-end $$;
-do $$ begin
-  perform public.admin_prepare_rp_reset('full_rp','{}','Teste de país não ativo',current_setting('test.country_snapshots')::jsonb);
-  raise exception 'preview unexpectedly included a disabled country';
-exception when raise_exception then
-  if sqlerrm<>'A referência real precisa incluir o Brasil e todos os países ativos, sem duplicatas.' then raise; end if;
-  raise notice 'PASS: preview cannot include inactive countries';
-end $$;
-select public.admin_prepare_rp_reset('full_rp','{}','Teste de nova temporada',:'snapshots'::jsonb) as full_plan \gset
-select public.admin_backup_rp_reset((:'full_plan'::jsonb->>'request_id')::uuid) as backup_plan \gset
-select public.admin_confirm_reset_backup((:'full_plan'::jsonb->>'request_id')::uuid,(:'backup_plan'::jsonb->>'id')::uuid,:'backup_plan'::jsonb->>'digest');
-reset role;
-insert into public.posts(user_id,content) values('10000000-0000-0000-0000-000000000004','Must survive failed reset');
-create temporary table before_failed_reset as select id,citizen_id from public.profiles;
-alter table public.economic_state add constraint test_reset_rollback check(current_selic=99);
-select set_config('test.full_request',:'full_plan'::jsonb->>'request_id',true);
-set local role authenticated;
-do $$ begin
-  perform public.admin_execute_rp_reset(current_setting('test.full_request')::uuid,'RESETAR');
-  raise exception 'full reset unexpectedly ignored forced failure';
-exception when check_violation then raise notice 'PASS: failed economic reset aborts the entire operation'; end $$;
-reset role;
-select pg_temp.assert_true((select count(*) from public.posts where content='Must survive failed reset')=1,'failed full reset restores deleted posts');
-select pg_temp.assert_true(not exists(select 1 from public.profiles p join before_failed_reset b using(id) where p.citizen_id<>b.citizen_id),'failed full reset restores citizen identities');
-select pg_temp.assert_true(not exists(select 1 from test_trigger_modes b join pg_class c on c.relname=b.relname and c.relnamespace='public'::regnamespace join pg_trigger g on g.tgrelid=c.oid and g.tgname=b.tgname where g.tgenabled<>b.tgenabled),'failed full reset restores trigger enable modes');
-alter table public.economic_state drop constraint test_reset_rollback;
-set local role authenticated;
-select public.admin_execute_rp_reset((:'full_plan'::jsonb->>'request_id')::uuid,'RESETAR');
-reset role;
-select pg_temp.assert_true((select economic_current=economic_baseline and (economic_current->>'gdp')::numeric=2000000000000
- and revision=0 and economy_influence=0 and reference_snapshot_at is not null from public.country_rp_states where country_code='BR'),'full RP starts from real snapshot and revision zero');
-select pg_temp.assert_true((select current_selic=12 and public_debt=0 and last_operational_run_at is null and player_share=.5 and simulated_share=.5 from public.economic_state),'economy uses reference interest rate with zero RP debt and clean engine');
-select pg_temp.assert_true((select count(*)=2 from private.platform_admins),'technical administrator grants preserved after complete reset');
-select pg_temp.assert_true((select count(*)=4 from auth.users),'all original Auth identities preserved explicitly');
-select pg_temp.assert_true((select count(*)=2 from private.rp_launch_backups),'launch backup survives the reset');
-select pg_temp.assert_true((select treasury_balance=0 and loans_balance=0 from public.government_finances),'public funds and government loans reset');
-select pg_temp.assert_true((select count(*) from public.country_rp_economic_snapshots)=1 and (select count(*) from public.economic_events)=0 and (select count(*) from public.transactions)=0,'only new economic baseline remains');
-select pg_temp.assert_true((select count(*) from public.currency_market_states)=6 and (select count(*) from public.currency_market_states where current_strength<>1)=0,'currency market starts from real quotes without old RP pressure');
-select pg_temp.assert_true((select count(distinct volatility)=6 and count(distinct economic_strength)=6 from public.currency_market_states),'reset restores individual currency calibration');
-select pg_temp.assert_true(not exists(select 1 from private.business_daily_effort) and not exists(select 1 from private.company_operations) and not exists(select 1 from private.population_demand_runs),'complete reset clears internal economic operations and demand cycles');
-select pg_temp.assert_true((select bool_and(fixed_sale_fee=0 and not active_listing_fee_enabled and active_listing_fee_amount=0 and seller_fees='{}' and management_settings='{}') from public.state_enterprises where is_system),'complete reset restores marketplace fees and service management defaults');
-select pg_temp.assert_true(not exists(select 1 from public.system_settings where key in('enterprise_costs','basic_service_prices')) and (select (value->>'daily_budget')::numeric=5000 from public.system_settings where key='national_health_policy') and (select (value->>'is_open')::boolean from public.system_settings where key='stock_market_session'),'old service policies and paused market do not survive the new season');
-select pg_temp.assert_true((select count(*) from public.security_audit_log where action='test_security')=1 and (select value from public.system_settings where key='service_availability')='{"bank":true}'::jsonb,'security records and service configuration survive complete reset');
-select pg_temp.assert_true((select count(*) from public.products where state_enterprise_id is not null)=(select total from state_catalog_before),'full reset preserves the state food and housing catalog');
-select pg_temp.assert_true(exists(select 1 from private.platform_admins where user_id='10000000-0000-0000-0000-000000000001') and not exists(select 1 from private.recurring_billing_cycles),'reset preserves technical administration and clears billing cycles');
-select pg_temp.assert_true((select count(*) from public.profiles)=4 and (select count(*) from private.account_identities)=4,'full reset preserves all account anchors');
-select pg_temp.assert_true(not exists(select 1 from test_trigger_modes b join pg_class c on c.relname=b.relname and c.relnamespace='public'::regnamespace join pg_trigger g on g.tgrelid=c.oid and g.tgname=b.tgname where g.tgenabled<>b.tgenabled),'triggers remain enabled after full reset');
-
-select pg_temp.assert_true((select count(*)=7 and sum(population_count)=200000000 from public.country_population_segments where country_code='BR'),'population sectors restart from the new real population');
+-- Full reset now commits durable checkpoints, so it cannot be validated inside
+-- this rollback-only fixture. Real Auth/Storage/worker coverage lives in
+-- tools/test-controlled-reset.mjs and tools/test-reset-failures.mjs.
 set local role authenticated;
 select public.admin_prepare_rp_reset('selected_users','{10000000-0000-0000-0000-000000000002}','Prévia expirada') as expired \gset
 reset role;
@@ -304,10 +239,6 @@ exception when raise_exception then
   raise notice 'PASS: expired preview cannot reset a citizen';
 end $$;
 reset role;
-select pg_temp.assert_true((select count(*)=6 from public.government_rules where rule_key in('corporate_tax_rate','consumption_tax_rate','business_license_fee','public_safety_policy_index','social_welfare_policy_index','transaction_tax')) and public.get_government_rule('business_license_fee')=250 and (select rule_kind='fee' from public.government_rules where rule_key='business_license_fee') and (select count(*)=7 from public.legal_authority_rules) and exists(select 1 from public.legal_authority_rules where capability='executive_rate_adjustment' and decree_allowed),'initial government rules are ready for the next laws and businesses');
-select public.recalculate_currency_market('BR','reset-test-market-cycle',true);
-select pg_temp.assert_true((select (economic_baseline->>'exchangeUsd')::numeric=5 and (economic_current->>'exchangeUsd')::numeric=(select brl_per_unit from public.country_rp_exchange_rates where country_code='BR' and currency_code='USD') and (economic_current->>'exchangeUsd')::numeric<>5 from public.country_rp_states where country_code='BR'),'RP engine changes current economy without overwriting the real baseline');
 select pg_temp.assert_true(not has_function_privilege('authenticated','private.build_rp_reset_plan(text,uuid[])','execute'),'private reset helpers cannot be called directly');
 select pg_temp.assert_true(current_setting('safeupdate.enabled')='on','API safeupdate protection remains enabled after every reset mode');
-select pg_temp.assert_true((select manager_id is null and operating_business_id is null and commission_value=0 and publication_mode='automatic' and not is_privatized from public.state_enterprises where service_key='marketplace'),'full reset restores public marketplace without private management or old commission');
 rollback;

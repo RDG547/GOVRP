@@ -1,3 +1,4 @@
+import {useWorldRuntime} from '@/contexts/WorldRuntimeContext';
 import React, { useEffect, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
@@ -29,6 +30,7 @@ const shouldBypassGlobalGate = (pathname = '', isAdmin = false) => {
 };
 
 const GlobalSiteAvailabilityGate = ({ pathname = '/', isAdmin = false, children }) => {
+  const runtime = useWorldRuntime();
   const [loading, setLoading] = useState(true);
   const [siteMode, setSiteMode] = useState('active');
 
@@ -65,6 +67,8 @@ const GlobalSiteAvailabilityGate = ({ pathname = '/', isAdmin = false, children 
       isMounted = false;
     };
   }, [isAdmin, pathname]);
+
+  if (runtime?.maintenance && !(isAdmin && pathname.startsWith('/admin-dashboard')) && !['/login','/auth/callback','/forgot-password','/update-password','/support','/terms','/privacy','/donation'].includes(pathname)) return <MaintenanceMode serviceName="GOV.RP" serviceDescription="O universo está sendo preparado para uma nova geração. Seu acesso será liberado automaticamente após a verificação." />;
 
   if (loading) {
     return (

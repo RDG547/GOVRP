@@ -1,3 +1,4 @@
+import {getWorldRuntime} from './worldRuntime.js';
 let inFlightSync = null;
 let lastCompletedSyncAt = 0;
 let lastSyncResult = null;
@@ -18,10 +19,12 @@ export const syncElectionOffices = async ({ force = false, accessToken = '' } = 
     return lastSyncResult;
   }
 
+  const world = getWorldRuntime();
   inFlightSync = fetch('/api/elections/sync-offices', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
+      ...(world?.generation_id?{'x-govrp-world-generation':world.generation_id}:{}),
       ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
     },
   })

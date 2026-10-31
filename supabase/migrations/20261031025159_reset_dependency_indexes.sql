@@ -1,0 +1,35 @@
+BEGIN;
+-- Foreign-key checks must remain indexed even when the linked rows are NULL.
+-- In particular, each deleted post previously scanned the whole posts table.
+SET LOCAL lock_timeout='2s';
+CREATE INDEX IF NOT EXISTS "reset_fk_economic_events_reverses_event_id_idx" ON "public"."economic_events"("reverses_event_id");
+CREATE INDEX IF NOT EXISTS "reset_fk_economic_events_government_entity_id_idx" ON "public"."economic_events"("government_entity_id");
+CREATE INDEX IF NOT EXISTS "reset_fk_citizen_economic_snapshots_profile_id_idx" ON "public"."citizen_economic_snapshots"("profile_id");
+CREATE INDEX IF NOT EXISTS "reset_fk_price_observations_period_id_idx" ON "public"."price_observations"("period_id");
+CREATE INDEX IF NOT EXISTS "reset_fk_price_observations_sector_id_idx" ON "public"."price_observations"("sector_id");
+CREATE INDEX IF NOT EXISTS "reset_fk_price_observations_product_id_idx" ON "public"."price_observations"("product_id");
+CREATE INDEX IF NOT EXISTS "reset_fk_notifications_sender_id_idx" ON "public"."notifications"("sender_id");
+CREATE INDEX IF NOT EXISTS "reset_fk_transactions_to_account_id_idx" ON "public"."transactions"("to_account_id");
+CREATE INDEX IF NOT EXISTS "reset_fk_transactions_from_account_id_idx" ON "public"."transactions"("from_account_id");
+CREATE INDEX IF NOT EXISTS "reset_fk_user_page_views_user_id_idx" ON "public"."user_page_views"("user_id");
+CREATE INDEX IF NOT EXISTS "reset_fk_business_economic_snapshots_sector_id_idx" ON "public"."business_economic_snapshots"("sector_id");
+CREATE INDEX IF NOT EXISTS "reset_fk_business_economic_snapshots_business_id_idx" ON "public"."business_economic_snapshots"("business_id");
+CREATE INDEX IF NOT EXISTS "reset_fk_government_revenues_period_id_idx" ON "public"."government_revenues"("period_id");
+CREATE INDEX IF NOT EXISTS "reset_fk_government_revenues_business_id_idx" ON "public"."government_revenues"("business_id");
+CREATE INDEX IF NOT EXISTS "reset_fk_government_revenues_actor_profile_id_idx" ON "public"."government_revenues"("actor_profile_id");
+CREATE INDEX IF NOT EXISTS "reset_fk_economic_engine_runs_period_id_idx" ON "public"."economic_engine_runs"("period_id");
+CREATE INDEX IF NOT EXISTS "reset_fk_economic_engine_runs_initiated_by_idx" ON "public"."economic_engine_runs"("initiated_by");
+CREATE INDEX IF NOT EXISTS "reset_fk_business_supply_orders_transaction_id_idx" ON "public"."business_supply_orders"("transaction_id");
+CREATE INDEX IF NOT EXISTS "reset_fk_business_supply_orders_seller_business_id_idx" ON "public"."business_supply_orders"("seller_business_id");
+CREATE INDEX IF NOT EXISTS "reset_fk_business_supply_orders_resource_code_idx" ON "public"."business_supply_orders"("resource_code");
+CREATE INDEX IF NOT EXISTS "reset_fk_business_supply_orders_buyer_business_id_idx" ON "public"."business_supply_orders"("buyer_business_id");
+CREATE INDEX IF NOT EXISTS "reset_fk_business_supply_orders_actor_id_idx" ON "public"."business_supply_orders"("actor_id");
+CREATE INDEX IF NOT EXISTS "reset_fk_posts_original_post_id_idx" ON "public"."posts"("original_post_id");
+CREATE INDEX IF NOT EXISTS "reset_fk_posts_user_id_idx" ON "public"."posts"("user_id");
+CREATE INDEX IF NOT EXISTS "reset_fk_posts_parent_post_id_idx" ON "public"."posts"("parent_post_id");
+CREATE INDEX IF NOT EXISTS "reset_fk_posts_story_id_idx" ON "public"."posts"("story_id");
+CREATE INDEX IF NOT EXISTS "reset_fk_comments_user_id_idx" ON "public"."comments"("user_id");
+CREATE INDEX IF NOT EXISTS "reset_fk_comments_post_id_idx" ON "public"."comments"("post_id");
+CREATE INDEX IF NOT EXISTS "reset_fk_comments_parent_comment_id_idx" ON "public"."comments"("parent_comment_id");
+CREATE INDEX IF NOT EXISTS "reset_fk_x_messages_conversation_id_idx" ON "public"."x_messages"("conversation_id");
+COMMIT;

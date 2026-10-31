@@ -1,3 +1,4 @@
+import {withWorldRequest,worldServerFetch} from '../world/request.js';
 import {assertRealWorldAction} from '../admin/development.js';
 import { Buffer } from 'node:buffer';
 import process from 'node:process';
@@ -159,7 +160,7 @@ const getSupabaseAdmin = () => {
     const url = (process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL)?.trim();
     const secret = process.env.SUPABASE_SECRET_KEY?.trim();
     if (!url || !secret) throw new Error('Configuração interna de persistência indisponível.');
-    supabaseAdminClient = createClient(url, secret, {
+    supabaseAdminClient = createClient(url, secret, {global:{fetch:worldServerFetch},
       auth: { autoRefreshToken: false, persistSession: false },
     });
   }
@@ -279,7 +280,7 @@ const sendPixGatewayError = (response, error, fallbackMessage) => {
   json(response, 500, { error: fallbackMessage });
 };
 
-export const createStripeCheckoutHandler = async (request, response) => {
+const raw_createStripeCheckoutHandler = async (request, response) => {
   if (!ensureMethod(request, response, 'POST')) {
     return;
   }
@@ -364,7 +365,7 @@ export const createStripeCheckoutHandler = async (request, response) => {
   }
 };
 
-export const createPixChargeHandler = async (request, response) => {
+const raw_createPixChargeHandler = async (request, response) => {
   if (!ensureMethod(request, response, 'POST')) {
     return;
   }
@@ -430,7 +431,7 @@ export const createPixChargeHandler = async (request, response) => {
   }
 };
 
-export const checkPixChargeHandler = async (request, response) => {
+const raw_checkPixChargeHandler = async (request, response) => {
   if (!ensureMethod(request, response, 'GET')) {
     return;
   }
@@ -479,7 +480,7 @@ const readRawRequestBody = async (request) => {
   return Buffer.concat(chunks);
 };
 
-export const stripeWebhookHandler = async (request, response) => {
+const raw_stripeWebhookHandler = async (request, response) => {
   if (!ensureMethod(request, response, 'POST')) return;
   try {
     const stripe = getStripeClient();
@@ -534,3 +535,8 @@ export const stripeWebhookHandler = async (request, response) => {
     json(response, error instanceof HttpError ? error.statusCode : 400, { error: 'Webhook inválido.' });
   }
 };
+
+export const createStripeCheckoutHandler=(request,response)=>withWorldRequest(request,()=>raw_createStripeCheckoutHandler(request,response));
+export const createPixChargeHandler=(request,response)=>withWorldRequest(request,()=>raw_createPixChargeHandler(request,response));
+export const checkPixChargeHandler=(request,response)=>withWorldRequest(request,()=>raw_checkPixChargeHandler(request,response));
+export const stripeWebhookHandler=(request,response)=>withWorldRequest(request,()=>raw_stripeWebhookHandler(request,response));

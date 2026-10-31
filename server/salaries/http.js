@@ -1,3 +1,4 @@
+import {withWorldRequest,worldServerFetch} from '../world/request.js';
 import {assertRealWorldAction,isPlatformAdmin} from '../admin/development.js';
 import process from 'node:process';
 import { createClient } from '@supabase/supabase-js';
@@ -51,7 +52,7 @@ const getServerSupabase = () => {
     serverSupabase = createClient(
       getRequiredServerEnv('VITE_SUPABASE_URL'),
       getRequiredServerEnv('SUPABASE_SECRET_KEY'),
-      {
+      {global:{fetch:worldServerFetch},
         auth: {
           autoRefreshToken: false,
           persistSession: false,
@@ -137,7 +138,7 @@ export const processWeeklySalaries = async () => {
   return data;
 };
 
-export const processWeeklySalariesHandler = async (request, response) => {
+const raw_processWeeklySalariesHandler = async (request, response) => {
   if (!ensureMethod(request, response, ['GET', 'POST'])) {
     return;
   }
@@ -154,3 +155,5 @@ export const processWeeklySalariesHandler = async (request, response) => {
     });
   }
 };
+
+export const processWeeklySalariesHandler=(request,response)=>withWorldRequest(request,()=>raw_processWeeklySalariesHandler(request,response));

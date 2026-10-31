@@ -1,3 +1,4 @@
+import {WorldRuntimeProvider,useWorldRuntime} from '@/contexts/WorldRuntimeContext';
 import {Map as WorldMapIcon} from 'lucide-react';
 import {Link as WorldMapLink} from 'react-router-dom';
 import {NotificationsProvider} from '@/contexts/NotificationsContext';
@@ -174,15 +175,16 @@ function App() {
   const isAuthCallback = location.pathname === '/auth/callback';
 
   return (
-    <AuthProvider>
+    <WorldRuntimeProvider><AuthProvider>
       <AppShell location={location} theme={theme} isAuthCallback={isAuthCallback} />
-    </AuthProvider>
+    </AuthProvider></WorldRuntimeProvider>
   );
 }
 
 const WorldMap=React.lazy(()=>import('@/pages/WorldMap'));
 
 const AppShell = ({ location, theme, isAuthCallback }) => {
+  const runtime = useWorldRuntime();
   const { user } = useAuth();
   const rolePool = Array.isArray(user?.effective_roles)
     ? user.effective_roles
@@ -190,7 +192,7 @@ const AppShell = ({ location, theme, isAuthCallback }) => {
   const isAdmin = user?.is_platform_admin || rolePool.includes('Admin') || user?.role === 'Admin';
   const isCitizenOnboarding = location.pathname === '/registro-cidadania';
   const onboardingRequired = Boolean(user && user.onboarding_completed === false);
-  const citizenScope = user ? `${user.id}:${user.citizen_id || 'pending'}` : 'visitor';
+  const citizenScope = user ? `${user.id}:${user.citizen_id || 'pending'}:${runtime?.generation_id || 'initial'}` : 'visitor';
   const routeTransitionKey = location.pathname.startsWith('/services/x')
     ? '/services/x'
     : location.pathname.startsWith('/admin-dashboard')
@@ -198,7 +200,7 @@ const AppShell = ({ location, theme, isAuthCallback }) => {
       : location.pathname;
 
   return (
-    <NotificationsProvider><CitizenNeedsProvider><PopupQueueProvider key={citizenScope}><InvitationsProvider><CartProvider key={citizenScope} storageKey={`govrp_cart:${citizenScope}`}>
+    <NotificationsProvider key={citizenScope}><CitizenNeedsProvider key={citizenScope}><PopupQueueProvider key={citizenScope}><InvitationsProvider><CartProvider key={citizenScope} storageKey={`govrp_cart:${citizenScope}`}>
     <GlobalSiteAvailabilityGate pathname={location.pathname} isAdmin={isAdmin}>
       <div className={`${theme} min-h-screen bg-background text-foreground custom-scrollbar`}>
         <NativeRuntime />

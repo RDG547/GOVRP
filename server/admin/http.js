@@ -1,3 +1,4 @@
+import {withWorldRequest,worldServerFetch} from '../world/request.js';
 import {assertRealWorldAction,isPlatformAdmin} from './development.js';
 import process from 'node:process';
 import { createClient } from '@supabase/supabase-js';
@@ -50,7 +51,7 @@ const getServerSupabase = () => {
     serverSupabase = createClient(
       getRequiredServerEnv('VITE_SUPABASE_URL'),
       getRequiredServerEnv('SUPABASE_SECRET_KEY'),
-      {
+      {global:{fetch:worldServerFetch},
         auth: {
           autoRefreshToken: false,
           persistSession: false,
@@ -194,7 +195,7 @@ const updateUserProfile = async (supabase, payload) => {
   return updatedProfile;
 };
 
-export const adminUpdateUserHandler = async (request, response) => {
+const raw_adminUpdateUserHandler = async (request, response) => {
   if (!ensureMethod(request, response, 'POST')) {
     return;
   }
@@ -206,7 +207,7 @@ export const adminUpdateUserHandler = async (request, response) => {
     const requester = createClient(
       getRequiredServerEnv('VITE_SUPABASE_URL'),
       process.env.VITE_SUPABASE_PUBLISHABLE_KEY?.trim() || getRequiredServerEnv('VITE_SUPABASE_ANON_KEY'),
-      { global: { headers: { Authorization: `Bearer ${getBearerToken(request)}` } }, auth: { autoRefreshToken: false, persistSession: false } }
+      { global: {fetch:worldServerFetch, headers: { Authorization: `Bearer ${getBearerToken(request)}` } }, auth: { autoRefreshToken: false, persistSession: false } }
     );
     const updatedProfile = await updateUserProfile(requester, body);
 
@@ -222,3 +223,5 @@ export const adminUpdateUserHandler = async (request, response) => {
     });
   }
 };
+
+export const adminUpdateUserHandler=(request,response)=>withWorldRequest(request,()=>raw_adminUpdateUserHandler(request,response));

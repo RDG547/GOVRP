@@ -1,3 +1,4 @@
+import {getWorldRuntime} from '@/lib/worldRuntime';
 import { sleepProgress } from '@/lib/citizenSleep';
 import CitizenSleepGuard from '@/components/CitizenSleepGuard';
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
@@ -18,7 +19,7 @@ export function CitizenNeedsProvider({ children }) {
   const busy = useRef(false);
   const activeId = useRef(user?.id); activeId.current = user?.id;
   const refresh = useCallback(async () => {
-    if (!user?.onboarding_completed || busy.current) return;
+    if (!user?.onboarding_completed || getWorldRuntime()?.maintenance || busy.current) return;
     busy.current = true;
     try {
       const result = await supabase.rpc('get_citizen_needs');
@@ -40,6 +41,7 @@ export function CitizenNeedsProvider({ children }) {
     for (const change of changes) if (change.new?.user_id === user?.id) setNeeds(current => mergeNeeds(current, change.new));
   }, Boolean(user?.onboarding_completed));
   const act = useCallback(async (action, referenceId, key) => {
+    if(getWorldRuntime()?.maintenance)throw new Error('O universo está em manutenção. Aguarde a reabertura.');
     const { data, error: failure } = await supabase.rpc('citizen_need_action', { p_action: action, p_reference_id: referenceId, p_idempotency_key: key });
     if (failure) throw failure;
     if (data?.server_now) clockOffset.current = Date.parse(data.server_now) - Date.now();

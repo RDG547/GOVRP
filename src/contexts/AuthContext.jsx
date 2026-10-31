@@ -1,3 +1,4 @@
+import {getWorldRuntime} from '@/lib/worldRuntime';
 import {setAdminPreview} from '@/lib/adminPreview';
 import { officialRoleCapabilities } from '@/lib/roleIcons';
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from 'react';
@@ -245,13 +246,13 @@ export const AuthProvider = ({ children }) => {
     const refreshId = ++profileRefreshRef.current;
     if (session?.user?.id) {
       try {
-        if (!skipSync && user?.is_platform_admin && (user.admin_development?.mode==='normal'||user.admin_development?.execute_real)) {
+        if (!skipSync && !getWorldRuntime()?.maintenance && user?.is_platform_admin && (user.admin_development?.mode==='normal'||user.admin_development?.execute_real)) {
           await syncElectionOffices({ accessToken: session.access_token }).catch((error) => {
             console.error('Error syncing election offices during refresh:', error);
           });
         }
         const preview = user?.is_platform_admin && user.admin_development?.mode !== 'normal' && !user.admin_development?.execute_real;
-        if (!skipSync && !preview && isPrisonSentenceActive(user)) await supabase.rpc('check_and_update_prisoner_status');
+        if (!skipSync && !getWorldRuntime()?.maintenance && !preview && isPrisonSentenceActive(user)) await supabase.rpc('check_and_update_prisoner_status');
         const { data: profile, error } = await supabase
           .from('profiles')
           .select('*')
@@ -271,7 +272,7 @@ export const AuthProvider = ({ children }) => {
   }, [attachPrivateAccountIdentity, decorateProfileWithEffectiveRoles]);
 
   const syncOfficeStateForSessionUser = useCallback(async () => {
-    if (!session?.user?.id || user?.role !== 'Admin') {
+    if (!session?.user?.id || getWorldRuntime()?.maintenance || user?.role !== 'Admin') {
       return;
     }
 
@@ -306,7 +307,7 @@ export const AuthProvider = ({ children }) => {
   }, [refreshUser, session?.user?.id, user]);
 
   useEffect(() => {
-    if (!session?.user?.id || user?.role !== 'Admin') {
+    if (!session?.user?.id || getWorldRuntime()?.maintenance || user?.role !== 'Admin') {
       return undefined;
     }
 
@@ -345,6 +346,15 @@ export const AuthProvider = ({ children }) => {
       setLoading(false);
     }
   }, [hydrateSession]);
+
+  useEffect(() => {
+    const reset = async () => {
+      await supabase.auth.refreshSession();
+      await refreshUser({ skipSync: true });
+    };
+    window.addEventListener('govrp:world-reset', reset);
+    return () => window.removeEventListener('govrp:world-reset', reset);
+  }, [refreshUser]);
 
   const refreshSessionSilently = useCallback(async () => {
     const now = Date.now();

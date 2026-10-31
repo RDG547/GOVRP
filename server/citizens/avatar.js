@@ -1,3 +1,4 @@
+import {withWorldRequest,worldServerFetch} from '../world/request.js';
 import {assertRealWorldAction} from '../admin/development.js';
 import process from 'node:process';
 import { Buffer } from 'node:buffer';
@@ -34,7 +35,7 @@ const getServerSupabase = () => {
     serverSupabase = createClient(
       getRequiredEnv('VITE_SUPABASE_URL'),
       getRequiredEnv('SUPABASE_SECRET_KEY'),
-      { auth: { autoRefreshToken: false, persistSession: false } },
+      {global:{fetch:worldServerFetch}, auth: { autoRefreshToken: false, persistSession: false } },
     );
   }
   return serverSupabase;
@@ -77,7 +78,7 @@ const getUser = async (supabase, request) => {
   return data.user;
 };
 
-export const citizenAvatarHandler = async (request, response) => {
+const raw_citizenAvatarHandler = async (request, response) => {
   if (request.method === 'OPTIONS') {
     response.statusCode = 204;
     response.end();
@@ -130,3 +131,5 @@ export const citizenAvatarHandler = async (request, response) => {
     json(response, error.statusCode || 500, { error: error.message || 'Não foi possível processar a imagem.' });
   }
 };
+
+export const citizenAvatarHandler=(request,response)=>withWorldRequest(request,()=>raw_citizenAvatarHandler(request,response));

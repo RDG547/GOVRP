@@ -1,3 +1,4 @@
+import {withWorldRequest,worldServerFetch} from '../world/request.js';
 import {assertRealWorldAction,isPlatformAdmin} from '../admin/development.js';
 import process from 'node:process';
 import { createClient } from '@supabase/supabase-js';
@@ -99,7 +100,7 @@ const getServerSupabase = () => {
     serverSupabase = createClient(
       getRequiredServerEnv('VITE_SUPABASE_URL'),
       getRequiredServerEnv('SUPABASE_SECRET_KEY'),
-      {
+      {global:{fetch:worldServerFetch},
         auth: {
           autoRefreshToken: false,
           persistSession: false,
@@ -116,7 +117,7 @@ const getUserScopedSupabase = (accessToken) =>
     getRequiredServerEnv('VITE_SUPABASE_URL'),
     getPublicServerKey() || getRequiredServerEnv('VITE_SUPABASE_ANON_KEY'),
     {
-      global: {
+      global: {fetch:worldServerFetch,
         headers: {
           Authorization: `Bearer ${accessToken}`,
         },
@@ -1411,7 +1412,7 @@ export const syncElectionOfficesState = async ({ accessToken } = {}) => {
     grantedUserIds: dedupe(assignments.map(a => a.user_id)), changedUserIds: dedupe(assignments.map(a => a.user_id)), notificationsCreated: 0, settlements };
 };
 
-export const syncElectionOfficesHandler = async (request, response) => {
+const raw_syncElectionOfficesHandler = async (request, response) => {
   if (!ensureMethod(request, response, 'POST')) {
     return;
   }
@@ -1435,7 +1436,7 @@ export const syncElectionOfficesHandler = async (request, response) => {
   }
 };
 
-export const submitPresidentialCandidacyHandler = async (request, response) => {
+const raw_submitPresidentialCandidacyHandler = async (request, response) => {
   if (!ensureMethod(request, response, 'POST')) {
     return;
   }
@@ -1619,7 +1620,7 @@ export const submitPresidentialCandidacyHandler = async (request, response) => {
   }
 };
 
-export const respondViceCandidacyInvitationHandler = async (request, response) => {
+const raw_respondViceCandidacyInvitationHandler = async (request, response) => {
   if (!ensureMethod(request, response, 'POST')) {
     return;
   }
@@ -1825,7 +1826,7 @@ export const respondViceCandidacyInvitationHandler = async (request, response) =
   }
 };
 
-export const cancelCandidacyHandler = async (request, response) => {
+const raw_cancelCandidacyHandler = async (request, response) => {
   if (!ensureMethod(request, response, 'POST')) {
     return;
   }
@@ -1898,7 +1899,7 @@ export const cancelCandidacyHandler = async (request, response) => {
   }
 };
 
-export const resignPresidencyHandler = async (request, response) => {
+const raw_resignPresidencyHandler = async (request, response) => {
   if (!ensureMethod(request, response, 'POST')) {
     return;
   }
@@ -1922,3 +1923,9 @@ export const resignPresidencyHandler = async (request, response) => {
     });
   }
 };
+
+export const syncElectionOfficesHandler=(request,response)=>withWorldRequest(request,()=>raw_syncElectionOfficesHandler(request,response));
+export const submitPresidentialCandidacyHandler=(request,response)=>withWorldRequest(request,()=>raw_submitPresidentialCandidacyHandler(request,response));
+export const respondViceCandidacyInvitationHandler=(request,response)=>withWorldRequest(request,()=>raw_respondViceCandidacyInvitationHandler(request,response));
+export const cancelCandidacyHandler=(request,response)=>withWorldRequest(request,()=>raw_cancelCandidacyHandler(request,response));
+export const resignPresidencyHandler=(request,response)=>withWorldRequest(request,()=>raw_resignPresidencyHandler(request,response));

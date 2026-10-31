@@ -29,5 +29,10 @@
       "source": "/((?!api(?:/|$)).*)",
       "destination": "/index.html"
     }
-  ]
+  ],
+  "functions": {
+    "api/admin/reset-worker.js": {
+      "maxDuration": 30
+    }
+  }
 }

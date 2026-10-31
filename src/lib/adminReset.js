@@ -100,6 +100,6 @@ export const executeAdminReset = async (requestId, confirmation) => {
     p_request_id: requestId, p_confirmation: confirmation,
   });
   if (error) throw error;
-  if (!data?.success) throw new Error('O reset não foi concluído. Consulte o histórico antes de tentar novamente.');
+  if (!data?.success && !data?.accepted) throw new Error('O reset não foi concluído. Consulte o histórico antes de tentar novamente.');
   return data;
 };

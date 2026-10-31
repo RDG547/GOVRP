@@ -1,3 +1,4 @@
+import {resetWorkerHandler} from '../server/admin/reset-worker.js';
 import {
   cancelCandidacyHandler,
   respondViceCandidacyInvitationHandler,
@@ -8,6 +9,7 @@ import {
 import { adminUpdateUserHandler } from '../server/admin/http.js';
 
 const ROUTE_HANDLERS = {
+  '/api/admin/reset-worker': resetWorkerHandler,
   '/api/admin/update-user': adminUpdateUserHandler,
   '/api/elections/cancel-candidacy': cancelCandidacyHandler,
   '/api/elections/respond-vice-invitation': respondViceCandidacyInvitationHandler,
