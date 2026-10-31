@@ -124,13 +124,15 @@ export async function processResetWorker({
             bytes: bytes.length,
           };
         } else if (task.kind === "delete_asset") {
-          const archive = await checked(
-            client.storage.from(backupBucket).download(task.backup_name),
-          );
-          if (sha(Buffer.from(await archive.arrayBuffer())) !== task.digest)
-            throw new Error(
-              "A cópia do arquivo precisa ser recuperada antes da limpeza.",
+          if (task.backup_required !== false) {
+            const archive = await checked(
+              client.storage.from(backupBucket).download(task.backup_name),
             );
+            if (sha(Buffer.from(await archive.arrayBuffer())) !== task.digest)
+              throw new Error(
+                "A cópia do arquivo precisa ser recuperada antes da limpeza.",
+              );
+          }
           await checked(client.storage.from(task.bucket).remove([task.name]));
         } else if (task.kind === "delete_account") {
           // Supabase's supported soft deletion removes access and identities while

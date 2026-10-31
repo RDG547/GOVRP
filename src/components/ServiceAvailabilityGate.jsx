@@ -15,7 +15,7 @@ const ServiceAvailabilityGate = ({ serviceKey, children }) => {
   const parentSuspended = useContext(ServiceSuspensionContext);
   const { settings, loading } = useServiceAvailability();
   const [wasAvailable, setWasAvailable] = useState(false);
-  const isAdmin = user?.role === 'Admin' || user?.effective_roles?.includes('Admin');
+  const isAdmin = user?.is_platform_admin || user?.role === 'Admin' || user?.effective_roles?.includes('Admin');
   const serviceMode = isAdmin ? 'active' : resolveServiceMode(settings, serviceKey);
   useEffect(() => { if (!loading && serviceMode === 'active') setWasAvailable(true); }, [loading, serviceMode]);
 

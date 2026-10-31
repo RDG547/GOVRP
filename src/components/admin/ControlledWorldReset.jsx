@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { prepareAdminReset } from "@/lib/adminReset";
 import { Button } from "@/components/ui/button";
@@ -13,35 +13,42 @@ const labels = {
   detaching: "Preparando relacionamentos",
   clearing: "Limpando o universo",
   initializing: "Inicializando catálogos",
-  storage: "Limpando arquivos já copiados",
+  storage: "Limpando arquivos do universo",
   accounts: "Removendo acessos comuns confirmados",
   validating: "Verificando o novo mundo",
   validated: "Verificado — aguardando reabertura",
   failed: "Interrompido — manutenção preservada",
   completed: "Concluído e reaberto",
 };
+const phaseLabels = {
+  ...labels,
+  preserving: "Conferindo registros protegidos",
+  backup_verification: "Verificando cópias e arquivos",
+  profiles: "Reiniciando personagens",
+  checking_relations: "Conferindo relacionamentos",
+  final_validation: "Validação final",
+};
+const stepLabels = {
+  pending: "Aguardando",
+  running: "Em andamento",
+  completed: "Concluída",
+  failed: "Interrompida",
+};
 const call = async (name, args) => {
   const r = await supabase.rpc(name, args);
   if (r.error) throw new Error(r.error.message);
   return r.data;
 };
-const download = (value, name) => {
-  const url = URL.createObjectURL(
-    new Blob([JSON.stringify(value, null, 2)], { type: "application/json" }),
-  );
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = name;
-  a.click();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
-};
-
 export default function ControlledWorldReset() {
   const [audit, setAudit] = useState(null),
     [preview, setPreview] = useState(null),
     [job, setJob] = useState(null),
     [mode, setMode] = useState("universe"),
     [remove, setRemove] = useState(false),
+    [backup, setBackup] = useState("yes"),
+    [skipBackupOnResume, setSkipBackupOnResume] = useState(false),
+    [progressError, setProgressError] = useState(""),
+    [lastUpdated, setLastUpdated] = useState(null),
     [reason, setReason] = useState(""),
     [phrase, setPhrase] = useState(""),
     [accountPhrase, setAccountPhrase] = useState(""),
@@ -49,19 +56,43 @@ export default function ControlledWorldReset() {
     [busy, setBusy] = useState(false),
     [error, setError] = useState(""),
     [report, setReport] = useState(null);
+  const refreshing = useRef(false);
+  const mounted = useRef(true);
   const refresh = useCallback(async () => {
+    if (refreshing.current) return;
+    refreshing.current = true;
     try {
-      setJob(await call("admin_get_controlled_reset"));
+      const { data, error } = await supabase
+        .rpc("admin_get_controlled_reset")
+        .abortSignal(AbortSignal.timeout(7000));
+      if (error) throw error;
+      if (mounted.current) {
+        setJob(data);
+        setProgressError("");
+        setLastUpdated(new Date());
+      }
     } catch (e) {
-      setError(
-        `Não foi possível consultar o acompanhamento. A execução continua no servidor. ${e.message}`,
-      );
+      console.error("Consulta de progresso do reset:", e);
+      if (mounted.current)
+        setProgressError(
+          "Não foi possível atualizar o progresso agora. O último estado continua visível; a consulta será repetida automaticamente.",
+        );
+    } finally {
+      refreshing.current = false;
     }
   }, []);
   useEffect(() => {
+    mounted.current = true;
     void refresh();
-    const timer = setInterval(refresh, 3000);
-    return () => clearInterval(timer);
+    const timer = setInterval(() => {
+      if (!document.hidden) void refresh();
+    }, 6000);
+    window.addEventListener("focus", refresh);
+    return () => {
+      mounted.current = false;
+      clearInterval(timer);
+      window.removeEventListener("focus", refresh);
+    };
   }, [refresh]);
   const run = async (work) => {
     if (busy) return;
@@ -106,6 +137,7 @@ export default function ControlledWorldReset() {
         p_request_id: preview.request_id,
         p_mode: mode,
         p_remove_common_accounts: remove && mode === "launch",
+        p_create_backup: backup === "yes",
       });
       const accepted = await call("admin_start_controlled_reset", {
         p_request_id: preview.request_id,
@@ -123,7 +155,10 @@ export default function ControlledWorldReset() {
   const active =
     job && !["draft", "expired", "completed", "cancelled"].includes(job.status);
   const steps = job?.steps || [],
-    completed = steps.filter((s) => s.status === "completed").length;
+    completed =
+      job?.progress?.completed ??
+      steps.filter((s) => s.status === "completed").length,
+    total = job?.progress?.total ?? steps.length;
   return (
     <section
       className="space-y-4 rounded-xl border border-red-500/40 p-4"
@@ -133,21 +168,13 @@ export default function ControlledWorldReset() {
       <p className="text-sm text-muted-foreground">
         Reinicia personagens, cargos, patrimônio e histórias do RP. Identidades
         administrativas, doações reais, suporte e estruturas essenciais ficam
-        protegidos. O backup é criado e verificado sob manutenção antes da
-        limpeza.
+        protegidos. Escolha se deseja criar um backup antes de iniciar. O
+        andamento e a validação ficam nesta mesma seção.
       </p>
       <div className="flex flex-wrap gap-2">
         <Button variant="outline" disabled={busy || active} onClick={analyze}>
           Analisar Reset
         </Button>
-        {audit && (
-          <Button
-            variant="outline"
-            onClick={() => download(audit, "govrp-diagnostico-reset.json")}
-          >
-            Exportar diagnóstico e catálogo
-          </Button>
-        )}
       </div>
       {audit && (
         <div className="space-y-3 text-sm">
@@ -167,7 +194,11 @@ export default function ControlledWorldReset() {
             {mode === "launch" && remove
               ? "encerradas após a confirmação extra"
               : "preservadas"}
-            . Backup físico: será criado e conferido antes da limpeza.
+            . Backup:{" "}
+            {backup === "yes"
+              ? "será criado e verificado antes da limpeza"
+              : "dispensado; sem cópia para restaurar os dados removidos"}
+            .
           </p>
           <details>
             <summary>Arquivos analisados</summary>
@@ -243,6 +274,38 @@ export default function ControlledWorldReset() {
                     permanecem.
                   </label>
                 )}
+                <fieldset className="space-y-2 rounded-lg border p-3">
+                  <legend className="px-1 text-sm font-medium">
+                    Deseja fazer backup antes do reset?
+                  </legend>
+                  <label className="flex min-h-11 items-center gap-2">
+                    <input
+                      type="radio"
+                      name="reset-backup"
+                      value="yes"
+                      checked={backup === "yes"}
+                      onChange={() => setBackup("yes")}
+                    />
+                    Sim, criar e verificar uma cópia
+                  </label>
+                  <label className="flex min-h-11 items-center gap-2">
+                    <input
+                      type="radio"
+                      name="reset-backup"
+                      value="no"
+                      checked={backup === "no"}
+                      onChange={() => setBackup("no")}
+                    />
+                    Não, executar sem backup
+                  </label>
+                  {backup === "no" && (
+                    <p className="text-sm text-amber-400">
+                      Os dados removidos não terão cópia de recuperação desta
+                      execução. A preservação dos Admins e a validação de
+                      integridade continuam obrigatórias.
+                    </p>
+                  )}
+                </fieldset>
                 <Label htmlFor="world-reset-reason">Motivo</Label>
                 <Input
                   id="world-reset-reason"
@@ -266,9 +329,9 @@ export default function ControlledWorldReset() {
             exige validação e ação administrativa.
           </p>
           <p className="text-sm">
-            O recibo será disponibilizado após a cópia paginada dos dados e
-            arquivos. Ele identifica as cópias mantidas no servidor; não
-            representa sozinho um backup completo baixado.
+            {backup === "yes"
+              ? "Com backup: a limpeza só começa após verificar as cópias."
+              : "Sem backup: os dados apagados por esta execução não poderão ser restaurados a partir dela."}
           </p>
           <Label htmlFor="world-reset-password">
             Confirmar senha (se o último login tiver mais de 30 minutos)
@@ -309,41 +372,46 @@ export default function ControlledWorldReset() {
             }
             onClick={start}
           >
-            Confirmar manutenção e iniciar backup
+            Confirmar e iniciar reset
           </Button>
         </div>
       )}
       {job && job.started_at && (
         <div className="space-y-3 rounded-lg border p-3">
           <p role="status" className="font-semibold">
-            {labels[job.status] || job.status}
+            {job.current_phase === "preserving" && job.status !== "failed"
+              ? "Conferindo registros protegidos"
+              : labels[job.status] || job.status}
           </p>
           <p className="break-all text-xs">Registro: {job.id}</p>
           <progress
             aria-label="Etapas concluídas"
             className="w-full"
             value={completed}
-            max={Math.max(steps.length, 1)}
+            max={Math.max(total, 1)}
           />
           <p>
-            {completed} de {steps.length} etapas verificadas.
+            {completed} de {total} etapas verificadas.{" "}
+            {total ? Math.floor((completed / total) * 100) : 0}% concluído.
           </p>
           <p className="text-sm">
             {steps.find((s) => s.status !== "completed")?.table_name ||
+              phaseLabels[job.current_phase] ||
               job.current_phase}
           </p>
-          {job.last_error && (
+          {job.status === "failed" && job.last_error && (
             <p role="alert" className="text-red-400">
               {job.last_error.message}
             </p>
           )}
           <details>
-            <summary>Progresso por etapa e tempo</summary>
+            <summary>Etapas recentes e próximas etapas</summary>
             <div className="max-h-72 overflow-auto text-xs">
               {steps.map((s) => (
                 <p className="break-all" key={s.id}>
-                  {s.ordinal + 1}. {s.phase} {s.schema_name}.{s.table_name} ·{" "}
-                  {s.status} · {s.processed} registros ·{" "}
+                  {s.ordinal + 1}. {phaseLabels[s.phase] || s.phase}{" "}
+                  {s.schema_name}.{s.table_name} ·{" "}
+                  {stepLabels[s.status] || s.status} · {s.processed} registros ·{" "}
                   {(s.started_at
                     ? (Date.parse(s.completed_at || new Date().toISOString()) -
                         Date.parse(s.started_at)) /
@@ -358,16 +426,20 @@ export default function ControlledWorldReset() {
           {job.files && (
             <p className="text-xs">
               Arquivos: {job.files.total} analisados; {job.files.archived}{" "}
-              copiados aguardando limpeza; {job.files.deleted} removidos com
-              cópia; {job.files.retained} preservados.
+              copiados aguardando limpeza; {job.files.deleted} removidos{" "}
+              {job.create_backup === false ? "sem backup" : "com cópia"};{" "}
+              {job.files.retained} preservados.
             </p>
           )}
-          {job.backup && (
-            <p className="break-all text-xs">
-              Backup: {job.backup.state} · {job.backup.chunks} blocos ·{" "}
-              {job.backup.records} registros · SHA-256 {job.backup.digest}
-            </p>
-          )}
+          <p className="text-xs">
+            Backup:{" "}
+            {job.create_backup === false
+              ? "dispensado nesta execução"
+              : job.backup?.state === "verified"
+                ? "verificado"
+                : "em preparação"}
+            .
+          </p>
           {["failed", "validated"].includes(job.status) && (
             <div className="space-y-2">
               <Label htmlFor="resume-reset-password">
@@ -384,6 +456,28 @@ export default function ControlledWorldReset() {
                 Se usa login social, entre novamente em outra aba antes de
                 continuar.
               </p>
+              {job.status === "failed" &&
+                job.create_backup !== false &&
+                [
+                  "draining",
+                  "backing_up",
+                  "preserving",
+                  "backup_verification",
+                ].includes(job.current_phase) && (
+                  <label className="flex min-h-11 items-start gap-2 text-sm">
+                    <Checkbox
+                      checked={skipBackupOnResume}
+                      onCheckedChange={(value) =>
+                        setSkipBackupOnResume(value === true)
+                      }
+                    />
+                    <span>
+                      Dispensar backup ao retomar. As cópias parciais já geradas
+                      serão mantidas; esta execução não terá um backup completo
+                      para recuperação.
+                    </span>
+                  </label>
+                )}
             </div>
           )}
           <div className="flex flex-wrap gap-2">
@@ -394,36 +488,16 @@ export default function ControlledWorldReset() {
             >
               Consultar progresso
             </Button>
-            {job.files && (
-              <p className="text-xs">
-                Arquivos: {job.files.total} analisados; {job.files.archived}{" "}
-                copiados aguardando limpeza; {job.files.deleted} removidos com
-                cópia; {job.files.retained} preservados.
-              </p>
-            )}
-            {job.backup && (
-              <Button
-                variant="outline"
-                onClick={() =>
-                  run(async () =>
-                    download(
-                      await call("admin_backup_rp_reset", {
-                        p_request_id: job.id,
-                      }),
-                      "govrp-recibo-backup.json",
-                    ),
-                  )
-                }
-              >
-                Exportar recibo e manifesto
-              </Button>
-            )}
             {job.status === "failed" && (
               <Button
                 disabled={busy}
                 onClick={() =>
                   run(async () => {
                     await login();
+                    if (skipBackupOnResume && job.create_backup !== false)
+                      await call("admin_skip_reset_backup", {
+                        p_request_id: job.id,
+                      });
                     await call("admin_resume_controlled_reset", {
                       p_request_id: job.id,
                     });
@@ -434,7 +508,7 @@ export default function ControlledWorldReset() {
                 Retomar do checkpoint
               </Button>
             )}
-            {["validated", "completed", "failed"].includes(job.status) && (
+            {["validated", "completed"].includes(job.status) && (
               <Button
                 variant="outline"
                 disabled={busy}
@@ -480,6 +554,24 @@ export default function ControlledWorldReset() {
             </p>
           )}
         </div>
+      )}
+      <div className="flex flex-wrap items-center gap-2">
+        {!job?.started_at && (
+          <Button variant="outline" onClick={() => void refresh()}>
+            Consultar progresso
+          </Button>
+        )}
+        {lastUpdated && (
+          <span className="text-xs text-muted-foreground">
+            Atualizado às {lastUpdated.toLocaleTimeString("pt-BR")}. Atualização
+            automática.
+          </span>
+        )}
+      </div>
+      {progressError && (
+        <p role="alert" className="text-sm text-amber-400">
+          {progressError}
+        </p>
       )}
       {busy && <p role="status">Processando esta ação…</p>}
       {error && (

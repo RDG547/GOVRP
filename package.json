@@ -132,7 +132,9 @@
     "test:reset-recovery": "node tools/rehearse-reset-recovery.mjs",
     "test:reset-account-recovery": "node tools/test-reset-account-recovery.mjs",
     "test:reset-domain-coverage": "node tools/test-reset-domain-coverage.mjs",
-    "test:reset-background-jobs": "node tools/test-reset-background-jobs.mjs"
+    "test:reset-background-jobs": "node tools/test-reset-background-jobs.mjs",
+    "test:reset-options": "node tools/test-reset-options.mjs",
+    "test:reset-options-interface": "node tools/test-reset-options-interface.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.0",

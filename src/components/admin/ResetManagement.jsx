@@ -118,13 +118,15 @@ export default function ResetManagement() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold">Resets de cidadãos e do RP</h2>
+        <h2 className="text-2xl font-bold">Central de Reset</h2>
         <p className="mt-2 text-sm text-muted-foreground">O cidadão recomeça pela criação de identidade, documentos e conta bancária. O login, os dados privados da conta e o acesso administrativo são preservados.</p>
       </div>
       {result && <p role="status" className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-4">Reset concluído para {number(result.users)} conta(s). Registro: {result.request_id}.</p>}
       {loadError ? <div role="alert" className="space-y-2 rounded-lg border border-destructive p-4"><p>{loadError}</p><Button variant="outline" onClick={load}>Tentar carregar novamente</Button></div> : null}
       <ControlledWorldReset />
-      <section className="space-y-4 rounded-xl border p-4">
+      <details className="space-y-4 rounded-xl border p-4" open={!!state?.resetUserId}>
+        <summary className="cursor-pointer font-semibold">Resets de cidadãos — selecionados ou todos</summary>
+      <section className="space-y-4">
         <h3 className="text-lg font-semibold">Escolher cidadãos</h3>
         <div className="relative"><Search aria-hidden="true" className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" /><Input aria-label="Buscar cidadãos para reset" className="pl-9" placeholder="Buscar por nome, usuário ou e-mail" value={search} onChange={(event) => { setSearch(event.target.value); setPage(1); }} /></div>
         <div className="flex flex-wrap items-center gap-2">
@@ -152,7 +154,8 @@ export default function ResetManagement() {
         <section className="space-y-3 rounded-xl border p-4"><h3 className="font-semibold">Todos os cidadãos</h3><p className="text-sm text-muted-foreground">Reinicia todas as contas ativas, incluindo administradores. Remove a vida e os vínculos dos cidadãos; mantém o estado nacional e os indicadores do RP.</p><Button variant="outline" disabled={loading || !!loadError || !users.length || world?.maintenance} onClick={() => openReset('all_users')}>Revisar reset de todos</Button></section>
 
       </div>
-      <section className="space-y-3"><h3 className="font-semibold">Histórico de resets</h3><p className="text-xs text-muted-foreground">Doações reais, atendimentos de suporte, catálogos do sistema e registros de segurança são preservados.</p>{history.length ? history.map((entry) => <div key={entry.id} className="rounded-lg border p-3 text-sm"><p className="font-medium">{SCOPE_LABELS[entry.scope]} · {number(entry.result?.users)} conta(s)</p><p>{entry.reason || 'Sem motivo informado'}</p><p className="mt-1 text-xs text-muted-foreground">{formatLocaleBR(new Date(entry.completed_at), 'toLocaleString', 'pt-BR')} · Administrador: {users.find((person) => person.id === entry.requested_by)?.email || entry.requested_by}</p></div>) : <p className="text-sm text-muted-foreground">Nenhum reset registrado.</p>}</section>
+      </details>
+      <details className="space-y-3 rounded-xl border p-4"><summary className="cursor-pointer font-semibold">Histórico de resets</summary><p className="text-xs text-muted-foreground">Doações reais, atendimentos de suporte, catálogos do sistema e registros de segurança são preservados.</p>{history.length ? history.map((entry) => <div key={entry.id} className="rounded-lg border p-3 text-sm"><p className="font-medium">{SCOPE_LABELS[entry.scope]} · {number(entry.result?.users)} conta(s)</p><p>{entry.reason || 'Sem motivo informado'}</p><p className="mt-1 text-xs text-muted-foreground">{formatLocaleBR(new Date(entry.completed_at), 'toLocaleString', 'pt-BR')} · Administrador: {users.find((person) => person.id === entry.requested_by)?.email || entry.requested_by}</p></div>) : <p className="text-sm text-muted-foreground">Nenhum reset registrado.</p>}</details>
       <Dialog open={!!intent} onOpenChange={(open) => { if (!open && !busy) setIntent(null); }}>
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-xl" onEscapeKeyDown={(event) => { if (busy) event.preventDefault(); }} onPointerDownOutside={(event) => { if (busy) event.preventDefault(); }}>
           <DialogHeader><DialogTitle>{SCOPE_LABELS[intent?.scope]}</DialogTitle><DialogDescription>Esta operação apaga os dados do jogo de forma permanente. Vínculos compartilhados, como transferências, empresas e conversas dos cidadãos afetados, também serão removidos. Revise o alcance antes de confirmar.</DialogDescription></DialogHeader>
