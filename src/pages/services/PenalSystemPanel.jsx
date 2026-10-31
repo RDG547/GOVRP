@@ -36,7 +36,7 @@ const NewConvictionDialog = ({ onConvictionAdded }) => {
         if (isOpen) {
             const fetchUsers = async () => {
                 const { data, error } = await supabase
-                  .from('profiles')
+                  .from('public_profiles')
                   .select('id, full_name, username, avatar_url')
                   .order('full_name', { ascending: true });
                 if (error) {
