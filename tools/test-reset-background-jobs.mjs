@@ -72,22 +72,46 @@ try {
       break;
     await new Promise((r) => setTimeout(r, 100));
   }
-  const probe = sql(
-    `${setup}SELECT private.reset_background_jobs_drained('${request}');ROLLBACK;`,
-  ).split("\n");
-  assert.ok(probe.includes("t"));
+  let drained = false;
+  for (let i = 0; i < 200; i++) {
+    const probe = sql(
+      `${setup}SELECT private.reset_background_jobs_drained('${request}');ROLLBACK;`,
+    ).split("\n");
+    if (probe.includes("t")) {
+      drained = true;
+      break;
+    }
+    await new Promise((r) => setTimeout(r, 100));
+  }
+  assert.equal(
+    drained,
+    true,
+    "O backend do cron deve encerrar, além do registro de execução.",
+  );
   assert.equal(
     sql(
       "SELECT NOT has_function_privilege('authenticated','private.reset_background_jobs_drained(uuid)','EXECUTE')",
     ),
     "t",
   );
+  sql(`BEGIN;
+    SELECT set_config('govrp.reset_worker','${request}',true);
+    UPDATE private.rp_reset_runtime SET maintenance=false,generation_started_at=clock_timestamp()+interval '1 second' WHERE id;
+    SELECT set_config('govrp.reset_worker','',true);
+    DO $check$ BEGIN
+      UPDATE public.notifications SET content=content WHERE false;
+      RAISE EXCEPTION 'Uma transação antiga ultrapassou a barreira de geração.';
+    EXCEPTION WHEN sqlstate '55000' THEN
+      IF SQLERRM NOT LIKE 'Esta operação automática pertence%' THEN RAISE;END IF;
+    END $check$;
+    ROLLBACK;`);
   writeFileSync(
     `${root}/qa-background-result.json`,
     JSON.stringify({
       waitingBeforeFirstGameplayWrite: true,
       allowedAfterCronEnded: true,
       simulationRolledBack: true,
+      oldTransactionBlocked: true,
     }),
     { mode: 0o600 },
   );
