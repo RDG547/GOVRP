@@ -210,6 +210,21 @@ const DIC = () => {
     useEffect(()=>{supabase.from('business_types').select('id,name').eq('is_active',true).order('name').then(r=>setBusinessTypes(r.data||[]));},[]);
     const handleFormChange = (e) => setFormValues(prev => ({...prev, [e.target.id]: e.target.value}));
 
+    const requestElectoralTitle = async () => {
+        setRequesting('Título de Eleitor');
+        try {
+            const { error } = await supabase.rpc('issue_eligible_electoral_title');
+            if (error) throw error;
+            toast({ title: 'Título de Eleitor emitido', description: 'Seu documento já está disponível no DIC.' });
+            await refreshDocuments();
+            await refreshUser({ skipSync: true });
+        } catch (error) {
+            toast({ title: 'Emissão eleitoral indisponível', description: error.message || 'Confirme seu e-mail e aguarde completar 24 horas de conta.', variant: 'destructive' });
+        } finally {
+            setRequesting('');
+        }
+    };
+
     const handleRequestDocument = async () => {
         if (!confirmingDoc) return;
         setRequesting(confirmingDoc);
@@ -485,6 +500,15 @@ const DIC = () => {
                                                     </CardTitle>
                                                 </CardHeader>
                                                 <CardContent>
+                                                    {!getDoc('Título de Eleitor', true) && (
+                                                        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-teal-500/30 bg-teal-500/5 p-3">
+                                                            <p className="text-sm text-teal-100">Título de Eleitor: disponível depois da confirmação do e-mail, onboarding completo e 24 horas de cadastro.</p>
+                                                            <Button variant="outline" disabled={Boolean(requesting)} onClick={requestElectoralTitle}>
+                                                                {requesting === 'Título de Eleitor' ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Vote className="mr-2 h-4 w-4"/>}
+                                                                Solicitar Título
+                                                            </Button>
+                                                        </div>
+                                                    )}
                                                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
                                                         {[
                                                             { icon: Fingerprint, type: 'CPF', label: 'CPF', format: (v) => formatCPF(v), color: 'purple' },
