@@ -46,7 +46,7 @@ const CreatePostForm = forwardRef(({ onPostCreated }, ref) => {
             return;
         }
         const { data, error } = await supabase
-            .from('profiles')
+            .from('public_social_profiles')
             .select('x_handle, x_username, x_avatar_url')
             .ilike('x_handle', `%${query}%`)
             .not('id', 'eq', user.id)
