@@ -11,9 +11,40 @@ export const BRAZIL_STATES = [
 const inMemoryCache = new Map();
 const inFlight = new Map();
 const CACHE_TTL = 30 * 24 * 60 * 60 * 1000;
-const cacheKey = (code) => `govrp:municipalities:v2:${code}`;
+const cacheKey = (code) => `govrp:municipalities:v3:${code}`;
 export const getStateName = (code) => BRAZIL_STATES.find(state => state.code === code)?.name || '';
 const validCities = (cities) => Array.isArray(cities) && cities.length > 0 && cities.every(city => /^\d{7}$/.test(city.code) && typeof city.name === 'string');
+
+// The full IBGE-compatible dataset ships with GOVRP and is served by our
+// own CDN. No third-party request is required for ordinary onboarding.
+let bundledCatalogPromise = null;
+const loadBundledCatalog = () => {
+  if (!bundledCatalogPromise) {
+    bundledCatalogPromise = (async () => {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 9000);
+      try {
+        const response = await fetch('/data/br-municipios.json', {
+          signal: controller.signal,
+          cache: 'force-cache',
+        });
+        if (!response.ok) throw new Error('Catálogo local indisponível.');
+        const payload = await response.json();
+        if (!payload || payload.total < 5500 || !payload.states ||
+            Object.keys(payload.states).length !== 27) {
+          throw new Error('Catálogo de municípios incompleto.');
+        }
+        return payload.states;
+      } finally {
+        clearTimeout(timeout);
+      }
+    })().catch(error => {
+      bundledCatalogPromise = null; // allow retries after temporary failures
+      throw error;
+    });
+  }
+  return bundledCatalogPromise;
+};
 
 async function loadMunicipalities(stateCode) {
   const memory = inMemoryCache.get(stateCode);
@@ -24,6 +55,24 @@ async function loadMunicipalities(stateCode) {
       inMemoryCache.set(stateCode, cache); return cache.cities;
     }
   } catch { /* Storage is optional. */ }
+  // Try the same-origin catalog first. Validate the IBGE code and avoid
+  // caching corrupted responses; public APIs below are emergency fallbacks.
+  try {
+    const catalog = await loadBundledCatalog();
+    const cityList = catalog[stateCode];
+    const cities = (Array.isArray(cityList) ? cityList : [])
+      .map(([code, name]) => ({ code: String(code), name }))
+      .filter(city => /^\\d{7}$/.test(city.code) && city.name)
+      .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
+    if (validCities(cities)) {
+      const result = { savedAt: Date.now(), cities };
+      inMemoryCache.set(stateCode, result);
+      try { window.localStorage.setItem(cacheKey(stateCode), JSON.stringify(result)); } catch { /* optional */ }
+      return cities;
+    }
+  } catch (error) {
+    console.warn('[GOVRP] Catálogo local indisponível, tentando fontes auxiliares.', error?.message);
+  }
   // IBGE occasionally fails or is blocked on some mobile networks.
   // BrasilAPI is an independent public fallback for the same IBGE codes.
   const sources = [
@@ -75,7 +124,8 @@ export function fetchMunicipalitiesByState(stateCode, signal) {
   });
 }
 
-export async function prefetchMunicipalities(codes = ['RJ', 'SP']) {
+export async function prefetchMunicipalities(codes = []) {
+  // Only fetch selected states: avoid 27 external requests and needless load.
   const pending = [...new Set(codes)].filter(getStateName);
   await Promise.all(Array.from({ length: Math.min(3, pending.length) }, async () => {
     while (pending.length) {
