@@ -413,8 +413,8 @@ const CitizenOnboarding = () => {
     }
   };
 
-  const saveIdentity = (event) => {
-    event.preventDefault();
+  const saveIdentity = (event, { skipAvatar = false } = {}) => {
+    event?.preventDefault?.();
     run("identity", async () => {
       const formattedName = formatCivilName(identity.fullName).trim();
       if (!isValidCivilName(formattedName)) {
@@ -427,14 +427,22 @@ const CitizenOnboarding = () => {
           "Use de 3 a 20 caracteres: letras, números, ponto, hífen ou sublinhado.",
         );
       }
-      let avatarUrl = identity.avatarUrl;
+      let avatarUrl = skipAvatar ? (profile.avatar_url || null) : identity.avatarUrl;
       let uploadedPath = null;
-      const avatarFile = avatarConfig ? await citizenAvatarFile(avatarConfig) : avatarInputRef.current?.files?.[0];
+      const avatarFile = skipAvatar ? null : (avatarConfig ? await citizenAvatarFile(avatarConfig) : avatarInputRef.current?.files?.[0]);
       const previousAvatarUrl = profile.avatar_url || "";
       if (avatarFile) {
-        const uploadedAvatar = await uploadAvatar(avatarFile);
-        uploadedPath = uploadedAvatar.filePath;
-        avatarUrl = uploadedAvatar.publicUrl;
+        try {
+          const uploadedAvatar = await uploadAvatar(avatarFile);
+          uploadedPath = uploadedAvatar.filePath;
+          avatarUrl = uploadedAvatar.publicUrl;
+        } catch (uploadFailure) {
+          console.error('[GOVRP] Falha isolada no serviço de avatar', {
+            status: uploadFailure?.status || uploadFailure?.statusCode || null,
+            code: uploadFailure?.code || null,
+          });
+          throw new Error('O serviço de avatar não respondeu. Seus dados continuam preenchidos. Tente novamente ou use “Salvar sem imagem” para prosseguir.');
+        }
       }
       const { error } = await supabase.rpc("save_citizen_identity", {
         p_full_name: formattedName,
@@ -443,7 +451,7 @@ const CitizenOnboarding = () => {
         p_character_bio: identity.bio || null,
         p_avatar_url: avatarUrl || null,
         p_character_gender: identity.gender,
-        p_avatar_config: avatarConfig,
+        p_avatar_config: skipAvatar ? null : avatarConfig,
       });
       if (error) {
         if (uploadedPath) await removeAvatarFile(uploadedPath);
@@ -1069,7 +1077,15 @@ const CitizenOnboarding = () => {
                         {identity.bio.length}/300
                       </p>
                     </div>
-                    <div className="flex justify-end">
+                    <div className="flex flex-wrap justify-end gap-3">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        disabled={!identity.gender || Boolean(working)}
+                        onClick={() => saveIdentity(null, { skipAvatar: true })}
+                      >
+                        Salvar sem imagem
+                      </Button>
                       <Button
                         type="submit"
                         disabled={!identity.gender || Boolean(working)}
