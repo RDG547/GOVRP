@@ -7,7 +7,7 @@ const missingRpSchemaCodes = new Set(['42P01', 'PGRST200', 'PGRST205']);
 
 const fetchManualPresident = async () => {
   const { data: president, error } = await supabase
-    .from('profiles')
+    .from('public_office_profiles')
     .select('id, full_name, username, role_assigned_at, updated_at')
     .eq('role', 'Presidente')
     .order('role_assigned_at', { ascending: false, nullsFirst: false })
