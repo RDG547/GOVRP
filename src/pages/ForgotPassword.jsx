@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Helmet } from 'react-helmet-async';
@@ -7,26 +7,36 @@ import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/components/ui/use-toast';
 import { Input } from '@/components/ui/input';
+import HCaptchaChallenge from '@/components/auth/HCaptchaChallenge';
 
 const ForgotPassword = () => {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
+  const [captchaToken, setCaptchaToken] = useState('');
+  const [captchaResetKey, setCaptchaResetKey] = useState(0);
+  const captchaEnabled = Boolean(import.meta.env.VITE_HCAPTCHA_SITE_KEY?.trim());
+  const handleCaptcha = useCallback((token) => setCaptchaToken(token), []);
   const { sendPasswordResetEmail } = useAuth();
   const { toast } = useToast();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (captchaEnabled && !captchaToken) {
+      toast({ title: 'Verificação necessária', description: 'Conclua o hCaptcha antes de solicitar o link.', variant: 'destructive' });
+      return;
+    }
     setLoading(true);
     setMessage('');
     try {
-      await sendPasswordResetEmail(email);
+      await sendPasswordResetEmail(email, captchaToken);
       setMessage('Um link de redefinição de senha foi enviado para o seu e-mail.');
       toast({
         title: "Verifique seu e-mail",
         description: "Enviamos um link para você redefinir sua senha.",
       });
     } catch (error) {
+      setCaptchaResetKey((value) => value + 1);
       toast({
         title: "Erro ao enviar e-mail",
         description: error.message || "Não foi possível enviar o e-mail de redefinição. Tente novamente.",
@@ -89,9 +99,10 @@ const ForgotPassword = () => {
                   </div>
                 </div>
 
+                <HCaptchaChallenge onVerify={handleCaptcha} resetKey={captchaResetKey} />
                 <Button
                   type="submit"
-                  disabled={loading}
+                  disabled={loading || (captchaEnabled && !captchaToken)}
                   className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 py-3 text-lg font-medium"
                 >
                   {loading ? 'Enviando...' : 'Enviar Link de Recuperação'}
