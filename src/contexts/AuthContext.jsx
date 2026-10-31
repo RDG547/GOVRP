@@ -516,9 +516,10 @@ export const AuthProvider = ({ children }) => {
     return data;
   };
 
-  const sendPasswordResetEmail = async (email) => {
+  const sendPasswordResetEmail = async (email, captchaToken = '') => {
     const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: getAppRedirectUrl('/update-password')
+      redirectTo: getAppRedirectUrl('/update-password'),
+      captchaToken,
     });
     if (error) throw error;
     return data;
