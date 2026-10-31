@@ -1,4 +1,5 @@
 import React from 'react';
+import AppStartupBoundary from '@/components/AppStartupBoundary';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import { HelmetProvider } from 'react-helmet-async';
@@ -13,6 +14,7 @@ import PwaUpdateNotice from '@/components/PwaUpdateNotice';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
+    <AppStartupBoundary>
     <HelmetProvider>
       <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <ThemeProvider>
@@ -23,5 +25,6 @@ ReactDOM.createRoot(document.getElementById('root')).render(
         </ThemeProvider>
       </BrowserRouter>
     </HelmetProvider>
+      </AppStartupBoundary>
   </React.StrictMode>
 );
