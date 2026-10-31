@@ -62,7 +62,7 @@ async function loadMunicipalities(stateCode) {
     const cityList = catalog[stateCode];
     const cities = (Array.isArray(cityList) ? cityList : [])
       .map(([code, name]) => ({ code: String(code), name }))
-      .filter(city => /^\\d{7}$/.test(city.code) && city.name)
+      .filter(city => /^\d{7}$/.test(city.code) && city.name)
       .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
     if (validCities(cities)) {
       const result = { savedAt: Date.now(), cities };
