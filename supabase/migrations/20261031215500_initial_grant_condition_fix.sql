@@ -112,23 +112,7 @@ BEGIN
     RETURN jsonb_build_object('success',false,'message','Saldo inicial já foi concedido.');
   END IF;
   SELECT value INTO v_setting FROM public.system_settings WHERE key='citizen_onboarding';
-  IF COALESCE(v_setting->>'initial_bank_balance','') ~ '^[0-9]+([.][0-9]+)? THEN
-    v_amount:=(v_setting->>'initial_bank_balance')::numeric;
-  END IF;
-  v_amount:=greatest(0,v_amount);
-  INSERT INTO private.citizen_initial_grants(user_id,account_id,amount)
-  VALUES(v_user,v_account.id,v_amount)
-  ON CONFLICT(user_id) DO NOTHING RETURNING user_id INTO v_grant;
-  IF v_grant IS NULL THEN RETURN jsonb_build_object('success',false,'message','Saldo inicial já foi concedido.'); END IF;
-  UPDATE public.accounts SET balance=balance+v_amount WHERE id=v_account.id;
-  IF v_amount>0 THEN
-    INSERT INTO public.transactions(to_account_id,amount,description,type,metadata)
-    VALUES(v_account.id,v_amount,'Saldo inicial da cidadania','citizenship_initial_balance',
-     jsonb_build_object('source','citizen_claim_after_verification'));
-  END IF;
-  RETURN jsonb_build_object('success',true,'amount',v_amount);
-END $function$
- THEN
+  IF COALESCE(v_setting->>'initial_bank_balance','') ~ '^[0-9]+([.][0-9]+)?$' THEN
     v_amount:=(v_setting->>'initial_bank_balance')::numeric;
   END IF;
   v_amount:=greatest(0,v_amount);
