@@ -15,7 +15,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2, PlusCircle, Flag, Hash, Compass, FileText, Lightbulb, ScrollText } from 'lucide-react';
 import ImageUploader from '@/components/ImageUploader';
-import { buildStoragePath } from '@/lib/security';
+import { uploadPartyAsset } from '@/lib/partyStorage';
 
 
 const CreatePartyDialog = ({ onPartyCreated, userAffiliation }) => {
@@ -58,18 +58,20 @@ const CreatePartyDialog = ({ onPartyCreated, userAffiliation }) => {
         try {
             let finalLogoUrl = logoUrl;
             if (logoFile) {
-                const { data: uploadData, error: uploadError } = await supabase.storage.from('public-assets').upload(buildStoragePath({ prefix: 'party-logos', entityId: 'new-party', fileName: logoFile.name }), logoFile);
-                if (uploadError) {
+                try {
+                    finalLogoUrl = await uploadPartyAsset({ file: logoFile, prefix: 'party-logos', entityId: 'new-party' });
+                } catch (uploadError) {
                     throw new Error(`Erro no upload do logo: ${uploadError.message}`);
                 }
-                finalLogoUrl = supabase.storage.from('public-assets').getPublicUrl(uploadData.path).data.publicUrl;
             }
 
             let finalBannerUrl=bannerUrl;
             if (bannerFile) {
-                const {data:uploaded,error:uploadError}=await supabase.storage.from('public-assets').upload(buildStoragePath({prefix:'party-headers',entityId:'new-party',fileName:bannerFile.name}),bannerFile);
-                if(uploadError)throw uploadError;
-                finalBannerUrl=supabase.storage.from('public-assets').getPublicUrl(uploaded.path).data.publicUrl;
+                try {
+                    finalBannerUrl = await uploadPartyAsset({ file: bannerFile, prefix: 'party-headers', entityId: 'new-party' });
+                } catch (uploadError) {
+                    throw new Error(`Erro no upload do banner: ${uploadError.message}`);
+                }
             }
             const { data, error } = await supabase.rpc('create_political_party', {
                 p_name: formData.name, p_acronym: formData.acronym, p_ideology: formData.ideology, p_logo_url: finalLogoUrl,
