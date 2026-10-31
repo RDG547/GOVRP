@@ -41,7 +41,7 @@ async function loadMunicipalities(stateCode) {
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const payload = await response.json();
       const cities = (Array.isArray(payload) ? payload : []).map(source.map)
-        .filter(city => /^\\d{7}$/.test(city.code) && city.name)
+        .filter(city => /^\d{7}$/.test(city.code) && city.name)
         .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
       if (!validCities(cities)) throw new Error('A fonte retornou uma lista inválida.');
       const result = { savedAt: Date.now(), cities };
