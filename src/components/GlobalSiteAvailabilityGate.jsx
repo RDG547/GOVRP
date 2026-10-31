@@ -42,6 +42,14 @@ const GlobalSiteAvailabilityGate = ({ pathname = '/', isAdmin = false, children 
     }
 
     let isMounted = true;
+    // Avoid a blank/loading-only page if the database is under IO pressure.
+    // Public routes still need to boot even if availability metadata is slow.
+    const guardTimer = window.setTimeout(() => {
+      if (isMounted) {
+        setSiteMode('active');
+        setLoading(false);
+      }
+    }, 7000);
 
     const fetchAvailability = async () => {
       try {
@@ -56,6 +64,7 @@ const GlobalSiteAvailabilityGate = ({ pathname = '/', isAdmin = false, children 
         }
       } finally {
         if (isMounted) {
+          window.clearTimeout(guardTimer);
           setLoading(false);
         }
       }
@@ -65,6 +74,7 @@ const GlobalSiteAvailabilityGate = ({ pathname = '/', isAdmin = false, children 
 
     return () => {
       isMounted = false;
+      window.clearTimeout(guardTimer);
     };
   }, [isAdmin, pathname]);
 
