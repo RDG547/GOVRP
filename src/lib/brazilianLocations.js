@@ -24,24 +24,37 @@ async function loadMunicipalities(stateCode) {
       inMemoryCache.set(stateCode, cache); return cache.cities;
     }
   } catch { /* Storage is optional. */ }
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 15000);
-  try {
-    const response = await fetch(`https://servicodados.ibge.gov.br/api/v1/localidades/estados/${stateCode}/municipios?orderBy=nome`, { signal: controller.signal });
-    if (!response.ok) throw new Error('Não foi possível carregar os municípios. Tente selecionar o estado novamente.');
-    const payload = await response.json();
-    const cities = payload.map(city => ({ code: String(city.id), name: city.nome }))
-      .filter(city => /^\d{7}$/.test(city.code) && city.name)
-      .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
-    if (!validCities(cities)) throw new Error('Nenhum município encontrado para este estado. Tente novamente.');
-    const cache = { savedAt: Date.now(), cities };
-    inMemoryCache.set(stateCode, cache);
-    try { window.localStorage.setItem(cacheKey(stateCode), JSON.stringify(cache)); } catch { /* Use memory cache. */ }
-    return cities;
-  } catch (error) {
-    if (controller.signal.aborted) throw new Error('O carregamento dos municípios demorou. Selecione o estado novamente para tentar.');
-    throw error;
-  } finally { clearTimeout(timeout); }
+  // IBGE occasionally fails or is blocked on some mobile networks.
+  // BrasilAPI is an independent public fallback for the same IBGE codes.
+  const sources = [
+    { url: `https://servicodados.ibge.gov.br/api/v1/localidades/estados/${stateCode}/municipios?orderBy=nome`,
+      map: (item) => ({ code: String(item.id), name: item.nome }) },
+    { url: `https://brasilapi.com.br/api/ibge/municipios/${stateCode}`,
+      map: (item) => ({ code: String(item.codigo_ibge), name: item.nome }) },
+  ];
+  let lastError;
+  for (const source of sources) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 7000);
+    try {
+      const response = await fetch(source.url, { signal: controller.signal, cache: 'default' });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const payload = await response.json();
+      const cities = (Array.isArray(payload) ? payload : []).map(source.map)
+        .filter(city => /^\\d{7}$/.test(city.code) && city.name)
+        .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
+      if (!validCities(cities)) throw new Error('A fonte retornou uma lista inválida.');
+      const result = { savedAt: Date.now(), cities };
+      inMemoryCache.set(stateCode, result);
+      try { window.localStorage.setItem(cacheKey(stateCode), JSON.stringify(result)); } catch { /* optional cache */ }
+      return cities;
+    } catch (error) {
+      lastError = error;
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+  throw new Error('Não foi possível consultar os municípios nas duas fontes disponíveis. Confira sua conexão e toque em Tentar novamente.', { cause: lastError });
 }
 
 export function fetchMunicipalitiesByState(stateCode, signal) {
@@ -62,7 +75,7 @@ export function fetchMunicipalitiesByState(stateCode, signal) {
   });
 }
 
-export async function prefetchMunicipalities(codes = ['SP', 'RJ', 'MG', 'BA', 'AM', 'RS', 'PR', 'GO', 'PE', 'PA']) {
+export async function prefetchMunicipalities(codes = ['RJ', 'SP']) {
   const pending = [...new Set(codes)].filter(getStateName);
   await Promise.all(Array.from({ length: Math.min(3, pending.length) }, async () => {
     while (pending.length) {
