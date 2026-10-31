@@ -425,7 +425,7 @@ export default function ControlledWorldReset() {
           {controlNotice && (
             <p role="status" className="text-sm text-amber-300">{controlNotice}</p>
           )}
-          {active && job.status !== "paused" && (
+          {active && !["paused", "validated", "failed"].includes(job.status) && (
             <div className="flex flex-wrap items-center gap-2">
               {["draining", "backing_up", "preserving", "backup_verification"].includes(job.current_phase) ? (
                 <>
@@ -445,7 +445,7 @@ export default function ControlledWorldReset() {
               )}
             </div>
           )}
-          {controlAction && job?.status !== "paused" && (
+          {controlAction && active && !["paused", "validated", "failed"].includes(job.status) && (
             <div className="space-y-3 rounded-lg border border-amber-500/40 p-3">
               <p className="font-semibold">
                 {controlAction === "skip_backup"
