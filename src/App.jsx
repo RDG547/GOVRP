@@ -192,7 +192,9 @@ const AppShell = ({ location, theme, isAuthCallback }) => {
   const isAdmin = user?.is_platform_admin || rolePool.includes('Admin') || user?.role === 'Admin';
   const isCitizenOnboarding = location.pathname === '/registro-cidadania';
   const onboardingRequired = Boolean(user && user.onboarding_completed === false);
-  const citizenScope = user ? `${user.id}:${user.citizen_id || 'pending'}:${runtime?.generation_id || 'initial'}` : 'visitor';
+  // Keep existing carts until the first actual world reset; publishing the
+  // reset machinery alone must not discard the current player's cart.
+  const citizenScope = user ? `${user.id}:${user.citizen_id || 'pending'}${runtime?.enforce_generation ? `:${runtime.generation_id}` : ''}` : 'visitor';
   const routeTransitionKey = location.pathname.startsWith('/services/x')
     ? '/services/x'
     : location.pathname.startsWith('/admin-dashboard')
