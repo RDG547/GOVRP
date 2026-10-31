@@ -59,8 +59,11 @@ export function userErrorMessage(error, fallback = DEFAULT_USER_ERROR) {
   const text = message.trim();
   const code = text.match(/\b[A-Z][A-Z0-9]+(?:_[A-Z0-9]+)+\b/)?.[0];
   if (messages[text] || messages[code]) return messages[text] || messages[code];
-  if (/failed to fetch|network.?error|fetch failed|load failed|connection|timeout|timed out/i.test(text)) {
-    return 'Não foi possível conectar ao serviço. Confira sua conexão e tente novamente.';
+  if (/timeout|timed out|signal timed out/i.test(text)) {
+    return 'O servidor do GOVRP demorou a responder. Seus dados permanecem nesta tela; tente novamente.';
+  }
+  if (/failed to fetch|network.?error|fetch failed|load failed|connection/i.test(text)) {
+    return 'Não foi possível concluir a comunicação com o servidor do GOVRP. A internet pode estar funcionando normalmente; tente novamente.';
   }
   if (/permission denied|row.level security|not authorized|unauthorized|forbidden/i.test(text)) {
     return 'Sua conta não tem permissão para realizar esta ação.';
