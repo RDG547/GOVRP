@@ -1205,9 +1205,10 @@ const CitizenOnboarding = () => {
                     </fieldset>
                   </div>
                   {locationError && (
-                    <p role="alert" className="mt-4 text-sm text-red-300">
-                      {locationError}
-                    </p>
+                    <div role="alert" className="mt-4 flex flex-wrap items-center gap-3 text-sm text-red-300">
+                      <span>{locationError}</span>
+                      <Button type="button" variant="outline" size="sm" disabled={locationsLoading.birth || locationsLoading.residence} onClick={() => { setLocationError(""); setLocationRetry(value => value + 1); }}>Tentar novamente</Button>
+                    </div>
                   )}
                   <div className="mt-6 flex justify-end">
                     <Button
