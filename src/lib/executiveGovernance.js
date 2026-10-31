@@ -433,7 +433,7 @@ const isMissingManualRoleMetadataError = (error) =>
 
 const fetchManualExecutiveOfficeProfiles = async (supabase) => {
   const { data, error } = await supabase
-    .from('profiles')
+    .from('public_office_profiles')
     .select('id, full_name, avatar_url, role, username, x_handle, manual_role_override, role_assigned_at, role_assigned_by')
     .in('role', EXECUTIVE_OFFICE_ROLES)
     .eq('manual_role_override', true)
