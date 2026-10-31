@@ -19,6 +19,8 @@ const labels = {
   validated: "Verificado — aguardando reabertura",
   failed: "Interrompido — manutenção preservada",
   completed: "Concluído e reaberto",
+  cancelled: "Cancelado — universo liberado",
+  paused: "Pausado — mundo em manutenção",
 };
 const phaseLabels = {
   ...labels,
@@ -56,6 +58,8 @@ export default function ControlledWorldReset() {
     [busy, setBusy] = useState(false),
     [error, setError] = useState(""),
     [report, setReport] = useState(null);
+  const [controlAction, setControlAction] = useState(null);
+  const [controlNotice, setControlNotice] = useState("");
   const refreshing = useRef(false);
   const mounted = useRef(true);
   const refresh = useCallback(async () => {
@@ -150,6 +154,25 @@ export default function ControlledWorldReset() {
         );
       setPreview(null);
       setPhrase("");
+      await refresh();
+    });
+  const requestControl = (action) =>
+    run(async () => {
+      await login();
+      const response = await call("admin_request_reset_control", {
+        p_request_id: job.id,
+        p_action: action,
+      });
+      if (!response?.accepted)
+        throw new Error("O comando não foi confirmado pelo servidor.");
+      setControlAction(null);
+      setControlNotice(
+        action === "skip_backup"
+          ? "Pedido aceito. O worker vai dispensar o backup ao terminar o ciclo atual e continuar o reset."
+          : action === "cancel"
+            ? "Cancelamento solicitado. Aguarde o worker concluir o ciclo atual e liberar o universo."
+            : "Pausa solicitada. O mundo permanecerá em manutenção até a retomada.",
+      );
       await refresh();
     });
   const active =
@@ -399,6 +422,67 @@ export default function ControlledWorldReset() {
               phaseLabels[job.current_phase] ||
               job.current_phase}
           </p>
+          {controlNotice && (
+            <p role="status" className="text-sm text-amber-300">{controlNotice}</p>
+          )}
+          {active && job.status !== "paused" && (
+            <div className="flex flex-wrap items-center gap-2">
+              {["draining", "backing_up", "preserving", "backup_verification"].includes(job.current_phase) ? (
+                <>
+                  {job.create_backup !== false && (
+                    <Button variant="outline" disabled={busy} onClick={() => setControlAction("skip_backup")}>
+                      Dispensar backup e continuar
+                    </Button>
+                  )}
+                  <Button variant="destructive" disabled={busy} onClick={() => setControlAction("cancel")}>
+                    Cancelar reset
+                  </Button>
+                </>
+              ) : (
+                <Button variant="outline" disabled={busy} onClick={() => setControlAction("pause")}>
+                  Pausar reset (manter manutenção)
+                </Button>
+              )}
+            </div>
+          )}
+          {controlAction && job?.status !== "paused" && (
+            <div className="space-y-3 rounded-lg border border-amber-500/40 p-3">
+              <p className="font-semibold">
+                {controlAction === "skip_backup"
+                  ? "Continuar sem backup?"
+                  : controlAction === "cancel"
+                    ? "Cancelar a execução antes da limpeza?"
+                    : "Pausar a execução e manter a manutenção?"}
+              </p>
+              <p className="text-sm text-muted-foreground">
+                {controlAction === "skip_backup"
+                  ? "A limpeza será irreversível e o reset continuará sem uma cópia completa dos dados. A proteção dos Admins e a validação final permanecem obrigatórias."
+                  : controlAction === "cancel"
+                    ? "O cancelamento só será permitido se nenhuma etapa destrutiva tiver começado. Os dados do RP serão mantidos."
+                    : "O reset será interrompido entre tarefas. Não será possível liberar o mundo até concluir o reset."}
+              </p>
+              <Label htmlFor="reset-control-password">Senha, se sua sessão administrativa precisar de reautenticação</Label>
+              <Input
+                id="reset-control-password"
+                type="password"
+                autoComplete="current-password"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+              />
+              <div className="flex flex-wrap justify-center gap-2">
+                <Button variant="outline" disabled={busy} onClick={() => setControlAction(null)}>
+                  Voltar
+                </Button>
+                <Button
+                  variant={controlAction === "cancel" ? "destructive" : "default"}
+                  disabled={busy}
+                  onClick={() => void requestControl(controlAction)}
+                >
+                  Confirmar {controlAction === "skip_backup" ? "e continuar sem backup" : controlAction === "cancel" ? "cancelamento" : "pausa"}
+                </Button>
+              </div>
+            </div>
+          )}
           {job.status === "failed" && job.last_error && (
             <p role="alert" className="text-red-400">
               {job.last_error.message}
@@ -488,7 +572,7 @@ export default function ControlledWorldReset() {
             >
               Consultar progresso
             </Button>
-            {job.status === "failed" && (
+            {["failed", "paused"].includes(job.status) && (
               <Button
                 disabled={busy}
                 onClick={() =>
@@ -505,7 +589,7 @@ export default function ControlledWorldReset() {
                   })
                 }
               >
-                Retomar do checkpoint
+                {job.status === "paused" ? "Retomar reset" : "Retomar do checkpoint"}
               </Button>
             )}
             {["validated", "completed"].includes(job.status) && (
