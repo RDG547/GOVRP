@@ -193,6 +193,7 @@ const CitizenOnboarding = () => {
     residence: false,
   });
   const [locationError, setLocationError] = useState("");
+  const [locationRetry, setLocationRetry] = useState(0);
   const [aspiration, setAspiration] = useState("");
   const [bankGuideOpen, setBankGuideOpen] = useState(false);
 
@@ -277,7 +278,7 @@ const CitizenOnboarding = () => {
         !controller.signal.aborted && setLocationsLoading((current) => ({ ...current, birth: false })),
       );
     return () => controller.abort();
-  }, [origin.birthState]);
+  }, [origin.birthState, locationRetry]);
 
   useEffect(() => {
     if (!origin.residenceState) {
@@ -295,7 +296,7 @@ const CitizenOnboarding = () => {
         !controller.signal.aborted && setLocationsLoading((current) => ({ ...current, residence: false })),
       );
     return () => controller.abort();
-  }, [origin.residenceState]);
+  }, [origin.residenceState, locationRetry]);
 
   const profile = state?.profile;
   const documents = state?.documents || [];
@@ -1291,9 +1292,9 @@ const CitizenOnboarding = () => {
             {currentStep === "mandatory_documents" && (
               <React.Fragment key="mandatory">
                 {renderDocuments(
-                  ["Título de Eleitor", "CTD"],
+                  ["CTD"],
                   "Documentos para a vida pública e profissional",
-                  "O Título permite exercer direitos políticos; a Carteira de Trabalho acompanhará sua trajetória profissional.",
+                  "A Carteira de Trabalho é emitida agora. O Título de Eleitor ficará disponível no DIC após a confirmação do e-mail e 24 horas de conta.",
                 )}
               </React.Fragment>
             )}
@@ -1492,7 +1493,7 @@ const CitizenOnboarding = () => {
                     </div>
                   </div>
                   <div className="mt-7 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                    {["CPF", "RG", "Título de Eleitor", "CTD"].map((type) => {
+                    {["CPF", "RG", "CTD"].map((type) => {
                       const document = getDocument(documents, type);
                       const DocumentIcon = documentCatalog[type].icon;
                       return (
