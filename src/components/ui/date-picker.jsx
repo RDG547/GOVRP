@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { CalendarDays } from 'lucide-react';
 import { format, isValid, parse } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -36,11 +36,20 @@ const GovDatePicker = ({
   const fallbackMonth = selectedDate || maxDate || new Date();
   const [month, setMonth] = useState(fallbackMonth);
   const [typedValue, setTypedValue] = useState(selectedDate ? format(selectedDate, 'dd/MM/yyyy') : '');
+  const [dateError, setDateError] = useState('');
+  const localInvalidEdit = useRef(false);
 
   useEffect(() => {
     const nextDate = parseStoredDate(value);
-    setTypedValue(nextDate ? format(nextDate, 'dd/MM/yyyy') : '');
-    if (nextDate) setMonth(nextDate);
+    // Preserve the exact text a player is correcting when the parent clears
+    // a previously valid date; otherwise it becomes impossible to edit it.
+    if (localInvalidEdit.current && !value) {
+      localInvalidEdit.current = false;
+      return;
+    }
+    setTypedValue(nextDate && isValid(nextDate) ? format(nextDate, 'dd/MM/yyyy') : '');
+    setDateError('');
+    if (nextDate && isValid(nextDate)) setMonth(nextDate);
   }, [value]);
 
   const years = useMemo(() => {
@@ -51,6 +60,8 @@ const GovDatePicker = ({
 
   const commitDate = (date) => {
     if (!date || !isDateAllowed(date, minDate, maxDate)) return;
+    localInvalidEdit.current = false;
+    setDateError('');
     onChange(format(date, 'yyyy-MM-dd'));
     setMonth(date);
   };
@@ -59,16 +70,28 @@ const GovDatePicker = ({
     const digits = event.target.value.replace(/\D/g, '').slice(0, 8);
     const next = [digits.slice(0, 2), digits.slice(2, 4), digits.slice(4, 8)].filter(Boolean).join('/');
     setTypedValue(next);
-    if (!next) {
-      onChange('');
+
+    const complete = /^\d{2}\/\d{2}\/\d{4}$/.test(next);
+    const parsedDate = complete ? parse(next, 'dd/MM/yyyy', new Date()) : null;
+    const validCalendarDate = complete && isValid(parsedDate) &&
+      format(parsedDate, 'dd/MM/yyyy') === next;
+    if (validCalendarDate && isDateAllowed(parsedDate, minDate, maxDate)) {
+      commitDate(parsedDate);
       return;
     }
-    if (/^\d{2}\/\d{2}\/\d{4}$/.test(next)) {
-      const parsedDate = parse(next, 'dd/MM/yyyy', new Date());
-      if (format(parsedDate, 'dd/MM/yyyy') === next && isDateAllowed(parsedDate, minDate, maxDate)) {
-        commitDate(parsedDate);
-      }
+
+    // Invalid or partial input is never a valid submitted date. The text
+    // remains visible so the player can correct it without losing other fields.
+    if (value) {
+      localInvalidEdit.current = true;
+      onChange('');
     }
+    setDateError(
+      !next ? (required ? 'Informe a data de nascimento.' : '') :
+      !complete ? 'Complete a data no formato DD/MM/AAAA.' :
+      !validCalendarDate ? 'Esta data não existe. Confira o dia, mês e ano.' :
+      'Data fora do intervalo permitido. Confira o limite de idade informado.'
+    );
   };
 
   const changeMonthPart = (monthIndex) => {
@@ -86,7 +109,8 @@ const GovDatePicker = ({
   };
 
   return (
-    <div className={cn('flex min-w-0 gap-2', className)}>
+    <div className={cn('flex min-w-0 flex-col gap-1', className)}>
+      <div className="flex min-w-0 gap-2">
       <Input
         id={id}
         inputMode="numeric"
@@ -96,7 +120,8 @@ const GovDatePicker = ({
         disabled={disabled}
         value={typedValue}
         onChange={handleTyping}
-        aria-describedby={ariaDescribedBy}
+        aria-describedby={[ariaDescribedBy, dateError ? `${id}-date-error` : null].filter(Boolean).join(' ') || undefined}
+        aria-invalid={Boolean(dateError)}
         aria-label="Data no formato dia, mês e ano"
         pattern="\d{2}/\d{2}/\d{4}"
       />
@@ -135,6 +160,8 @@ const GovDatePicker = ({
           />
         </PopoverContent>
       </Popover>
+      </div>
+      {dateError && <p id={`${id}-date-error`} role="alert" className="text-xs text-red-300">{dateError}</p>}
     </div>
   );
 };
