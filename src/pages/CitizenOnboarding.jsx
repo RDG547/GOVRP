@@ -427,6 +427,16 @@ const CitizenOnboarding = () => {
           "Use de 3 a 20 caracteres: letras, números, ponto, hífen ou sublinhado.",
         );
       }
+      const enteredBirth = identity.dateOfBirth;
+      const parsedBirth = /^\d{4}-\d{2}-\d{2}$/.test(enteredBirth || "")
+        ? new Date(`${enteredBirth}T12:00:00`)
+        : null;
+      if (!parsedBirth || Number.isNaN(parsedBirth.getTime()) ||
+          parsedBirth < minimumCharacterBirthDate ||
+          parsedBirth > maximumCharacterBirthDate ||
+          enteredBirth !== [parsedBirth.getFullYear(), String(parsedBirth.getMonth() + 1).padStart(2, "0"), String(parsedBirth.getDate()).padStart(2, "0")].join("-")) {
+        throw new Error("Informe uma data de nascimento válida para o cidadão, com no máximo 120 anos de idade.");
+      }
       let avatarUrl = skipAvatar ? (profile.avatar_url || null) : identity.avatarUrl;
       let uploadedPath = null;
       const avatarFile = skipAvatar ? null : (avatarConfig ? await citizenAvatarFile(avatarConfig) : avatarInputRef.current?.files?.[0]);
@@ -553,10 +563,11 @@ const CitizenOnboarding = () => {
     () => ceremony?.profile || profile || {},
     [ceremony, profile],
   );
-  const currentYear = new Date().getFullYear();
-  const todayInput = new Date().toISOString().slice(0, 10);
-  const maximumCharacterBirthDate = new Date(`${todayInput}T12:00:00`);
-  const minimumCharacterBirthDate = new Date(currentYear - 120, 0, 1, 12);
+  const today = new Date();
+  const currentYear = today.getFullYear();
+  const maximumCharacterBirthDate = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 12);
+  // Mirror PostgreSQL: current_date - interval '120 years', not Jan 1.
+  const minimumCharacterBirthDate = new Date(today.getFullYear() - 120, today.getMonth(), today.getDate(), 12);
 
   if (loading)
     return (
@@ -1026,7 +1037,7 @@ const CitizenOnboarding = () => {
                           id="character-birth-hint"
                           className="mt-1 text-xs text-slate-400"
                         >
-                          Digite no formato brasileiro ou use o calendário.
+                          Digite no formato brasileiro ou use o calendário. O personagem pode ter no máximo 120 anos.
                         </p>
                       </div>
                       <div>
@@ -1081,14 +1092,14 @@ const CitizenOnboarding = () => {
                       <Button
                         type="button"
                         variant="outline"
-                        disabled={!identity.gender || Boolean(working)}
+                        disabled={!identity.gender || !identity.dateOfBirth || Boolean(working)}
                         onClick={() => saveIdentity(null, { skipAvatar: true })}
                       >
                         Salvar sem imagem
                       </Button>
                       <Button
                         type="submit"
-                        disabled={!identity.gender || Boolean(working)}
+                        disabled={!identity.gender || !identity.dateOfBirth || Boolean(working)}
                       >
                         {working === "identity" ? (
                           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
