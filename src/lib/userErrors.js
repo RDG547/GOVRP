@@ -57,6 +57,12 @@ export function userErrorMessage(error, fallback = DEFAULT_USER_ERROR) {
   const message = typeof error === 'string' ? error : error?.message;
   if (typeof message !== 'string' || !message.trim()) return fallback;
   const text = message.trim();
+  // Database type coercion can reject an empty/invalid date before the SQL
+  // onboarding procedure runs. Show a useful, safe validation message.
+  if (error?.code === '22007' || error?.code === '22008' ||
+      /invalid input syntax for type date|date\/time field value out of range/i.test(text)) {
+    return 'A data de nascimento não foi reconhecida. Informe DD/MM/AAAA, respeitando o limite de 120 anos.';
+  }
   const code = text.match(/\b[A-Z][A-Z0-9]+(?:_[A-Z0-9]+)+\b/)?.[0];
   if (messages[text] || messages[code]) return messages[text] || messages[code];
   if (/timeout|timed out|signal timed out/i.test(text)) {
