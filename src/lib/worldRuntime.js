@@ -70,6 +70,15 @@ export async function loadWorldRuntime(url, key, force = false) {
 const safeReadOnlyRpcs = new Set([
   "get_my_citizen_onboarding",
   "get_my_bank_account",
+  // Feed, profile and discovery RPCs only read public Social X content.
+  // A slow world-state lookup must not hide posts from regular citizens.
+  "get_x_posts",
+  "get_user_posts_with_interactions",
+  "get_posts_with_interactions",
+  "get_public_x_profile",
+  "search_x",
+  "get_x_trends",
+  "get_x_follow_page",
 ]);
 
 export function createWorldFetch(url, key) {
