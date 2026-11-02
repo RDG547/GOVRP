@@ -101,12 +101,17 @@ try {
  end $test$;
  rollback;`);
  assert(output.includes('ROLLBACK'));
- // Closure releases current identity, preserving the archived record.
+ // A closed party keeps its historical identifiers; names and acronyms remain reserved.
  assert((await rpc(owner.client,'disaffiliate_from_party',{p_party_id:p.id})).success);
- const recreated=await rpc(owner.client,'create_political_party',{p_name:p.name,p_acronym:p.acronym,p_ideology:'Refundação',p_logo_url:'https://example.invalid/logo.png',p_statute:'Estatuto',p_description:'Novo partido',p_orientation:'Centro',p_color:'#224466'});
- assert(recreated.success);partyIds.push(recreated.party_id);
- assert.notEqual(recreated.party_id,p.id);
+ let blockedDuplicate=false;
+ try {
+   const recreated=await rpc(owner.client,'create_political_party',{p_name:p.name,p_acronym:p.acronym,p_ideology:'Refundação',p_logo_url:'https://example.invalid/logo.png',p_statute:'Estatuto',p_description:'Novo partido',p_orientation:'Centro',p_color:'#224466'});
+   blockedDuplicate=!recreated?.success;
+ } catch (_error) {
+   blockedDuplicate=true;
+ }
+ assert(blockedDuplicate,'Nome e sigla de partido encerrado continuam exclusivos.');
  assert.equal((await request(service.from('political_parties').select('status').eq('id',p.id).single())).status,'Encerrado');
- console.log('OK último integrante encerra o partido; nome e sigla reutilizados sem apagar história');
+ console.log('OK partido encerrado mantém nome e sigla reservados');
  console.log('Integração institucional e eleitoral concluída com RPCs, transações PostgreSQL e Realtime reais.');
 } finally { for(const id of partyIds)await service.from('political_parties').update({status:'Encerrado',is_active:false,owner_id:null,president_id:null,vice_president_id:null}).eq('id',id);await cleanup(); }
