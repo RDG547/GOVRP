@@ -67,6 +67,11 @@ const EditPartyForm = ({ party, onAction, closeDialog, userRole, members }) => {
             return;
         }
 
+        if (!/^[1-9][0-9]$/.test(formData.electoral_number)) {
+            toast({ title: 'Número eleitoral inválido', description: 'Informe um número entre 10 e 99.', variant: 'destructive' });
+            return;
+        }
+
         setLoading(true);
         try {
             if (leaderIds.length) {
@@ -96,6 +101,9 @@ const EditPartyForm = ({ party, onAction, closeDialog, userRole, members }) => {
                 p_electoral_number: formData.electoral_number,
                 p_ideology: formData.ideology,
                 p_statute: formData.statute,
+                // The RPC requires the existing logo even when only the number changes.
+                // Never clear the logo while editing unrelated party details.
+                p_logo_url: party.logo_url ?? null,
                 p_owner_id: formData.owner_id || null,
                 p_president_id: formData.president_id || null,
                 p_vice_president_id: formData.vice_president_id || null,
@@ -103,7 +111,11 @@ const EditPartyForm = ({ party, onAction, closeDialog, userRole, members }) => {
                 p_orientation: formData.orientation,
             });
 
-            if (error || !data?.success) throw new Error(error?.message || data?.message || "Erro desconhecido");
+            if (error) {
+                console.error('Falha na atualização do partido:', { code: error.code, message: error.message, details: error.details, hint: error.hint });
+                throw new Error([error.message, error.details, error.hint].filter(Boolean).join(' — ') || 'Não foi possível atualizar o partido.');
+            }
+            if (!data?.success) throw new Error(data?.message || 'O servidor não informou o motivo da falha.');
 
             toast({ title: 'Sucesso!', description: 'Dados do partido atualizados.' });
             if(onAction) onAction();
