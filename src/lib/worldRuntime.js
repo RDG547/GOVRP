@@ -45,16 +45,28 @@ export function acceptWorldRuntime(value) {
 // when a non-authoritative status request fails temporarily.
 let checkedAt = 0;
 
-async function requestRuntime(endpoint, options) {
-  const response = await globalThis.fetch(endpoint, options);
-  if (!response.ok) throw new Error(`Estado do universo indisponível (HTTP ${response.status}).`);
-  const state = await response.json();
-  if (!state?.generation_id || typeof state.maintenance !== "boolean") {
-    throw new Error("Resposta inválida ao consultar o universo.");
+async function requestRuntime(endpoint, options, timeoutMs) {
+  // AbortSignal.timeout() is unavailable on older Safari / iOS versions.
+  // A conventional AbortController prevents a synchronous TypeError before
+  // the network request even begins.
+  const controller = new AbortController();
+  const timeoutId = globalThis.setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await globalThis.fetch(endpoint, {
+      ...options,
+      signal: controller.signal,
+    });
+    if (!response.ok) throw new Error(`Estado do universo indisponível (HTTP ${response.status}).`);
+    const state = await response.json();
+    if (!state?.generation_id || typeof state.maintenance !== "boolean") {
+      throw new Error("Resposta inválida ao consultar o universo.");
+    }
+    acceptWorldRuntime(state);
+    checkedAt = Date.now();
+    return runtime;
+  } finally {
+    globalThis.clearTimeout(timeoutId);
   }
-  acceptWorldRuntime(state);
-  checkedAt = Date.now();
-  return runtime;
 }
 
 export async function loadWorldRuntime(url, key, force = false) {
@@ -68,8 +80,8 @@ export async function loadWorldRuntime(url, key, force = false) {
             method: "POST",
             headers: { apikey: key, "Content-Type": "application/json" },
             body: "{}",
-            signal: AbortSignal.timeout(5500),
           },
+          5500,
         );
       } catch (directError) {
         // Same-origin fallback avoids the additional cross-origin request
@@ -79,8 +91,7 @@ export async function loadWorldRuntime(url, key, force = false) {
           return await requestRuntime("/api/world-runtime", {
             method: "GET",
             cache: "no-store",
-            signal: AbortSignal.timeout(9500),
-          });
+          }, 9500);
         } catch (proxyError) {
           if (runtime && !runtime.maintenance && Date.now() - checkedAt < 60_000) {
             return runtime;
