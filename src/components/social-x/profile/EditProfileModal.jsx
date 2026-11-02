@@ -16,6 +16,7 @@ import {
     buildStoragePath,
     extractStoragePathFromUrl,
     validateSelectedFile,
+    detectSupportedImageContentType,
 } from '@/lib/security';
 
 const EditProfileModal = ({ isOpen, setIsOpen, profile, onProfileUpdate }) => {
@@ -121,7 +122,13 @@ const EditProfileModal = ({ isOpen, setIsOpen, profile, onProfileUpdate }) => {
             if (avatarAction === 'upload' && avatarFile) {
                 const oldFilePath = extractStoragePathFromUrl(profile.x_avatar_url, 'x-avatars');
                 const newFilePath = buildStoragePath({ prefix: '', entityId: profile.id, fileName: avatarFile.name });
-                const { error: uploadError } = await supabase.storage.from('x-avatars').upload(newFilePath, avatarFile, { upsert: false });
+                const avatarContentType = await detectSupportedImageContentType(avatarFile);
+                if (!avatarContentType) throw new Error('O avatar selecionado não é uma imagem válida (JPEG, PNG, WebP, GIF ou AVIF).');
+                const avatarBlob = avatarFile.slice(0, avatarFile.size, avatarContentType);
+                const { error: uploadError } = await supabase.storage.from('x-avatars').upload(newFilePath, avatarBlob, {
+                    upsert: false,
+                    contentType: avatarContentType,
+                });
                 if (uploadError) throw uploadError;
                 uploads.push(['x-avatars',newFilePath]);
                 if (oldFilePath) obsolete.push(['x-avatars',oldFilePath]);
@@ -138,7 +145,13 @@ const EditProfileModal = ({ isOpen, setIsOpen, profile, onProfileUpdate }) => {
             if (headerAction === 'upload' && headerFile) {
                 const oldFilePath = extractStoragePathFromUrl(profile.x_header_url, 'headers');
                 const newFilePath = buildStoragePath({ prefix: '', entityId: profile.id, fileName: headerFile.name });
-                const { error: uploadError } = await supabase.storage.from('headers').upload(newFilePath, headerFile, { upsert: false });
+                const headerContentType = await detectSupportedImageContentType(headerFile);
+                if (!headerContentType) throw new Error('A capa selecionada não é uma imagem válida (JPEG, PNG, WebP, GIF ou AVIF).');
+                const headerBlob = headerFile.slice(0, headerFile.size, headerContentType);
+                const { error: uploadError } = await supabase.storage.from('headers').upload(newFilePath, headerBlob, {
+                    upsert: false,
+                    contentType: headerContentType,
+                });
                 if (uploadError) throw uploadError;
                 uploads.push(['headers',newFilePath]);
                 if (oldFilePath) obsolete.push(['headers',oldFilePath]);
