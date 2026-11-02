@@ -1,4 +1,3 @@
-import { withStorageGeneration } from "./worldStorage.js";
 // Auth credentials and technical preferences never belong to a world generation.
 let runtime = null;
 let pending = null;
@@ -40,9 +39,8 @@ export function acceptWorldRuntime(value) {
   }
   listeners.forEach((listener) => listener());
 }
-// Cache the last successful check briefly. A stale generation never bypasses
-// PostgreSQL's barrier; it only allows the user action to reach the server
-// when a non-authoritative status request fails temporarily.
+// Cache world status only to notify open tabs of a reset and invalidate RP caches.
+// The normal request pipeline does not depend on this optional status check.
 let checkedAt = 0;
 
 async function requestRuntime(endpoint, options, timeoutMs) {
