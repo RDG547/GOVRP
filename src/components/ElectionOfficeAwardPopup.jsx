@@ -53,7 +53,13 @@ export default function ElectionOfficeAwardPopup() {
    }
  }, [user?.id,refreshInvitations]);
  useEffect(() => { setNotification(null); void fetchPending(); return () => { request.current++; }; }, [fetchPending]);
- useDomainRealtime('role-notifications', user?.id, [{ table: 'notifications', filter: `user_id=eq.${user?.id}` }, 'election_settlements', 'elections', { table: 'minister_invitations', filter: `candidate_id=eq.${user?.id}` }], fetchPending, Boolean(user?.id));
+ // Electoral database triggers already create one notification per citizen.
+ // Avoid subscribing every user to every global election row and then asking
+ // the database again when another citizen's election changes.
+ useDomainRealtime('role-notifications', user?.id, [
+   { table: 'notifications', filter: `user_id=eq.${user?.id}` },
+   { table: 'minister_invitations', filter: `candidate_id=eq.${user?.id}` },
+ ], fetchPending, Boolean(user?.id));
  const close = async (destination) => {
    if (!notification || saving) return;
    acknowledging.current = true;
