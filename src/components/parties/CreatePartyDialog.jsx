@@ -22,7 +22,7 @@ const CreatePartyDialog = ({ onPartyCreated, userAffiliation }) => {
     const { toast } = useToast();
     const [isOpen, setIsOpen] = useState(false);
     const [loading, setLoading] = useState(false);
-    const [formData, setFormData] = useState({ name: '', acronym: '', ideology: '', statute: '', description: '', orientation: '', color: '#64748B', font_key: 'default' });
+    const [formData, setFormData] = useState({ name: '', acronym: '', ideology: '', statute: '', description: '', orientation: '', color: '#64748B', font_key: 'default', electoral_number: '' });
     const [quote,setQuote]=useState(null),[quoteError,setQuoteError]=useState('');
     const loadQuote=useCallback(async()=>{if(!isOpen)return;const result=await supabase.rpc('quote_party_registration',{p_ideology:formData.ideology,p_orientation:formData.orientation||null});if(result.error){setQuoteError('Não foi possível conferir as regras e taxas de fundação.');return;}setQuote(result.data);setQuoteError('');},[isOpen,formData.ideology,formData.orientation]);
     useEffect(()=>{if(isOpen){setQuote(null);const timer=setTimeout(()=>void loadQuote(),250);return()=>clearTimeout(timer);}},[isOpen,loadQuote]);
@@ -49,7 +49,7 @@ const CreatePartyDialog = ({ onPartyCreated, userAffiliation }) => {
         if(loading||!quote||quoteError)return;
         if(quote.restricted){toast({title:'Fundação restrita por norma vigente',description:quote.restrictions?.join(' '),variant:'destructive'});return;}
         
-        if (!formData.name || !formData.acronym || !formData.ideology || !formData.statute || !formData.description || !formData.orientation || (!logoFile && !logoUrl)) {
+        if (!/^([1-9][0-9])$/.test(formData.electoral_number) || !formData.name || !formData.acronym || !formData.ideology || !formData.statute || !formData.description || !formData.orientation || (!logoFile && !logoUrl)) {
             toast({ title: 'Erro de Validação', description: 'Todos os campos, incluindo o logo, são obrigatórios.', variant: 'destructive' });
             return;
         }
@@ -73,8 +73,8 @@ const CreatePartyDialog = ({ onPartyCreated, userAffiliation }) => {
                     throw new Error(`Erro no upload do banner: ${uploadError.message}`);
                 }
             }
-            const { data, error } = await supabase.rpc('create_political_party', {
-                p_name: formData.name, p_acronym: formData.acronym, p_ideology: formData.ideology, p_logo_url: finalLogoUrl,
+            const { data, error } = await supabase.rpc('create_political_party_with_number', {
+                p_name: formData.name, p_acronym: formData.acronym, p_electoral_number: formData.electoral_number, p_ideology: formData.ideology, p_logo_url: finalLogoUrl,
                 p_statute: formData.statute, p_description: formData.description, p_orientation: formData.orientation, p_color: formData.color, p_font_key: formData.font_key, p_header_url: finalBannerUrl
             });
 
@@ -85,7 +85,7 @@ const CreatePartyDialog = ({ onPartyCreated, userAffiliation }) => {
             toast({ title: 'Sucesso!', description: 'Partido criado com sucesso.' });
             onPartyCreated(); 
             setIsOpen(false);
-            setFormData({ name: '', acronym: '', ideology: '', statute: '', description: '', orientation: '', color: '#64748B', font_key: 'default' });
+            setFormData({ name: '', acronym: '', ideology: '', statute: '', description: '', orientation: '', color: '#64748B', font_key: 'default', electoral_number: '' });
             setLogoUrl(''); 
             setLogoFile(null); setBannerUrl(''); setBannerFile(null);
         } catch (error) {
@@ -103,6 +103,7 @@ const CreatePartyDialog = ({ onPartyCreated, userAffiliation }) => {
                 <DialogHeader><DialogTitle className="flex flex-col items-center gap-3 text-center"><PlusCircle className="h-9 w-9 text-blue-400"/>Fundar um Novo Partido Político</DialogTitle><DialogDescription className="text-center">Preencha os dados para registrar seu partido na nação.</DialogDescription></DialogHeader>
                 <form onSubmit={handleSubmit} className="grid gap-4 py-4">
                     <div className="grid gap-2"><Label htmlFor="name" className="flex items-center gap-2"><Flag className="h-4 w-4 text-primary"/>Nome do Partido</Label><Input id="name" value={formData.name} onChange={(e) => setFormData(p=>({...p, name: e.target.value}))} required /></div>
+                    <div className="grid gap-2"><Label htmlFor="party-number">Número eleitoral (10 a 99)</Label><Input id="party-number" inputMode="numeric" required pattern="[1-9][0-9]" maxLength={2} value={formData.electoral_number} onChange={e=>setFormData(p=>({...p,electoral_number:e.target.value.replace(/\\D/g,'').slice(0,2)}))} /><p className="text-xs text-muted-foreground">Presidente: este número · Senador: +1 dígito · Deputado: +2 dígitos.</p></div>
                     <div className="grid gap-2"><Label htmlFor="acronym" className="flex items-center gap-2"><Hash className="h-4 w-4 text-primary"/>Sigla</Label><Input id="acronym" value={formData.acronym} onChange={(e) => setFormData(p=>({...p, acronym: e.target.value}))} required maxLength="5" /></div>
                     <div className="grid gap-2"><Label htmlFor="orientation" className="flex items-center gap-2"><Compass className="h-4 w-4 text-primary"/>Orientação Política</Label><Select onValueChange={(v) => setFormData(p => ({...p, orientation: v}))} value={formData.orientation} required><SelectTrigger><SelectValue placeholder="Selecione a orientação" /></SelectTrigger><SelectContent>{politicalOrientations.map(o => <SelectItem key={o} value={o}><span className={`rounded px-2 py-1 text-xs ${orientationColors[o]}`}>{o}</span></SelectItem>)}</SelectContent></Select></div>
                     <div className="grid gap-2"><Label htmlFor="description" className="flex items-center gap-2"><FileText className="h-4 w-4 text-primary"/>Descrição Curta</Label><Input id="description" value={formData.description} onChange={(e) => setFormData(p=>({...p, description: e.target.value}))} required /></div>
