@@ -1178,7 +1178,7 @@ const ensureAutomaticRecurringElections = async (supabase) => {
 
     const { data: lastElection, error: lastElectionError } = await supabase
       .from('elections')
-      .select('id, name, description, election_type_id, candidacy_start_date, candidacy_end_date, voting_start_date, voting_end_date')
+      .select('id, name, description, election_type_id, seats_available, candidacy_start_date, candidacy_end_date, voting_start_date, voting_end_date')
       .eq('id', lastElectionId)
       .maybeSingle();
 
@@ -1231,6 +1231,7 @@ const ensureAutomaticRecurringElections = async (supabase) => {
       name: formatElectionSequenceName(lastElection.name, nextSequence),
       description: incrementElectionDescription(lastElection.description || '', nextSequence),
       election_type_id: lastElection.election_type_id,
+      seats_available: lastElection.seats_available ?? null,
       ...nextDates,
       status: getElectionStatusByDates(nextDates),
     };
