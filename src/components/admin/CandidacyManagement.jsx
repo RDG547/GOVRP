@@ -42,7 +42,7 @@ const CandidacyManagement = () => {
     const [filterStatus, setFilterStatus] = useState('all');
     const [filterElection, setFilterElection] = useState('all');
     const [searchTerm, setSearchTerm] = useState('');
-    const [editForm, setEditForm] = useState({ political_name: '', bio: '', proposals: '' });
+    const [editForm, setEditForm] = useState({ political_name: '', electoral_number: '', bio: '', proposals: '' });
     const [expandedElectionIds, setExpandedElectionIds] = useState([]);
 
     const { toast } = useToast();
@@ -54,6 +54,7 @@ const CandidacyManagement = () => {
                 id,
                 status,
                 political_name,
+                electoral_number,
                 campaign_photo_url,
                 bio,
                 proposals,
@@ -64,7 +65,7 @@ const CandidacyManagement = () => {
                 election:elections(id, name),
                 user:profiles!candidates_user_id_fkey(full_name, avatar_url),
                 vice:profiles!candidates_vice_candidate_id_fkey(full_name, avatar_url),
-                party:political_parties(name, acronym)
+                party:political_parties(name, acronym, electoral_number)
             `)
             .is('removed_at', null)
             .order('created_at', { ascending: false });
@@ -113,6 +114,7 @@ const CandidacyManagement = () => {
         if (type === 'edit') {
             setEditForm({
                 political_name: candidate.political_name,
+                electoral_number: candidate.electoral_number || '',
                 bio: candidate.bio || '',
                 proposals: candidate.proposals || '',
             });
@@ -363,6 +365,13 @@ const CandidacyManagement = () => {
                                     readOnly aria-readonly="true"
                                 />
                             </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="admin-candidate-number">Número eleitoral do candidato</Label>
+                                    <Input id="admin-candidate-number" inputMode="numeric" maxLength={4}
+                                        value={editForm.electoral_number}
+                                        onChange={e=>setEditForm(current=>({...current,electoral_number:e.target.value.replace(/\D/g,'').slice(0,4)}))}/>
+                                    <p className="text-xs text-muted-foreground">Deve manter o prefixo {selectedCandidate?.party?.electoral_number || 'da candidatura independente'}. Não é possível editar depois do início da votação.</p>
+                                </div>
                             <div>
                                 <Label htmlFor="edit_bio">Biografia</Label>
                                 <Textarea
