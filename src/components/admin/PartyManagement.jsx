@@ -32,6 +32,7 @@ const ACTIVE_PARTY_MEMBER_THRESHOLD = 5;
 const EMPTY_PARTY_FORM = {
   name: '',
   acronym: '',
+  electoral_number: '',
   description: '',
   ideology: '',
   statute: '',
@@ -46,6 +47,7 @@ const EMPTY_PARTY_FORM = {
 const normalizePartyForm = (party) => ({
   name: party?.name || '',
   acronym: party?.acronym || '',
+  electoral_number: party?.electoral_number || '',
   description: party?.description || '',
   ideology: party?.ideology || '',
   statute: party?.statute || '',
@@ -145,6 +147,7 @@ const PartyManagement = () => {
     const { error } = await supabase.rpc('admin_update_party', { p_party_id: editingParty.id, p_changes: {
         name: formData.name.trim(),
         acronym: formData.acronym.trim(),
+        electoral_number: formData.electoral_number,
         description: formData.description.trim(),
         ideology: formData.ideology.trim(),
         statute: formData.statute.trim(),
@@ -282,6 +285,7 @@ const PartyManagement = () => {
                 <Label>Nome</Label>
                 <Input value={formData.name} onChange={(event) => updateForm('name', event.target.value)} />
               </div>
+                <div><Label htmlFor="admin-party-electoral-number">Número eleitoral (10 a 99)</Label><Input id="admin-party-electoral-number" inputMode="numeric" pattern="[1-9][0-9]" maxLength={2} value={formData.electoral_number} onChange={e=>updateForm('electoral_number',e.target.value.replace(/\\D/g,'').slice(0,2))}/></div>
               <div>
                 <Label>Sigla</Label>
                 <Input value={formData.acronym} onChange={(event) => updateForm('acronym', event.target.value)} maxLength={8} />
