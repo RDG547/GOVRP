@@ -6,6 +6,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { supabase } from '@/lib/supabaseClient';
+import { useDomainRealtime } from '@/hooks/use-domain-realtime';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
@@ -110,7 +111,19 @@ const RegisterCandidacy = ({ onFinished }) => {
   const requiresViceCandidate = isPresidentialTicketElection(selectedElection);
   const numberDigits = electionNumberDigits(selectedElection);
   const numberPrefix = parties.find(party => party.id === selectedPartyId)?.electoral_number || '';
-  useEffect(() => { form.setValue('electoral_number', numberDigits === 2 && numberPrefix.length === 2 ? numberPrefix : ''); }, [selectedElectionId, numberPrefix, numberDigits, form]);
+  useEffect(() => {
+    const previous=form.getValues('electoral_number') || '';
+    form.setValue('electoral_number', numberPrefix.length===2
+      ? numberPrefix + previous.slice(2,numberDigits)
+      : '', { shouldValidate: false });
+  }, [selectedElectionId, numberPrefix, numberDigits, form]);
+  useDomainRealtime('candidate-party-number', selectedPartyId, [
+    {table:'political_parties',filter:`id=eq.${selectedPartyId}`}
+  ], async () => {
+    if (!selectedPartyId) return;
+    const {data,error}=await supabase.from('political_parties').select('id,name,electoral_number').eq('id',selectedPartyId).maybeSingle();
+    if (!error && data) setParties(current=>current.map(p=>p.id===data.id?{...p,...data}:p));
+  },Boolean(selectedPartyId));
   const consecutivePresidentialWins = getConsecutivePresidentialWins(presidentialElections, user?.id);
   const presidentialRunBlocked = requiresViceCandidate && consecutivePresidentialWins >= 2;
   const presidentialViceMissing = requiresViceCandidate && !selectedViceCandidateId;
@@ -511,7 +524,22 @@ const RegisterCandidacy = ({ onFinished }) => {
             <CardDescription>Preencha todos os campos obrigatórios para registrar sua candidatura.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-            {selectedElection && <FormField control={form.control} name="electoral_number" render={({ field }) => <FormItem><FormLabel>Número eleitoral · {numberDigits} dígitos</FormLabel><FormControl><Input {...field} inputMode="numeric" maxLength={numberDigits} readOnly={numberDigits === 2 && numberPrefix.length === 2} onChange={event => field.onChange(event.target.value.replace(/\D/g, '').slice(0, numberDigits))} /></FormControl><p className="text-xs text-muted-foreground">{numberPrefix ? `Começa por ${numberPrefix}.` : 'Candidatura independente: escolha um número disponível.'} O número será reservado nesta eleição.</p><FormMessage /></FormItem>} />}
+            {selectedElection && <FormField control={form.control} name="electoral_number" render={({ field }) => <FormItem>
+              <FormLabel>Número eleitoral · {numberDigits} dígitos</FormLabel>
+              <FormControl>
+                {numberPrefix.length===2 ? <div className="flex items-center gap-2">
+                  <span className="rounded-md border bg-secondary px-4 py-2 font-mono text-lg" aria-label="Número do partido">{numberPrefix}</span>
+                  {numberDigits>2 ? <Input aria-label="Dígitos complementares do candidato" inputMode="numeric"
+                    maxLength={numberDigits-2} value={(field.value||'').slice(2)}
+                    placeholder={numberDigits===3?'1 dígito':'2 dígitos'}
+                    onChange={event=>field.onChange(numberPrefix+event.target.value.replace(/\D/g,'').slice(0,numberDigits-2))}/>
+                  : <span className="text-sm text-muted-foreground">Número presidencial definido pelo partido</span>}
+                </div> : <Input {...field} inputMode="numeric" maxLength={numberDigits}
+                    onChange={event=>field.onChange(event.target.value.replace(/\D/g,'').slice(0,numberDigits))}/>}
+              </FormControl>
+              <p className="text-xs text-muted-foreground">{numberPrefix ? 'O prefixo pertence ao partido; você informa apenas o complemento quando necessário.' : 'Candidatura independente: escolha um número disponível.'} O número será reservado nesta eleição.</p>
+              <FormMessage/>
+            </FormItem>} />}
 
             <FormField
               control={form.control}
