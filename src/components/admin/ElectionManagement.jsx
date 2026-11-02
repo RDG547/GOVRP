@@ -55,6 +55,7 @@ const ElectionForm = ({ election, onFinish, automaticElectionPlans }) => {
         name: election?.name || '',
         description: election?.description || '',
         election_type_id: election?.election_type_id || '',
+        seats_available: election?.seats_available ?? '',
         candidacy_start_date: election?.candidacy_start_date ? toBrasiliaInput(election.candidacy_start_date) : '',
         candidacy_end_date: election?.candidacy_end_date ? toBrasiliaInput(election.candidacy_end_date) : '',
         voting_start_date: election?.voting_start_date ? toBrasiliaInput(election.voting_start_date) : '',
@@ -65,6 +66,9 @@ const ElectionForm = ({ election, onFinish, automaticElectionPlans }) => {
     const [loading, setLoading] = useState(false);
     const { toast } = useToast();
     const minDateTime = toBrasiliaInput(new Date());
+    const selectedKind = electionTypes.find(type => type.id === formData.election_type_id)?.name || election?.election_types?.name || '';
+    const parliamentary = /senador|deputado/i.test(selectedKind);
+    const calendarLocked = Boolean(election?.id && Date.parse(election?.candidacy_start_date) <= Date.now());
     const savedId = useRef(election?.id || null);
     const [formError, setFormError] = useState('');
 
@@ -87,6 +91,7 @@ const ElectionForm = ({ election, onFinish, automaticElectionPlans }) => {
             name: election?.name || '',
             description: election?.description || '',
             election_type_id: election?.election_type_id || '',
+            seats_available: election?.seats_available ?? '',
             candidacy_start_date: election?.candidacy_start_date ? toBrasiliaInput(election.candidacy_start_date) : '',
             candidacy_end_date: election?.candidacy_end_date ? toBrasiliaInput(election.candidacy_end_date) : '',
             voting_start_date: election?.voting_start_date ? toBrasiliaInput(election.voting_start_date) : '',
@@ -159,14 +164,25 @@ const ElectionForm = ({ election, onFinish, automaticElectionPlans }) => {
 
         setFormError('');
         try {
-            const payload = electoralCalendarPayload(formData);
-            const { data: result, error } = await supabase.rpc('manage_electoral_calendar', {
-                p_election_id: savedId.current,
-                p_data: payload,
-            });
-            if (error) throw error;
-            savedId.current = result.id;
-            await syncAutomaticElectionPlan({ ...payload, id: result.id });
+            if (parliamentary && (!Number.isInteger(Number(formData.seats_available)) || Number(formData.seats_available) < 1)) {
+                throw new Error('Informe a quantidade de cadeiras disponíveis.');
+            }
+            if (calendarLocked) {
+                if (!parliamentary) throw new Error('O calendário desta eleição já está em andamento e não pode ser modificado.');
+                const { error } = await supabase.rpc('admin_set_election_seats', {
+                    p_election_id: savedId.current, p_seats: Number(formData.seats_available)
+                });
+                if (error) throw error;
+            } else {
+                const payload = electoralCalendarPayload(formData);
+                const { data: result, error } = await supabase.rpc('manage_electoral_calendar', {
+                    p_election_id: savedId.current,
+                    p_data: payload,
+                });
+                if (error) throw error;
+                savedId.current = result.id;
+                await syncAutomaticElectionPlan({ ...payload, id: result.id });
+            }
             toast({ title: 'Eleição salva com sucesso' });
             onFinish();
         } catch (error) {
@@ -178,24 +194,32 @@ const ElectionForm = ({ election, onFinish, automaticElectionPlans }) => {
 
     return (
         <form onSubmit={handleSubmit} className="space-y-4">
-            <div><Label htmlFor="name" className="mb-1 flex items-center gap-2"><Vote className="h-4 w-4 text-primary"/>Nome da Eleição</Label><Input id="name" value={formData.name} onChange={handleChange} required /></div>
-            <div><Label htmlFor="description" className="mb-1 flex items-center gap-2"><AlignLeft className="h-4 w-4 text-primary"/>Descrição</Label><Textarea id="description" value={formData.description} onChange={handleChange} /></div>
+            <div><Label htmlFor="name" className="mb-1 flex items-center gap-2"><Vote className="h-4 w-4 text-primary"/>Nome da Eleição</Label><Input id="name" value={formData.name} onChange={handleChange} required disabled={calendarLocked} /></div>
+            <div><Label htmlFor="description" className="mb-1 flex items-center gap-2"><AlignLeft className="h-4 w-4 text-primary"/>Descrição</Label><Textarea id="description" value={formData.description} onChange={handleChange} disabled={calendarLocked} /></div>
             <div>
                 <Label htmlFor="election_type_id" className="mb-1 flex items-center gap-2"><Vote className="h-4 w-4 text-primary"/>Tipo de Eleição</Label>
-                <Select onValueChange={handleSelectChange} value={formData.election_type_id}>
+                <Select onValueChange={handleSelectChange} value={formData.election_type_id} disabled={calendarLocked}>
                     <SelectTrigger id="election_type_id" aria-label="Tipo de eleição"><SelectValue placeholder="Selecione o tipo" /></SelectTrigger>
                     <SelectContent>
                         {electionTypes.map(type => <SelectItem key={type.id} value={type.id}>{type.name}</SelectItem>)}
                     </SelectContent>
                 </Select>
             </div>
+            {parliamentary && <div className="rounded-lg border border-indigo-500/30 bg-indigo-500/5 p-3">
+                <Label htmlFor="seats_available">Quantidade de cadeiras disponíveis ({selectedKind})</Label>
+                <Input id="seats_available" type="number" min="1" max={/senador/i.test(selectedKind)?81:513} required
+                    value={formData.seats_available}
+                    onChange={handleChange}/>
+                <p className="text-xs text-muted-foreground">Os candidatos eleitos serão limitados a esse número de vagas. A edição é bloqueada quando a votação começar.</p>
+            </div>}
+            {calendarLocked && <p className="text-sm text-amber-300">O calendário já começou. Apenas a quantidade de cadeiras pode ser alterada antes da votação.</p>}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div><Label htmlFor="candidacy_start_date" className="mb-1 flex items-center gap-2"><CalendarClock className="h-4 w-4 text-primary"/>Início das Candidaturas</Label><Input id="candidacy_start_date" type="datetime-local" value={formData.candidacy_start_date} onChange={handleChange} required min={minDateTime} /></div>
-                <div><Label htmlFor="candidacy_end_date" className="mb-1 flex items-center gap-2"><CalendarClock className="h-4 w-4 text-primary"/>Fim das Candidaturas</Label><Input id="candidacy_end_date" type="datetime-local" value={formData.candidacy_end_date} onChange={handleChange} required min={formData.candidacy_start_date || minDateTime} /></div>
+                <div><Label htmlFor="candidacy_start_date" className="mb-1 flex items-center gap-2"><CalendarClock className="h-4 w-4 text-primary"/>Início das Candidaturas</Label><Input id="candidacy_start_date" type="datetime-local" value={formData.candidacy_start_date} onChange={handleChange} required disabled={calendarLocked} min={minDateTime} /></div>
+                <div><Label htmlFor="candidacy_end_date" className="mb-1 flex items-center gap-2"><CalendarClock className="h-4 w-4 text-primary"/>Fim das Candidaturas</Label><Input id="candidacy_end_date" type="datetime-local" value={formData.candidacy_end_date} onChange={handleChange} required disabled={calendarLocked} min={formData.candidacy_start_date || minDateTime} /></div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div><Label htmlFor="voting_start_date" className="mb-1 flex items-center gap-2"><CalendarClock className="h-4 w-4 text-primary"/>Início da Votação</Label><Input id="voting_start_date" type="datetime-local" value={formData.voting_start_date} onChange={handleChange} required min={formData.candidacy_end_date || minDateTime} /></div>
-                <div><Label htmlFor="voting_end_date" className="mb-1 flex items-center gap-2"><CalendarClock className="h-4 w-4 text-primary"/>Fim da Votação</Label><Input id="voting_end_date" type="datetime-local" value={formData.voting_end_date} onChange={handleChange} required min={formData.voting_start_date || minDateTime} /></div>
+                <div><Label htmlFor="voting_start_date" className="mb-1 flex items-center gap-2"><CalendarClock className="h-4 w-4 text-primary"/>Início da Votação</Label><Input id="voting_start_date" type="datetime-local" value={formData.voting_start_date} onChange={handleChange} required disabled={calendarLocked} min={formData.candidacy_end_date || minDateTime} /></div>
+                <div><Label htmlFor="voting_end_date" className="mb-1 flex items-center gap-2"><CalendarClock className="h-4 w-4 text-primary"/>Fim da Votação</Label><Input id="voting_end_date" type="datetime-local" value={formData.voting_end_date} onChange={handleChange} required disabled={calendarLocked} min={formData.voting_start_date || minDateTime} /></div>
             </div>
             <div className="flex items-center justify-between rounded-lg border border-white/10 bg-white/5 p-4">
                 <div>
@@ -204,7 +228,7 @@ const ElectionForm = ({ election, onFinish, automaticElectionPlans }) => {
                         Ao finalizar, cria a próxima eleição 1 mês depois com as mesmas janelas e numeração sequencial.
                     </p>
                 </div>
-                <Switch id="auto-recurring-election" checked={autoRecurring} onCheckedChange={setAutoRecurring} />
+                <Switch id="auto-recurring-election" checked={autoRecurring} onCheckedChange={setAutoRecurring} disabled={calendarLocked} />
             </div>
             {formError && <p role="alert" className="text-sm text-destructive">{formError}</p>}
             <DialogFooter className="sm:justify-center">
@@ -316,6 +340,7 @@ const ElectionManagement = () => {
                                 <p className="flex items-center gap-2"><Calendar className="w-4 h-4 text-muted-foreground" /> <strong>Candidaturas:</strong> {formatDateTimeBR(election.candidacy_start_date)} - {formatDateTimeBR(election.candidacy_end_date)}</p>
                                 <p className="flex items-center gap-2"><Vote className="w-4 h-4 text-muted-foreground" /> <strong>Votação:</strong> {formatDateTimeBR(election.voting_start_date)} - {formatDateTimeBR(election.voting_end_date)}</p>
                                 <p><strong>Status:</strong> {statusTranslations[election.status] || election.status}</p>
+                                {/senador|deputado/i.test(election.election_types?.name || '') && <p><strong>Cadeiras:</strong> {election.seats_available ?? 'A definir'}</p>}
                             </CardContent>
                             <CardFooter className="gap-2">
                                 <Button variant="outline" size="sm" onClick={() => handleEdit(election)}><Edit className="w-4 h-4 mr-2" /> Editar</Button>
