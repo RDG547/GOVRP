@@ -106,73 +106,10 @@ export async function loadWorldRuntime(url, key, force = false) {
   }
   return pending;
 }
-// Reads never mutate the world and do not require a generation check. Avoid
-// blocking ordinary screens on an additional Supabase request, particularly
-// on high-latency mobile networks. Every mutation still uses the generation
-// barrier enforced by Postgres.
-const safeReadOnlyRpcs = new Set([
-  "get_my_citizen_onboarding",
-  "get_my_bank_account",
-  // Feed, profile and discovery RPCs only read public Social X content.
-  // A slow world-state lookup must not hide posts from regular citizens.
-  "get_x_posts",
-  "get_user_posts_with_interactions",
-  "get_posts_with_interactions",
-  "get_public_x_profile",
-  "search_x",
-  "get_x_trends",
-  "get_x_follow_page",
-]);
-
-export function createWorldFetch(url, key) {
-  url = url.replace(/\/+$/, "");
-  return async (input, options = {}) => {
-    const path = typeof input === "string" ? input : input.url;
-    const method = (options.method || (typeof input === "string" ? "GET" : input.method) || "GET").toUpperCase();
-    const isRest = path.startsWith(`${url}/rest/v1/`);
-    const isStorage = path.startsWith(`${url}/storage/v1/object/`);
-    if ((!isRest && !isStorage) || path.includes("/rpc/get_world_runtime")) {
-      return globalThis.fetch(input, options);
-    }
-    const endpoint = path.split("?")[0].split("/").pop();
-    const safeRead = method === "GET" || method === "HEAD" ||
-      (isRest && method === "POST" && safeReadOnlyRpcs.has(endpoint));
-
-    // Read-only operations must not wait on the world-state RPC. PostgreSQL
-    // policies still govern their access, and triggers enforce all writes.
-    if (safeRead) {
-      return globalThis.fetch(input, options);
-    }
-
-    let current;
-    try {
-      current = await loadWorldRuntime(url, key);
-    } catch (initialError) {
-      // Retry ONLY world metadata, NEVER the user mutation. A lost response
-      // from a mutation must not be resent because it may already have run.
-      await new Promise(resolve => setTimeout(resolve, 350));
-      try {
-        current = await loadWorldRuntime(url, key, true);
-      } catch {
-        throw new Error(
-          "O GOVRP não conseguiu verificar o estado do servidor. Seus dados não foram enviados; tente salvar novamente.",
-          { cause: initialError },
-        );
-      }
-    }
-    if (!current?.generation_id || current.maintenance) {
-      throw new Error(
-        "O GOVRP está temporariamente em manutenção. Seus dados foram mantidos nesta tela.",
-      );
-    }
-    const headers = new Headers(options.headers || input.headers || {});
-    headers.set("x-govrp-world-generation", current.generation_id);
-    if (isStorage && ["POST", "PUT"].includes(method)) {
-      return globalThis.fetch(
-        input,
-        withStorageGeneration(options, headers, current.generation_id),
-      );
-    }
-    return globalThis.fetch(input, { ...options, headers });
-  };
+// The reset engine blocks writes atomically in PostgreSQL only while the
+// universe is under maintenance. Day-to-day requests must not depend on an
+// extra status RPC, browser generation headers, or special upload metadata.
+// Keep the runtime subscription solely for world reset/cache invalidation.
+export function createWorldFetch() {
+  return (input, options) => globalThis.fetch(input, options);
 }
