@@ -7,18 +7,6 @@ import {
 import { withWorldRequest, worldServerFetch } from "../server/world/request.js";
 
 const events = [], sent = [];
-function createStorage() {
-  const data = {
-    "sb-auth-token": "login",
-    theme: "dark",
-    "govrp_cart:old": "[]",
-    "govrp:tutorial:old": "closed",
-  };
-  return {
-    ...data,
-    removeItem: (key) => { delete store[key]; },
-  };
-}
 const local = { "sb-auth-token": "login", theme: "dark", "govrp_cart:old": "[]" };
 const session = { "govrp:tutorial:old": "closed" };
 Object.defineProperty(local, "removeItem", { value: key => delete local[key], enumerable: false });
