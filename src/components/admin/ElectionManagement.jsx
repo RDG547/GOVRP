@@ -68,7 +68,7 @@ const ElectionForm = ({ election, onFinish, automaticElectionPlans }) => {
     const minDateTime = toBrasiliaInput(new Date());
     const selectedKind = electionTypes.find(type => type.id === formData.election_type_id)?.name || election?.election_types?.name || '';
     const parliamentary = /senador|deputado/i.test(selectedKind);
-    const calendarLocked = Boolean(election?.id && Date.parse(election?.candidacy_start_date) <= Date.now());
+    const votingLocked = Boolean(election?.id && (Date.parse(election?.voting_start_date) <= Date.now() || ['Voting', 'Finished', 'Cancelled'].includes(election?.status)));
     const savedId = useRef(election?.id || null);
     const [formError, setFormError] = useState('');
 
@@ -167,22 +167,15 @@ const ElectionForm = ({ election, onFinish, automaticElectionPlans }) => {
             if (parliamentary && (!Number.isInteger(Number(formData.seats_available)) || Number(formData.seats_available) < 1)) {
                 throw new Error('Informe a quantidade de cadeiras disponíveis.');
             }
-            if (calendarLocked) {
-                if (!parliamentary) throw new Error('O calendário desta eleição já está em andamento e não pode ser modificado.');
-                const { error } = await supabase.rpc('admin_set_election_seats', {
-                    p_election_id: savedId.current, p_seats: Number(formData.seats_available)
-                });
-                if (error) throw error;
-            } else {
-                const payload = electoralCalendarPayload(formData);
-                const { data: result, error } = await supabase.rpc('manage_electoral_calendar', {
-                    p_election_id: savedId.current,
-                    p_data: payload,
-                });
-                if (error) throw error;
-                savedId.current = result.id;
-                await syncAutomaticElectionPlan({ ...payload, id: result.id });
-            }
+            const payload = electoralCalendarPayload(formData);
+            const { data: result, error } = await supabase.rpc('manage_electoral_calendar', {
+                p_election_id: savedId.current,
+                p_data: payload,
+            });
+            if (error) throw error;
+            if (!result?.id) throw new Error('O servidor não confirmou o salvamento da eleição.');
+            savedId.current = result.id;
+            if (!votingLocked) await syncAutomaticElectionPlan({ ...payload, id: result.id });
             toast({ title: 'Eleição salva com sucesso' });
             onFinish();
         } catch (error) {
@@ -194,11 +187,11 @@ const ElectionForm = ({ election, onFinish, automaticElectionPlans }) => {
 
     return (
         <form onSubmit={handleSubmit} className="space-y-4">
-            <div><Label htmlFor="name" className="mb-1 flex items-center gap-2"><Vote className="h-4 w-4 text-primary"/>Nome da Eleição</Label><Input id="name" value={formData.name} onChange={handleChange} required disabled={calendarLocked} /></div>
-            <div><Label htmlFor="description" className="mb-1 flex items-center gap-2"><AlignLeft className="h-4 w-4 text-primary"/>Descrição</Label><Textarea id="description" value={formData.description} onChange={handleChange} disabled={calendarLocked} /></div>
+            <div><Label htmlFor="name" className="mb-1 flex items-center gap-2"><Vote className="h-4 w-4 text-primary"/>Nome da Eleição</Label><Input id="name" value={formData.name} onChange={handleChange} required disabled={votingLocked} /></div>
+            <div><Label htmlFor="description" className="mb-1 flex items-center gap-2"><AlignLeft className="h-4 w-4 text-primary"/>Descrição</Label><Textarea id="description" value={formData.description} onChange={handleChange} disabled={votingLocked} /></div>
             <div>
                 <Label htmlFor="election_type_id" className="mb-1 flex items-center gap-2"><Vote className="h-4 w-4 text-primary"/>Tipo de Eleição</Label>
-                <Select onValueChange={handleSelectChange} value={formData.election_type_id} disabled={calendarLocked}>
+                <Select onValueChange={handleSelectChange} value={formData.election_type_id} disabled={votingLocked}>
                     <SelectTrigger id="election_type_id" aria-label="Tipo de eleição"><SelectValue placeholder="Selecione o tipo" /></SelectTrigger>
                     <SelectContent>
                         {electionTypes.map(type => <SelectItem key={type.id} value={type.id}>{type.name}</SelectItem>)}
@@ -208,18 +201,18 @@ const ElectionForm = ({ election, onFinish, automaticElectionPlans }) => {
             {parliamentary && <div className="rounded-lg border border-indigo-500/30 bg-indigo-500/5 p-3">
                 <Label htmlFor="seats_available">Quantidade de cadeiras disponíveis ({selectedKind})</Label>
                 <Input id="seats_available" type="number" min="1" max={/senador/i.test(selectedKind)?81:513} required
-                    value={formData.seats_available}
-                    onChange={handleChange}/>
+                    value={formData.seats_available} onChange={handleChange} disabled={votingLocked}/>
                 <p className="text-xs text-muted-foreground">Os candidatos eleitos serão limitados a esse número de vagas. A edição é bloqueada quando a votação começar.</p>
             </div>}
-            {calendarLocked && <p className="text-sm text-amber-300">O calendário já começou. Apenas a quantidade de cadeiras pode ser alterada antes da votação.</p>}
+            {votingLocked && <p className="text-sm text-amber-300">A votação já começou. Somente nome e descrição podem ser alterados; votos, datas, tipo e cadeiras são preservados.</p>}
+            {!votingLocked && election?.id && Date.parse(election?.candidacy_start_date) <= Date.now() && <p className="text-xs text-muted-foreground">O período de candidaturas já começou, mas os dados e as datas ainda podem ser ajustados antes da votação. O tipo de eleição não muda se já houver candidatos.</p>}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div><Label htmlFor="candidacy_start_date" className="mb-1 flex items-center gap-2"><CalendarClock className="h-4 w-4 text-primary"/>Início das Candidaturas</Label><Input id="candidacy_start_date" type="datetime-local" value={formData.candidacy_start_date} onChange={handleChange} required disabled={calendarLocked} min={minDateTime} /></div>
-                <div><Label htmlFor="candidacy_end_date" className="mb-1 flex items-center gap-2"><CalendarClock className="h-4 w-4 text-primary"/>Fim das Candidaturas</Label><Input id="candidacy_end_date" type="datetime-local" value={formData.candidacy_end_date} onChange={handleChange} required disabled={calendarLocked} min={formData.candidacy_start_date || minDateTime} /></div>
+                <div><Label htmlFor="candidacy_start_date" className="mb-1 flex items-center gap-2"><CalendarClock className="h-4 w-4 text-primary"/>Início das Candidaturas</Label><Input id="candidacy_start_date" type="datetime-local" value={formData.candidacy_start_date} onChange={handleChange} required disabled={votingLocked} min={election?.id ? undefined : minDateTime} /></div>
+                <div><Label htmlFor="candidacy_end_date" className="mb-1 flex items-center gap-2"><CalendarClock className="h-4 w-4 text-primary"/>Fim das Candidaturas</Label><Input id="candidacy_end_date" type="datetime-local" value={formData.candidacy_end_date} onChange={handleChange} required disabled={votingLocked} min={formData.candidacy_start_date || minDateTime} /></div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div><Label htmlFor="voting_start_date" className="mb-1 flex items-center gap-2"><CalendarClock className="h-4 w-4 text-primary"/>Início da Votação</Label><Input id="voting_start_date" type="datetime-local" value={formData.voting_start_date} onChange={handleChange} required disabled={calendarLocked} min={formData.candidacy_end_date || minDateTime} /></div>
-                <div><Label htmlFor="voting_end_date" className="mb-1 flex items-center gap-2"><CalendarClock className="h-4 w-4 text-primary"/>Fim da Votação</Label><Input id="voting_end_date" type="datetime-local" value={formData.voting_end_date} onChange={handleChange} required disabled={calendarLocked} min={formData.voting_start_date || minDateTime} /></div>
+                <div><Label htmlFor="voting_start_date" className="mb-1 flex items-center gap-2"><CalendarClock className="h-4 w-4 text-primary"/>Início da Votação</Label><Input id="voting_start_date" type="datetime-local" value={formData.voting_start_date} onChange={handleChange} required disabled={votingLocked} min={formData.candidacy_end_date || minDateTime} /></div>
+                <div><Label htmlFor="voting_end_date" className="mb-1 flex items-center gap-2"><CalendarClock className="h-4 w-4 text-primary"/>Fim da Votação</Label><Input id="voting_end_date" type="datetime-local" value={formData.voting_end_date} onChange={handleChange} required disabled={votingLocked} min={formData.voting_start_date || minDateTime} /></div>
             </div>
             <div className="flex items-center justify-between rounded-lg border border-white/10 bg-white/5 p-4">
                 <div>
@@ -228,7 +221,7 @@ const ElectionForm = ({ election, onFinish, automaticElectionPlans }) => {
                         Ao finalizar, cria a próxima eleição 1 mês depois com as mesmas janelas e numeração sequencial.
                     </p>
                 </div>
-                <Switch id="auto-recurring-election" checked={autoRecurring} onCheckedChange={setAutoRecurring} disabled={calendarLocked} />
+                <Switch id="auto-recurring-election" checked={autoRecurring} onCheckedChange={setAutoRecurring} disabled={votingLocked} />
             </div>
             {formError && <p role="alert" className="text-sm text-destructive">{formError}</p>}
             <DialogFooter className="sm:justify-center">
