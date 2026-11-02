@@ -5,8 +5,6 @@ const bundle = await build({
   entryPoints: ['src/lib/apiAuth.js'], bundle: true, format: 'esm', write: false,
   plugins: [{ name: 'isolated-auth-client', setup(builder) {
     builder.onResolve({ filter: /supabaseClient$/ }, () => ({ path: 'client', namespace: 'test' }));
-    builder.onResolve({filter:/worldRuntime$/},()=>({path:'world',namespace:'runtime-test'}));
-    builder.onLoad({filter:/.*/,namespace:'runtime-test'},()=>({contents:'export const loadWorldRuntime=async()=>({generation_id:"test-generation"});',loader:'js'}));
     builder.onLoad({ filter: /.*/, namespace: 'test' }, () => ({ contents: 'export const supabase = {}; export const supabaseUrl="http://127.0.0.1"; export const supabasePublishableKey="test";', loader: 'js' }));
   } }],
 });
@@ -30,7 +28,7 @@ await Promise.all([1, 2].map(() => fetchWithSessionAuth('/api/admin/update-user'
   method: 'POST', body: JSON.stringify({ role: 'Cidadão' }), headers: new Headers({ 'X-Test': 'kept' }),
 }, concurrent, async (_url, options) => {
   assert.equal(options.headers.get('X-Test'), 'kept');
-  assert.equal(options.headers.get('x-govrp-world-generation'),'test-generation');
+  assert.equal(options.headers.get('x-govrp-world-generation'), null, 'A autenticação não exige geração para requests comuns.');
   assert.equal(options.headers.get('Content-Type'), 'application/json');
   const authorization = options.headers.get('Authorization');
   attempts.push(authorization);
