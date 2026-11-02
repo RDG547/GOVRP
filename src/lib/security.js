@@ -156,6 +156,28 @@ export const validateSelectedFile = (
   return { ok: true };
 };
 
+
+/**
+ * Check actual file signatures rather than trusting the device-reported MIME
+ * type or filename. Some mobile pickers label valid images as text/plain;
+ * conversely a renamed text file must not be uploaded to an image-only bucket.
+ */
+export const detectSupportedImageContentType = async (file) => {
+  if (!file || typeof file.slice !== 'function') return null;
+  const bytes = new Uint8Array(await file.slice(0, 32).arrayBuffer());
+  const matches = (offset, signature) =>
+    signature.every((value, index) => bytes[offset + index] === value);
+  const ascii = (offset, length) =>
+    String.fromCharCode(...bytes.slice(offset, offset + length));
+
+  if (matches(0, [0xff, 0xd8, 0xff])) return 'image/jpeg';
+  if (matches(0, [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])) return 'image/png';
+  if (ascii(0, 6) === 'GIF87a' || ascii(0, 6) === 'GIF89a') return 'image/gif';
+  if (ascii(0, 4) === 'RIFF' && ascii(8, 4) === 'WEBP') return 'image/webp';
+  if (ascii(4, 4) === 'ftyp' && ['avif', 'avis'].includes(ascii(8, 4))) return 'image/avif';
+  return null;
+};
+
 export const openUrlInNewTab = (url) => {
   const safeUrl = normalizeSafeUrl(url);
 
