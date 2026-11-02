@@ -42,15 +42,16 @@ BEGIN
       'govrp-stock-quotes','govrp-happiness-condition'
     )
   LOOP
-    IF j.schedule IS DISTINCT FROM j.expected_schedule THEN
+    IF j.schedule IS DISTINCT FROM j.expected_schedule
+       AND j.schedule IS DISTINCT FROM j.throttled_schedule THEN
       RAISE EXCEPTION 'Unexpected % schedule %. Review before throttling.',
         j.jobname,j.schedule;
     END IF;
     INSERT INTO private.rp_cron_incident_originals
       (incident,jobid,jobname,original_schedule,original_active)
-    VALUES ('2026-11-02-supabase-io',j.jobid,j.jobname,j.schedule,j.active)
+    VALUES ('2026-11-02-supabase-io',j.jobid,j.jobname,j.expected_schedule,j.active)
     ON CONFLICT DO NOTHING;
-    IF j.active THEN
+    IF j.active AND j.schedule IS DISTINCT FROM j.throttled_schedule THEN
       PERFORM cron.alter_job(job_id:=j.jobid,schedule:=j.throttled_schedule);
     END IF;
   END LOOP;
