@@ -285,7 +285,7 @@ const PartyManagement = () => {
                 <Label>Nome</Label>
                 <Input value={formData.name} onChange={(event) => updateForm('name', event.target.value)} />
               </div>
-                <div><Label htmlFor="admin-party-electoral-number">Número eleitoral (10 a 99)</Label><Input id="admin-party-electoral-number" inputMode="numeric" pattern="[1-9][0-9]" maxLength={2} value={formData.electoral_number} onChange={e=>updateForm('electoral_number',e.target.value.replace(/\\D/g,'').slice(0,2))}/></div>
+                <div><Label htmlFor="admin-party-electoral-number">Número eleitoral (10 a 99)</Label><Input id="admin-party-electoral-number" inputMode="numeric" pattern="[1-9][0-9]" maxLength={2} value={formData.electoral_number} onChange={e=>updateForm('electoral_number',e.target.value.replace(/\D/g,'').slice(0,2))}/></div>
               <div>
                 <Label>Sigla</Label>
                 <Input value={formData.acronym} onChange={(event) => updateForm('acronym', event.target.value)} maxLength={8} />
