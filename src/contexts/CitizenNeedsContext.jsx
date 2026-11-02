@@ -38,7 +38,17 @@ export function CitizenNeedsProvider({ children }) {
     return () => { clearInterval(timer); document.removeEventListener('visibilitychange', resume); };
   }, [refresh]);
   useDomainRealtime('citizen-needs', user?.id, [{ table: 'citizen_needs', filter: `user_id=eq.${user?.id}` }], changes => {
-    for (const change of changes) if (change.new?.user_id === user?.id) setNeeds(current => mergeNeeds(current, change.new));
+    // Realtime has no replay after an offline interval. A single snapshot on
+    // resubscribe repairs missed sleep, hunger and thirst transitions without F5.
+    if (changes.some(change => change.eventType === 'SYNC')) {
+      void refresh();
+      return;
+    }
+    for (const change of changes) {
+      if (change.new?.user_id === user?.id) {
+        setNeeds(current => mergeNeeds(current, change.new));
+      }
+    }
   }, Boolean(user?.onboarding_completed));
   const act = useCallback(async (action, referenceId, key) => {
     if(getWorldRuntime()?.maintenance)throw new Error('O universo está em manutenção. Aguarde a reabertura.');
