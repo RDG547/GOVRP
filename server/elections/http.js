@@ -1835,7 +1835,7 @@ const raw_cancelCandidacyHandler = async (request, response) => {
   const supabase = getServerSupabase();
 
   try {
-    const { user: requester } = await ensureAuthenticatedRequester(supabase, request);
+    const { user: requester, accessToken } = await ensureAuthenticatedRequester(supabase, request);
     const payload = await readJsonBody(request);
     const candidateId = trimString(payload.candidateId);
     const trackerNotificationId = trimString(payload.trackerNotificationId);
@@ -1882,9 +1882,10 @@ const raw_cancelCandidacyHandler = async (request, response) => {
       return;
     }
 
-    const scoped = getUserScopedSupabase(requester.accessToken);
-    const { error: withdrawalError } = await scoped.rpc('withdraw_my_candidacy', { p_candidate_id: candidateId });
+    const scoped = getUserScopedSupabase(accessToken);
+    const { data: withdrawal, error: withdrawalError } = await scoped.rpc('withdraw_my_candidacy', { p_candidate_id: candidateId });
     if (withdrawalError) throw createHttpError(withdrawalError.message, 400);
+    if (!withdrawal?.success) throw createHttpError(withdrawal?.message || 'Não foi possível retirar a candidatura.', 400);
 
     json(response, 200, {
       success: true,
