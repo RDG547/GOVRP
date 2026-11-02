@@ -34,7 +34,7 @@ const tutorialSections = [
     content: [
       {
         subTitle: 'Abrindo sua Conta',
-        description: 'A conta é preservada para cidadãos antigos e aberta de forma idempotente para novos cidadãos durante o registro. Quando houver saldo inicial, o valor vem da configuração econômica e gera uma transação de origem.',
+        description: 'A conta é preservada para cidadãos antigos e aberta de forma idempotente para novos cidadãos durante o registro. Ao concluir a cidadania e abrir a conta bancária, o crédito inicial de R$ 1.000,00 é concedido automaticamente e registrado no extrato.',
       },
       {
         subTitle: 'Transferências e Cartões',
