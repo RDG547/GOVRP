@@ -177,7 +177,7 @@ const PartyPage = () => {
                 <header style={headerStyle} className="h-auto min-h-[20rem] py-10 relative flex items-center justify-center text-white shadow-lg">
                     <div className="relative min-w-0 max-w-full text-center z-10 p-4">
                         <img src={party.logo_url} alt={`Logo ${party.name}`} className="w-24 h-24 md:w-32 md:h-32 mx-auto rounded-full border-4 border-white bg-background object-cover shadow-2xl mb-4" />
-                        <h1 style={{fontFamily:brandFont(party.customization?.font_key)}} className="break-words text-4xl md:text-6xl font-extrabold tracking-tight drop-shadow-lg">{party.name} ({party.acronym})</h1>
+                        <h1 style={{fontFamily:brandFont(party.customization?.font_key)}} className="break-words text-4xl md:text-6xl font-extrabold tracking-tight drop-shadow-lg">{party.name} ({party.acronym}) <span className="whitespace-nowrap text-2xl opacity-80">Nº {party.electoral_number}</span></h1>
                         <ExpandableText text={party.description} />
                     </div>
                     {canManage && (
