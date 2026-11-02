@@ -122,7 +122,7 @@ const EditPartyForm = ({ party, onAction, closeDialog, userRole, members }) => {
                     <Label htmlFor="name" className="flex items-center gap-2"><Building className="h-4 w-4 text-primary"/>Nome do Partido</Label>
                     <Input id="name" value={formData.name} onChange={(e) => setFormData(p=>({...p, name: e.target.value}))} />
                 </div>
-                <div className="space-y-2"><Label htmlFor="party-edit-number">Número eleitoral (10 a 99)</Label><Input id="party-edit-number" inputMode="numeric" pattern="[1-9][0-9]" maxLength={2} value={formData.electoral_number} disabled={userRole!=='Dono'} onChange={e=>setFormData(p=>({...p,electoral_number:e.target.value.replace(/\\D/g,'').slice(0,2)}))} /><p className="text-xs text-muted-foreground">Somente o dono pode alterar; bloqueado durante a votação.</p></div>
+                <div className="space-y-2"><Label htmlFor="party-edit-number">Número eleitoral (10 a 99)</Label><Input id="party-edit-number" inputMode="numeric" pattern="[1-9][0-9]" maxLength={2} value={formData.electoral_number} disabled={userRole!=='Dono'} onChange={e=>setFormData(p=>({...p,electoral_number:e.target.value.replace(/\D/g,'').slice(0,2)}))} /><p className="text-xs text-muted-foreground">Somente o dono pode alterar; bloqueado durante a votação.</p></div>
                 <div className="space-y-2">
                     <Label htmlFor="acronym" className="flex items-center gap-2"><Hash className="h-4 w-4 text-primary"/>Sigla</Label>
                     <Input id="acronym" value={formData.acronym} onChange={(e) => setFormData(p=>({...p, acronym: e.target.value}))} />
