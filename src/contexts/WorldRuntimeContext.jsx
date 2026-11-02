@@ -36,7 +36,7 @@ export function WorldRuntimeProvider({ children }) {
       .subscribe((status) => {
         if (status === "SUBSCRIBED") refresh();
       });
-    const timer = setInterval(refresh, 15000);
+    const timer = setInterval(refresh, 120000);
     window.addEventListener("focus", refresh);
     window.addEventListener("online", refresh);
     return () => {
