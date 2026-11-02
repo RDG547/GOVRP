@@ -7,6 +7,7 @@ import { ArrowRight, AlertTriangle, Banknote, Briefcase, Clock3, X } from 'lucid
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabaseClient';
+import { useDomainRealtime } from '@/hooks/use-domain-realtime';
 import {
   getLatestSalaryPayment,
 } from '@/lib/salary';
@@ -154,45 +155,36 @@ const SalaryPaymentPopup = () => {
     };
   }, [refreshLatestStatus, user?.id]);
 
-  useEffect(() => {
-    if (!user?.id) {
-      return undefined;
-    }
-
-    const channel = supabase
-      .channel(`salary-payments:${user.id}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'salary_payments',
-          filter: `user_id=eq.${user.id}`,
-        },
-        async () => {
-          await Promise.all([refreshUser(), refreshLatestStatus()]);
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'notifications',
-          filter: `user_id=eq.${user.id}`,
-        },
-        async (payload) => {
-          if (payload.new?.type === 'salary_payment_failed') {
-            await refreshLatestStatus();
-          }
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [refreshLatestStatus, refreshUser, user?.id]);
+  // The payroll transaction creates a recipient-only notification. Subscribe
+  // through the shared notifications channel rather than streaming the entire
+  // publicly readable salary_payments table. No periodic salary polling.
+  useDomainRealtime(
+    'notification-feed',
+    user?.id,
+    [{ table: 'notifications', filter: `user_id=eq.${user?.id}` }],
+    events => {
+      const received = events.some(event =>
+        event.table === 'notifications' &&
+        event.eventType === 'INSERT' &&
+        event.new?.type === 'salary_payment_received'
+      );
+      const failed = events.some(event =>
+        event.table === 'notifications' &&
+        event.eventType === 'INSERT' &&
+        event.new?.type === 'salary_payment_failed'
+      );
+      // Realtime can miss events while disconnected; reconcile once after
+      // resubscription. The popup remains idempotent through its seen key.
+      const reconnected = events.some(event => event.eventType === 'SYNC');
+      if (received || failed || reconnected) {
+        void refreshLatestStatus();
+      }
+      if (received) {
+        void refreshUser({ skipSync: true });
+      }
+    },
+    Boolean(user?.id)
+  );
 
   const handleDismiss = useCallback(() => {
     if (failureNotification?.id) {
