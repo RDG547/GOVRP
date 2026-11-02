@@ -2,9 +2,8 @@ import { supabase } from '@/lib/supabaseClient';
 import { buildStoragePath } from '@/lib/security';
 
 /**
- * Upload a party logo/header with an explicit world generation.
- * Supabase Storage does not forward the custom HTTP generation header into
- * Postgres, so the storage.objects trigger checks user_metadata instead.
+ * Uploads use the ordinary Storage owner/bucket policies. The database reset
+ * maintenance gate protects destructive transitions without browser metadata.
  */
 export async function uploadPartyAsset({ file, prefix, entityId }) {
   if (!file || !['party-logos', 'party-headers'].includes(prefix)) {
