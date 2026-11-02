@@ -7,7 +7,8 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Loader2, Send, X, Image as ImageIcon, Video } from 'lucide-react';
-import { supabase } from '@/lib/supabaseClient';
+import { supabase, supabaseUrl, supabasePublishableKey } from '@/lib/supabaseClient';
+import { loadWorldRuntime } from '@/lib/worldRuntime';
 import { publishPresidentPostNews } from '@/lib/newsPublisher';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
@@ -155,50 +156,70 @@ const CreatePostForm = forwardRef(({ onPostCreated }, ref) => {
         if(sponsored&&(!adKind||sponsor.trim().length<3)){toast({title:'Complete a identificação da publicidade',description:'Informe o patrocinador e o tipo de anúncio.',variant:'destructive'});return;}
         setIsSubmitting(true);
         let mediaUrl = null;
-
-        if (postMedia) {
-            const bucket = mediaType === 'video' ? 'post-videos' : 'post-images';
-            const fileName = buildStoragePath({ prefix: '', entityId: user.id, fileName: postMedia.name });
-            const { data: uploadData, error: uploadError } = await supabase.storage.from(bucket).upload(fileName, postMedia);
-            if (uploadError) {
-                toast({ title: `Erro no upload d${mediaType === 'video' ? 'o vídeo' : 'a imagem'}`, description: uploadError.message, variant: "destructive" });
-                setIsSubmitting(false); return;
+        try {
+            if (postMedia) {
+                const world = await loadWorldRuntime(supabaseUrl, supabasePublishableKey, true);
+                if (!world?.generation_id || world.maintenance) {
+                    throw new Error('O GOVRP está em manutenção ou não foi possível confirmar o universo atual.');
+                }
+                const bucket = mediaType === 'video' ? 'post-videos' : 'post-images';
+                const fileName = buildStoragePath({ prefix: '', entityId: user.id, fileName: postMedia.name });
+                const { data: uploadData, error: uploadError } = await supabase.storage.from(bucket).upload(
+                    fileName,
+                    postMedia,
+                    {
+                        upsert: false,
+                        contentType: postMedia.type,
+                        metadata: { world_generation: world.generation_id },
+                    },
+                );
+                if (uploadError) {
+                    const generationFailed = String(uploadError.code || uploadError.statusCode || '').startsWith('5500') ||
+                        /geração anterior|universo em manutenção|world generation/i.test(uploadError.message || '');
+                    throw new Error(generationFailed
+                        ? 'Não foi possível confirmar a geração da imagem. Atualize o GOVRP e tente enviar novamente.'
+                        : `Erro no upload d${mediaType === 'video' ? 'o vídeo' : 'a imagem'}: ${uploadError.message}`);
+                }
+                const { data: urlData } = supabase.storage.from(bucket).getPublicUrl(uploadData.path);
+                mediaUrl = urlData.publicUrl;
             }
-            const { data: urlData } = supabase.storage.from(bucket).getPublicUrl(uploadData.path);
-            mediaUrl = urlData.publicUrl;
-        }
 
-        const { data: newPost, error } = await supabase.from('posts').insert({
-            content: postContent,
-            user_id: user.id,
-            image_url: mediaUrl,
-            metadata: { type: mediaType,...(sponsored?{sponsored:true,sponsor_name:sponsor.trim(),ad_kind:adKind,sponsor_party_id:sponsorParty||null}:{}) }
-        }).select('*, author:profiles!posts_user_id_fkey(id,username,full_name,x_username,x_handle,x_avatar_url,role,titles)').single();
+            const { data: newPost, error } = await supabase.from('posts').insert({
+                content: postContent,
+                user_id: user.id,
+                image_url: mediaUrl,
+                metadata: { type: mediaType,...(sponsored?{sponsored:true,sponsor_name:sponsor.trim(),ad_kind:adKind,sponsor_party_id:sponsorParty||null}:{}) }
+            }).select('*, author:profiles!posts_user_id_fkey(id,username,full_name,x_username,x_handle,x_avatar_url,role,titles)').single();
 
-        if (error) {
-            toast({ title: 'Erro ao postar', description: error.message, variant: "destructive" });
-        } else {
+            if (error) throw error;
             setPostContent('');setSponsored(false);setSponsor('');setAdKind('');setSponsorParty('');
             removeMedia();
             toast({ title: 'Sucesso!', description: 'Seu post foi publicado.' });
-            onPostCreated(newPost);
+            onPostCreated?.(newPost);
 
-            // If the user is the President, auto-publish as news
             const effectiveRoles = Array.isArray(user?.effective_roles) ? user.effective_roles : [user?.role].filter(Boolean);
-
             if (effectiveRoles.includes('Presidente')) {
-              try {
-                await publishPresidentPostNews(supabase, {
-                  post: newPost,
-                  authorName: user.full_name,
-                  authorId: user.id,
-                });
-              } catch (newsErr) {
-                console.error('Erro ao publicar notícia presidencial:', newsErr);
-              }
+                try {
+                    await publishPresidentPostNews(supabase, {
+                        post: newPost, authorName: user.full_name, authorId: user.id,
+                    });
+                } catch (newsErr) {
+                    console.error('Erro ao publicar notícia presidencial:', newsErr);
+                }
             }
+        } catch (error) {
+            console.error('[GOVRP X] Falha na publicação', {
+                code: error?.code || null,
+                status: error?.status || error?.statusCode || null,
+            });
+            toast({
+                title: 'Não foi possível publicar',
+                description: error?.message || 'O serviço de publicação não respondeu. Seu texto e arquivo foram preservados nesta tela.',
+                variant: 'destructive',
+            });
+        } finally {
+            setIsSubmitting(false);
         }
-        setIsSubmitting(false);
     };
 
     return (
