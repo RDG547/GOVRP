@@ -72,11 +72,23 @@ export default function ElectionOfficeAwardPopup() {
    } finally { acknowledging.current = false; setSaving(false); }
  };
  const [now, setNow] = useState(Date.now());
+ // Countdown updates are entirely local. They must never poll the API.
  useEffect(() => {
    if (notification?.type !== 'minister_invitation') return undefined;
-   const timer = setInterval(() => { setNow(Date.now()+clockOffset.current); if (Date.parse(notification.invitation.expires_at) <= Date.now()+clockOffset.current) void fetchPending(); }, 1000);
+   const timer = setInterval(() => setNow(Date.now()+clockOffset.current), 1000);
    return () => clearInterval(timer);
- }, [notification, fetchPending]);
+ }, [notification?.type, notification?.id]);
+ // One reconciliation after the deadline. Further changes arrive over Realtime
+ // or are recovered once on reconnect; an expired popup cannot launch one
+ // database request every second while waiting for server-side settlement.
+ useEffect(() => {
+   if (notification?.type !== 'minister_invitation' || !notification?.invitation?.expires_at) return undefined;
+   const deadline = Date.parse(notification.invitation.expires_at);
+   if (!Number.isFinite(deadline)) return undefined;
+   const delay = Math.min(2147483647, Math.max(0, deadline - Date.now() - clockOffset.current) + 1000);
+   const timer = setTimeout(() => void fetchPending(), delay);
+   return () => clearTimeout(timer);
+ }, [notification?.id, notification?.type, notification?.invitation?.expires_at, fetchPending]);
  const respond = async accept => {
    if (saving || acknowledging.current) return;
    acknowledging.current = true; request.current++; setSaving(true);
