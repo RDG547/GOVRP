@@ -40,27 +40,59 @@ export function acceptWorldRuntime(value) {
   }
   listeners.forEach((listener) => listener());
 }
+// Cache the last successful check briefly. A stale generation never bypasses
+// PostgreSQL's barrier; it only allows the user action to reach the server
+// when a non-authoritative status request fails temporarily.
+let checkedAt = 0;
+
+async function requestRuntime(endpoint, options) {
+  const response = await globalThis.fetch(endpoint, options);
+  if (!response.ok) throw new Error(`Estado do universo indisponível (HTTP ${response.status}).`);
+  const state = await response.json();
+  if (!state?.generation_id || typeof state.maintenance !== "boolean") {
+    throw new Error("Resposta inválida ao consultar o universo.");
+  }
+  acceptWorldRuntime(state);
+  checkedAt = Date.now();
+  return runtime;
+}
+
 export async function loadWorldRuntime(url, key, force = false) {
   if (runtime && !force) return runtime;
-  if (!pending)
-    pending = globalThis
-      .fetch(`${url.replace(/\/+$/, "")}/rest/v1/rpc/get_world_runtime`, {
-        method: "POST",
-        headers: { apikey: key, "Content-Type": "application/json" },
-        body: "{}",
-        signal: AbortSignal.timeout(8000),
-      })
-      .then(async (response) => {
-        if (!response.ok)
+  if (!pending) {
+    pending = (async () => {
+      try {
+        return await requestRuntime(
+          `${url.replace(/\/+$/, "")}/rest/v1/rpc/get_world_runtime`,
+          {
+            method: "POST",
+            headers: { apikey: key, "Content-Type": "application/json" },
+            body: "{}",
+            signal: AbortSignal.timeout(5500),
+          },
+        );
+      } catch (directError) {
+        // Same-origin fallback avoids the additional cross-origin request
+        // from old Safari/low-quality mobile networks. This endpoint exposes
+        // exactly the same public, read-only runtime information.
+        try {
+          return await requestRuntime("/api/world-runtime", {
+            method: "GET",
+            cache: "no-store",
+            signal: AbortSignal.timeout(9500),
+          });
+        } catch (proxyError) {
+          if (runtime && !runtime.maintenance && Date.now() - checkedAt < 60_000) {
+            return runtime;
+          }
           throw new Error(
-            "Não foi possível verificar o estado do universo. Tente novamente.",
+            "Não foi possível confirmar o estado do GOVRP. Sua conexão com a plataforma pode estar instável. Tente novamente.",
+            { cause: proxyError || directError },
           );
-        acceptWorldRuntime(await response.json());
-        return runtime;
-      })
-      .finally(() => {
-        pending = null;
-      });
+        }
+      }
+    })().finally(() => { pending = null; });
+  }
   return pending;
 }
 // Reads never mutate the world and do not require a generation check. Avoid
