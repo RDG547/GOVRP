@@ -22,7 +22,6 @@ const Bank = () => {
     const [bankData, setBankData] = useState(null);
     const [loading, setLoading] = useState(true);
     const [loadError, setLoadError] = useState('');
-    const [claimingInitialBalance, setClaimingInitialBalance] = useState(false);
     const [isTransferDialogOpen, setIsTransferDialogOpen] = useState(false);
     const [isPayBillDialogOpen, setIsPayBillDialogOpen] = useState(false);
     const [activeTab, setActiveTab] = useState("overview");
@@ -51,21 +50,6 @@ const Bank = () => {
     useDomainRealtime('bank', user?.id, bankRealtimeTables(user?.id),
         events => refreshSections(bankSectionsForEvents(events)), Boolean(user?.id));
 
-    const claimInitialBalance = async () => {
-        if (claimingInitialBalance) return;
-        setClaimingInitialBalance(true);
-        try {
-            const { data, error } = await supabase.rpc('claim_citizen_initial_grant');
-            if (error) throw error;
-            toast({ title: data?.success ? 'Saldo inicial liberado' : 'Saldo inicial da cidadania',
-                description: data?.success ? 'Seu benefício inicial foi creditado no Banco Nacional.' : data?.message || 'Benefício ainda indisponível.' });
-            if (data?.success) await refreshSections(['account', 'transactions']);
-        } catch (error) {
-            toast({ title: 'Saldo inicial indisponível', description: error.message || 'Confirme seu e-mail e aguarde 24 horas de cadastro.', variant: 'destructive' });
-        } finally {
-            setClaimingInitialBalance(false);
-        }
-    };
 
     if (loading && !bankData) {
         return (
@@ -102,13 +86,7 @@ const Bank = () => {
                     iconColor="text-green-400"
                     centered={true}
                 />
-                 <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-4">
-                    <p className="text-sm text-muted-foreground">O saldo inicial de cidadania pode ser solicitado após confirmar o e-mail, concluir o cadastro e completar 24 horas de conta. O crédito é concedido uma única vez.</p>
-                    <Button size="sm" variant="outline" disabled={claimingInitialBalance} onClick={claimInitialBalance}>
-                        {claimingInitialBalance && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                        Solicitar saldo inicial
-                    </Button>
-                 </div>
+
                  <BankDashboard
                     account={bankData.account}
                     transactions={bankData.transactions}
