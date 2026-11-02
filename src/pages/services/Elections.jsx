@@ -145,7 +145,7 @@ const ElectoralCalendar = ({ elections }) => (
                             <p className="text-sm text-muted-foreground mt-1">{election.description}</p>
                             <ul className="list-['-_'] list-inside ml-4 text-sm text-muted-foreground mt-1">
                                 <li>Candidaturas: {formatDateTimeBR(election.candidacy_start_date)} a {formatDateTimeBR(election.candidacy_end_date)}</li>
-                                <li>Votação: {formatDateTimeBR(election.voting_start_date)} a {formatDateTimeBR(election.voting_end_date)}</li>
+                                <li>Votação: {formatDateTimeBR(election.voting_start_date)} a {formatDateTimeBR(election.voting_end_date)}</li>{election.seats_available != null && <li>Cadeiras disponíveis: {election.seats_available}</li>}
                             </ul>
                         </li>
                     )
