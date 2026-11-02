@@ -187,8 +187,8 @@ const ElectionForm = ({ election, onFinish, automaticElectionPlans }) => {
 
     return (
         <form onSubmit={handleSubmit} className="space-y-4">
-            <div><Label htmlFor="name" className="mb-1 flex items-center gap-2"><Vote className="h-4 w-4 text-primary"/>Nome da Eleição</Label><Input id="name" value={formData.name} onChange={handleChange} required disabled={votingLocked} /></div>
-            <div><Label htmlFor="description" className="mb-1 flex items-center gap-2"><AlignLeft className="h-4 w-4 text-primary"/>Descrição</Label><Textarea id="description" value={formData.description} onChange={handleChange} disabled={votingLocked} /></div>
+            <div><Label htmlFor="name" className="mb-1 flex items-center gap-2"><Vote className="h-4 w-4 text-primary"/>Nome da Eleição</Label><Input id="name" value={formData.name} onChange={handleChange} required /></div>
+            <div><Label htmlFor="description" className="mb-1 flex items-center gap-2"><AlignLeft className="h-4 w-4 text-primary"/>Descrição</Label><Textarea id="description" value={formData.description} onChange={handleChange} /></div>
             <div>
                 <Label htmlFor="election_type_id" className="mb-1 flex items-center gap-2"><Vote className="h-4 w-4 text-primary"/>Tipo de Eleição</Label>
                 <Select onValueChange={handleSelectChange} value={formData.election_type_id} disabled={votingLocked}>
