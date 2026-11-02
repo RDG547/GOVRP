@@ -74,7 +74,7 @@ try {
  if candidate_row.political_name<>'Teste identity-owner' or candidate_row.vice_identity_snapshot->'party'->>'id'<>'${vp.id}' or candidate_row.identity_snapshot->'party'->>'id'<>'${p.id}' then raise exception 'Identidade da chapa incorreta';end if;
  update public.profiles set full_name='Nome posterior' where id='${owner.id}';
  update public.political_parties set color='#FFFFFF' where id='${p.id}';
- if (select identity_snapshot from public.candidates where id=c)<>original then raise exception 'Histórico alterado';end if;
+ if (select identity_snapshot->'party'->>'color' from public.candidates where id=c)<>'#FFFFFF' or (select identity_snapshot->>'name' from public.candidates where id=c)<>original->>'name' then raise exception 'Atualização pré-votação alterou identidade civil ou não propagou cor';end if;
  denied:=false;begin update public.candidates set political_name='Nome personalizado' where id=c;exception when others then denied:=true;end;if not denied then raise exception 'Nome manual permitido';end if;
  if not exists(select 1 from jsonb_array_elements(public.get_electoral_candidate_identities(e)) x where x->'vice'->'party'->>'id'='${vp.id}') then raise exception 'Projeção pública incorreta';end if;
  perform set_config('request.jwt.claim.sub','${admin.id}',true);
