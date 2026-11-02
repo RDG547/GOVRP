@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { prepareAdminReset } from "@/lib/adminReset";
+import { fetchWithSessionAuth } from "@/lib/apiAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -60,6 +61,9 @@ export default function ControlledWorldReset() {
     [report, setReport] = useState(null);
   const [controlAction, setControlAction] = useState(null);
   const [controlNotice, setControlNotice] = useState("");
+  const [purgeConfirmation, setPurgeConfirmation] = useState("");
+  const [purgeStatus, setPurgeStatus] = useState("");
+  const [purgeDone, setPurgeDone] = useState(false);
   const refreshing = useRef(false);
   const mounted = useRef(true);
   const refresh = useCallback(async () => {
@@ -174,6 +178,36 @@ export default function ControlledWorldReset() {
             : "Pausa solicitada. O mundo permanecerá em manutenção até a retomada.",
       );
       await refresh();
+    });
+  const purgeSkippedBackup = () =>
+    run(async () => {
+      if (job?.status !== "completed" || job.create_backup !== false ||
+          purgeConfirmation !== "APAGAR BACKUP DISPENSADO") {
+        throw new Error("Confirme a exclusão apenas das cópias do reset concluído.");
+      }
+      await login();
+      let removed = 0;
+      for (let batch = 0; batch < 30; batch += 1) {
+        const response = await fetchWithSessionAuth("/api/admin/purge-reset-backup", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            requestId: job.id,
+            confirmation: "APAGAR BACKUP DISPENSADO",
+          }),
+        });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(result.error || "Não foi possível limpar o backup parcial.");
+        removed += result.removedThisBatch || 0;
+        setPurgeStatus(`${removed} arquivos antigos removidos.`);
+        if (result.completed) {
+          setPurgeStatus(`Limpeza concluída: ${removed} arquivos e ${result.chunksRemoved || 0} registros de backup removidos.`);
+          setPurgeDone(true);
+          setPurgeConfirmation("");
+          return;
+        }
+      }
+      setPurgeStatus(`${removed} arquivos removidos. Execute novamente para continuar os lotes restantes.`);
     });
   const active =
     job && !["draft", "expired", "completed", "cancelled"].includes(job.status);
@@ -628,6 +662,37 @@ export default function ControlledWorldReset() {
               </Button>
             )}
           </div>
+          {job.status === "completed" && job.create_backup === false && (
+            <div className="space-y-3 rounded-lg border border-amber-500/30 p-4">
+              <p className="font-medium">Arquivos de backup parcial dispensado</p>
+              <p className="text-sm text-muted-foreground">
+                Se o backup foi dispensado durante o reset, podem existir cópias
+                temporárias do universo anterior. Esta ação remove somente as
+                cópias associadas a este reset concluído, através da API do
+                Storage, sem alterar jogadores, administradores ou o mundo atual.
+                A exclusão é irreversível.
+              </p>
+              {!purgeDone && (
+                <>
+                  <Label htmlFor="purge-skipped-backup">Digite APAGAR BACKUP DISPENSADO para confirmar</Label>
+                  <Input
+                    id="purge-skipped-backup"
+                    value={purgeConfirmation}
+                    onChange={(e) => setPurgeConfirmation(e.target.value)}
+                    placeholder="APAGAR BACKUP DISPENSADO"
+                  />
+                  <Button
+                    variant="destructive"
+                    disabled={busy || purgeConfirmation !== "APAGAR BACKUP DISPENSADO"}
+                    onClick={() => void purgeSkippedBackup()}
+                  >
+                    Excluir arquivos de backup dispensado
+                  </Button>
+                </>
+              )}
+              {purgeStatus && <p role="status" className="text-sm">{purgeStatus}</p>}
+            </div>
+          )}
           {report && (
             <p role="status" className="text-sm">
               {report.valid
