@@ -1,6 +1,5 @@
 import {isAdminPreview,ADMIN_PREVIEW_MESSAGE} from './adminPreview';
-import { supabase, supabaseUrl, supabasePublishableKey } from './supabaseClient';
-import {loadWorldRuntime} from './worldRuntime';
+import { supabase } from './supabaseClient';
 
 const refreshes = new WeakMap();
 const refresh = async (client) => {
@@ -23,12 +22,10 @@ export async function readySession(client = supabase) {
 // The server checks the current database role on every request.
 export async function fetchWithSessionAuth(url, options = {}, client = supabase, transport = fetch) {
   if(isAdminPreview()&&!['GET','HEAD','OPTIONS'].includes((options.method||'GET').toUpperCase()))throw new Error(ADMIN_PREVIEW_MESSAGE);
-  const world = await loadWorldRuntime(supabaseUrl, supabasePublishableKey);
   let session = await readySession(client);
   const send = token => {
     const headers = new Headers(options.headers || {});
     headers.set('Authorization', `Bearer ${token}`);
-    headers.set('x-govrp-world-generation', world.generation_id);
     if (options.body && !headers.has('Content-Type')) headers.set('Content-Type', 'application/json');
     return transport(url, { ...options, headers });
   };
