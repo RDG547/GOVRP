@@ -249,6 +249,12 @@ assert(Number(firstTransferAfter.progress) === 1 && firstTransferAfter.completed
 const constitution = await anon.rpc('get_country_constitution', { p_country_code: 'BR' });
 if (constitution.error) throw constitution.error;
 const articleCount = constitution.data.sections.reduce((total, section) => total + section.articles.length, 0);
-assert(constitution.data.version === '1.0' && articleCount === 15, 'Constituição pública vem da versão persistida no banco');
+assert(constitution.data.version === '2.0' && constitution.data.sections.length === 17 && articleCount === 79, 'Constituição unificada completa vem da versão persistida no banco');
+assert(constitution.data.title === 'CONSTITUIÇÃO UNIFICADA DO GOV.RP', 'Título oficial preservado');
+assert(constitution.data.sections.some((section) => section.articles.some((article) => article.number === 'Art. 25-H' && article.body.includes('moção de censura'))), 'Moção de censura prevista');
+assert(constitution.data.sections.some((section) => section.articles.some((article) => article.number === 'Art. 37-A')), 'Transparência fiscal preservada');
+assert(constitution.data.sections.at(-1)?.articles.at(-1)?.number === 'Art. 70.', 'Artigo final preservado');
+assert(constitution.data.closingText?.includes('Ordem, Justiça e Liberdade.'), 'Encerramento preservado');
+assert(constitution.data.sourceUrl === '/constituicao-govrp.pdf', 'PDF atualizado e disponível');
 
 process.stdout.write(`✓ ${checks.length} testes reais da experiência de cidadania concluídos.\n`);
