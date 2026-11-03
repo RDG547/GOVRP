@@ -1,142 +1,474 @@
 %PDF-1.4
+%âãÏÓ
 1 0 obj
 << /Type /Catalog /Pages 2 0 R >>
 endobj
 2 0 obj
-<< /Type /Pages /Kids [5 0 R 7 0 R] /Count 2 >>
+<< /Type /Pages /Kids [5 0 R 7 0 R 9 0 R 11 0 R 13 0 R 15 0 R 17 0 R 19 0 R 21 0 R] /Count 9 >>
 endobj
 3 0 obj
-<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+<< /Type /Font /Subtype /Type1 /BaseFont /Times-Roman /Encoding /WinAnsiEncoding >>
 endobj
 4 0 obj
-<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>
+<< /Type /Font /Subtype /Type1 /BaseFont /Times-Bold /Encoding /WinAnsiEncoding >>
 endobj
 5 0 obj
 << /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents 6 0 R >>
 endobj
 6 0 obj
-<< /Length 2028 >>
+<< /Length 4499 >>
 stream
-BT
-/F2 22 Tf
-1 0 0 1 60 800 Tm
-(CONSTITUICAO FEDERAL DO GOV.RP) Tj
-/F1 12 Tf
-1 0 0 1 60 775 Tm
-(Versao interna em PDF para leitura embutida no projeto.) Tj
-/F1 11 Tf
-1 0 0 1 60 742 Tm
-(PREAMBULO) Tj
-/F1 10 Tf
-1 0 0 1 60 724 Tm
-(Nos, representantes e cidadaos do GOV.RP, estabelecemos esta Constituicao para organizar) Tj
-/F1 10 Tf
-1 0 0 1 60 708 Tm
-(o Estado, proteger direitos, garantir o equilibrio entre os Poderes e orientar a vida publica.) Tj
-/F1 11 Tf
-1 0 0 1 60 676 Tm
-(TITULO I - PRINCIPIOS FUNDAMENTAIS) Tj
-/F1 10 Tf
-1 0 0 1 60 658 Tm
-(Art. 1o O GOV.RP constitui-se em uma Republica presidencialista, democratica e soberana.) Tj
-/F1 10 Tf
-1 0 0 1 60 642 Tm
-(Art. 2o Sao Poderes da Nacao, independentes e harmonicos entre si, o Executivo, o Legislativo e o Judiciario.) Tj
-/F1 10 Tf
-1 0 0 1 60 626 Tm
-(Art. 3o Todo poder emana do povo, que o exerce por representantes eleitos e pelos mecanismos de participacao popular.) Tj
-/F1 11 Tf
-1 0 0 1 60 594 Tm
-(TITULO II - DIREITOS E GARANTIAS) Tj
-/F1 10 Tf
-1 0 0 1 60 576 Tm
-(Art. 4o Sao assegurados aos cidadaos a dignidade, a liberdade de expressao, o devido processo legal,) Tj
-/F1 10 Tf
-1 0 0 1 60 560 Tm
-(o acesso aos servicos publicos e a igualdade de tratamento perante as instituicoes do GOV.RP.) Tj
-/F1 10 Tf
-1 0 0 1 60 544 Tm
-(Art. 5o Nenhum cidadao sera privado de seus direitos sem fundamento legal e decisao da autoridade competente.) Tj
-/F1 11 Tf
-1 0 0 1 60 512 Tm
-(TITULO III - ORGANIZACAO POLITICA) Tj
-/F1 10 Tf
-1 0 0 1 60 494 Tm
-(Art. 6o O Presidente da Republica exerce a chefia de Estado e de Governo, nos termos desta Constituicao.) Tj
-/F1 10 Tf
-1 0 0 1 60 478 Tm
-(Art. 7o O Parlamento representa a vontade popular, fiscaliza o Executivo e delibera sobre projetos e plebiscitos.) Tj
-/F1 10 Tf
-1 0 0 1 60 462 Tm
-(Art. 8o O Judiciario assegura a interpretacao da lei, a garantia de direitos e a solucao dos conflitos.) Tj
-/F1 10 Tf
-1 0 0 1 60 430 Tm
-(Este arquivo pode ser substituido pelo PDF oficial da Constituicao mantendo o mesmo nome de arquivo.) Tj
-ET
+BT /F2 20 Tf 1 0 0 1 179.70 775.00 Tm (CONSTITUIÇÃO UNIFICADA) Tj ET
+BT /F2 17 Tf 1 0 0 1 259.68 745.00 Tm (DO GOV.RP) Tj ET
+BT /F1 9 Tf 1 0 0 1 169.30 715.00 Tm (Texto consolidado a partir dos dois documentos fornecidos) Tj ET
+BT /F2 13 Tf 1 0 0 1 264.87 688.00 Tm (PREÂMBULO) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 663.00 Tm (Nós, representantes e cidadãos do GOV.RP, reunidos sob a vontade soberana do povo, com o) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 648.00 Tm (propósito de organizar o Estado, assegurar a liberdade, a justiça, a igualdade, a segurança e) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 633.00 Tm (o bem-estar, proteger os direitos fundamentais e estabelecer o equilíbrio entre os Poderes,) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 618.00 Tm (promulgamos, sob a proteção de Deus, esta Constituição como fundamento da ordem política,) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 603.00 Tm (institucional, econômica e social da República.) Tj ET
+BT /F2 12 Tf 1 0 0 1 176.90 568.00 Tm (TÍTULO I — DOS PRINCÍPIOS FUNDAMENTAIS) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 543.00 Tm (Art. 1º A República Federativa do Brasil, no âmbito do GOV.RP, constitui-se em Estado) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 528.00 Tm (soberano, democrático, representativo e de governo presidencialista.) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 506.00 Tm (Art. 2º São fundamentos da República a soberania, a cidadania, a dignidade da pessoa humana,) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 491.00 Tm (os valores sociais do trabalho e da livre iniciativa e o pluralismo político.) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 469.00 Tm (Art. 3º São objetivos fundamentais da República construir uma sociedade livre, justa e) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 454.00 Tm (solidária; promover o desenvolvimento nacional; reduzir a pobreza e as desigualdades sociais) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 439.00 Tm (e regionais; e promover o bem de todos, sem discriminação.) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 417.00 Tm (Art. 4º Todo poder emana do povo, que o exerce por meio de representantes eleitos e pelos) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 402.00 Tm (mecanismos de participação direta previstos nesta Constituição e na legislação aplicável.) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 380.00 Tm (Art. 5º São Poderes da União, independentes e harmônicos entre si, o Executivo, o Legislativo) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 365.00 Tm (e o Judiciário. Nenhum Poder exercerá atribuições próprias de outro, salvo nas hipóteses) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 350.00 Tm (expressamente previstas nesta Constituição.) Tj ET
+BT /F2 12 Tf 1 0 0 1 142.58 323.00 Tm (TÍTULO II — DOS DIREITOS E GARANTIAS FUNDAMENTAIS) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 298.00 Tm (Art. 6º Todos são iguais perante a lei. São assegurados aos cidadãos e, nos termos da lei, às) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 283.00 Tm (demais pessoas sob a jurisdição da República, os direitos à vida, à liberdade, à igualdade, à) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 268.00 Tm (segurança, à dignidade e à propriedade.) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 246.00 Tm (Art. 7º São garantidas a liberdade de pensamento, expressão, consciência, crença e opinião; a) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 231.00 Tm (expressão intelectual, artística, científica e de comunicação; a reunião pacífica; e a) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 216.00 Tm (associação para fins lícitos, vedado o anonimato nos termos da lei.) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 194.00 Tm (Art. 8º São invioláveis a intimidade, a vida privada, a honra, a imagem, o domicílio e o) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 179.00 Tm (sigilo das comunicações, ressalvadas as hipóteses legais e as decisões judiciais cabíveis.) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 157.00 Tm (Art. 9º É livre o exercício de trabalho, ofício ou profissão, observadas as qualificações) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 142.00 Tm (previstas em lei. É assegurada a liberdade de locomoção em tempo de paz, nos termos legais.) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 120.00 Tm (Art. 10. O direito de propriedade é garantido e deverá atender à sua função social.) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 98.00 Tm (Art. 11. Todos têm direito a obter dos órgãos públicos informações de interesse particular,) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 83.00 Tm (coletivo ou geral, ressalvado o sigilo legalmente necessário à segurança da sociedade e do) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 68.00 Tm (Estado.) Tj ET
+BT /F1 8 Tf 1 0 0 1 55 38 Tm (Constituicao Unificada do GOV.RP - Pagina 1) Tj ET
 endstream
 endobj
 7 0 obj
 << /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents 8 0 R >>
 endobj
 8 0 obj
-<< /Length 1456 >>
+<< /Length 4819 >>
 stream
-BT
-/F2 18 Tf
-1 0 0 1 60 800 Tm
-(DISPOSICOES ESSENCIAIS) Tj
-/F1 11 Tf
-1 0 0 1 60 768 Tm
-(PARTICIPACAO POPULAR) Tj
-/F1 10 Tf
-1 0 0 1 60 750 Tm
-(Art. 9o O povo podera sugerir projetos, participar de consultas publicas e apresentar plebiscitos na forma da lei.) Tj
-/F1 10 Tf
-1 0 0 1 60 734 Tm
-(Art. 10. O voto e instrumento legitimo de escolha dos representantes e de definicao do rumo politico do GOV.RP.) Tj
-/F1 11 Tf
-1 0 0 1 60 702 Tm
-(ORDEM ECONOMICA E SOCIAL) Tj
-/F1 10 Tf
-1 0 0 1 60 684 Tm
-(Art. 11. A ordem economica observa a livre iniciativa, a funcao social e a responsabilidade fiscal do Estado.) Tj
-/F1 10 Tf
-1 0 0 1 60 668 Tm
-(Art. 12. O Estado promovera educacao, saude, seguranca, infraestrutura e acesso digital de forma progressiva.) Tj
-/F1 11 Tf
-1 0 0 1 60 636 Tm
-(EMENDAS E REVISAO) Tj
-/F1 10 Tf
-1 0 0 1 60 618 Tm
-(Art. 13. A Constituicao podera ser alterada por emenda, observado o rito legislativo proprio e o interesse nacional.) Tj
-/F1 10 Tf
-1 0 0 1 60 602 Tm
-(Art. 14. Nenhuma emenda podera abolir o voto popular, a separacao dos Poderes e os direitos fundamentais.) Tj
-/F1 11 Tf
-1 0 0 1 60 570 Tm
-(DISPOSICAO FINAL) Tj
-/F1 10 Tf
-1 0 0 1 60 552 Tm
-(Art. 15. Esta Constituicao entra em vigor na data de sua publicacao e orienta todo o funcionamento institucional do GOV.RP.) Tj
-/F1 10 Tf
-1 0 0 1 60 520 Tm
-(Leitura embutida: esta versao foi adicionada para consulta direta no projeto. Substitua por seu PDF oficial quando desejar.) Tj
-ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 775.00 Tm (Art. 12. A lei não excluirá da apreciação do Poder Judiciário lesão ou ameaça a direito, nem) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 760.00 Tm (prejudicará o direito adquirido, o ato jurídico perfeito ou a coisa julgada.) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 738.00 Tm (Art. 13. Ninguém será obrigado a fazer ou deixar de fazer algo senão em virtude de lei.) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 723.00 Tm (Ninguém será privado da liberdade ou de seus bens sem o devido processo legal, assegurados o) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 708.00 Tm (contraditório e a ampla defesa nos processos judiciais e administrativos.) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 686.00 Tm (Art. 14. Não há crime sem lei anterior que o defina, nem pena sem prévia previsão legal. A) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 671.00 Tm (lei penal não retroagirá, salvo para beneficiar o acusado. Ninguém será considerado culpado) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 656.00 Tm (antes do trânsito em julgado de sentença penal condenatória.) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 634.00 Tm (Art. 15. São vedadas penas cruéis, de caráter perpétuo, de trabalhos forçados e de banimento.) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 619.00 Tm (A pena de morte somente poderá ser admitida na hipótese de guerra declarada, conforme a lei.) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 597.00 Tm (Art. 16. A pessoa presa será informada de seus direitos, inclusive o de permanecer calada, e) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 582.00 Tm (terá assegurado o acesso à assistência de sua família e de advogado. O Estado indenizará quem) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 567.00 Tm (sofrer condenação por erro judiciário ou permanecer preso além do tempo fixado na sentença.) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 545.00 Tm (Art. 17. Nenhuma pessoa será privada de direitos sem fundamento legal e decisão da autoridade) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 530.00 Tm (competente. São assegurados o acesso aos serviços públicos e a igualdade de tratamento) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 515.00 Tm (perante as instituições do GOV.RP.) Tj ET
+BT /F2 12 Tf 1 0 0 1 99.98 488.00 Tm (TÍTULO III — DA ORGANIZAÇÃO POLÍTICA E DA PARTICIPAÇÃO POPULAR) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 463.00 Tm (Art. 18. O Presidente da República exerce a chefia de Estado e de Governo, nos termos desta) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 448.00 Tm (Constituição.) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 426.00 Tm (Art. 19. O Parlamento, organizado na forma desta Constituição e das normas próprias,) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 411.00 Tm (representa a vontade popular, delibera sobre projetos, fiscaliza o Poder Executivo e exerce) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 396.00 Tm (as demais competências legislativas.) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 374.00 Tm (Art. 20. O povo poderá apresentar sugestões de projetos, participar de consultas públicas e) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 359.00 Tm (propor a realização de plebiscitos, na forma da legislação aplicável.) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 337.00 Tm (Art. 21. O voto é instrumento legítimo de escolha dos representantes e de definição dos rumos) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 322.00 Tm (políticos da República. As eleições serão realizadas por voto direto e secreto, nos termos da) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 307.00 Tm (lei.) Tj ET
+BT /F2 12 Tf 1 0 0 1 203.90 280.00 Tm (TÍTULO IV — DO PODER EXECUTIVO) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 255.00 Tm (Art. 22. O Poder Executivo é exercido pelo Presidente da República, auxiliado pelos Ministros) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 240.00 Tm (de Estado.) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 218.00 Tm (Art. 23. O Presidente será eleito por voto direto e secreto para mandato de quatro anos,) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 203.00 Tm (correspondente a vinte e oito dias no calendário do RP, permitida uma única reeleição) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 188.00 Tm (consecutiva.) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 166.00 Tm (Art. 24. Compete ao Presidente da República:) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 151.00 Tm (I — nomear e exonerar Ministros de Estado;) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 136.00 Tm (II — sancionar, promulgar e vetar leis;) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 121.00 Tm (III — representar a República nas relações exteriores;) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 106.00 Tm (IV — decretar estado de defesa e estado de sítio, observadas as condições desta Constituição;) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 91.00 Tm (V — zelar pela ordem pública, pela segurança e pelo cumprimento da Constituição;) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 76.00 Tm (VI — nomear o Diretor da AGIES, os diretores dos três departamentos policiais e, nos termos) Tj ET
+BT /F1 8 Tf 1 0 0 1 55 38 Tm (Constituicao Unificada do GOV.RP - Pagina 2) Tj ET
+endstream
+endobj
+9 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents 10 0 R >>
+endobj
+10 0 obj
+<< /Length 5228 >>
+stream
+BT /F1 10.3 Tf 1 0 0 1 55.00 775.00 Tm (previstos nesta Constituição, os oficiais-generais indicados para funções de comando;) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 760.00 Tm (VII — propor ou autorizar, dentro de sua competência e conforme a legislação tributária,) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 745.00 Tm (ajustes de impostos incidentes sobre serviços básicos, com vistas ao equilíbrio econômico,) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 730.00 Tm (social e financeiro.) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 708.00 Tm (Art. 25. O Presidente poderá responder a processo de impeachment por crime de) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 693.00 Tm (responsabilidade. A denúncia dependerá de aprovação pela maioria absoluta da Câmara dos) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 678.00 Tm (Deputados, e o julgamento caberá ao Senado Federal, sob a presidência do Presidente do) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 663.00 Tm (Supremo Tribunal Federal, observada a legislação aplicável.) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 641.00 Tm (Art. 25-A Dos crimes de responsabilidade) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 626.00 Tm (Constituem crimes de responsabilidade do Presidente da República os atos que atentem contra) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 611.00 Tm (esta Constituição, especialmente:) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 596.00 Tm (I — atentar contra a existência da República, a soberania nacional ou a integridade) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 581.00 Tm (territorial;) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 566.00 Tm (II — impedir o livre exercício do Poder Legislativo ou do Poder Judiciário;) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 551.00 Tm (III — violar direitos e garantias fundamentais ou utilizar o cargo para perseguir adversários) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 536.00 Tm (políticos;) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 521.00 Tm (IV — praticar corrupção, peculato, desvio de recursos públicos ou enriquecimento ilícito) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 506.00 Tm (relacionado ao exercício do cargo;) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 491.00 Tm (V — obstruir investigações, destruir provas ou utilizar órgãos públicos para impedir a) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 476.00 Tm (apuração de irregularidades;) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 461.00 Tm (VI — descumprir deliberadamente as leis orçamentárias, ocultar despesas públicas ou utilizar) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 446.00 Tm (recursos da União para fins particulares ou ilícitos;) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 431.00 Tm (VII — interferir ilegalmente nas eleições, fraudar resultados ou impedir a posse de) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 416.00 Tm (autoridades legitimamente eleitas;) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 401.00 Tm (VIII — utilizar as Forças Armadas, as polícias ou a AGIES para fins particulares, partidários) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 386.00 Tm (ou para subverter a ordem constitucional;) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 371.00 Tm (IX — descumprir deliberadamente decisões judiciais definitivas ou impedir o cumprimento de) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 356.00 Tm (leis regularmente aprovadas;) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 341.00 Tm (X — praticar outros atos definidos em lei como crimes de responsabilidade.) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 319.00 Tm (Art. 25-B Da apresentação da denúncia) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 304.00 Tm (A denúncia contra o Presidente da República poderá ser apresentada por qualquer cidadão que) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 289.00 Tm (possua capacidade civil e deverá conter a descrição dos fatos, os fundamentos jurídicos e os) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 274.00 Tm (elementos de prova disponíveis.) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 259.00 Tm (§ 1º A denúncia será encaminhada à Câmara dos Deputados, que verificará sua admissibilidade) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 244.00 Tm (formal.) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 229.00 Tm (§ 2º A denúncia manifestamente infundada, sem descrição de conduta imputável ao Presidente ou) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 214.00 Tm (desacompanhada de elementos mínimos que justifiquem sua apuração poderá ser rejeitada) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 199.00 Tm (mediante decisão fundamentada.) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 184.00 Tm (§ 3º A rejeição da denúncia não impedirá a apresentação de nova denúncia baseada em fatos ou) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 169.00 Tm (provas diferentes.) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 147.00 Tm (Art. 25-C Da admissibilidade do impeachment) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 132.00 Tm (Recebida a denúncia, o Presidente da Câmara dos Deputados determinará sua análise por) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 117.00 Tm (comissão especial, assegurando ao Presidente da República o direito de apresentar defesa.) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 102.00 Tm (§ 1º A comissão especial emitirá parecer fundamentado, recomendando o prosseguimento ou o) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 87.00 Tm (arquivamento do processo.) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 72.00 Tm (§ 2º A abertura do processo dependerá do voto favorável da maioria absoluta dos membros da) Tj ET
+BT /F1 8 Tf 1 0 0 1 55 38 Tm (Constituicao Unificada do GOV.RP - Pagina 3) Tj ET
+endstream
+endobj
+11 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents 12 0 R >>
+endobj
+12 0 obj
+<< /Length 5635 >>
+stream
+BT /F1 10.3 Tf 1 0 0 1 55.00 775.00 Tm (Câmara dos Deputados.) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 760.00 Tm (§ 3º A decisão deverá ser nominal e pública, ressalvadas as informações legalmente sigilosas.) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 738.00 Tm (Art. 25-D Do julgamento pelo Senado Federal) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 723.00 Tm (Admitida a acusação pela Câmara dos Deputados, caberá ao Senado Federal processar e julgar o) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 708.00 Tm (Presidente da República, sob a presidência do Presidente do Supremo Tribunal Federal.) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 693.00 Tm (§ 1º O Presidente da República terá direito à ampla defesa, ao contraditório, à apresentação) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 678.00 Tm (de provas e à assistência jurídica.) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 663.00 Tm (§ 2º A condenação dependerá do voto favorável de dois terços dos membros do Senado Federal.) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 648.00 Tm (§ 3º A decisão deverá ser fundamentada e publicada oficialmente.) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 633.00 Tm (§ 4º A absolvição encerrará o processo de impeachment, sem impedir eventual responsabilização) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 618.00 Tm (criminal ou civil pelos mesmos fatos, quando cabível.) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 596.00 Tm (Art. 25-E Dos efeitos do impeachment) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 581.00 Tm (A condenação em processo de impeachment resultará na perda do cargo de Presidente da) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 566.00 Tm (República e poderá acarretar inabilitação para o exercício de função pública por até oito) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 551.00 Tm (anos, conforme a gravidade dos fatos e mediante decisão expressa.) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 536.00 Tm (Parágrafo único. O impeachment não exclui a aplicação de sanções civis, administrativas ou) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 521.00 Tm (penais cabíveis, observados os procedimentos próprios.) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 499.00 Tm (Art. 25-F Do afastamento e da sucessão presidencial) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 484.00 Tm (O Presidente da República não será afastado definitivamente em razão da mera apresentação de) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 469.00 Tm (denúncia.) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 454.00 Tm (§ 1º O afastamento temporário durante o processo somente poderá ocorrer nas hipóteses e pelo) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 439.00 Tm (prazo previstos em lei, mediante decisão fundamentada da autoridade competente.) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 424.00 Tm (§ 2º Em caso de condenação, vacância, renúncia ou impedimento definitivo, a sucessão) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 409.00 Tm (presidencial obedecerá à ordem estabelecida nesta Constituição e na legislação eleitoral.) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 394.00 Tm (§ 3º É vedado utilizar o processo de impeachment como instrumento de perseguição política ou) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 379.00 Tm (como substituto das eleições regulares.) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 357.00 Tm (Art. 25-G Da responsabilidade dos Ministros de Estado) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 342.00 Tm (Os Ministros de Estado responderão pelos atos praticados no exercício de suas funções,) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 327.00 Tm (inclusive por corrupção, desvio de recursos públicos, abuso de autoridade, violação) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 312.00 Tm (constitucional e omissão deliberada no cumprimento de seus deveres.) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 297.00 Tm (§ 1º O Presidente da República poderá exonerar livremente os Ministros de Estado, sem) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 282.00 Tm (prejuízo de eventual responsabilização civil, administrativa ou penal.) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 267.00 Tm (§ 2º A Câmara dos Deputados poderá convocar Ministros para prestar esclarecimentos sobre) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 252.00 Tm (assuntos relacionados às suas pastas, observadas as regras regimentais.) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 237.00 Tm (§ 3º A recusa injustificada em comparecer, a prestação deliberada de informações falsas ou a) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 222.00 Tm (obstrução da fiscalização parlamentar sujeitará o responsável às sanções previstas em lei.) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 207.00 Tm (§ 4º A responsabilidade criminal dos Ministros será apurada perante a autoridade judicial) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 192.00 Tm (competente, respeitadas as competências constitucionais do Supremo Tribunal Federal.) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 170.00 Tm (Art. 25-H Da moção de censura política) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 155.00 Tm (A Câmara dos Deputados poderá aprovar moção de censura contra Ministro de Estado ou) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 140.00 Tm (manifestar formalmente sua desaprovação à condução política do Poder Executivo.) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 125.00 Tm (§ 1º A moção de censura deverá ser apresentada por, no mínimo, um quinto dos membros da) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 110.00 Tm (Câmara dos Deputados e submetida à votação em sessão pública.) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 95.00 Tm (§ 2º A aprovação dependerá da maioria absoluta dos membros da Câmara.) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 80.00 Tm (§ 3º A moção de censura não implicará automaticamente a exoneração do Ministro nem a) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 65.00 Tm (destituição do Presidente da República, mas obrigará o Ministro censurado a prestar) Tj ET
+BT /F1 8 Tf 1 0 0 1 55 38 Tm (Constituicao Unificada do GOV.RP - Pagina 4) Tj ET
+endstream
+endobj
+13 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents 14 0 R >>
+endobj
+14 0 obj
+<< /Length 5047 >>
+stream
+BT /F1 10.3 Tf 1 0 0 1 55.00 775.00 Tm (esclarecimentos à Câmara no prazo previsto em lei.) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 760.00 Tm (§ 4º O Presidente da República deverá responder formalmente às conclusões da Câmara, podendo) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 745.00 Tm (manter ou exonerar o Ministro, mediante comunicação institucional.) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 730.00 Tm (§ 5º A moção de censura não poderá ser utilizada para suspender a vigência de leis, impedir a) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 715.00 Tm (execução do orçamento aprovado ou afastar autoridades fora dos procedimentos constitucionais.) Tj ET
+BT /F2 12 Tf 1 0 0 1 200.78 688.00 Tm (TÍTULO V — DO PODER LEGISLATIVO) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 663.00 Tm (Art. 26. O Poder Legislativo é exercido pelo Congresso Nacional, composto pela Câmara dos) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 648.00 Tm (Deputados e pelo Senado Federal.) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 626.00 Tm (Art. 27. Compete ao Congresso Nacional:) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 611.00 Tm (I — elaborar, discutir e aprovar leis e emendas constitucionais;) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 596.00 Tm (II — fiscalizar os atos do Poder Executivo;) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 581.00 Tm (III — deliberar sobre operações financeiras e tratados internacionais, conforme a lei;) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 566.00 Tm (IV — apreciar e aprovar o orçamento anual da União;) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 551.00 Tm (V — processar e julgar, nos casos previstos nesta Constituição, o Presidente da República e) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 536.00 Tm (Ministros por crimes de responsabilidade;) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 521.00 Tm (VI — deliberar sobre projetos e plebiscitos nos termos constitucionais e legais.) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 499.00 Tm (Art. 28. Deputados e Senadores representam, respectivamente, o povo e os entes políticos) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 484.00 Tm (representados no Senado, gozando de imunidade parlamentar nos termos da lei.) Tj ET
+BT /F2 12 Tf 1 0 0 1 198.74 457.00 Tm (TÍTULO VI — DO PODER JUDICIÁRIO) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 432.00 Tm (Art. 29. O Poder Judiciário é independente e tem por missão interpretar e aplicar as leis,) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 417.00 Tm (proteger direitos, solucionar conflitos e defender a supremacia desta Constituição.) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 395.00 Tm (Art. 30. O Supremo Tribunal Federal \(STF\) é o órgão máximo do Poder Judiciário e será) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 380.00 Tm (composto por três Ministros, nomeados pelo Presidente da República após aprovação pela) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 365.00 Tm (maioria absoluta do Senado Federal.) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 343.00 Tm (Art. 31. Compete ao STF:) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 328.00 Tm (I — julgar ações de inconstitucionalidade e conflitos entre os Poderes;) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 313.00 Tm (II — processar e julgar, nos casos previstos em lei, o Presidente da República, os Ministros) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 298.00 Tm (de Estado e outras autoridades políticas federais por crimes comuns;) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 283.00 Tm (III — assegurar a supremacia da Constituição e a harmonia entre os Poderes;) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 268.00 Tm (IV — apreciar a constitucionalidade de alterações dos regimentos internos dos Poderes,) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 253.00 Tm (conforme o art. 45.) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 231.00 Tm (Art. 32. Os Ministros do STF perderão o cargo por sentença judicial transitada em julgado,) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 216.00 Tm (aposentadoria voluntária ou impeachment aprovado por dois terços do Congresso Nacional, em) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 201.00 Tm (caso de conduta incompatível com a dignidade do cargo, corrupção ou abuso de autoridade.) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 179.00 Tm (Art. 33. Lei complementar, de iniciativa do STF, disporá sobre o Estatuto da Magistratura,) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 164.00 Tm (observando o ingresso na carreira inicial de juiz substituto mediante concurso público de) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 149.00 Tm (provas e títulos, com participação da Ordem dos Advogados do Brasil em todas as fases; a) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 134.00 Tm (promoção alternada por antiguidade e merecimento; e as garantias de vitaliciedade,) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 119.00 Tm (inamovibilidade, salvo por interesse público, e irredutibilidade de subsídio.) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 97.00 Tm (Art. 34. Os julgamentos serão públicos e as decisões fundamentadas, sob pena de nulidade,) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 82.00 Tm (admitidas restrições legais de acesso em atos específicos para proteção das partes e de) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 67.00 Tm (informações legalmente sigilosas.) Tj ET
+BT /F1 8 Tf 1 0 0 1 55 38 Tm (Constituicao Unificada do GOV.RP - Pagina 5) Tj ET
+endstream
+endobj
+15 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents 16 0 R >>
+endobj
+16 0 obj
+<< /Length 4934 >>
+stream
+BT /F2 12 Tf 1 0 0 1 177.98 770.00 Tm (TÍTULO VII — DA ADMINISTRAÇÃO PÚBLICA) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 745.00 Tm (Art. 35. A administração pública direta e indireta obedecerá aos princípios da legalidade,) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 730.00 Tm (impessoalidade, moralidade, publicidade e eficiência.) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 708.00 Tm (Art. 36. O ingresso em cargos públicos dependerá de mérito, qualificação e idoneidade,) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 693.00 Tm (observados os requisitos legais.) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 671.00 Tm (Art. 37. O desvio de recursos públicos, a corrupção e o abuso de poder sujeitam seus) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 656.00 Tm (responsáveis às sanções previstas em lei. A classificação como crimes inafiançáveis ou) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 641.00 Tm (imprescritíveis dependerá de previsão constitucional e legal aplicável.) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 619.00 Tm (Art. 37-A Da transparência e fiscalização fiscal) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 604.00 Tm (A gestão dos recursos públicos observará os princípios da legalidade, transparência,) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 589.00 Tm (eficiência, responsabilidade fiscal e prestação de contas.) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 574.00 Tm (§ 1º O Poder Executivo deverá apresentar ao Congresso Nacional relatórios periódicos de) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 559.00 Tm (execução orçamentária, arrecadação, despesas, endividamento e cumprimento das metas fiscais.) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 544.00 Tm (§ 2º O Congresso Nacional exercerá o controle externo das contas públicas, com auxílio do) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 529.00 Tm (órgão de controle externo competente, na forma da lei.) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 514.00 Tm (§ 3º As despesas públicas, contratos, transferências e operações de crédito deverão ser) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 499.00 Tm (registrados e disponibilizados para fiscalização, ressalvadas as informações cujo sigilo seja) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 484.00 Tm (legalmente necessário.) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 469.00 Tm (§ 4º A identificação de irregularidades poderá resultar em auditoria, investigação,) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 454.00 Tm (determinação de correções e encaminhamento às autoridades competentes.) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 439.00 Tm (§ 5º Nenhuma autoridade poderá impedir a fiscalização legalmente autorizada, destruir) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 424.00 Tm (documentos contábeis ou retaliar agentes públicos que comuniquem irregularidades de boa-fé.) Tj ET
+BT /F2 12 Tf 1 0 0 1 163.46 397.00 Tm (TÍTULO VIII — DA ORDEM ECONÔMICA E SOCIAL) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 372.00 Tm (Art. 38. A ordem econômica funda-se na valorização do trabalho humano, na livre iniciativa,) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 357.00 Tm (na função social e na responsabilidade fiscal do Estado, devendo buscar existência digna para) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 342.00 Tm (todos e desenvolvimento nacional.) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 320.00 Tm (Art. 39. O Estado atuará como regulador da economia e promotor da estabilidade financeira. A) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 305.00 Tm (atividade econômica é livre, respeitados o interesse público, a função social e a soberania) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 290.00 Tm (nacional.) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 268.00 Tm (Art. 40. O Estado promoverá progressivamente educação, saúde, segurança, infraestrutura e) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 253.00 Tm (acesso digital, observadas as prioridades públicas, a disponibilidade orçamentária e a) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 238.00 Tm (legislação aplicável.) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 216.00 Tm (Art. 41. São considerados serviços básicos essenciais no GOV.RP: internet, energia elétrica,) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 201.00 Tm (água, telefonia, aluguel, serviços de manutenção essenciais e gás.) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 179.00 Tm (Art. 42. O Estado regulamentará a prestação dos serviços básicos. Os tributos incidentes) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 164.00 Tm (sobre esses serviços poderão ser ajustados pelo Presidente dentro de sua competência e) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 149.00 Tm (conforme a legislação tributária.) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 127.00 Tm (Art. 43. Nenhum serviço básico poderá ser suspenso sem aviso prévio ou justificativa legal,) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 112.00 Tm (salvo em situação de emergência. As empresas prestadoras deverão observar transparência,) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 97.00 Tm (qualidade e direitos dos consumidores. Legislação complementar poderá definir tarifas,) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 82.00 Tm (fiscalização e padrões mínimos.) Tj ET
+BT /F1 8 Tf 1 0 0 1 55 38 Tm (Constituicao Unificada do GOV.RP - Pagina 6) Tj ET
+endstream
+endobj
+17 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents 18 0 R >>
+endobj
+18 0 obj
+<< /Length 4626 >>
+stream
+BT /F2 12 Tf 1 0 0 1 96.86 770.00 Tm (TÍTULO IX — DA DEFESA DO ESTADO E DAS INSTITUIÇÕES DEMOCRÁTICAS) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 745.00 Tm (Art. 44. O estado de defesa e o estado de sítio poderão ser decretados pelo Presidente da) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 730.00 Tm (República, com autorização do Congresso Nacional, para preservar a ordem pública ou) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 715.00 Tm (restabelecer a paz ameaçada. Eventuais restrições de direitos deverão ser temporárias e) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 700.00 Tm (limitadas ao estritamente necessário.) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 685.00 Tm (Parágrafo único. Nenhuma autoridade poderá suspender esta Constituição, inclusive sob) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 670.00 Tm (alegação de urgência, conflito ou guerra.) Tj ET
+BT /F2 12 Tf 1 0 0 1 204.98 643.00 Tm (TÍTULO X — DAS FORÇAS ARMADAS) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 618.00 Tm (Art. 45. As Forças Armadas são instituições permanentes, constituídas pelo Exército, pela) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 603.00 Tm (Marinha e pela Força Aérea, sob a autoridade suprema do Presidente da República, Comandante) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 588.00 Tm (Supremo das Forças Armadas.) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 566.00 Tm (Art. 46. Compete ao Exército proteger o território contra ameaças externas, apoiar a defesa) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 551.00 Tm (civil em calamidades, colaborar com as autoridades federais no cumprimento da Constituição e) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 536.00 Tm (das leis e executar operações de garantia da lei e da ordem quando solicitado pelo) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 521.00 Tm (Presidente, nos termos legais.) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 499.00 Tm (Art. 47. O Presidente poderá nomear três Generais do Exército. A hierarquia e a disciplina) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 484.00 Tm (militares serão reguladas por leis específicas.) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 462.00 Tm (Art. 48. As Forças Armadas não poderão suspender a Constituição nem praticar atos que violem) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 447.00 Tm (os direitos e garantias fundamentais.) Tj ET
+BT /F2 12 Tf 1 0 0 1 150.86 420.00 Tm (TÍTULO XI — DAS POLÍCIAS E DA SEGURANÇA PÚBLICA) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 395.00 Tm (Art. 49. A segurança pública é dever do Estado e direito de todos, destinada à preservação da) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 380.00 Tm (ordem pública, da paz social e à proteção das pessoas e do patrimônio.) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 358.00 Tm (Art. 50. Compete:) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 343.00 Tm (I — à Polícia Federal, investigar e reprimir crimes federais, controlar fronteiras,) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 328.00 Tm (aeroportos e portos e garantir a segurança de autoridades;) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 313.00 Tm (II — às Polícias Estaduais, manter a ordem, prevenir e investigar crimes em seus territórios;) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 298.00 Tm (III — às Polícias Municipais ou Guardas Municipais, proteger bens, serviços e instalações) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 283.00 Tm (públicas municipais.) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 261.00 Tm (Art. 51. O Presidente da República poderá nomear os diretores dos três departamentos) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 246.00 Tm (policiais. As polícias observarão os princípios da legalidade, impessoalidade, moralidade,) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 231.00 Tm (publicidade e eficiência.) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 209.00 Tm (Art. 52. As prisões dependerão de flagrante delito ou de ordem judicial fundamentada,) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 194.00 Tm (ressalvadas as hipóteses legais, inclusive a captura durante fuga. Nenhuma autoridade) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 179.00 Tm (policial poderá suspender esta Constituição ou atuar contra o Estado Democrático de Direito.) Tj ET
+BT /F2 12 Tf 1 0 0 1 188.30 152.00 Tm (TÍTULO XII — DOS PARTIDOS POLÍTICOS) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 127.00 Tm (Art. 53. É livre a criação e o funcionamento de partidos políticos, observados os princípios) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 112.00 Tm (democráticos, a soberania popular e esta Constituição.) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 90.00 Tm (Art. 54. A criação de partido no RP exige quatro assinaturas de membros fundadores, sendo uma) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 75.00 Tm (do líder e três de outros membros. O partido deverá registrar-se perante o órgão competente e) Tj ET
+BT /F1 8 Tf 1 0 0 1 55 38 Tm (Constituicao Unificada do GOV.RP - Pagina 7) Tj ET
+endstream
+endobj
+19 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents 20 0 R >>
+endobj
+20 0 obj
+<< /Length 4654 >>
+stream
+BT /F1 10.3 Tf 1 0 0 1 55.00 775.00 Tm (observar os requisitos legais de filiação e representatividade.) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 753.00 Tm (Art. 55. Cada partido manterá estatuto, programa político e órgãos de direção, com) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 738.00 Tm (transparência e participação democrática de seus membros. É vedada a atuação partidária) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 723.00 Tm (voltada à supressão da democracia ou à violação dos direitos fundamentais.) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 701.00 Tm (Art. 56. A extinção de partido por descumprimento constitucional ou legal será decidida pelo) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 686.00 Tm (STF, mediante procedimento que assegure o devido processo legal.) Tj ET
+BT /F2 12 Tf 1 0 0 1 228.86 659.00 Tm (TÍTULO XIII — DA AGIES) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 634.00 Tm (Art. 57. A Agência de Inteligência e Espionagem Suprema \(AGIES\) é o órgão destinado a) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 619.00 Tm (coletar, analisar e coordenar informações estratégicas para a segurança nacional e a defesa) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 604.00 Tm (do Estado.) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 582.00 Tm (Art. 58. A AGIES atua sob supervisão direta do Presidente da República. O Presidente nomeará) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 567.00 Tm (seu Diretor, responsável pela direção das operações e pela prestação de contas ao Poder) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 552.00 Tm (Executivo.) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 530.00 Tm (Art. 59. Compete à AGIES coletar e analisar informações sobre ameaças internas e externas;) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 515.00 Tm (apoiar a Presidência e as Forças Armadas na defesa nacional; realizar atividades de) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 500.00 Tm (inteligência, espionagem e contraespionagem; e colaborar com os órgãos de segurança pública e) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 485.00 Tm (defesa do Estado.) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 463.00 Tm (Art. 60. As atividades da AGIES deverão respeitar a Constituição e os direitos fundamentais,) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 448.00 Tm (e estar sujeitas a justificativa e supervisão, mesmo quando sigilosas. O Diretor poderá ser) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 433.00 Tm (destituído pelo Presidente e responderá perante o STF por abuso de poder, corrupção ou) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 418.00 Tm (violação constitucional.) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 396.00 Tm (Art. 61. Havendo suspeita de irregularidade ou de violação constitucional, o Presidente do) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 381.00 Tm (STF poderá solicitar informações detalhadas sobre operações da AGIES. Na ausência de) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 366.00 Tm (irregularidades, deverá ser preservado o sigilo das informações recebidas.) Tj ET
+BT /F2 12 Tf 1 0 0 1 186.26 339.00 Tm (TÍTULO XIV — DA IDENTIFICAÇÃO CIVIL) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 314.00 Tm (Art. 62. A identificação civil é obrigatória para cidadãos brasileiros e residentes legais e) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 299.00 Tm (será composta pelo Cadastro de Pessoa Física \(CPF\) e pelo Registro Geral \(RG\), conforme a) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 284.00 Tm (legislação aplicável.) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 262.00 Tm (Art. 63. O CPF será utilizado para fins fiscais, tributários e de identificação em serviços) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 247.00 Tm (públicos e privados. O RG comprovará a identidade e conterá os dados pessoais essenciais, com) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 232.00 Tm (validade em todo o território nacional.) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 210.00 Tm (Art. 64. O Estado garantirá a emissão, a atualização e a segurança dos dados de) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 195.00 Tm (identificação. Ninguém poderá ser privado de serviços ou direitos básicos exclusivamente pela) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 180.00 Tm (ausência de CPF ou RG. Legislação complementar disciplinará emissão, validade, segurança e) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 165.00 Tm (utilização.) Tj ET
+BT /F2 12 Tf 1 0 0 1 176.90 138.00 Tm (TÍTULO XV — DOS REGIMENTOS DOS PODERES) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 113.00 Tm (Art. 65. Após a publicação do primeiro regimento interno de cada Poder da União, qualquer) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 98.00 Tm (alteração subsequente somente terá validade após aprovação pelo Congresso Nacional, exame de) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 83.00 Tm (constitucionalidade pelo STF e sanção do Presidente da República.) Tj ET
+BT /F1 8 Tf 1 0 0 1 55 38 Tm (Constituicao Unificada do GOV.RP - Pagina 8) Tj ET
+endstream
+endobj
+21 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents 22 0 R >>
+endobj
+22 0 obj
+<< /Length 2215 >>
+stream
+BT /F2 12 Tf 1 0 0 1 91.70 770.00 Tm (TÍTULO XVI — DAS EMENDAS CONSTITUCIONAIS E DAS CLÁUSULAS PÉTREAS) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 745.00 Tm (Art. 66. Esta Constituição poderá ser alterada por emenda, observado o rito legislativo) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 730.00 Tm (próprio de 3/5 em cada casa, e o interesse nacional.) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 708.00 Tm (Art. 67. Não poderá ser objeto de emenda tendente a abolir o voto popular, a separação dos) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 693.00 Tm (Poderes ou os direitos e garantias fundamentais.) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 671.00 Tm (Art. 68. Também são protegidos contra abolição os princípios fundamentais da República, a) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 656.00 Tm (forma republicana e presidencialista de governo, a chefia de Estado e de Governo exercida) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 641.00 Tm (pelo Presidente e a independência do Poder Judiciário, conforme os princípios estabelecidos) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 626.00 Tm (nesta Constituição.) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 604.00 Tm (Art. 69. Nenhum direito ou garantia fundamental previsto nesta Constituição poderá ser) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 589.00 Tm (suprimido por emenda constitucional.) Tj ET
+BT /F2 12 Tf 1 0 0 1 185.18 562.00 Tm (TÍTULO XVII — DAS DISPOSIÇÕES FINAIS) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 537.00 Tm (Art. 70. Esta Constituição entra em vigor na data de sua promulgação ou publicação oficial no) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 522.00 Tm (GOV.RP, revogadas as disposições internas em contrário.) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 507.00 Tm (Parágrafo único. Esta Constituição orienta o funcionamento institucional do GOV.RP e deverá) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 492.00 Tm (ser observada por todos os Poderes, órgãos públicos, partidos e autoridades.) Tj ET
+BT /F2 12 Tf 1 0 0 1 258.02 458.00 Tm (ENCERRAMENTO) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 434.00 Tm (Promulgada para reger a vida política, institucional, econômica e social do GOV.RP.) Tj ET
+BT /F1 10.3 Tf 1 0 0 1 55.00 419.00 Tm (“Ordem, Justiça e Liberdade.”) Tj ET
+BT /F1 8 Tf 1 0 0 1 55 38 Tm (Constituicao Unificada do GOV.RP - Pagina 9) Tj ET
 endstream
 endobj
 xref
-0 9
+0 23
 0000000000 65535 f 
-0000000009 00000 n 
-0000000058 00000 n 
-0000000121 00000 n 
-0000000191 00000 n 
-0000000266 00000 n 
-0000000402 00000 n 
-0000002482 00000 n 
-0000002618 00000 n 
+0000000015 00000 n 
+0000000064 00000 n 
+0000000175 00000 n 
+0000000274 00000 n 
+0000000372 00000 n 
+0000000508 00000 n 
+0000005058 00000 n 
+0000005194 00000 n 
+0000010064 00000 n 
+0000010201 00000 n 
+0000015481 00000 n 
+0000015619 00000 n 
+0000021306 00000 n 
+0000021444 00000 n 
+0000026543 00000 n 
+0000026681 00000 n 
+0000031667 00000 n 
+0000031805 00000 n 
+0000036483 00000 n 
+0000036621 00000 n 
+0000041327 00000 n 
+0000041465 00000 n 
 trailer
-<< /Size 9 /Root 1 0 R >>
+<< /Size 23 /Root 1 0 R >>
 startxref
-4126
+43732
 %%EOF
