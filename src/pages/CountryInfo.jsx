@@ -420,7 +420,7 @@ const CountryInfo = () => {
                   <div className="max-w-3xl space-y-3">
                     <div className="inline-flex items-center gap-2 rounded-full border border-blue-500/30 bg-blue-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.24em] text-blue-300">
                       <FileText className="h-3.5 w-3.5" />
-                      Constituição Federal
+                      {constitution?.title?.includes('UNIFICADA') ? 'Constituição Unificada' : 'Constituição Federal'}
                     </div>
                     <h2 className="text-3xl font-bold text-foreground">{constitution?.title || 'Constituição Federal'}</h2>
                     <p className="text-muted-foreground">
@@ -452,10 +452,15 @@ const CountryInfo = () => {
                       <section key={section.title}>
                         <h4 className="mb-4 border-l-4 border-blue-600 pl-3 text-sm font-black uppercase tracking-[0.12em] text-slate-800">{section.title}</h4>
                         <div className="space-y-3 text-sm leading-7 text-slate-700 sm:text-base">
-                          {(section.articles || []).map((article) => <p key={article.id}><strong>{article.number}</strong> {article.body}</p>)}
+                          {(section.articles || []).map((article) => <p key={article.id} className="whitespace-pre-line"><strong>{article.number}</strong> {article.body}</p>)}
                         </div>
                       </section>
                     ))}
+                    {constitution?.closingText ? (
+                      <footer className="border-t border-slate-300 pt-7 text-center">
+                        <p className="whitespace-pre-line text-sm italic leading-7 text-slate-700 sm:text-base">{constitution.closingText}</p>
+                      </footer>
+                    ) : null}
                     {!constitution ? <p className="text-center text-slate-500">Texto constitucional em atualização.</p> : null}
                   </div>
                 </div>
