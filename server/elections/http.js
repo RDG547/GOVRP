@@ -418,7 +418,7 @@ const fetchPartyById = async (supabase, partyId) => {
 
   const { data, error } = await supabase
     .from('political_parties')
-    .select('id, name, acronym, electoral_number')
+    .select('id, name, acronym, electoral_number, is_active, status')
     .eq('id', partyId)
     .maybeSingle();
 
@@ -1530,6 +1530,9 @@ const raw_submitPresidentialCandidacyHandler = async (request, response) => {
     }
 
     const party = await fetchPartyById(supabase, requesterPartyId);
+    if (requesterPartyId && (!party || !party.is_active || party.status === 'Encerrado')) {
+      throw createHttpError('Seu partido está inativo. São necessários no mínimo 5 membros e o partido deve estar ativo para concorrer às eleições. Para se candidatar como independente, você precisa sair do partido.', 403);
+    }
     const electoralNumber = trimString(payload.electoralNumber);
     if (!/^[0-9]{2}$/.test(electoralNumber)) {
       throw createHttpError('Informe um número com 2 dígitos para a chapa presidencial.', 400);
@@ -1771,7 +1774,7 @@ const raw_respondViceCandidacyInvitationHandler = async (request, response) => {
       if (candidateInsertError.message?.includes('Este número já está') || (candidateInsertError.code==='23505' && candidateInsertError.message?.includes('candidate_electoral_number_unique'))) {
         throw createHttpError('Este número já está sendo utilizado nesta eleição.',409);
       }
-      if (/^(Use |Informe |Defina |O partido)/.test(candidateInsertError.message||'')) throw createHttpError(candidateInsertError.message,400);
+      if (/^(Use |Informe |Defina |O partido|Seu partido|Você já está filiado|Você precisa estar filiado)/.test(candidateInsertError.message||'')) throw createHttpError(candidateInsertError.message,400);
       throw candidateInsertError;
     }
 
