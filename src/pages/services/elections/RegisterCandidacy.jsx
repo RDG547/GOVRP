@@ -110,6 +110,9 @@ const RegisterCandidacy = ({ onFinished }) => {
   const selectedElection = elections.find((election) => election.id === selectedElectionId) || null;
   const requiresViceCandidate = isPresidentialTicketElection(selectedElection);
   const numberDigits = electionNumberDigits(selectedElection);
+  const affiliatedParty = parties.find(party => party.id === userAffiliation) || null;
+  const inactiveAffiliation = Boolean(userAffiliation && (!affiliatedParty || !affiliatedParty.is_active));
+  const inactivePartyNotice = 'Seu partido está inativo. Ele precisa ter no mínimo 5 membros e estar ativo para concorrer às eleições. Para enviar uma candidatura independente, você precisa primeiro sair do partido.';
   const numberPrefix = parties.find(party => party.id === selectedPartyId)?.electoral_number || '';
   useEffect(() => {
     const previous=form.getValues('electoral_number') || '';
@@ -121,7 +124,7 @@ const RegisterCandidacy = ({ onFinished }) => {
     {table:'political_parties',filter:`id=eq.${selectedPartyId}`}
   ], async () => {
     if (!selectedPartyId) return;
-    const {data,error}=await supabase.from('political_parties').select('id,name,electoral_number').eq('id',selectedPartyId).maybeSingle();
+    const {data,error}=await supabase.from('political_parties').select('id,name,electoral_number,is_active,status').eq('id',selectedPartyId).maybeSingle();
     if (!error && data) setParties(current=>current.map(p=>p.id===data.id?{...p,...data}:p));
   },Boolean(selectedPartyId));
   const consecutivePresidentialWins = getConsecutivePresidentialWins(presidentialElections, user?.id);
@@ -160,7 +163,7 @@ const RegisterCandidacy = ({ onFinished }) => {
             .select('id, name, election_type_id, election_types(name, requires_vice_candidate, voting_system)')
             .eq('status', 'Candidacy')
             .order('voting_start_date', { ascending: true }),
-          supabase.from('political_parties').select('id, name, electoral_number').eq('is_active', true),
+          supabase.from('political_parties').select('id, name, electoral_number, is_active, status'),
           user?.id
             ? supabase.from('party_members').select('party_id').eq('user_id', user.id).maybeSingle()
             : Promise.resolve({ data: null, error: null }),
@@ -198,10 +201,9 @@ const RegisterCandidacy = ({ onFinished }) => {
         setParties(partiesResponse.data || []);
         setPresidentialElections(presidentialHistoryResponse.elections || []);
 
-        if (partyMemberResponse.data?.party_id) {
-          setUserAffiliation(partyMemberResponse.data.party_id);
-          form.setValue('party_id', partyMemberResponse.data.party_id);
-        }
+        const currentPartyId = partyMemberResponse.data?.party_id || null;
+        setUserAffiliation(currentPartyId);
+        form.setValue('party_id', currentPartyId, { shouldValidate: false });
       } catch (error) {
         if (error.code !== 'PGRST116') {
           toast({ title: 'Erro ao carregar dados', description: error.message, variant: 'destructive' });
@@ -329,6 +331,11 @@ const RegisterCandidacy = ({ onFinished }) => {
   };
 
   const onSubmit = async (values) => {
+    // Prevent rejected uploads, backed by an independent database guard.
+    if (inactiveAffiliation) {
+      toast({ title: 'Partido inativo', description: affiliatedParty ? inactivePartyNotice : 'Não foi possível confirmar seu partido. Confira sua filiação antes de enviar a candidatura.', variant: 'destructive' });
+      return;
+    }
     if (!new RegExp(`^[0-9]{${numberDigits}}$`).test(values.electoral_number) || (numberPrefix && !values.electoral_number.startsWith(numberPrefix))) {
       form.setError('electoral_number', {type:'manual', message:numberPrefix ? `Use ${numberDigits} dígitos começando por ${numberPrefix}.` : `Informe um número com ${numberDigits} dígitos.`});
       return;
@@ -591,16 +598,23 @@ const RegisterCandidacy = ({ onFinished }) => {
                   <FormLabel>Partido Político</FormLabel>
                   <FormControl>
                     <Input
-                      value={userAffiliation ? parties.find((party) => party.id === userAffiliation)?.name || 'Carregando...' : 'Candidatura Avulsa'}
+                      value={userAffiliation ? affiliatedParty?.name || 'Partido filiado indisponível' : 'Candidatura Avulsa'}
                       disabled
                       className="opacity-70 cursor-not-allowed"
                     />
                   </FormControl>
                   <p className="text-xs text-muted-foreground">
                     {userAffiliation
-                      ? 'Sua candidatura será vinculada automaticamente ao seu partido atual.'
+                      ? inactiveAffiliation
+                        ? 'O seu partido está inativo e não pode disputar eleições.'
+                        : 'Sua candidatura será vinculada automaticamente ao seu partido atual.'
                       : 'Você não possui filiação partidária. Sua candidatura será registrada como avulsa.'}
                   </p>
+                  {inactiveAffiliation && (
+                    <p role="alert" className="mt-2 text-sm text-amber-300">
+                      {affiliatedParty ? inactivePartyNotice : 'Não foi possível confirmar a situação do seu partido. Verifique sua filiação antes de enviar a candidatura.'}
+                    </p>
+                  )}
                   <FormMessage />
                 </FormItem>
               )}
