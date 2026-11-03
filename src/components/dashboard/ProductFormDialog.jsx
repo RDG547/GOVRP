@@ -22,7 +22,7 @@ import { Loader2, Save, User, Package, FileText, Tag, Coins, Boxes, Image as Ima
 import ImageUploader from '@/components/ImageUploader';
 import { Switch } from '@/components/ui/switch';
 import { parseCurrency, formatCurrency } from '@/lib/utils';
-import { buildStoragePath, extractStoragePathFromUrl } from '@/lib/security';
+import { buildStoragePath, extractStoragePathFromUrl, detectSupportedImageContentType } from '@/lib/security';
 
 const PREDEFINED_CATEGORIES = [
   "Eletrônicos",
@@ -245,11 +245,19 @@ const ProductFormDialog = ({ isOpen, setIsOpen, product, onSuccess }) => {
         finalImageUrl = uploadedImage.current.url;
         uploadedPath = uploadedImage.current.path;
       } else if (imageFile) {
+        // Some Android/PWA file pickers incorrectly report valid images as
+        // text/plain. Inspect their bytes and send a Blob with a trusted MIME
+        // type, instead of forwarding the device-provided Content-Type.
+        const imageContentType = await detectSupportedImageContentType(imageFile);
+        if (!imageContentType) {
+          throw new Error('A imagem selecionada não é válida. Escolha uma imagem JPEG, PNG, WebP, GIF ou AVIF.');
+        }
 
+        const imageBlob = imageFile.slice(0, imageFile.size, imageContentType);
         const newFileName = buildStoragePath({ prefix: '', entityId: user.id, fileName: imageFile.name });
         const { data: uploadData, error: uploadError } = await supabase.storage
           .from('product-images')
-          .upload(newFileName, imageFile);
+          .upload(newFileName, imageBlob, { upsert: false, contentType: imageContentType });
 
         if (uploadError) throw uploadError;
 
