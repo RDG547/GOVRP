@@ -452,10 +452,15 @@ const CountryInfo = () => {
                       <section key={section.title}>
                         <h4 className="mb-4 border-l-4 border-blue-600 pl-3 text-sm font-black uppercase tracking-[0.12em] text-slate-800">{section.title}</h4>
                         <div className="space-y-3 text-sm leading-7 text-slate-700 sm:text-base">
-                          {(section.articles || []).map((article) => <p key={article.id}><strong>{article.number}</strong> {article.body}</p>)}
+                          {(section.articles || []).map((article) => <p key={article.id} className="whitespace-pre-line"><strong>{article.number}</strong> {article.body}</p>)}
                         </div>
                       </section>
                     ))}
+                    {constitution?.closingText ? (
+                      <footer className="border-t border-slate-300 pt-7 text-center">
+                        <p className="whitespace-pre-line text-sm italic leading-7 text-slate-700 sm:text-base">{constitution.closingText}</p>
+                      </footer>
+                    ) : null}
                     {!constitution ? <p className="text-center text-slate-500">Texto constitucional em atualização.</p> : null}
                   </div>
                 </div>
