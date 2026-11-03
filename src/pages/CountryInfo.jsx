@@ -420,7 +420,7 @@ const CountryInfo = () => {
                   <div className="max-w-3xl space-y-3">
                     <div className="inline-flex items-center gap-2 rounded-full border border-blue-500/30 bg-blue-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.24em] text-blue-300">
                       <FileText className="h-3.5 w-3.5" />
-                      Constituição Federal
+                      {constitution?.title?.includes('UNIFICADA') ? 'Constituição Unificada' : 'Constituição Federal'}
                     </div>
                     <h2 className="text-3xl font-bold text-foreground">{constitution?.title || 'Constituição Federal'}</h2>
                     <p className="text-muted-foreground">
