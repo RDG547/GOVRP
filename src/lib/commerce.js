@@ -73,7 +73,7 @@ export const executeProductPurchase = async ({
       success: false,
       data,
       error,
-      message: PURCHASE_ERRORS[error.message] || DEFAULT_PURCHASE_ERROR_MESSAGE,
+      message: purchaseErrorMessage(error),
     };
   }
 
