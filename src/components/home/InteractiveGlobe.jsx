@@ -722,11 +722,12 @@ const InteractiveGlobe = () => {
                   </h4>
                   <dl className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
                     <ProfileMetric
-                      label="PIB total"
+                      label="PIB nominal em USD"
                       value={formatGdp(economicData?.gdp?.value, economicData?.gdp?.currency)}
                       detail={indicatorDetail(economicData?.gdp)}
                       loading={isProfileLoading}
                     />
+                    {economicData?.gdpBrl&&<ProfileMetric label="PIB nominal em BRL" value={formatGdp(economicData.gdpBrl.value,'BRL')} detail={indicatorDetail(economicData.gdpBrl)} loading={isProfileLoading}/>}
                     <ProfileMetric
                       label="Taxa de crescimento"
                       value={formatGrowth(economicData?.growth?.value)}

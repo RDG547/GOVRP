@@ -111,7 +111,7 @@ if (existsSync(envPath)) {
       db.from('government_popularity_state').select('country_code').eq('country_code', 'BR').maybeSingle(),
       db.rpc('get_public_wanted_list'),
       db.rpc('get_police_efficiency_metrics'),
-      db.from('bill_suggestions').select('id, author:profiles!bill_suggestions_author_id_fkey(id)').limit(1),
+      db.from('bill_suggestions').select('id, author_id').limit(1),
       db.from('ministers').select('id, user_id').limit(1),
       db.from('system_settings').select('key, value').in('key', ['government_budget', 'tax_rates']),
     ]);

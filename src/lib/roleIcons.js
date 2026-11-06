@@ -1,6 +1,7 @@
 import { User, Crown, Building2, Landmark, Gavel, Shield, Scale, Briefcase, ShieldCheck, Medal, Eye, GraduationCap, Vote } from 'lucide-react';
 
 export const ROLE_ALIASES = {
+  Delegado: 'Diretor-Geral de Polícia',
   'Presidente da Câmara': 'Presidente da Câmara dos Deputados',
   'Vice-Presidente do Senado': 'Vice-Presidente do Senado Federal',
   'Diretor da Polícia Federal': 'Diretor-Geral de Polícia',
@@ -21,6 +22,7 @@ export const ROLE_ICONS = {
 export const roleIcon = role => ROLE_ICONS[canonicalRole(role)] || User;
 
 export const officialRoleCapabilities = role => ({
+  'Presidente do STF': ['Presidente do STF','Juiz'],
   'Presidente da Câmara dos Deputados': ['Presidente da Câmara dos Deputados', 'Deputado'],
   'Vice-Presidente da Câmara dos Deputados': ['Vice-Presidente da Câmara dos Deputados', 'Deputado'],
   'Presidente do Senado': ['Presidente do Senado', 'Senador'],

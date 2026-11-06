@@ -308,7 +308,7 @@ export const fetchPresidentialElectionHistory = async (supabase) => {
     };
   }
 
-  const [{ data: candidates, error: candidatesError }, { data: votes, error: votesError }] = await Promise.all([
+  const [{ data: candidates, error: candidatesError }, { data: votes, error: votesError }, { data: assignments, error: assignmentsError }] = await Promise.all([
     supabase
       .from('candidates')
       .select('id, election_id, user_id, party_id, vice_candidate_id, political_name, bio, proposals, campaign_photo_url, status, created_at, identity_snapshot, vice_identity_snapshot')
@@ -318,6 +318,7 @@ export const fetchPresidentialElectionHistory = async (supabase) => {
       .from('votes')
       .select('election_id, candidate_id')
       .in('election_id', electionIds),
+    supabase.from('election_office_assignments').select('election_id,profile_id,status,term_starts_at,term_ends_at').in('election_id',electionIds).eq('office_role','Presidente'),
   ]);
 
   if (candidatesError) {
@@ -328,6 +329,7 @@ export const fetchPresidentialElectionHistory = async (supabase) => {
     throw votesError;
   }
 
+  if (assignmentsError) throw assignmentsError;
   const approvedCandidates = candidates || [];
   const voteRows = votes || [];
   const profileIds = dedupe([
@@ -373,8 +375,9 @@ export const fetchPresidentialElectionHistory = async (supabase) => {
     const winner = sortedCandidates[0] || null;
     const tied =
       sortedCandidates.length > 1 && winner && sortedCandidates[1].vote_count === winner.vote_count;
-    const termStartAt = toIso(election.voting_end_date || election.voting_start_date || election.created_at);
-    const termEndAt = addMonthsIso(termStartAt, PRESIDENTIAL_TERM_MONTHS);
+    const officialTerm = assignments?.find(item=>item.election_id===election.id);
+    const termStartAt = officialTerm?.term_starts_at || addDaysIso(election.voting_end_date || election.voting_start_date || election.created_at,1);
+    const termEndAt = officialTerm?.term_ends_at || addMonthsIso(termStartAt, PRESIDENTIAL_TERM_MONTHS);
 
     return {
       ...election,
@@ -384,7 +387,7 @@ export const fetchPresidentialElectionHistory = async (supabase) => {
       is_tied: Boolean(tied),
       term_start_at: termStartAt,
       term_end_at: termEndAt,
-      is_active: Boolean(!tied && winner && isNowBetween(termStartAt, termEndAt)),
+      is_active: Boolean(officialTerm?.status==='active' && !tied && winner && isNowBetween(termStartAt, termEndAt)),
     };
   });
 
@@ -547,12 +550,14 @@ const attachProfilesToSettings = async (supabase, settingsValue) => {
     ...settingsValue.billActions.map((action) => action.actor_id || action.actorId),
   ]);
 
-  const profilesMap = await fetchProfilesMap(supabase, profileIds);
+  const [profilesMap, officeResult] = await Promise.all([fetchProfilesMap(supabase, profileIds), supabase.from('executive_office_definitions').select('*').eq('is_assignable',true).order('sort_order')]);
+  const offices = officeResult.data?.map(office => ({ key: office.office_key, label: office.office_key.startsWith('supreme_court_') ? `Juiz do STF · vaga ${office.office_key.split('_').at(-1)}` : office.role_label, description: office.description, governmentBound: office.government_bound })) || EXECUTIVE_SPECIAL_OFFICES;
 
   return {
     ...settingsValue,
+    offices,
     specialAppointmentsDetailed: Object.fromEntries(
-      EXECUTIVE_SPECIAL_OFFICES.map((office) => {
+      offices.map((office) => {
         const appointment = settingsValue.specialAppointments?.[office.key];
         const profileId = appointment?.user_id || appointment?.userId;
 

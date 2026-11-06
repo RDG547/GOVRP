@@ -18,6 +18,10 @@ export function collectResetAssetReferences(packet) {
       packet.classification === "C" ||
       packet.classification === "D" ||
       packet.strategy === "keep";
+    if ((packet.schema || packet.schema_name) === 'private' && (packet.table || packet.table_name) === 'justice_evidence_uploads' && typeof row.path === 'string' && /^[a-f0-9-]+\/[a-f0-9-]+\.[a-z0-9]+$/i.test(row.path)) {
+      const value = { bucket: 'justice-evidence', name: row.path };
+      (protect ? retained : referenced).set(`${value.bucket}/${value.name}`, value);
+    }
     const text = JSON.stringify(row);
     const pattern =
       /https?:\/\/[^\s"\\]+\/storage\/v1\/object\/(?:public|authenticated|sign)\/([^\s"\\?]+)/g;

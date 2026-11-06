@@ -1,3 +1,5 @@
+import CompanySaleDetails from '@/components/business/CompanySaleDetails';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import BrazilStateFlag from '@/components/onboarding/BrazilStateFlag';
 import { getStateName } from '@/lib/brazilianLocations';
 import { Trophy } from 'lucide-react';
@@ -684,7 +686,7 @@ const BusinessForSaleCard = ({ listing, index, onBuy, buyingId }) => {
               </div>
             </div>
             <Badge className={isStateListing ? 'bg-amber-500/15 text-amber-300 border-amber-500/30' : 'bg-cyan-500/15 text-cyan-300 border-cyan-500/30'}>
-              {isStateListing ? 'Governo' : 'Privado'}
+              {isStateListing ? 'Empresa Pública' : 'Empresa Privada'}
             </Badge>
           </div>
         </CardHeader>
@@ -695,7 +697,7 @@ const BusinessForSaleCard = ({ listing, index, onBuy, buyingId }) => {
             <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Preço de venda</p>
             <p className="mt-1 text-2xl font-bold text-foreground">{formatCurrency(listing.price || 0)}</p>
           </div>
-          <Button className="w-full" onClick={() => onBuy(listing)} disabled={isBuying}>
+          <div className="flex items-center gap-2 text-sm"><Avatar><AvatarImage src={listing.sellerAvatar}/><AvatarFallback>{isStateListing?'GOV':(listing.sellerName||'P').charAt(0)}</AvatarFallback></Avatar><p className="break-words">Proprietário: {listing.sellerName}</p></div><CompanySaleDetails listing={listing} onBuy={onBuy} buying={isBuying}/><Button className="w-full bg-emerald-600 text-white hover:bg-emerald-700" onClick={() => onBuy(listing)} disabled={isBuying}>
             {isBuying ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ShoppingCart className="mr-2 h-4 w-4" />}
             Comprar Empresa
           </Button>
@@ -819,7 +821,8 @@ const EntrepreneurPortal = () => {
           type: business.business_type_id,
           region_code: business.region_code,
           price: Number(business.sale_price || 0),
-          sellerName: business.owner?.full_name || 'Empreendedor',
+          sellerName: business.owner?.full_name || 'Capital da população',
+          sellerAvatar: business.owner?.avatar_url || null,
         }));
       const stateListings = stateListingsResponse.error ? [] : (stateListingsResponse.data || []).map((enterprise) => ({
         id: enterprise.id,

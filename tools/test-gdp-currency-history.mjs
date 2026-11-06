@@ -1,0 +1,18 @@
+import assert from 'node:assert/strict';
+import { composeNationalEconomyDashboard, normalizeRpEconomicState } from '../src/lib/countryRpEconomy.js';
+const economic = { currency: 'BRL', gdpCurrency: 'USD', gdp: 200, gdpNominalLocal: 1000, gdpRealLocal: 900, exchangeUsd: 5, selic: 10, growth: 2 };
+const baseline = structuredClone(economic);
+const snapshots = [{ economic_state: baseline, recorded_at: '2026-10-01T00:00:00Z', revision: 1 }];
+const rpState = { country_code: 'BR', is_playable: true, reference_snapshot_at: '2026-10-01T00:00:00Z', updated_at: '2026-11-06T00:00:00Z', economic_current: { ...economic, exchangeUsd: 4 } };
+const result = composeNationalEconomyDashboard({ dashboard: { state: {}, history: [] }, rpState, snapshots });
+assert.equal(result.headline.gdp_nominal, 1000);
+assert.equal(result.headline.gdp_total, 250);
+assert.equal(result.history[0].indicators.gdp_total, 200);
+assert.equal(result.history[0].indicators.gdp_nominal, 1000);
+assert.equal(result.history[0].indicators.exchange_usd, 5);
+assert.equal(result.history[0].indicators.current_selic, 10);
+assert.deepEqual(economic, baseline);
+assert.deepEqual(snapshots[0].economic_state, baseline);
+assert.equal(normalizeRpEconomicState({ ...economic, exchangeUsd: 10 }).gdp, 100);
+assert.equal(normalizeRpEconomicState({ ...economic, exchangeUsd: 10 }).gdpNominalLocal, 1000);
+console.log('PIB em BRL preservado; conversão USD e câmbio histórico usam o mesmo registro, sem reescrever observações.');

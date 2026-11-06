@@ -1,3 +1,5 @@
+import { PARLIAMENT_HOUSE_IDS } from '@/lib/parliamentGovernance';
+import JudicialGovernance from '@/components/justice/JudicialGovernance';
 import {CurrencyInput} from '@/components/ui/currency-input';
 import BillHistory from '@/components/parliament/BillHistory';
 import { hydrateBillHistory } from '@/lib/billHistory';
@@ -1018,6 +1020,7 @@ const ParliamentPanel = () => {
         />
 
         <GovernanceRulesGrid />
+        {house?.id===PARLIAMENT_HOUSE_IDS.senate&&<div className="my-5"><JudicialGovernance /></div>}
 
         <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-3">
           <GovernanceMetricCard

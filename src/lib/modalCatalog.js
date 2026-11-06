@@ -131,6 +131,11 @@ export const MODAL_CATALOG=[
   "source": "src/components/PresidentialFormationGuide.jsx"
  },
  {
+  "id": "src/components/business/CompanySaleDetails.jsx:1",
+  "title": "Company Sale Details",
+  "source": "src/components/business/CompanySaleDetails.jsx"
+ },
+ {
   "id": "src/components/bank/ReceiptDownloadDialog.jsx:2",
   "title": "Compartilhar Comprovante",
   "source": "src/components/bank/ReceiptDownloadDialog.jsx"
@@ -174,6 +179,11 @@ export const MODAL_CATALOG=[
   "id": "src/pages/services/NationalCitizenCommerce.jsx:1",
   "title": "Confirmar compra",
   "source": "src/pages/services/NationalCitizenCommerce.jsx"
+ },
+ {
+  "id": "src/components/business/CompanyMarketplacePurchases.jsx:1",
+  "title": "Confirmar compra empresarial / Registrar uso empresarial",
+  "source": "src/components/business/CompanyMarketplacePurchases.jsx"
  },
  {
   "id": "src/pages/services/PoliticalParties.jsx:1",
@@ -224,6 +234,11 @@ export const MODAL_CATALOG=[
   "id": "src/pages/dashboards/panels/PresidentDashboard.jsx:6",
   "title": "Confirmar Renúncia",
   "source": "src/pages/dashboards/panels/PresidentDashboard.jsx"
+ },
+ {
+  "id": "src/components/EntityCashTransfer.jsx:1",
+  "title": "Confirmar transferência",
+  "source": "src/components/EntityCashTransfer.jsx"
  },
  {
   "id": "src/components/bank/TransferDialog.jsx:2",
@@ -471,6 +486,11 @@ export const MODAL_CATALOG=[
   "source": "src/components/parliament/InstitutionalProceedings.jsx"
  },
  {
+  "id": "src/components/justice/JudicialGovernance.jsx:1",
+  "title": "Judicial Governance",
+  "source": "src/components/justice/JudicialGovernance.jsx"
+ },
+ {
   "id": "src/components/admin/UserManagement.jsx:1",
   "title": "Modificar Saldo de",
   "source": "src/components/admin/UserManagement.jsx"
@@ -494,6 +514,11 @@ export const MODAL_CATALOG=[
   "id": "src/components/bank/TransferDialog.jsx:1",
   "title": "Nova Transferência",
   "source": "src/components/bank/TransferDialog.jsx"
+ },
+ {
+  "id": "src/components/government/OfficialSalaryProposal.jsx:1",
+  "title": "O que esta lei alterará?",
+  "source": "src/components/government/OfficialSalaryProposal.jsx"
  },
  {
   "id": "src/components/bank/CardsTab.jsx:1",
@@ -529,6 +554,11 @@ export const MODAL_CATALOG=[
   "id": "src/pages/services/Parliament.jsx:2",
   "title": "Plebiscitos e Referendos",
   "source": "src/pages/services/Parliament.jsx"
+ },
+ {
+  "id": "src/features/justice/components/PoliceEvidenceFiles.jsx:1",
+  "title": "Police Evidence Files",
+  "source": "src/features/justice/components/PoliceEvidenceFiles.jsx"
  },
  {
   "id": "src/pages/services/Police.jsx:1",

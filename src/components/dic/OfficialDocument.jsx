@@ -1,3 +1,4 @@
+import CriminalCertificateDetails from './CriminalCertificateDetails';
 import { formatLocaleBR } from '@/lib/dateTime';
 import CitizenSignature from './CitizenSignature';
 import { documentCatalog as docInfo, documentHasTwoSides, documentIsFullPage } from '@/lib/documentCatalog';
@@ -516,7 +517,8 @@ const ClearanceCertificateDocument = ({ user, doc }) => (
                         ? 'Constam registros criminais ativos na data de emissão deste atestado.'
                         : 'Resultado não informado. Consulte a Central de Serviços Judiciais.'}
             </p>
-            <p>Este documento retrata os registros do cidadão no GOV.RP na data de sua emissão.</p>
+            <CriminalCertificateDetails records={doc.metadata?.records}/>
+            <p>Retrato dos registros criminais com efeitos vigentes, atualizado em {formatDocumentDate(doc.metadata?.generatedAt||doc.issued_at)}. Boletins e investigações sem condenação não constituem antecedentes.</p>
             <DocumentField label="EMISSÃO" value={formatDocumentDate(doc.issued_at)} />
             <DocumentField label="VALIDADE" value={formatDocumentDate(doc.expires_at)} />
         </main>

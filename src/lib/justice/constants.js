@@ -2,7 +2,7 @@ export const JUSTICE_AUTHORITY_ROLES = [
   'Admin',
   'Policial',
   'Police',
-  'Delegado',
+  'Diretor-Geral de Polícia',
   'Promotor',
   'Advogado',
   'Defensor Público',
@@ -14,7 +14,7 @@ export const JUSTICE_AUTHORITY_ROLES = [
 export const CASE_STATUS_LABELS = {
   draft: 'Rascunho',
   investigation: 'Em investigação',
-  delegate_review: 'Análise do delegado',
+  delegate_review: 'Análise da Diretoria-Geral',
   sent_to_prosecutor: 'Enviado ao Ministério Público',
   awaiting_charge: 'Aguardando denúncia',
   charge_filed: 'Denúncia apresentada',
@@ -48,7 +48,7 @@ export const OCCURRENCE_TYPES = [
 
 export const PRIORITY_OPTIONS = [
   { value: 'low', label: 'Baixa' },
-  { value: 'normal', label: 'Normal' },
+  { value: 'normal', label: 'Média' },
   { value: 'high', label: 'Alta' },
   { value: 'urgent', label: 'Urgente' },
 ];
@@ -59,9 +59,9 @@ export const PRIORITY_LABELS = PRIORITY_OPTIONS.reduce((labels, option) => {
 }, {});
 
 export const PRIORITY_STYLES = {
-  low: 'border-slate-500/30 bg-slate-500/10 text-slate-300',
-  normal: 'border-blue-500/30 bg-blue-500/10 text-blue-300',
-  high: 'border-amber-500/30 bg-amber-500/10 text-amber-300',
+  low: 'border-green-500/40 bg-green-500/10 text-green-600 dark:text-green-300',
+  normal: 'border-yellow-500/40 bg-yellow-500/10 text-yellow-700 dark:text-yellow-300',
+  high: 'border-orange-500/40 bg-orange-500/10 text-orange-600 dark:text-orange-300',
   urgent: 'border-red-500/30 bg-red-500/10 text-red-300',
 };
 

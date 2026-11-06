@@ -40,7 +40,7 @@ export default function ElectionOfficeAwardPopup() {
    if (sequence !== request.current) return;
    if (error) console.error('Não foi possível consultar mudanças de cargo', error);
    else {
-     if(data?.type==='election_result_published'){const bundle=await supabase.rpc('get_election_result_bundle',{p_notification_id:data.id});if(sequence!==request.current)return;if(bundle.error){console.error('Resultados eleitorais',bundle.error);return;}data.bundle=bundle.data;}
+     if(data?.type==='election_result_published'){const bundle=await supabase.rpc('get_election_result_bundle',{p_notification_id:data.id});if(sequence!==request.current)return;if(bundle.error){console.error('Resultados eleitorais',bundle.error);return;}data.bundle=bundle.data;if(bundle.data?.server_now)clockOffset.current=Date.parse(bundle.data.server_now)-Date.now();}
      if (!data) {
        const result=await refreshInvitations().then(data=>({data})).catch(error=>({error}));
        if(result.data?.server_now)clockOffset.current=Date.parse(result.data.server_now)-Date.now();
@@ -80,7 +80,7 @@ export default function ElectionOfficeAwardPopup() {
  const [now, setNow] = useState(Date.now());
  // Countdown updates are entirely local. They must never poll the API.
  useEffect(() => {
-   if (notification?.type !== 'minister_invitation') return undefined;
+   if (!['minister_invitation','election_result_published'].includes(notification?.type)) return undefined;
    const timer = setInterval(() => setNow(Date.now()+clockOffset.current), 1000);
    return () => clearInterval(timer);
  }, [notification?.type, notification?.id]);
@@ -110,19 +110,23 @@ export default function ElectionOfficeAwardPopup() {
  const slot=usePopupSlot(notification?.id?`office:${notification.id}`:null,{priority:notification?.type==='minister_invitation'?20:10,dismissible:notification?.type!=='minister_invitation',onDismiss:()=>close()});
  const later=async()=>{if(!notification||saving)return;const r=await supabase.rpc('defer_government_invitation_popup',{p_invitation_id:notification.id});if(!r.error){setNotification(null);await fetchPending();}};
  if (!slot || !user || !notification) return null;
- return <OfficeNotificationView notification={notification} saving={saving} now={now} later={later} close={close} respond={respond}/>;
+ return <OfficeNotificationView currentUserId={user.id} notification={notification} saving={saving} now={now} later={later} close={close} respond={respond}/>;
 }
-export function OfficeNotificationView({notification,saving=false,now=Date.now(),close=()=>{},respond=()=>{},later,preview=false}) {
+export function OfficeNotificationView({currentUserId,notification,saving=false,now=Date.now(),close=()=>{},respond=()=>{},later,preview=false}) {
  if(!notification)return null;
  if (notification.type === 'minister_invitation') {
    const invitation = notification.invitation;
-   return <InstitutionalInvitationCard title="Convite para integrar o Governo" description={`O Presidente ${invitation.inviter?.full_name||''} convidou você para assumir o ${invitation.ministry?.name||invitation.office||'cargo público'}.`} expiresAt={invitation.expires_at} serverNow={new Date(now).toISOString()} busy={saving} onDecision={respond} onLater={later|| (preview?close:undefined)}><p className="rounded-xl border border-white/10 bg-white/5 p-4 text-sm">Suas funções e permissões serão atualizadas somente se você aceitar.</p></InstitutionalInvitationCard>;
+   return <InstitutionalInvitationCard title="Convite para integrar o Governo" description={`O Presidente ${invitation.inviter?.full_name||''} convidou você para assumir o ${invitation.ministry?.name||invitation.office||'cargo público'}.`} expiresAt={invitation.expires_at} serverNow={new Date(now).toISOString()} busy={saving} onDecision={respond} onLater={later|| (preview?close:undefined)}><p className="rounded-xl border border-white/10 bg-white/5 p-4 text-sm">O aceite inicia as etapas da nomeação. Para Juiz do STF, a posse também exige sabatina e aprovação do Senado.</p></InstitutionalInvitationCard>;
  }
  const institutional = notification.type !== 'role_changed';
- const info = institutional ? { title: ({election_candidacy_open:'Candidaturas abertas',election_voting_open:'Votação aberta',election_result_published:'Resultado eleitoral',institutional_result:'Decisão institucional'})[notification.type], role: notification.metadata?.election_name || notification.metadata?.outcome, loss: true, to: notification.link || '/services/elections', action: notification.type === 'institutional_result' ? 'Consultar decisão' : 'Ir ao Portal Eleitoral' } : roleEventPresentation(notification);
+ const info = institutional ? { title: ({election_candidacy_open:'Candidaturas abertas',election_voting_open:'Votação aberta',election_result_published:'Resultado eleitoral',institutional_result:'Decisão institucional',institutional_vacancy:'Uma vaga institucional ficou disponível',electoral_duty_assigned:'Designação para o Portal Eleitoral',judicial_defense_required:'Apresente sua defesa'})[notification.type], role: notification.metadata?.election_name || notification.metadata?.outcome || (notification.metadata?.office_key?.startsWith('supreme_court_')?'Juiz do STF':''), loss: true, to: notification.metadata?.link || notification.link || '/services/elections', action: ({institutional_result:'Consultar decisão',institutional_vacancy:'Indicar novo ocupante',judicial_defense_required:'Consultar processo'})[notification.type] || 'Ir ao Portal Eleitoral' } : roleEventPresentation(notification);
  const isResult=notification.type==='election_result_published';
  const resultSections=notification.bundle?.sections||[];
  const resultTitle=resultSections.length===1?`Resultado da ${resultSections[0].name}`:resultSections.length ? `Resultado das eleições: ${resultSections.map(s=>s.name).join(', ')}` : 'Resultado eleitoral';
+ const ownResult=resultSections.find(section=>section.winners?.some(winner=>winner.profile_id===currentUserId));
+ const inaugurationAt=ownResult?.inauguration_at;
+ const remaining=inaugurationAt?Math.max(0,Date.parse(inaugurationAt)-now):0;
+ const countdown=`${Math.floor(remaining/3600000)}h ${Math.floor(remaining%3600000/60000)}min ${Math.floor(remaining%60000/1000)}s`;
  const Icon = institutional ? Landmark : roleIcon(info.role);
  return <><CelebrationBackdrop active={isResult&&resultSections.some(s=>s.winners?.length>0)}/><Dialog open onOpenChange={open => { if (!open) void close(); }}>
    <DialogContent className="z-[60] max-h-[90dvh] max-w-lg overflow-y-auto text-center" onInteractOutside={event => event.preventDefault()}>
@@ -134,8 +138,11 @@ export function OfficeNotificationView({notification,saving=false,now=Date.now()
      {!isResult&&<p className="text-2xl font-semibold">{info.role}</p>}
      {info.description && <p className="text-sm text-muted-foreground">{info.description}</p>}
      {institutional && <div className="space-y-3 text-left text-sm">
+       {notification.type === 'institutional_vacancy' && <><p>Ocupante anterior: {notification.metadata.former_name || 'Não informado'}.</p><p>Vacância: {formatDateTimeBR(notification.metadata.vacant_at)} · {({resigned:'Renúncia',expired:'Fim do mandato',removed:'Perda do mandato',dismissed:'Encerramento'})[notification.metadata.reason]}</p></>}
+       {notification.type === 'electoral_duty_assigned' && <p>De {formatDateTimeBR(notification.metadata.starts_at)} até {formatDateTimeBR(notification.metadata.ends_at)}.</p>}
        {notification.type === 'election_candidacy_open' && <><p>Candidaturas até {formatDateTimeBR(notification.metadata.candidacy_end_at)}.</p><p>Votação a partir de {formatDateTimeBR(notification.metadata.voting_start_at)}.</p></>}
        {notification.type === 'election_voting_open' && <p>Vote até {formatDateTimeBR(notification.metadata.voting_end_at)}. Horário de Brasília.</p>}
+       {isResult&&ownResult&&inaugurationAt&&<div className="space-y-2 rounded-lg border border-amber-500/40 bg-amber-500/10 p-3"><p className="font-semibold">Parabéns! Você foi eleito.</p><p>Posse oficial: {formatDateTimeBR(inaugurationAt)}.</p><p aria-live="off">{remaining>0?`Faltam ${countdown}`:'O horário da posse chegou. Aguarde a confirmação institucional.'}</p><p className="text-xs text-muted-foreground">As funções e permissões são concedidas apenas na posse, 24 horas após o encerramento da eleição.</p></div>}
        {isResult&&(resultSections.length ? <ElectionResultSections sections={resultSections}/> : <p>Este resultado está no histórico eleitoral. Você pode fechar este aviso.</p>)}
        {notification.type === 'institutional_result' && <><p>Presidência envolvida: {notification.metadata.former_president?.full_name}.</p><p>{formatDateTimeBR(notification.metadata.occurred_at)}</p>{notification.metadata.successor && <p>Nova Presidência: <strong>{notification.metadata.successor.name || 'Sucessor institucional'}</strong>. As permissões foram atualizadas.</p>}</>}
      </div>}

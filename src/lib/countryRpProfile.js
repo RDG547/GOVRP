@@ -133,6 +133,9 @@ export const mergeCountryRpProfile = (realProfile, context) => {
       currency: economicCurrent.gdpCurrency || 'USD',
     };
   }
+  if (economicCurrent.gdpNominalLocal != null && (economicCurrent.currency || 'BRL') === 'BRL') {
+    economy.gdpBrl = { ...rpIndicator(economicCurrent.gdpNominalLocal), currency: 'BRL' };
+  }
 
   if (economicCurrent.growth != null) {
     economy.growth = rpIndicator(economicCurrent.growth);

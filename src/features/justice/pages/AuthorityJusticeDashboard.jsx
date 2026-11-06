@@ -1,3 +1,4 @@
+import OccurrenceDetails from '@/features/justice/components/OccurrenceDetails';
 import JudicialOrders from '@/components/justice/JudicialOrders';
 import IssueFineDialog from '@/components/justice/IssueFineDialog';
 import LawSanctionDialog from '@/components/justice/LawSanctionDialog';
@@ -109,8 +110,8 @@ const AuthorityJusticeDashboard = () => {
   const [subjectForm, setSubjectForm] = useState(null);
 
   const role = primaryJusticeRole(user);
-  const isPolice = hasAnyJusticeRole(user, ['Admin', 'Policial', 'Police', 'Delegado']);
-  const isDelegate = hasAnyJusticeRole(user, ['Admin', 'Delegado']);
+  const isPolice = hasAnyJusticeRole(user, ['Admin', 'Policial', 'Police', 'Diretor-Geral de Polícia']);
+  const isDelegate = hasAnyJusticeRole(user, ['Admin', 'Diretor-Geral de Polícia']);
   const isAdmin = hasAnyJusticeRole(user, ['Admin']);
   const canDecideCase = criminalCase => isAdmin || (isJudge && criminalCase.judge_id === user?.id);
   const isJudge = hasAnyJusticeRole(user, ['Admin', 'Juiz']);
@@ -124,7 +125,7 @@ const AuthorityJusticeDashboard = () => {
       : panelMode;
   const visibleTabs = activePanelMode === 'police'
     ? [
-      ['missions', Siren, 'Missões policiais'],
+      ['missions', Siren, 'Boletins de Ocorrências'],
       ['investigations', Search, 'Investigações'],
       ['requests', Gavel, 'Pedidos da investigação'],
       ['warrants', ClipboardList, 'Mandados'],
@@ -421,7 +422,7 @@ const AuthorityJusticeDashboard = () => {
                     </CardDescription>
                   </div>
                   <Badge variant="outline" className={PRIORITY_STYLES[occurrence.priority]}>
-                    {PRIORITY_LABELS[occurrence.priority] || occurrence.priority}
+                    Prioridade {PRIORITY_LABELS[occurrence.priority] || occurrence.priority}
                   </Badge>
                 </div>
               </CardHeader>
@@ -429,6 +430,7 @@ const AuthorityJusticeDashboard = () => {
                 <p className="text-sm text-muted-foreground">
                   {occurrence.description || occurrence.details}
                 </p>
+                <OccurrenceDetails occurrence={occurrence} showReporter/>
                 <div className="flex flex-wrap gap-2">
 
                   <Button
@@ -443,14 +445,14 @@ const AuthorityJusticeDashboard = () => {
             </Card>
           )) : (
             <JusticeEmptyState
-              title="Nenhuma missão nova"
+              title="Nenhum boletim novo"
               description="Quando um cidadão registrar uma ocorrência, ela aparecerá aqui em tempo real."
             />
           )}
         </TabsContent>
 
         <TabsContent value="investigations" className="space-y-4">
-          {user?.admin_development?.mode==='total'&&<p className="text-xs text-amber-400">Normalmente disponível para: Polícia e Delegados.</p>}
+          {user?.admin_development?.mode==='total'&&<p className="text-xs text-amber-400">Normalmente disponível para: Polícia e Diretoria-Geral.</p>}
           {data.investigations.length ? data.investigations.map((investigation) => (
             <Card key={investigation.id} className="glass-effect">
               <CardHeader>
@@ -465,7 +467,7 @@ const AuthorityJusticeDashboard = () => {
               <CardContent className="grid gap-3 text-sm sm:grid-cols-3">
                 <p><span className="text-muted-foreground">Aberta em:</span><br />{formatJusticeDate(investigation.opened_at)}</p>
                 <p><span className="text-muted-foreground">Policial responsável:</span><br />{investigation.lead_officer_id ? 'Designado' : 'Não designado'}</p>
-                <p><span className="text-muted-foreground">Delegado:</span><br />{investigation.delegate_id ? 'Designado' : 'Aguardando'}</p>
+                <p><span className="text-muted-foreground">Diretor-Geral de Polícia:</span><br />{investigation.delegate_id ? 'Designado' : 'Aguardando'}</p>
                 <div className="sm:col-span-3 flex flex-wrap items-center justify-between gap-3 border-t border-white/10 pt-3">
                   <details className="w-full rounded-lg border p-3"><summary className="cursor-pointer font-medium">Pessoas vinculadas ({data.investigationSubjects.filter(subject => subject.investigation_id === investigation.id).length})</summary><div className="mt-3 space-y-2">{data.investigationSubjects.filter(subject => subject.investigation_id === investigation.id).map(subject => <div key={subject.id} className="rounded border p-2"><UserSelectOption user={data.profiles.find(profile => profile.id === subject.profile_id) || subject.profile} detail={justiceStatus(subject.subject_status)}/>{subject.notes && <p className="mt-2 text-xs text-muted-foreground">{subject.notes}</p>}</div>)}</div></details>
                   <CaseEvidence evidence={data.evidence.filter(evidence => evidence.investigation_id === investigation.id)} onSeal={isDelegate ? item => setAction({type:'seal-evidence',item}) : undefined} />
@@ -588,7 +590,7 @@ const AuthorityJusticeDashboard = () => {
                   <div>
                     <CardTitle>{criminalCase.title}</CardTitle>
                     <CardDescription className="mt-1">
-                      {criminalCase.case_number} · {criminalCase.court_level}ª instância
+                      {criminalCase.case_number} · {criminalCase.court_name||'Supremo Tribunal Federal'}{criminalCase.court_level===2?' · Revisão interna':''}
                     </CardDescription>
                   </div>
                   <Badge variant="outline">

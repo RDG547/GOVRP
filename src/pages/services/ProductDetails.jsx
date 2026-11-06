@@ -208,7 +208,7 @@ const ProductDetails = () => {
                     <div className="lg:col-span-2 flex flex-col">
                         <h1 className="text-3xl lg:text-4xl font-bold mb-2">{product.name}</h1>
                         <div className="text-sm text-muted-foreground mb-4">
-                            {isBusiness ? 'Empresa' : 'Pessoa Física'} · Vendido por: <Link to={`/services/x/profile/${seller.x_handle}`} className="text-primary hover:underline">{businessName || seller.full_name}</Link>
+                            {isBusiness ? 'Empresa' : 'Pessoa Física'} · Vendido por: <Link to={isBusiness?`/services/companies/${product.business_id||seller.business_id}`:`/services/x/profile/${seller.x_handle}`} className="text-primary hover:underline">{businessName || seller.full_name}</Link>
                             {isBusiness && businessCnpj && <span className="text-xs block">CNPJ: {formatCNPJ(businessCnpj)}</span>}
                         </div>
                         {product.seller?.activity_restricted && <p role="status" className="text-destructive">Esta atividade está suspensa pela norma vigente.</p>}

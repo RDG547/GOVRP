@@ -1,3 +1,4 @@
+import process from 'node:process';
 import { createClient } from '@supabase/supabase-js';
 import { isPlatformAdmin, assertRealWorldAction } from '../../server/admin/development.js';
 

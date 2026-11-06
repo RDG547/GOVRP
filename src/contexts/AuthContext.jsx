@@ -45,6 +45,7 @@ export const AuthProvider = ({ children }) => {
   const lastResumeRefreshAtRef = useRef(0);
 
   useEffect(() => { sessionRef.current = session; }, [session]);
+  useEffect(() => { void supabase.realtime.setAuth(session?.access_token); }, [session?.access_token]);
   useEffect(() => { userRef.current = user; }, [user]);
 
   const attachPrivateAccountIdentity = useCallback(async (profile, currentSession) => {
@@ -81,10 +82,11 @@ export const AuthProvider = ({ children }) => {
     }
 
     try {
-      const executiveState = await fetchExecutiveConstitutionalState(supabase);
+      const [executiveState,electoralDuty] = await Promise.all([fetchExecutiveConstitutionalState(supabase),supabase.rpc('is_electoral_judge',{p_user_id:profile.id})]);
       const displayRole = profile.role;
       const effectiveRoles = new Set(getProfileRolePool(profile));
       let executiveTicketRole = null;
+      if (electoralDuty.data===true) effectiveRoles.add('Presidente do Portal Eleitoral');
 
 
       if (profile.role === 'Presidente' && executiveState?.currentPresidentProfile?.id === profile.id) {
@@ -113,6 +115,7 @@ export const AuthProvider = ({ children }) => {
       return {
         ...profile,
         stored_role: profile.role,
+        electoral_judge: electoralDuty.data===true,
         role: displayRole,
         effective_roles: [...new Set([...effectiveRoles].flatMap(officialRoleCapabilities))],
         executive_ticket_role: executiveTicketRole,
@@ -451,7 +454,7 @@ export const AuthProvider = ({ children }) => {
 
   useDomainRealtime('identity', session?.user?.id, [
     { table: 'profiles', event: 'UPDATE', filter: `id=eq.${session?.user?.id}` },
-    'government_terms'], () => { void refreshUser({ skipSync: true }); }, Boolean(session?.user?.id));
+    'government_terms', {table:'judicial_electoral_assignments',filter:`profile_id=eq.${session?.user?.id}`}, {table:'institutional_terms',filter:`profile_id=eq.${session?.user?.id}`}], () => { void refreshUser({ skipSync: true }); }, Boolean(session?.user?.id));
 
   const login = async ({ identifier, password, captchaToken }) => {
     const email = identifier.trim().toLowerCase();

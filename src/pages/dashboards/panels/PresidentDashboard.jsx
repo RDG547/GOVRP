@@ -1,3 +1,5 @@
+import OfficialSalaryProposal from '@/components/government/OfficialSalaryProposal';
+import JudicialGovernance from '@/components/justice/JudicialGovernance';
 import {CurrencyInput} from '@/components/ui/currency-input';
 import { ENTERPRISE_SECTORS, SECTOR_SERVICE_KEYS, ENTERPRISE_COST_LABELS, WEEKS_PER_MONTH, DEFAULT_ENTERPRISE_FORM, normalizeEnterpriseCosts, sumEnterpriseCosts, getEnterpriseHealthScore, getEnterpriseMarketValue, isNationalBankEnterprise } from '@/components/business/EnterpriseOperations';
 import StateEnterpriseManagement from '@/components/business/StateEnterpriseManagement';
@@ -866,7 +868,7 @@ const SpecialAppointmentsManager = ({ executiveState, onUpdate, actorId }) => {
                 userId: selectedUserId,
                 actorId,
             });
-            toast({ title: 'Nomeação concluída', description: 'O ato foi registrado no Diário Oficial.' });
+            toast({ title: 'Indicação enviada', description: 'A posse depende do aceite e das demais etapas exigidas para o cargo.' });
             await onUpdate();
         } catch (error) {
             toast({ title: 'Erro ao nomear', description: error.message, variant: 'destructive' });
@@ -898,7 +900,7 @@ const SpecialAppointmentsManager = ({ executiveState, onUpdate, actorId }) => {
                 <CardDescription>Defina os ocupantes de cargos executivos estratégicos, incluindo segurança, defesa e Banco Nacional.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-                {EXECUTIVE_SPECIAL_OFFICES.map((office) => {
+                {(executiveState?.settings?.offices||EXECUTIVE_SPECIAL_OFFICES).map((office) => {
                     const appointment = executiveState?.settings?.specialAppointmentsDetailed?.[office.key];
                     const officeIcon = roleIcon(office.label);
                     const OfficeIcon = officeIcon;
@@ -919,12 +921,12 @@ const SpecialAppointmentsManager = ({ executiveState, onUpdate, actorId }) => {
                             </div>
 
                             <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_auto_auto] gap-3">
-                                <CitizenSelector value={selectedProfiles[office.key] || ''} onChange={value => setSelectedProfiles(current => ({...current,[office.key]:value}))} roles={office.eligibleRoles} label="Selecione um ocupante"/>
-                                <Button onClick={() => handleAppoint(office.key)} disabled={savingOfficeKey === office.key}>
+                                <CitizenSelector value={selectedProfiles[office.key] || ''} onChange={value => setSelectedProfiles(current => ({...current,[office.key]:value}))} executiveOffice={office.key} disabled={Boolean(appointment)&&office.governmentBound===false} label="Selecione um cidadão elegível"/>
+                                <Button onClick={() => handleAppoint(office.key)} disabled={savingOfficeKey === office.key || (Boolean(appointment)&&office.governmentBound===false)}>
                                     {savingOfficeKey === office.key ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UserPlus className="mr-2 h-4 w-4" />}
-                                    Nomear
+                                    Enviar indicação
                                 </Button>
-                                <Button variant="destructive" onClick={() => handleDismiss(office.key)} disabled={savingOfficeKey === office.key || !appointment}>
+                                <Button variant="destructive" onClick={() => handleDismiss(office.key)} disabled={savingOfficeKey === office.key || !appointment || office.governmentBound===false}>
                                     {savingOfficeKey === office.key ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UserX className="mr-2 h-4 w-4" />}
                                     Exonerar
                                 </Button>
@@ -2135,11 +2137,11 @@ const PresidentDashboard = () => {
 
                                 <TabsContent value="ministers" className="mt-0">
                                     <div className="space-y-6 max-w-5xl mx-auto">
-                                        <Tabs defaultValue="cabinet"><TabsList className="flex h-auto flex-wrap gap-2"><TabsTrigger value="cabinet"><Briefcase className="mr-2 h-4 w-4" />Gabinete de Ministros</TabsTrigger><TabsTrigger value="executive"><UserPlus className="mr-2 h-4 w-4" />Nomeações do Executivo</TabsTrigger></TabsList><TabsContent value="cabinet"><MinisterManager ministers={ministers} ministries={ministries} onUpdate={() => fetchData(false)} /></TabsContent><TabsContent value="executive"><SpecialAppointmentsManager executiveState={executiveState} onUpdate={() => fetchData(false)} actorId={user?.id} /></TabsContent></Tabs>
+                                        <Tabs defaultValue="cabinet"><TabsList className="flex h-auto flex-wrap gap-2"><TabsTrigger value="cabinet"><Briefcase className="mr-2 h-4 w-4" />Gabinete de Ministros</TabsTrigger><TabsTrigger value="executive"><UserPlus className="mr-2 h-4 w-4" />Nomeações do Executivo</TabsTrigger></TabsList><TabsContent value="cabinet"><MinisterManager ministers={ministers} ministries={ministries} onUpdate={() => fetchData(false)} /></TabsContent><TabsContent value="executive"><div className="space-y-5"><SpecialAppointmentsManager executiveState={executiveState} onUpdate={() => fetchData(false)} actorId={user?.id} /><JudicialGovernance /></div></TabsContent></Tabs>
                                     </div>
                                 </TabsContent>
 
-                                <TabsContent value="proposals"><Card><CardHeader><CardTitle>Propostas</CardTitle><CardDescription>Apresente medidas com efeitos definidos para o país.</CardDescription></CardHeader><CardContent><LegalMeasureStudio buttonLabel="Nova Proposta" onCreated={() => fetchData(false)} /></CardContent></Card></TabsContent>
+                                <TabsContent value="proposals"><OfficialSalaryProposal onCreated={() => fetchData(false)}/><Card><CardHeader><CardTitle>Propostas</CardTitle><CardDescription>Apresente medidas com efeitos definidos para o país.</CardDescription></CardHeader><CardContent><LegalMeasureStudio buttonLabel="Nova Proposta" onCreated={() => fetchData(false)} /></CardContent></Card></TabsContent>
                                 <TabsContent value="decrees" className="mt-0">
                                     <div className="space-y-6 max-w-5xl mx-auto">
                                         <LegalMeasureStudio buttonLabel="Nova Proposta" onCreated={() => fetchData(false)} /><DecreeManager decrees={decrees} onUpdate={() => fetchData(false)} />

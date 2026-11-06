@@ -403,15 +403,15 @@ const Elections = () => {
 
 
                 <Tabs defaultValue="cidadao" className="w-full">
-                    <TabsList className={`grid w-full h-auto ${['Admin','Presidente do Portal Eleitoral'].includes(user?.role) ? 'grid-cols-2 md:grid-cols-4' : 'grid-cols-3'}`}>
+                    <TabsList className={`grid w-full h-auto ${(['Admin','Presidente do Portal Eleitoral'].includes(user?.role)||user?.electoral_judge||(user?.is_platform_admin&&user.admin_development?.mode==='total')) ? 'grid-cols-2 md:grid-cols-4' : 'grid-cols-3'}`}>
                         {serviceSections.map((section) => (
                             <TabsTrigger key={section.value} value={section.value} className="flex flex-col sm:flex-row gap-2 items-center justify-center py-3">
                                 <section.icon className="w-5 h-5" /><span>{section.label}</span>
                             </TabsTrigger>
                         ))}
-                        {['Admin','Presidente do Portal Eleitoral'].includes(user?.role)&&<TabsTrigger value="management" className="flex gap-2 items-center py-3"><Vote className="h-5 w-5"/>Gestão eleitoral</TabsTrigger>}
+                        {(['Admin','Presidente do Portal Eleitoral'].includes(user?.role)||user?.electoral_judge||(user?.is_platform_admin&&user.admin_development?.mode==='total'))&&<TabsTrigger value="management" className="flex gap-2 items-center py-3"><Vote className="h-5 w-5"/>Gestão eleitoral</TabsTrigger>}
                     </TabsList>
-                    {['Admin','Presidente do Portal Eleitoral'].includes(user?.role)&&<TabsContent value="management"><ElectoralManagement /></TabsContent>}
+                    {(['Admin','Presidente do Portal Eleitoral'].includes(user?.role)||user?.electoral_judge||(user?.is_platform_admin&&user.admin_development?.mode==='total'))&&<TabsContent value="management"><ElectoralManagement /></TabsContent>}
                     {serviceSections.map((section) => (
                         <TabsContent key={section.value} value={section.value}>
                             {section.value === 'info' && <ExecutiveConstitutionCard executiveState={executiveState} />}

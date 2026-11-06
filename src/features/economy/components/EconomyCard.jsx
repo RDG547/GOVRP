@@ -8,6 +8,7 @@ const EconomyCard = ({
   detail,
   icon: Icon,
   trend,
+  children,
   accent = 'text-cyan-300',
 }) => {
   const numericTrend = Number(trend);
@@ -24,8 +25,8 @@ const EconomyCard = ({
       : 'text-rose-400';
 
   return (
-    <Card className="border-border/70 bg-card/75 backdrop-blur">
-      <CardContent className="p-5">
+    <Card className="min-w-0 border-border/70 bg-card/75 backdrop-blur">
+      <CardContent className="min-w-0 break-words p-3 sm:p-5">
         <div className="mb-4 flex items-start justify-between gap-3">
           <p className="text-sm text-muted-foreground">{label}</p>
           {Icon ? (
@@ -46,6 +47,7 @@ const EconomyCard = ({
           ) : null}
           {detail ? <span className="text-muted-foreground">{detail}</span> : null}
         </div>
+        {children && <div className="mt-4 min-w-0 border-t pt-3">{children}</div>}
       </CardContent>
     </Card>
   );

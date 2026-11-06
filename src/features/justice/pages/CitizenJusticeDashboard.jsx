@@ -1,3 +1,6 @@
+import CitizenMultiSelector from '@/components/CitizenMultiSelector';
+import { PoliceEvidenceUploader } from '@/features/justice/components/PoliceEvidenceFiles';
+import OccurrenceDetails from '@/features/justice/components/OccurrenceDetails';
 import EntityFines from '@/components/justice/EntityFines';
 import { CheckCircle2 } from 'lucide-react';
 import CaseEvidence from '@/features/justice/components/CaseEvidence';
@@ -73,6 +76,7 @@ const emptyForm = {
   involvedPeople: '',
   witnesses: '',
   evidence: '',
+  selectedInvolved: [], selectedSuspects: [], selectedWitnesses: [], uploads: [],
 };
 
 const emptyRequestForm = { requestType: 'formal_investigation', subject: '', description: '', relatedOccurrenceId: '', evidence: '' };
@@ -93,7 +97,6 @@ const emptyJusticeData = {
     campaigns: [],
     security: { warrants: [], investigations: [] },
     wanted: [],
-    policeMetrics: {},
     serverNow: null,
     investigationSubjects: [], profiles: [], timeline: [], caseDocuments: [], caseEvidence: [], caseHearings: [], caseAppeals: [], sentences: [],
 };
@@ -115,6 +118,7 @@ const CitizenJusticeDashboard = () => {
 
   const [occurrencePage, setOccurrencePage] = useState(0);
   const [occurrencesLoading, setOccurrencesLoading] = useState(false);
+  const [uploadingEvidence, setUploadingEvidence] = useState(false);
   const occurrenceCursors = useRef([null]);
   const occurrenceCursor = useRef(null);
   const refreshSections = useSectionLoader(user?.id,
@@ -180,9 +184,9 @@ const CitizenJusticeDashboard = () => {
     try {
       const occurrence = await createOccurrence({
         ...form,
-        involvedPeople: lines(form.involvedPeople),
-        witnesses: lines(form.witnesses),
-        evidence: lines(form.evidence),
+        involvedPeople: [...form.selectedInvolved, ...form.selectedSuspects, ...lines(form.involvedPeople)],
+        witnesses: [...form.selectedWitnesses, ...lines(form.witnesses)],
+        evidence: [...form.uploads, ...lines(form.evidence)],
       });
       setForm(emptyForm);
       toast({
@@ -190,7 +194,7 @@ const CitizenJusticeDashboard = () => {
         description: `Protocolo ${occurrence.protocol_number}.`,
       });
       occurrenceCursor.current = null; occurrenceCursors.current = [null]; setOccurrencePage(0);
-      await loadData({ quiet: true, sections: ['occurrences', 'policeMetrics'] });
+      await loadData({ quiet: true, sections: ['occurrences'] });
     } catch (error) {
       toast({
         title: 'Não foi possível registrar',
@@ -450,9 +454,9 @@ const CitizenJusticeDashboard = () => {
                 </div>
 
                 <div className="grid gap-5 md:grid-cols-3">
-                  <div className="space-y-2"><Label htmlFor="occurrence-involved">Envolvidos ou suspeitos</Label><Textarea id="occurrence-involved" rows={3} value={form.involvedPeople} onChange={(event) => setForm((current) => ({ ...current, involvedPeople: event.target.value }))} placeholder="Um nome ou descrição por linha" /></div>
-                  <div className="space-y-2"><Label htmlFor="occurrence-witnesses">Testemunhas</Label><Textarea id="occurrence-witnesses" rows={3} value={form.witnesses} onChange={(event) => setForm((current) => ({ ...current, witnesses: event.target.value }))} placeholder="Uma testemunha por linha" /></div>
-                  <div className="space-y-2"><Label htmlFor="occurrence-evidence">Evidências ou anexos</Label><Textarea id="occurrence-evidence" rows={3} value={form.evidence} onChange={(event) => setForm((current) => ({ ...current, evidence: event.target.value }))} placeholder="Links, documentos ou protocolos, um por linha" /></div>
+                  <div className="space-y-2"><Label>Envolvidos identificados</Label><CitizenMultiSelector value={form.selectedInvolved} onChange={selectedInvolved=>setForm(current=>({...current,selectedInvolved}))} kind="involved" label="Adicionar envolvido"/><Label>Suspeitos identificados</Label><CitizenMultiSelector value={form.selectedSuspects} onChange={selectedSuspects=>setForm(current=>({...current,selectedSuspects}))} kind="suspect" label="Adicionar suspeito"/></div><div className="space-y-2"><Label htmlFor="occurrence-involved">Pessoas desconhecidas ou descrições adicionais</Label><Textarea id="occurrence-involved" rows={3} value={form.involvedPeople} onChange={(event) => setForm((current) => ({ ...current, involvedPeople: event.target.value }))} placeholder="Um nome ou descrição por linha" /></div>
+                  <div className="space-y-2"><Label>Testemunhas identificadas</Label><CitizenMultiSelector value={form.selectedWitnesses} onChange={selectedWitnesses=>setForm(current=>({...current,selectedWitnesses}))} kind="witness" label="Adicionar testemunha"/></div><div className="space-y-2"><Label htmlFor="occurrence-witnesses">Testemunhas desconhecidas ou descrições adicionais</Label><Textarea id="occurrence-witnesses" rows={3} value={form.witnesses} onChange={(event) => setForm((current) => ({ ...current, witnesses: event.target.value }))} placeholder="Uma testemunha por linha" /></div>
+                  <PoliceEvidenceUploader value={form.uploads} onChange={uploads=>setForm(current=>({...current,uploads}))} onBusyChange={setUploadingEvidence}/><div className="space-y-2"><Label htmlFor="occurrence-evidence">Referências adicionais</Label><Textarea id="occurrence-evidence" rows={3} value={form.evidence} onChange={(event) => setForm((current) => ({ ...current, evidence: event.target.value }))} placeholder="Links, documentos ou protocolos, um por linha" /></div>
                 </div>
 
                 <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-border/70 p-4">
@@ -474,7 +478,7 @@ const CitizenJusticeDashboard = () => {
                   </span>
                 </label>
 
-                <Button type="submit" disabled={submitting || !form.occurrenceType}>
+                <Button type="submit" disabled={submitting || uploadingEvidence || !form.occurrenceType}>
                   {submitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileText className="mr-2 h-4 w-4" />}
                   Registrar ocorrência
                 </Button>
@@ -507,6 +511,7 @@ const CitizenJusticeDashboard = () => {
                   <p className="line-clamp-3 text-sm text-muted-foreground">
                     {occurrence.description || occurrence.details}
                   </p>
+                  <OccurrenceDetails occurrence={occurrence}/>
                   <p className="mt-3 text-xs text-muted-foreground">Atualizada em {formatJusticeDate(occurrence.updated_at || occurrence.created_at)}</p>
                   {occurrence.history?.length ? <ol className="mt-4 space-y-2 border-l pl-4">{occurrence.history.map(event => <li key={event.id} className="text-sm"><p>{event.content}</p><time className="text-xs text-muted-foreground">{formatJusticeDate(event.created_at)}</time></li>)}</ol> : null}
                 </CardContent>
@@ -682,9 +687,7 @@ const CitizenJusticeDashboard = () => {
             <Card className="glass-effect"><CardHeader><CardTitle className="flex items-center gap-2"><FileSearch className="h-5 w-5 text-violet-300" />Investigações relacionadas</CardTitle></CardHeader><CardContent>{data.security.investigations?.length ? data.security.investigations.map((item) => <div key={item.number} className="mb-3 rounded-lg border border-violet-500/20 bg-violet-500/5 p-3"><p className="font-medium">{item.number}</p><p className="text-sm text-muted-foreground">{justiceStatus(item.status)}</p></div>) : <p className="text-sm text-muted-foreground">Seu perfil não consta como investigado.</p>}</CardContent></Card>
           </div>
           <Card className="border-emerald-500/25 bg-emerald-500/5"><CardHeader className="sm:flex-row sm:items-center sm:justify-between"><div><CardTitle className="flex items-center gap-2"><BadgeCheck className="h-5 w-5 text-emerald-300" />Atestado de antecedentes</CardTitle><CardDescription>O resultado é calculado no servidor e o documento verificável fica salvo no DIC por 90 dias.</CardDescription></div><Button className="mt-4 sm:mt-0" onClick={handleCertificate} disabled={actionLoading === 'certificate'}>{actionLoading === 'certificate' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ShieldCheck className="mr-2 h-4 w-4" />}Emitir atestado</Button></CardHeader></Card>
-          <Card className="glass-effect"><CardHeader><CardTitle>Indicadores de eficiência policial</CardTitle></CardHeader><CardContent className="grid gap-3 sm:grid-cols-4"><div><p className="text-sm text-muted-foreground">Ocorrências</p><p className="text-2xl font-bold">{data.policeMetrics.reported || 0}</p></div><div><p className="text-sm text-muted-foreground">Em investigação</p><p className="text-2xl font-bold">{data.policeMetrics.inInvestigation || 0}</p></div><div><p className="text-sm text-muted-foreground">Resolvidas</p><p className="text-2xl font-bold">{data.policeMetrics.resolved || 0}</p></div><div><p className="text-sm text-muted-foreground">Taxa de resolução</p><p className="text-2xl font-bold">{data.policeMetrics.resolutionRate || 0}%</p></div></CardContent></Card>
           {data.campaigns.length ? <div className="grid gap-4 md:grid-cols-2">{data.campaigns.map((campaign) => <Card key={campaign.id} className="glass-effect"><CardHeader><Badge className="mb-2 w-fit" variant="outline">{campaign.category}</Badge><CardTitle>{campaign.title}</CardTitle><CardDescription>{campaign.summary}</CardDescription></CardHeader><CardContent><p className="whitespace-pre-wrap text-sm text-muted-foreground">{campaign.content}</p></CardContent></Card>)}</div> : null}
-          {data.policeMetrics.ranking?.length ? <Card><CardHeader><CardTitle>Ranking de eficiência policial</CardTitle><CardDescription>Ocorrências concluídas e mandados cumpridos, sem pontuação por simples triagem ou arquivamento.</CardDescription></CardHeader><CardContent className="space-y-3">{data.policeMetrics.ranking.map((officer, index) => <div key={officer.id} className="flex items-center gap-3 rounded-lg border p-3"><span className="font-bold">{index + 1}º</span>{officer.avatar_url && <img src={officer.avatar_url} alt="" className="h-10 w-10 rounded-full object-cover"/>}<div className="min-w-0"><p className="font-semibold">{officer.full_name}</p><p className="text-xs text-muted-foreground">{officer.resolved_count} resolvidas · {officer.executed_count} mandados cumpridos{officer.average_hours != null ? ` · média de ${officer.average_hours} horas` : ''}</p></div></div>)}</CardContent></Card> : null}
           {data.wanted.length ? <Card className="border-red-500/25 bg-red-500/5"><CardHeader><CardTitle>Lista pública de procurados</CardTitle><CardDescription>Somente mandados de prisão oficiais, ativos e não expirados.</CardDescription></CardHeader><CardContent className="grid gap-3 sm:grid-cols-2">{data.wanted.map((item) => <div key={item.warrant_number} className="rounded-lg border border-red-500/20 p-3"><div className="flex items-center gap-3">{item.avatar_url && <img src={item.avatar_url} alt="" className="h-12 w-12 rounded-full object-cover"/>}<p className="font-semibold">{item.full_name}</p></div><p className="mt-2 text-sm text-muted-foreground">{item.warrant_number} · Mandado judicial de prisão em aberto</p></div>)}</CardContent></Card> : null}
         </TabsContent>
       </Tabs>

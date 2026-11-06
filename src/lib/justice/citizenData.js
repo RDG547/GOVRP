@@ -1,14 +1,14 @@
 import { fetchCitizenDirectory } from '../publicProfileQueries.js';
 import { querySections } from '../sectionLoader.js';
 
-export const CITIZEN_JUSTICE_SECTIONS = ['occurrences', 'cases', 'deadlines', 'requests', 'custody', 'fines', 'fineAppeals', 'fineHearings', 'citizenRequests', 'campaigns', 'security', 'wanted', 'policeMetrics', 'serverNow', 'investigationSubjects', 'profiles', 'timeline', 'caseDocuments', 'caseEvidence', 'caseHearings', 'caseAppeals', 'sentences'];
+export const CITIZEN_JUSTICE_SECTIONS = ['occurrences', 'cases', 'deadlines', 'requests', 'custody', 'fines', 'fineAppeals', 'fineHearings', 'citizenRequests', 'campaigns', 'security', 'wanted', 'serverNow', 'investigationSubjects', 'profiles', 'timeline', 'caseDocuments', 'caseEvidence', 'caseHearings', 'caseAppeals', 'sentences'];
 const sectionsByTable = {
-  police_occurrences: ['occurrences', 'policeMetrics'], criminal_cases: ['cases'],
+  police_occurrences: ['occurrences'], criminal_cases: ['cases'],
   justice_deadlines: ['deadlines'], judicial_requests: ['requests'], prison_terms: ['custody'],
   police_fines: ['fines'], fine_appeals: ['fineAppeals'], fine_hearing_requests: ['fineHearings'],
   citizen_justice_requests: ['citizenRequests'], public_safety_campaigns: ['campaigns'],
-  criminal_investigations: ['security', 'policeMetrics'], investigation_subjects: ['investigationSubjects', 'security'],
-  warrants: ['security', 'wanted', 'policeMetrics'], case_timeline_events: ['timeline'], case_documents: ['caseDocuments'], case_evidence: ['caseEvidence'],
+  criminal_investigations: ['security'], investigation_subjects: ['investigationSubjects', 'security'],
+  warrants: ['security', 'wanted'], case_timeline_events: ['timeline'], case_documents: ['caseDocuments'], case_evidence: ['caseEvidence'],
   hearings: ['caseHearings'], appeals: ['caseAppeals'], sentences: ['sentences'],
   case_parties: ['cases', 'timeline', 'caseDocuments', 'caseEvidence', 'caseHearings', 'caseAppeals', 'sentences'],
 };
@@ -17,7 +17,7 @@ export function citizenJusticeSectionsForEvents(events) {
   return [...new Set(events.flatMap(event => {
     if (event.table !== 'notifications') return sectionsByTable[event.table] || [];
     const type = event.new?.type || '';
-    if (type.startsWith('justice_occurrence_')) return ['occurrences', 'policeMetrics'];
+    if (type.startsWith('justice_occurrence_')) return ['occurrences'];
     if (type.startsWith('justice_warrant_')) return ['security', 'wanted'];
     if (type.startsWith('justice_request_')) return ['requests'];
     if (['justice_prison_admission', 'justice_arrest_executed', 'justice_flare_arrest', 'justice_release_order'].includes(type)) return ['custody', 'security'];
@@ -56,7 +56,7 @@ export async function fetchCitizenSections(client, sections = CITIZEN_JUSTICE_SE
     fineHearings: () => rows('fine_hearing_requests'), citizenRequests: () => rows('citizen_justice_requests'),
     campaigns: () => rows('public_safety_campaigns', 'starts_at', 20),
     security: () => client.rpc('get_my_security_status'), wanted: () => client.rpc('get_public_wanted_list'),
-    policeMetrics: () => client.rpc('get_police_efficiency_metrics'), serverNow: () => client.rpc('get_server_now'),
+    serverNow: () => client.rpc('get_server_now'),
     investigationSubjects: () => client.from('investigation_subjects').select('*, profile:profiles(id, full_name)').order('created_at', { ascending: false }).limit(200),
     profiles: () => fetchCitizenDirectory(client),
     timeline: () => client.from('case_timeline_events').select('*').order('created_at', { ascending: true }).limit(500),

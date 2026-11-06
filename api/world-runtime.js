@@ -1,3 +1,4 @@
+import process from 'node:process';
 // Same-origin read-only fallback when a mobile network cannot reach the
 // Supabase RPC directly. No service-role key or user data is involved.
 export default async function handler(req, res) {

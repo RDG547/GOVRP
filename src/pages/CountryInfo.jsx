@@ -420,11 +420,11 @@ const CountryInfo = () => {
                   <div className="max-w-3xl space-y-3">
                     <div className="inline-flex items-center gap-2 rounded-full border border-blue-500/30 bg-blue-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.24em] text-blue-300">
                       <FileText className="h-3.5 w-3.5" />
-                      {constitution?.title?.includes('UNIFICADA') ? 'Constituição Unificada' : 'Constituição Federal'}
+                      Constituição do GOV.RP
                     </div>
-                    <h2 className="text-3xl font-bold text-foreground">{constitution?.title || 'Constituição Federal'}</h2>
+                    <h2 className="text-3xl font-bold text-foreground">{constitution?.title || 'CONSTITUIÇÃO DO GOV.RP'}</h2>
                     <p className="text-muted-foreground">
-                      Versão {constitution?.version || 'vigente'} · consulte o texto persistido e seu histórico no GOV.RP.
+                      Consulte a Constituição vigente e o histórico das emendas.
                     </p>
                   </div>
 
@@ -439,7 +439,7 @@ const CountryInfo = () => {
                 <div className="mx-auto mt-6 max-w-4xl rounded-2xl border border-slate-200 bg-slate-50 px-5 py-8 text-slate-900 shadow-2xl sm:px-10 sm:py-12">
                   <header className="mb-10 border-b-2 border-slate-800 pb-6 text-center">
                     <p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500">República Digital</p>
-                    <h3 className="mt-3 text-2xl font-black uppercase sm:text-3xl">{constitution?.title || 'Constituição Federal do GOV.RP'}</h3>
+                    <h3 className="mt-3 text-2xl font-black uppercase sm:text-3xl">{constitution?.title || 'CONSTITUIÇÃO DO GOV.RP'}</h3>
                   </header>
                   <div className="space-y-9">
                     {constitution?.preamble ? (
@@ -596,7 +596,8 @@ const CountryInfo = () => {
                   </React.Suspense>
                 ) : (
                   <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                    <DetailItem icon={DollarSign} label="PIB" value={economy?.gdp?.value ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: economy.gdp.currency || 'USD', notation: 'compact' }).format(economy.gdp.value) : 'Em atualização'} />
+                    <DetailItem icon={DollarSign} label="PIB nominal em USD" value={economy?.gdp?.value ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: economy.gdp.currency || 'USD', notation: 'compact' }).format(economy.gdp.value) : 'Em atualização'} />
+                    {economy?.gdpBrl&&<DetailItem icon={DollarSign} label="PIB nominal em BRL" value={new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL',notation:'compact'}).format(economy.gdpBrl.value)}/>}
                     <DetailItem icon={ArrowUp} label="Crescimento" value={economy?.growth?.value != null ? `${Number(economy.growth.value).toFixed(2)}%` : 'Em atualização'} />
                     <DetailItem icon={DollarSign} label="Inflação" value={economy?.inflation?.value != null ? `${Number(economy.inflation.value).toFixed(2)}%` : 'Em atualização'} />
                     <DetailItem icon={Users} label="Desemprego" value={economy?.unemployment?.value != null ? `${Number(economy.unemployment.value).toFixed(2)}%` : 'Em atualização'} />

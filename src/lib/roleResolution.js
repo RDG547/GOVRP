@@ -75,7 +75,7 @@ export const getStoredTitles = (profile = {}) =>
 // Official labels are protected by the database. Public projections deliberately
 // omit private election metadata; the absence of that metadata never revokes office.
 export const getProfileRolePool = (profile = {}) =>
-  officialRoleCapabilities(canonicalRole(profile.stored_role || profile.role || 'Cidadão'));
+  [...new Set([...officialRoleCapabilities(canonicalRole(profile.stored_role || profile.role || 'Cidadão')), ...(profile.electoral_judge ? ['Presidente do Portal Eleitoral'] : [])])];
 
 export const resolvePrimaryRoleFromPool = (rolePool = [], fallbackRole = 'Usuário') =>
   EFFECTIVE_ROLE_PRIORITY.find((role) => rolePool.includes(role)) ||
@@ -89,7 +89,7 @@ export const resolvePrimaryRole = (profile = {}, syncState = null, fallbackRole 
     ? 'Cidadão'
     : fallback;
 
-  return resolvePrimaryRoleFromPool(rolePool, safeFallback);
+  return resolvePrimaryRoleFromPool(profile.electoral_judge ? rolePool.filter(role=>role!=='Presidente do Portal Eleitoral') : rolePool, safeFallback);
 };
 
 export const isActiveDateOnly = (dateValue) => !dateValue || dateValue >= todayDate();

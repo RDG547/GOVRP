@@ -1,3 +1,4 @@
+import JudicialGovernance from '@/components/justice/JudicialGovernance';
 import ServiceAccess from '@/components/ServiceAccess';
 import { JUSTICE_AUTHORITY_ROLES, primaryJusticeRole } from '@/lib/justice/constants';
 import React, { useEffect, useMemo, useState } from 'react';
@@ -20,6 +21,7 @@ const Justice = ({ defaultView = 'citizen' }) => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [timeSettings, setTimeSettings] = useState(null);
   const [loadingClock, setLoadingClock] = useState(true);
+  const [showGovernance, setShowGovernance] = useState(false);
   const hasAuthorityAccess = useMemo(() => hasAnyJusticeRole(user), [user]);
   const requestedView = searchParams.get('view') || defaultView;
   const activeView = requestedView === 'authority' && hasAuthorityAccess
@@ -108,6 +110,7 @@ const Justice = ({ defaultView = 'citizen' }) => {
           ) : null}
         </div>
 
+        <div className="mb-6 space-y-3"><Button variant="outline" aria-expanded={showGovernance} onClick={() => setShowGovernance(current=>!current)}><Gavel className="mr-2 h-4 w-4"/>STF, sabatinas e mandatos</Button>{showGovernance&&<JudicialGovernance/>}</div>
         {activeView === 'authority'
           ? <AuthorityJusticeDashboard />
           : <CitizenJusticeDashboard />}

@@ -265,7 +265,6 @@ const Police = () => {
             services: [
                 { title: 'Ver lista de procurados', description: 'Acesse a lista pública de foragidos.', icon: ShieldAlert, action: 'view_wanted_list', form: <p>A lista de procurados será exibida.</p> },
                 { title: 'Campanhas e Educação', description: 'Acesse informativos sobre leis.', icon: BookUser, action: 'view_campaigns', form: <p>Materiais educativos serão exibidos.</p> },
-                { title: 'Ranking de eficiência da polícia', description: 'Veja as estatísticas de desempenho.', icon: Award, action: 'view_police_stats', form: <p>As estatísticas serão exibidas.</p> },
             ]
         },
     ];

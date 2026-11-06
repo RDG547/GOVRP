@@ -6,7 +6,7 @@ import {useToast} from '@/components/ui/use-toast';
 import {Button} from '@/components/ui/button';
 import {GovSelect} from '@/components/ui/gov-select';
 import ModalGallery from './ModalGallery';
-const roles=['Cidadão','Presidente','Vice-Presidente','Deputado','Senador','Policial','Delegado','Promotor','Juiz','Ministro','Empresário','Agente Secreto','Militar','Presidente do STF','Presidente do Banco Nacional','Presidente do Portal Eleitoral'];
+const roles=['Cidadão','Presidente','Vice-Presidente','Deputado','Senador','Policial','Diretor-Geral de Polícia','Promotor','Juiz','Ministro','Empresário','Agente Secreto','Militar','Presidente do STF','Presidente do Banco Nacional','Presidente do Portal Eleitoral'];
 const panels=[['Presidente','/dashboard/president'],['Parlamento','/services/parliament/panel'],['Polícia','/services/justice?view=authority'],['Justiça','/services/justice?view=authority'],['Sistema prisional','/services/prison'],['Inteligência','/services/agies/panel'],['Forças Armadas','/services/armed-forces/panel'],['Empresas','/services/entrepreneur-portal?tab=country'],['Banco','/services/bank'],['Gestão bancária','/dashboard/bank-management']];
 export default function AdminDevelopment(){
  const {user,setAdminDevelopmentMode}=useAuth(),{toast}=useToast();const [draft,setDraft]=useState(()=>({mode:user.admin_development?.mode||'normal',simulatedRole:user.admin_development?.simulated_role||'Cidadão',executeReal:user.admin_development?.execute_real===true})),[busy,setBusy]=useState(false);

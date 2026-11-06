@@ -17,6 +17,6 @@ export function useOfficialSalaries() {
     return () => clearTimeout(timer);
   }, [roles]);
   useDomainRealtime('official-salaries', 'public', [{ table: 'system_settings', filter: 'key=eq.official_salaries' }], load);
-  return { roles, error, refresh: load };
+  return { roles: [...roles].sort((a,b)=>currentSalary(b)-currentSalary(a)), error, refresh: load };
 }
 export const currentSalary = (role, now = Date.now()) => Date.parse(role.valid_from) > now ? Number(role.previous_amount) : Number(role.amount);

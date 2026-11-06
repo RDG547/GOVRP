@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React from 'react';
 import {
   BarChart3,
   BadgeDollarSign,
@@ -93,141 +93,24 @@ const PublicEconomyPanel = ({ data }) => {
   const headline = data?.headline || {};
   const state = data?.state || {};
 
-  const gdpHistory = useMemo(() => (data?.history || [])
-    .filter((item) => item.indicators?.gdp_total != null)
-    .map((item) => ({
-      label: periodLabel(item),
-      gdp: asNumber(item.indicators.gdp_total) / 1_000_000,
-    })), [data]);
-
-  const localGdpHistory = useMemo(() => (data?.history || []).filter(item => item.indicators?.gdp_nominal != null && item.indicators?.gdp_real != null).map(item => ({ label: periodLabel(item), nominal: asNumber(item.indicators.gdp_nominal) / 1_000_000, real: asNumber(item.indicators.gdp_real) / 1_000_000 })), [data]);
-
-  const priceHistory = useMemo(() => (data?.history || [])
-    .filter((item) => (
-      item.indicators?.inflation_annual != null
-      || item.indicators?.unemployment_rate != null
-    ))
-    .map((item) => ({
-      label: periodLabel(item),
-      inflacao: asNumber(item.indicators?.inflation_annual),
-      desemprego: asNumber(item.indicators?.unemployment_rate),
-    })), [data]);
-
-  const exchangeHistory = useMemo(() => (data?.history || [])
-    .filter((item) => (
-      item.indicators?.exchange_usd != null
-      || item.indicators?.exchange_eur != null
-    ))
-    .map((item) => ({
-      label: periodLabel(item),
-      usd: asNumber(item.indicators?.exchange_usd),
-      eur: asNumber(item.indicators?.exchange_eur),
-    })), [data]);
+  const historyChart = (key, label, color, divisor = 1) => <EconomyChart embedded title="Histórico oficial" description={divisor === 1_000_000 ? 'Valores em milhões, preservados em cada registro.' : 'Observações persistidas; períodos sem registro não são estimados.'} data={(data?.history || []).filter(item => item.indicators?.[key] != null).map(item => ({ label: periodLabel(item), value: Number(item.indicators[key]) / divisor }))} series={[{ key: 'value', name: label, color }]} height={170} />;
 
   return (
     <div className="space-y-6">
       <EconomyStateBanner state={state} />
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <EconomyCard
-          label="PIB nominal em dólares"
-          value={formatUsdCurrency(headline.gdp_total ?? headline.gdp_nominal, true)}
-          detail={headline.gdp_basis === 'annualized_latest_period' ? 'último período fechado, anualizado e convertido pelo câmbio vigente' : 'valor em dólares'}
-          icon={BarChart3}
-        />
-        {headline.gdp_nominal != null && <EconomyCard label="PIB nominal em reais" value={formatCurrency(headline.gdp_nominal, true)} detail="Produção a preços correntes · referência anualizada" icon={Factory} accent="text-emerald-300" />}
-        {headline.gdp_real != null && <EconomyCard label="PIB real em reais" value={formatCurrency(headline.gdp_real, true)} detail="Produção corrigida pela inflação · referência anualizada" icon={BarChart3} accent="text-violet-300" />}
-        <EconomyCard
-          label="Crescimento do PIB"
-          value={formatPercent(
-            headline.gdp_growth_year_over_year ?? headline.gdp_growth_quarterly,
-            true,
-          )}
-          detail={headline.gdp_growth_year_over_year != null ? 'acumulado em 12 meses' : 'variação trimestral'}
-          icon={TrendingUp}
-          accent="text-cyan-300"
-        />
-        <EconomyCard
-          label="Inflação anual"
-          value={formatPercent(headline.inflation_annual)}
-          detail={`meta de ${formatPercent(state.inflation_target)}`}
-          icon={ShoppingBasket}
-          accent="text-amber-300"
-        />
-        <EconomyCard
-          label="Desemprego"
-          value={formatPercent(headline.unemployment_rate)}
-          detail="população economicamente ativa"
-          icon={Briefcase}
-          accent="text-violet-300"
-        />
-        <EconomyCard
-          label="Câmbio com o dólar"
-          value={formatCurrency(state.exchange_rate)}
-          detail="por US$ 1"
-          icon={CircleDollarSign}
-          accent="text-green-300"
-        />
-        <EconomyCard
-          label="Câmbio com o euro"
-          value={formatCurrency(state.exchange_eur)}
-          detail="por € 1"
-          icon={CircleDollarSign}
-          accent="text-blue-300"
-        />
-        <EconomyCard
-          label="Taxa Selic"
-          value={formatPercent(state.current_selic)}
-          detail="ao ano no calendário RP"
-          icon={Landmark}
-          accent="text-emerald-300"
-        />
-        <EconomyCard
-          label="Poder de compra"
-          value={formatIndex(headline.purchasing_power)}
-          detail="índice médio, base 100"
-          icon={Gauge}
-          accent="text-fuchsia-300"
-        />
-        <EconomyCard
-          label="Confiança empresarial"
-          value={formatIndex(state.business_confidence)}
-          detail={`Consumidor: ${formatIndex(state.consumer_confidence)}`}
-          icon={TrendingUp}
-          accent="text-green-300"
-        />
-      </div>
-
-      <div className="grid gap-6 xl:grid-cols-2">
-        <EconomyChart
-          title="Evolução do PIB nominal em dólares"
-          description="US$ milhões desde o início do estado atual do RP."
-          data={gdpHistory}
-          series={[
-            { key: 'gdp', name: 'PIB nominal USD', color: '#22d3ee' },
-          ]}
-          type="area"
-        />
-        {localGdpHistory.length > 0 && <EconomyChart title="Produção nominal e real" description="R$ milhões anualizados. Valores preservados em cada fechamento; o PIB real desconta a inflação." data={localGdpHistory} series={[{ key: 'nominal', name: 'PIB nominal BRL', color: '#22c55e' }, { key: 'real', name: 'PIB real BRL', color: '#a78bfa' }]} />}
-        <EconomyChart
-          title="Inflação e desemprego"
-          description="Variações oficiais nos fechamentos mensais."
-          data={priceHistory}
-          series={[
-            { key: 'inflacao', name: 'Inflação anual', color: '#f59e0b' },
-            { key: 'desemprego', name: 'Desemprego', color: '#fb7185' },
-          ]}
-        />
-        <EconomyChart
-          title="Evolução do câmbio"
-          description="Valores oficiais persistidos em cada atualização do estado econômico."
-          data={exchangeHistory}
-          series={[
-            { key: 'usd', name: 'USD/BRL', color: '#22c55e' },
-            { key: 'eur', name: 'EUR/BRL', color: '#60a5fa' },
-          ]}
-          type="area"
-        />
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <EconomyCard label="PIB nominal em dólares" value={headline.gdp_total != null ? formatUsdCurrency(headline.gdp_total,true) : 'Sem referência em USD'} detail="Produção nominal em BRL dividida pelo câmbio oficial do mesmo registro" icon={BarChart3}>{historyChart('gdp_total','PIB nominal USD','#22d3ee',1_000_000)}</EconomyCard>
+        <EconomyCard label="PIB nominal em reais" value={headline.gdp_nominal != null ? formatCurrency(headline.gdp_nominal,true) : 'Sem referência em BRL'} detail="Produção a preços correntes; o câmbio não altera este valor" icon={Factory} accent="text-emerald-300">{historyChart('gdp_nominal','PIB nominal BRL','#22c55e',1_000_000)}</EconomyCard>
+        <EconomyCard label="PIB real em reais" value={headline.gdp_real != null ? formatCurrency(headline.gdp_real,true) : 'Sem referência de PIB real'} detail="Produção corrigida pela inflação" icon={BarChart3} accent="text-violet-300">{historyChart('gdp_real','PIB real BRL','#a78bfa',1_000_000)}</EconomyCard>
+        <EconomyCard label="Crescimento do PIB" value={formatPercent(headline.gdp_growth_year_over_year ?? headline.gdp_growth_quarterly,true)} detail={headline.gdp_growth_year_over_year != null ? 'Acumulado em 12 meses' : 'Variação trimestral'} icon={TrendingUp}>{historyChart(headline.gdp_growth_year_over_year != null ? 'gdp_growth_year_over_year' : 'gdp_growth_quarterly','Crescimento (%)','#22d3ee')}</EconomyCard>
+        <EconomyCard label="Inflação anual" value={formatPercent(headline.inflation_annual)} detail={`Meta de ${formatPercent(state.inflation_target)}`} icon={ShoppingBasket} accent="text-amber-300">{historyChart('inflation_annual','Inflação (%)','#f59e0b')}</EconomyCard>
+        <EconomyCard label="Desemprego" value={formatPercent(headline.unemployment_rate)} detail="População economicamente ativa" icon={Briefcase} accent="text-violet-300">{historyChart('unemployment_rate','Desemprego (%)','#fb7185')}</EconomyCard>
+        <EconomyCard label="Câmbio com o dólar" value={formatCurrency(state.exchange_rate)} detail="Reais por US$ 1" icon={CircleDollarSign} accent="text-green-300">{historyChart('exchange_usd','USD/BRL','#22c55e')}</EconomyCard>
+        <EconomyCard label="Câmbio com o euro" value={formatCurrency(state.exchange_eur)} detail="Reais por € 1" icon={CircleDollarSign} accent="text-blue-300">{historyChart('exchange_eur','EUR/BRL','#60a5fa')}</EconomyCard>
+        <EconomyCard label="Taxa Selic" value={formatPercent(state.current_selic)} detail="Ao ano no calendário RP" icon={Landmark} accent="text-emerald-300">{historyChart('current_selic','Selic (%)','#34d399')}</EconomyCard>
+        <EconomyCard label="Poder de compra" value={formatIndex(headline.purchasing_power)} detail="Índice médio, base 100" icon={Gauge} accent="text-fuchsia-300">{historyChart('purchasing_power','Poder de compra','#e879f9')}</EconomyCard>
+        <EconomyCard label="Confiança empresarial" value={formatIndex(state.business_confidence)} detail={`Consumidor: ${formatIndex(state.consumer_confidence)}`} icon={TrendingUp} accent="text-green-300">{historyChart('business_confidence','Confiança empresarial','#4ade80')}</EconomyCard>
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[1.35fr_0.65fr]">

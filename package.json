@@ -134,7 +134,9 @@
     "test:reset-domain-coverage": "node tools/test-reset-domain-coverage.mjs",
     "test:reset-background-jobs": "node tools/test-reset-background-jobs.mjs",
     "test:reset-options": "node tools/test-reset-options.mjs",
-    "test:reset-options-interface": "node tools/test-reset-options-interface.mjs"
+    "test:reset-options-interface": "node tools/test-reset-options-interface.mjs",
+    "test:integrated-expansion": "node tools/test-integrated-institutions.mjs && node tools/test-police-evidence-integration.mjs && node tools/test-salary-legislative-integration.mjs && node tools/test-delayed-inauguration-integration.mjs && node tools/test-economic-agent-ledgers.mjs && node tools/test-gdp-currency-history.mjs && node tools/test-expansion-reset-compatibility.mjs",
+    "test:expansion-e2e": "node tools/test-expansion-api-realtime.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.0",
@@ -188,6 +190,7 @@
     "d3-geo": "^3.1.1",
     "date-fns": "^3.6.0",
     "embla-carousel-react": "^8.6.0",
+    "file-type": "22.3.0",
     "framer-motion": "^10.16.4",
     "html2canvas": "^1.4.1",
     "input-otp": "^1.4.2",

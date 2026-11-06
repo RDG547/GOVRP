@@ -65,10 +65,12 @@ const normalizeSnapshotHistory = (snapshots, currentState) => {
       gdp_nominal: asFiniteNumber(economic.gdpNominalLocal),
       gdp_real: asFiniteNumber(economic.gdpRealLocal),
       gdp_growth_year_over_year: asFiniteNumber(economic.growth),
+      gdp_growth_quarterly: asFiniteNumber(economic.growthQuarterly),
       inflation_annual: asFiniteNumber(economic.inflation),
       unemployment_rate: asFiniteNumber(economic.unemployment),
       exchange_usd: asFiniteNumber(economic.exchangeUsd),
       exchange_eur: asFiniteNumber(economic.exchangeEur),
+      current_selic: asFiniteNumber(economic.selic),
     }),
   }));
 };
@@ -144,6 +146,7 @@ export const composeNationalEconomyDashboard = ({ dashboard, rpState, snapshots 
       ...(economicCycle ? { economic_cycle: economicCycle } : {}),
       ...(exchangeUsd !== null ? { exchange_rate: exchangeUsd } : {}),
       ...(exchangeEur !== null ? { exchange_eur: exchangeEur } : {}),
+      ...(asFiniteNumber(economic.selic)!==null ? {current_selic:Number(economic.selic)} : {}),
       player_share: asFiniteNumber(rpState.player_share) ?? 0.5,
       simulated_share: asFiniteNumber(rpState.simulated_share) ?? 0.5,
     },

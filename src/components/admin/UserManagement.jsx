@@ -248,7 +248,7 @@ const EditUserDialog = ({ user, onFinish, onUpdate }) => {
         }
     };
 
-    const availableRoles = ['Usuário', 'Cidadão', 'Presidente', 'Vice-Presidente', 'Presidente da Câmara dos Deputados', 'Vice-Presidente da Câmara dos Deputados', 'Presidente do Senado', 'Vice-Presidente do Senado Federal', 'Presidente do STF', 'Presidente do Banco Nacional', 'Presidente do Portal Eleitoral', 'Deputado', 'Senador', 'Juiz', 'Promotor', 'Policial', 'Ministro', 'Agente Secreto', 'Militar', 'Diretor-Geral de Polícia', 'Comandante-Geral das Forças Armadas', 'Comandante da Agência de Inteligência'];
+    const availableRoles = ['Usuário', 'Cidadão', 'Presidente', 'Vice-Presidente', 'Presidente da Câmara dos Deputados', 'Vice-Presidente da Câmara dos Deputados', 'Presidente do Senado', 'Vice-Presidente do Senado Federal', 'Presidente do STF', 'Presidente do Banco Nacional', 'Deputado', 'Senador', 'Juiz', 'Promotor', 'Policial', 'Ministro', 'Agente Secreto', 'Militar', 'Diretor-Geral de Polícia', 'Comandante-Geral das Forças Armadas', 'Comandante da Agência de Inteligência'];
 
     return (
         <DialogContent className="glass-effect max-h-[90vh] overflow-y-auto text-white">
@@ -448,7 +448,7 @@ const roleConfig = {
 
 const USERS_PER_PAGE = 12;
 const roleOrder = [
-    'Admin', 'Presidente', 'Vice-Presidente', 'Presidente da Câmara dos Deputados', 'Vice-Presidente da Câmara dos Deputados', 'Presidente do Senado', 'Vice-Presidente do Senado Federal', 'Presidente do STF', 'Presidente do Banco Nacional', 'Presidente do Portal Eleitoral', 'Ministro', 'Senador', 'Deputado',
+    'Admin', 'Presidente', 'Vice-Presidente', 'Presidente da Câmara dos Deputados', 'Vice-Presidente da Câmara dos Deputados', 'Presidente do Senado', 'Vice-Presidente do Senado Federal', 'Presidente do STF', 'Presidente do Banco Nacional', 'Ministro', 'Senador', 'Deputado',
     'Juiz', 'Policial', 'Agente Secreto', 'Militar', 'Cidadão', 'Usuário'
 ];
 

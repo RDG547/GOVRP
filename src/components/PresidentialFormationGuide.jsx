@@ -34,7 +34,7 @@ export default function PresidentialFormationGuide() {
   useEffect(()=>{void load();},[load]);
   useDomainRealtime('presidential-formation',user?.id,[{table:'notifications',filter:`user_id=eq.${user?.id}`},'ministers','system_settings','presidential_formation','profiles','government_terms','minister_invitations'],load,canGovern);
   const pendingMinistry=formation?.ministries?.find(item=>!item.holder_id&&!(item.invitation?.status==='pending'&&Date.parse(item.invitation.expires_at)>Date.now()));
-  const pendingOffice=formation?.offices?.find(item=>!item.appointment?.user_id&&item.invitation?.status!=='pending');
+  const pendingOffice=formation?.offices?.find(item=>!item.appointment?.user_id&&!(item.invitation?.status==='pending'||(item.invitation?.status==='accepted'&&['hearing','voting'].includes(item.invitation?.institutional_stage))));
   const target=pendingMinistry||pendingOffice;
   const candidateOffice = pendingMinistry ? 'minister' : pendingOffice?.office_key;
   useEffect(() => { setSelected(''); }, [candidateOffice, pendingMinistry?.id]);

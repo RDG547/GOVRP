@@ -1,3 +1,4 @@
+import EntityCashTransfer from '@/components/EntityCashTransfer';
 import EntityFines from '@/components/justice/EntityFines';
 import PartyDonationDialog from './PartyDonationDialog';
 import PagedResults from '@/components/ui/paged-results';
@@ -41,8 +42,9 @@ export default function PartyTreasury({ party }) {
   ], load);
   return <Card style={{borderTopColor:partyColor(party.color),borderTopWidth:3}} className="glass-effect min-w-0"><CardHeader><CardTitle className="flex items-center gap-2"><Wallet className="h-5 w-5" style={{color:partyColor(party.color)}}/>Caixa partidário</CardTitle></CardHeader><CardContent className="space-y-4">
     <p className="text-2xl font-semibold tabular-nums" aria-label="Saldo do caixa partidário">{balance == null ? 'Consultando saldo…' : formatCurrency(balance)}</p>
-    <p className="text-sm text-muted-foreground">Os recursos pertencem ao partido. Dono, presidente, vice-presidente e membros podem acompanhar o caixa; não há saque para contas pessoais. As doações e o histórico são públicos.</p>
+    <p className="text-sm text-muted-foreground">Os recursos pertencem ao partido. Doações e transferências têm histórico público. O dono e o presidente podem transferir recursos com justificativa registrada.</p>
     {user && party.status !== 'Encerrado' && <PartyDonationDialog party={party} onDonated={load}/>}
+    {user&&([party.owner_id||party.founder_id,party.president_id].includes(user.id)||(user.is_platform_admin&&user.admin_development?.mode==='total'))&&party.status!=='Encerrado'&&<EntityCashTransfer partyId={party.id} onCompleted={load}/>}
     <EntityFines targetType="party" targetId={party.id} onChanged={load}/>
     {failed && <Button variant="outline" onClick={load}>Não foi possível consultar. Tentar novamente</Button>}
     <PagedResults page={page}><ol className="space-y-3" aria-label="Movimentações do caixa partidário">{entries.map(entry => <li key={entry.id} className="flex min-w-0 items-start gap-3 rounded-lg border p-3"><Avatar className="shrink-0"><AvatarImage src={entry.donor_snapshot?.avatar_url}/><AvatarFallback>{entry.donor_snapshot?.full_name?.charAt(0) || '?'}</AvatarFallback></Avatar><div className="min-w-0 flex-1"><p className="break-words font-medium">{entry.donor_snapshot?.full_name || 'Cidadão indisponível'}</p><p className="text-xs text-muted-foreground">{entry.description} · {formatDateTimeBR(entry.created_at)}</p><p className={`mt-1 flex items-center gap-1 ${Number(entry.amount)<0?'text-red-400':'text-emerald-400'}`}>{Number(entry.amount)<0?<ArrowUpRight className="h-4 w-4"/>:<ArrowDownLeft className="h-4 w-4"/>}{formatCurrency(entry.amount)}</p></div></li>)}</ol></PagedResults>

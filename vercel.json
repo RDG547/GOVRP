@@ -11,12 +11,16 @@
       "headers": [
         {
           "key": "Content-Security-Policy",
-          "value": "default-src 'self'; base-uri 'self'; object-src 'none'; script-src 'self' 'unsafe-eval' 'unsafe-inline' https://js.stripe.com https://va.vercel-scripts.com https://js.hcaptcha.com https://*.hcaptcha.com; style-src 'self' 'unsafe-inline' https:; img-src 'self' data: blob: https:; media-src 'self' blob: https:; font-src 'self' data: https:; connect-src 'self' https: wss:; frame-src 'self' https://js.stripe.com https://hooks.stripe.com https://*.hcaptcha.com; manifest-src 'self'; upgrade-insecure-requests"
+          "value": "default-src 'self'; base-uri 'self'; object-src 'none'; script-src 'self' 'unsafe-eval' 'unsafe-inline' https://js.stripe.com https://va.vercel-scripts.com https://js.hcaptcha.com https://*.hcaptcha.com; style-src 'self' 'unsafe-inline' https:; img-src 'self' data: blob: https:; media-src 'self' blob: https:; font-src 'self' data: https:; connect-src 'self' https: wss:; frame-src 'self' https://nojlfilayycebrtyybzf.supabase.co https://js.stripe.com https://hooks.stripe.com https://*.hcaptcha.com; manifest-src 'self'; upgrade-insecure-requests"
         }
       ]
     }
   ],
   "rewrites": [
+    {
+      "source": "/api/justice/evidence",
+      "destination": "/api/citizens/avatar?kind=evidence"
+    },
     {
       "source": "/api/donations/stripe-webhook",
       "destination": "/api/donations/stripe-checkout"

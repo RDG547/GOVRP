@@ -170,7 +170,7 @@ const PoliticalParties = () => {
         return (
           <AlertDialog>
             <AlertDialogTrigger asChild>
-              <Button className="w-full" disabled={isLoading}>{isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <LogIn className="mr-2 h-4 w-4" />} Filiar-se</Button>
+              <Button className="w-full whitespace-nowrap" disabled={isLoading}>{isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <LogIn className="mr-2 h-4 w-4" />} Filiar-se</Button>
             </AlertDialogTrigger>
             <AlertDialogContent>
               <AlertDialogHeader className="items-center text-center sm:text-center"><LogIn className="h-8 w-8 text-primary"/><AlertDialogTitle>Trocar de partido?</AlertDialogTitle><AlertDialogDescription>Você já é membro de "{userAffiliation.party.name}". Para entrar em "{party.name}", primeiro desfilie-se do partido atual. A solicitação não altera sua filiação automaticamente.</AlertDialogDescription></AlertDialogHeader>
@@ -180,7 +180,7 @@ const PoliticalParties = () => {
         )
       }
 
-      return <Button className="w-full" onClick={affiliateAction} disabled={isLoading || !!pendingRequest}>{isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <LogIn className="mr-2 h-4 w-4" />} Filiar-se</Button>
+      return <Button className="w-full whitespace-nowrap" onClick={affiliateAction} disabled={isLoading || !!pendingRequest}>{isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <LogIn className="mr-2 h-4 w-4" />} Filiar-se</Button>
     }
 
     return (
@@ -213,7 +213,7 @@ const PoliticalParties = () => {
                             const userIsLeader = [party.owner_id, party.president_id, party.vice_president_id].includes(user?.id);
 
                             return (
-                                <motion.div key={party.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+                                <motion.div key={party.id} className="h-full min-w-0" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
                                     <Card style={{borderTopColor:partyColor(party.color),borderTopWidth:4}} className={`glass-effect flex flex-col h-full hover:border-primary transition-colors duration-300 ${isUserParty ? 'border-primary' : ''} ${!isActive && 'border-dashed border-amber-500'}`}>
                                         <CardHeader>
                                             <div className="relative space-y-3">
@@ -223,14 +223,14 @@ const PoliticalParties = () => {
                                                       alt={party.name}
                                                       className="h-14 w-14 shrink-0 rounded-lg bg-secondary p-1 object-cover"
                                                     />
-                                                    <CardTitle style={{fontFamily:brandFont(party.customization?.font_key)}} className="min-w-0 break-words text-foreground">{party.name} ({party.acronym})</CardTitle>
+                                                    <CardTitle style={{fontFamily:brandFont(party.customization?.font_key)}} className="min-h-14 min-w-0 break-words text-foreground">{party.name} ({party.acronym})</CardTitle>
                                                 </div>
-                                                <CardDescription className="text-muted-foreground">{party.description}</CardDescription>
+                                                <CardDescription tabIndex={0} aria-label={`Descrição de ${party.name}`} className="h-24 overflow-y-auto whitespace-pre-wrap break-words pr-2 text-muted-foreground">{party.description}</CardDescription>
                                                 {isUserParty && <Star className="absolute top-0 right-0 w-5 h-5 text-yellow-400 fill-yellow-400" />}
                                             </div>
                                         </CardHeader>
                                         <CardContent className="flex-grow space-y-2">
-                                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                            <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
                                                 <Calendar className="w-4 h-4" />
                                                 <div className="flex items-center gap-2 text-sm text-muted-foreground"><Avatar className="h-7 w-7"><AvatarImage src={party.founder?.avatar_url} alt=""/><AvatarFallback>{party.founder?.full_name?.charAt(0)||'?'}</AvatarFallback></Avatar><span>Fundador: {party.founder?.full_name || 'Não registrado'}</span></div><span>Fundado em {format(new Date(party.created_at), "dd/MM/yyyy", { locale: ptBR })}</span>
                                             </div>
