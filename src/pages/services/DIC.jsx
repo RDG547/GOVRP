@@ -218,6 +218,8 @@ const DIC = () => {
             toast({ title: 'Título de Eleitor emitido', description: 'Seu documento já está disponível no DIC.' });
             await refreshDocuments();
             await refreshUser({ skipSync: true });
+            // Inform an open electoral screen without requiring a page reload.
+            window.dispatchEvent(new Event('govrp:electoral-document-updated'));
         } catch (error) {
             toast({ title: 'Emissão eleitoral indisponível', description: error.message || 'Confirme seu e-mail e aguarde completar 24 horas de conta.', variant: 'destructive' });
         } finally {
