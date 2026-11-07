@@ -1,5 +1,8 @@
 import CandidateIdentity, { candidateIdentity } from './CandidateIdentity';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
+import { getVotingEligibilityNotice } from '@/lib/electoralEligibility';
 import { Check, Loader2, RotateCcw, Vote } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 import { useToast } from '@/components/ui/use-toast';
@@ -8,11 +11,62 @@ import { electionNumberDigits } from '@/lib/electoralNumbers';
 export default function ElectronicBallot({ election, candidates, hasVoted, onRecorded }) {
   const [number, setNumber] = useState(''), [blank, setBlank] = useState(false), [saving, setSaving] = useState(false), [recorded, setRecorded] = useState(false);
   const busy = useRef(false), { toast } = useToast();
+  const { user } = useAuth();
+  const requestSequence = useRef(0);
   const digits = electionNumberDigits(election), complete = number.length === digits;
   const candidate = complete ? candidates.find(item => item.electoral_number === number && item.status === 'Approved') : null;
-  const [eligible, setEligible] = useState(null);
-  useEffect(()=>{let active=true;setEligible(null);supabase.rpc('can_vote_in_election',{p_election_id:election.id}).then(({data,error})=>{if(active)setEligible(!error&&Boolean(data));});return()=>{active=false;};},[election.id,election.election_mode]);
-  const disabled = saving || recorded || hasVoted || eligible !== true;
+  const [eligibility, setEligibility] = useState({ status: 'loading', reason: null });
+  const checkEligibility = useCallback(async () => {
+    const requestId = ++requestSequence.current;
+    setEligibility({ status: 'loading', reason: null });
+    try {
+      const { data, error } = await supabase.rpc('get_my_election_voting_status', { p_election_id: election.id });
+      if (requestId !== requestSequence.current) return;
+      if (error || !data || typeof data.eligible !== 'boolean') {
+        console.warn('electoral-eligibility-check', error || 'Unexpected response');
+        setEligibility({ status: 'error', reason: null });
+        return;
+      }
+      setEligibility({
+        status: data.eligible ? 'eligible' : 'ineligible',
+        reason: data.reason,
+        eligibleAt: data.eligibleAt || null,
+      });
+    } catch (error) {
+      if (requestId === requestSequence.current) {
+        console.warn('electoral-eligibility-check', error);
+        setEligibility({ status: 'error', reason: null });
+      }
+    }
+  }, [election.id]);
+
+  useEffect(() => {
+    void checkEligibility();
+    let lastResumeAt = 0;
+    const onResume = () => {
+      if (document.visibilityState === 'hidden' || Date.now() - lastResumeAt < 1500) return;
+      lastResumeAt = Date.now();
+      void checkEligibility();
+    };
+    window.addEventListener('focus', onResume);
+    document.addEventListener('visibilitychange', onResume);
+    window.addEventListener('govrp:electoral-document-updated', onResume);
+    return () => {
+      requestSequence.current += 1;
+      window.removeEventListener('focus', onResume);
+      document.removeEventListener('visibilitychange', onResume);
+      window.removeEventListener('govrp:electoral-document-updated', onResume);
+    };
+  }, [checkEligibility, election.election_mode, user?.id, user?.onboarding_completed]);
+
+  useEffect(() => {
+    if (eligibility.reason !== 'account_wait_24h' || !eligibility.eligibleAt) return undefined;
+    const remaining = new Date(eligibility.eligibleAt).getTime() - Date.now();
+    const timeout = window.setTimeout(() => { void checkEligibility(); }, Math.max(1000, Math.min(remaining + 1000, 2147483647)));
+    return () => window.clearTimeout(timeout);
+  }, [eligibility.reason, eligibility.eligibleAt, checkEligibility]);
+
+  const disabled = saving || recorded || hasVoted || eligibility.status !== 'eligible';
   useEffect(() => { setNumber(''); setBlank(false); setRecorded(false); }, [election.id]);
   const type = digit => { if (!disabled) { setBlank(false); setNumber(current => (blank ? digit : current + digit).slice(0, digits)); } };
   const correct = () => { if (!disabled) { setNumber(''); setBlank(false); } };
@@ -26,9 +80,36 @@ export default function ElectronicBallot({ election, candidates, hasVoted, onRec
     } catch (error) {
       console.error('electronic-ballot', error);
       const text = error.message || '';
+      if (/habilitado|eleitorado|título|cidadão|conta/i.test(text)) void checkEligibility();
       toast({ title: 'Voto não registrado', description: /^(Entre |Seu cidadão|Emita |Eleição|Esta eleição|Você já votou|Digite |Candidato|Este número)/.test(text) ? text : 'Não foi possível registrar o voto. Confira sua conexão e tente novamente.', variant: 'destructive' });
     } finally { setSaving(false); busy.current = false; }
   };
-  if(eligible===false)return <p role="status" className="rounded-xl border p-4">{election.election_mode==='indirect'?'Esta eleição indireta é exclusiva dos parlamentares elegíveis do Congresso. Você pode acompanhar as candidaturas e o resultado.':'Sua sessão não está habilitada para votar nesta eleição.'}</p>;
+  if (!recorded && !hasVoted && eligibility.status !== 'eligible') {
+    const notice = getVotingEligibilityNotice(eligibility.reason, eligibility.eligibleAt);
+    return (
+      <div role="status" className="space-y-3 rounded-xl border p-4">
+        {eligibility.status === 'loading' ? (
+          <p className="flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> Verificando sua habilitação eleitoral...</p>
+        ) : (
+          <>
+            <p>{eligibility.status === 'error'
+              ? 'Não foi possível consultar sua habilitação eleitoral agora. Confira a conexão e tente novamente.'
+              : notice.message}</p>
+            <div className="flex flex-wrap gap-2">
+              {eligibility.status === 'ineligible' && notice.action && (
+                <Link to={notice.action.to} className="inline-flex min-h-10 items-center rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-500">
+                  {notice.action.label}
+                </Link>
+              )}
+              <button type="button" onClick={() => { void checkEligibility(); }}
+                className="inline-flex min-h-10 items-center rounded-lg border px-3 py-2 text-sm font-medium hover:bg-muted">
+                Verificar novamente
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    );
+  }
   return <section aria-label="Urna eletrônica" className="rounded-2xl border border-slate-400 bg-gradient-to-br from-slate-200 to-slate-400 p-3 text-slate-950 shadow-[5px_8px_0_#475569,0_18px_30px_#0005] sm:p-5"><div className="mb-3 flex items-center gap-2 font-bold"><Vote className="h-6 w-6"/>JUSTIÇA ELEITORAL · GOVRP</div><div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_230px]"><div className="min-h-64 rounded-lg border-4 border-slate-600 bg-[#e4e7d8] p-3 shadow-inner sm:p-5" aria-live="polite" aria-atomic="true">{recorded || hasVoted ? <div className="flex h-full min-h-56 flex-col items-center justify-center gap-4"><Check className="h-14 w-14 text-green-800 motion-safe:animate-in motion-safe:zoom-in"/><p className="text-center text-2xl font-black">VOTO REGISTRADO.</p><p className="text-sm">Você concluiu sua votação nesta eleição.</p></div> : <><p className="text-xs">SEU VOTO PARA</p><h3 className="mt-2 text-xl font-bold uppercase">{election.election_types?.name || election.name}</h3><label htmlFor={`ballot-${election.id}`} className="mt-4 block text-sm">Digite o número ({digits} dígitos)</label><input id={`ballot-${election.id}`} inputMode="numeric" autoComplete="off" maxLength={digits} value={number} disabled={disabled} onChange={event => { setBlank(false); setNumber(event.target.value.replace(/\D/g, '').slice(0, digits)); }} onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); confirm(); } if (event.key === 'Escape') correct(); }} className="mt-1 w-full max-w-56 rounded border-2 border-slate-700 bg-white/50 p-2 font-mono text-3xl tracking-[.3em] outline-offset-4 focus-visible:outline focus-visible:outline-blue-700"/>{blank ? <p className="mt-4 text-xl font-bold">VOTO EM BRANCO</p> : candidate ? <div className="mt-4 space-y-3"><CandidateIdentity identity={candidateIdentity(candidate)} label="Titular"/>{candidate.vice_identity_snapshot&&<CandidateIdentity identity={candidate.vice_identity_snapshot} label="Vice-Presidente" compact/>}<p className="text-sm">Confira os dados e pressione CONFIRMA.</p></div> : complete ? <div className="mt-4"><p className="font-bold">Candidato não encontrado.</p><p className="mt-2 text-sm">CONFIRMA registra um voto nulo. Use CORRIGE para trocar o número.</p></div> : <p className="mt-4 text-sm">Digite o número completo para conferir o candidato.</p>}</>}</div><div className="rounded-lg bg-slate-900 p-3"><div className="mx-auto grid max-w-72 grid-cols-3 gap-2">{[1,2,3,4,5,6,7,8,9,0].map(digit => <button type="button" key={digit} disabled={disabled} aria-label={`Dígito ${digit}`} onClick={() => type(String(digit))} className={`min-h-12 rounded border border-slate-600 bg-gradient-to-b from-slate-600 to-slate-800 text-2xl font-bold text-white shadow-[0_3px_0_#020617] transition active:translate-y-0.5 disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white ${digit === 0 ? 'col-start-2' : ''}`}>{digit}</button>)}</div><div className="mt-4 grid grid-cols-3 gap-1.5"><button type="button" disabled={disabled} onClick={() => { setNumber(''); setBlank(true); }} className="min-h-14 rounded bg-white px-1 text-[10px] font-bold text-slate-950 focus-visible:ring-2 focus-visible:ring-cyan-300 disabled:opacity-50">BRANCO</button><button type="button" disabled={disabled} onClick={correct} className="min-h-14 rounded bg-orange-400 px-1 text-[10px] font-bold text-slate-950 focus-visible:ring-2 focus-visible:ring-white disabled:opacity-50"><RotateCcw className="mx-auto mb-1 h-4 w-4"/>CORRIGE</button><button type="button" disabled={disabled || (!complete && !blank)} onClick={confirm} className="min-h-14 rounded bg-green-400 px-1 text-[10px] font-bold text-slate-950 focus-visible:ring-2 focus-visible:ring-white disabled:opacity-50">{saving ? <Loader2 className="mx-auto h-5 w-5 animate-spin"/> : <><Check className="mx-auto mb-1 h-4 w-4"/>CONFIRMA</>}</button></div></div></div></section>;
 }
