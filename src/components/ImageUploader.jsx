@@ -10,11 +10,14 @@ import {
   MAX_STANDARD_IMAGE_UPLOAD_BYTES,
   validateRemoteAssetUrl,
   validateSelectedFile,
+  snapshotSelectedImageFile,
 } from '@/lib/security';
 
 const ImageUploader = ({
   onUrlChange,
   onFileChange,
+  cacheSelectedFile = false,
+  onPreparingChange,
   initialUrl = '',
   label = 'Imagem',
   labelIcon: LabelIcon,
@@ -36,7 +39,10 @@ const ImageUploader = ({
     return () => URL.revokeObjectURL(objectUrl);
   }, [file, url]);
   const [error, setError] = useState('');
+  const [preparing, setPreparing] = useState(false);
   const fileInputRef = useRef(null);
+  const selectionSequence = useRef(0);
+  useEffect(() => () => { selectionSequence.current += 1; }, []);
 
   useEffect(() => {
     setUrl(initialUrl);
@@ -45,6 +51,9 @@ const ImageUploader = ({
   }, [initialUrl]);
 
   const handleUrlChange = (e) => {
+    selectionSequence.current += 1;
+    setPreparing(false);
+    onPreparingChange?.(false);
     const newUrl = e.target.value;
     setUrl(newUrl);
 
@@ -65,13 +74,13 @@ const ImageUploader = ({
     }
   };
 
-  const handleFileChange = (e) => {
+  const handleFileChange = async (e) => {
     const selectedFile = e.target.files?.[0];
+    if (!selectedFile) return;
 
-    if (!selectedFile) {
-      return;
-    }
-
+    // Allow selecting the same photo again after a permission/read failure.
+    e.target.value = '';
+    const sequence = ++selectionSequence.current;
     const validation = validateSelectedFile(selectedFile, {
       allowedMimeTypes,
       allowedExtensions,
@@ -81,18 +90,39 @@ const ImageUploader = ({
 
     if (!validation.ok) {
       setError(validation.error);
-      onFileChange?.(null);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
       return;
     }
 
     setError('');
-    setFile(selectedFile);
-    onFileChange?.(selectedFile);
-    setUrl('');
-    onUrlChange?.('');
+    if (!cacheSelectedFile) {
+      setFile(selectedFile);
+      onFileChange?.(selectedFile);
+      setUrl('');
+      onUrlChange?.('');
+      return;
+    }
+
+    setPreparing(true);
+    onPreparingChange?.(true);
+    try {
+      // Capture while the picker still grants file access, not minutes later
+      // when the user finally presses "Anunciar Produto".
+      const localCopy = await snapshotSelectedImageFile(selectedFile);
+      if (sequence !== selectionSequence.current) return;
+      setFile(localCopy);
+      onFileChange?.(localCopy);
+      setUrl('');
+      onUrlChange?.('');
+    } catch (readError) {
+      if (sequence !== selectionSequence.current) return;
+      console.warn('image-picker-read', readError);
+      setError('Não foi possível acessar a foto selecionada. Escolha a imagem novamente pela Galeria ou Arquivos. Seus dados do anúncio foram preservados.');
+    } finally {
+      if (sequence === selectionSequence.current) {
+        setPreparing(false);
+        onPreparingChange?.(false);
+      }
+    }
   };
 
   const handleUploadClick = () => {
@@ -100,6 +130,9 @@ const ImageUploader = ({
   };
 
   const handleClearFile = () => {
+    selectionSequence.current += 1;
+    setPreparing(false);
+    onPreparingChange?.(false);
     setFile(null);
     setError('');
     onFileChange?.(null);
@@ -127,10 +160,11 @@ const ImageUploader = ({
             className="pl-10"
           />
         </div>
-        <Button type="button" variant="outline" size="sm" aria-label={`Enviar ${label}`} onClick={handleUploadClick}><Upload className="mr-2 h-4 w-4"/>{preview ? 'Alterar imagem' : 'Enviar imagem'}</Button>
+        <Button type="button" variant="outline" size="sm" disabled={preparing} aria-label={`Enviar ${label}`} onClick={handleUploadClick}><Upload className="mr-2 h-4 w-4"/>{preparing ? 'Lendo imagem...' : preview ? 'Alterar imagem' : 'Enviar imagem'}</Button>
         {(file || (allowRemove && preview)) && <Button type="button" variant="ghost" size="sm" aria-label={`Remover ${label}`} onClick={handleClearFile}><X className="mr-2 h-4 w-4"/>Remover</Button>}
       </div>
-      {error && <p className="text-sm text-destructive">{error}</p>}
+      {preparing && <p role="status" className="text-xs text-muted-foreground">Preparando imagem selecionada...</p>}
+      {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
       <input
         type="file"
         ref={fileInputRef}
