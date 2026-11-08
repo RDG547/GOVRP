@@ -82,8 +82,10 @@ const ImageUploader = ({
     e.target.value = '';
     const sequence = ++selectionSequence.current;
     const validation = validateSelectedFile(selectedFile, {
-      allowedMimeTypes,
-      allowedExtensions,
+      // When caching, inspect actual bytes regardless of the MIME/extension
+      // reported by Android's content provider (which may use .bin/text/plain).
+      allowedMimeTypes: cacheSelectedFile ? [] : allowedMimeTypes,
+      allowedExtensions: cacheSelectedFile ? [] : allowedExtensions,
       maxBytes: maxFileSize,
       label: 'imagem',
     });
