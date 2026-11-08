@@ -178,6 +178,36 @@ export const detectSupportedImageContentType = async (file) => {
   return null;
 };
 
+
+/**
+ * Android photo/document pickers may revoke permission for the original File
+ * after the picker closes. Read its bytes immediately during selection and
+ * retain an independent in-memory File for later uploads (max size is checked
+ * by the caller before invoking this function).
+ */
+export const snapshotSelectedImageFile = async (sourceFile) => {
+  if (!sourceFile || typeof sourceFile.arrayBuffer !== 'function') {
+    throw new Error('Arquivo indisponível.');
+  }
+  // Start reading the original file at selection time, never at form submit.
+  const contents = await sourceFile.arrayBuffer();
+  if (!contents.byteLength || contents.byteLength !== sourceFile.size) {
+    throw new Error('O arquivo selecionado não pôde ser lido completamente.');
+  }
+  const type = await detectSupportedImageContentType(new Blob([contents]));
+  if (!type) {
+    throw new Error('Formato de imagem inválido. Selecione JPEG, PNG, WebP, GIF ou AVIF.');
+  }
+  const name = sourceFile.name || 'imagem';
+  const lastModified = sourceFile.lastModified || Date.now();
+  // All supported Android WebViews and current browsers implement File.
+  if (typeof File === 'function') return new File([contents], name, { type, lastModified });
+  const snapshot = new Blob([contents], { type });
+  snapshot.name = name;
+  snapshot.lastModified = lastModified;
+  return snapshot;
+};
+
 export const openUrlInNewTab = (url) => {
   const safeUrl = normalizeSafeUrl(url);
 
