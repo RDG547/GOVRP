@@ -293,7 +293,14 @@ const ProductFormDialog = ({ isOpen, setIsOpen, product, onSuccess }) => {
       toast({ title: `Produto ${product ? 'atualizado' : 'criado'} com sucesso!`, description: savedProduct?.moderation_status === 'pending' ? 'O anúncio aguarda aprovação da gestão do marketplace.' : 'A alteração já está disponível.' });
       onSuccess();
     } catch (error) {
-      toast({ title: 'Erro ao salvar produto', description: userErrorMessage(error), variant: 'destructive' });
+      const unreadable = error?.name === 'NotReadableError' || /requested file could not be read|permission problems.*file/i.test(error?.message || '');
+      toast({
+        title: 'Erro ao salvar produto',
+        description: unreadable
+          ? 'O Android não permitiu acessar essa imagem. Selecione novamente pela Galeria ou Arquivos e tente anunciar. Os dados preenchidos foram preservados.'
+          : userErrorMessage(error),
+        variant: 'destructive',
+      });
     } finally {
       // A network failure can occur after the database commits. Keep the image and
       // reuse its URL on retry so the same idempotency key preserves the product.
