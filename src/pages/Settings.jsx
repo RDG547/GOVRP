@@ -1,4 +1,5 @@
 import AccountPasswordSettings from '@/components/AccountPasswordSettings';
+import AccountEmailSettings from '@/components/AccountEmailSettings';
 import { formatDateBR } from '@/lib/dateTime';
 import { formatLocaleBR } from '@/lib/dateTime';
 import React, { useEffect, useRef, useState } from 'react';
@@ -119,11 +120,12 @@ const Settings = () => {
                   <div><Label htmlFor="real-name">Nome completo real</Label><div className="relative mt-2"><User className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" /><Input id="real-name" required value={account.realFullName} onChange={(event) => setAccount((current) => ({ ...current, realFullName: event.target.value }))} className="pl-10" /></div></div>
                   <div><Label htmlFor="real-birth">Data de nascimento real</Label><div className="relative mt-2"><Calendar className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" /><Input id="real-birth" type="date" required value={account.realDateOfBirth} onChange={(event) => setAccount((current) => ({ ...current, realDateOfBirth: event.target.value }))} className="pl-10" /></div></div>
                   <div><Label htmlFor="account-phone">Telefone</Label><div className="relative mt-2"><Phone className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" /><Input id="account-phone" inputMode="tel" required value={account.phone} onChange={(event) => setAccount((current) => ({ ...current, phone: formatPhone(event.target.value) }))} className="pl-10" /></div></div>
-                  <ReadOnlyField label="E-mail" value={session?.user?.email} icon={Mail} hint="Alterações de e-mail usam o fluxo seguro de autenticação." />
+                  <ReadOnlyField label="E-mail" value={session?.user?.email} icon={Mail} hint="Altere o endereço de login com confirmação por e-mail na seção abaixo." />
                 </div>
                 <div className="mt-7 flex justify-end"><Button type="submit" disabled={accountLoading}>{accountLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}Salvar dados da conta</Button></div>
               </form>
               <AccountPasswordSettings/>
+              <AccountEmailSettings/>
             </TabsContent>
 
             <TabsContent value="citizen" className="mt-6">
