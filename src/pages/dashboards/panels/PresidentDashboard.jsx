@@ -557,7 +557,7 @@ const LoanManager = ({ onUpdate, setActiveTab, govFinances }) => {
     const [isSaving, setIsSaving] = useState(false);
     const [bankPolicy, setBankPolicy] = useState(DEFAULT_BANK_POLICY);
 
-    const availableLoanAmount = govFinances ? govFinances.loan_limit - govFinances.loans_balance : 0;
+    const availableLoanAmount = govFinances ? Math.max(0, Number(govFinances.loan_limit || 0) - Number(govFinances.loans_balance || 0)) : 0;
     const governmentDebtRate = Number(bankPolicy.government_debt_interest_rate || 0);
     const estimatedTotalDebt = amount * (1 + governmentDebtRate / 100);
 
@@ -605,9 +605,10 @@ const LoanManager = ({ onUpdate, setActiveTab, govFinances }) => {
                     <DialogDescription>
                         Solicite um empréstimo para o cofre público.
                         <br />
-                        <span className="font-bold text-primary">Disponível para empréstimo: {formatCurrency(availableLoanAmount)}</span>
+                        <span className="font-bold text-primary">Margem para empréstimo bancário: {formatCurrency(availableLoanAmount)}</span>
                         <br />
                         <span>Taxa vigente do Banco Nacional: {governmentDebtRate.toFixed(2)}% a.m.</span>
+                        <br /><span>A dívida pública da economia RP é apurada separadamente.</span>
                     </DialogDescription>
                 </DialogHeader>
                 <div className="grid gap-4 py-4">
@@ -624,7 +625,7 @@ const LoanManager = ({ onUpdate, setActiveTab, govFinances }) => {
                     </div>
                 </div>
                 <DialogFooter>
-                    <Button onClick={handleTakeLoan} disabled={isSaving}>
+                    <Button onClick={handleTakeLoan} disabled={isSaving || !Number.isFinite(amount) || amount <= 0 || !Number.isInteger(installments) || installments < 1 || estimatedTotalDebt > availableLoanAmount}>
                         {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Confirmar Empréstimo
                     </Button>
                 </DialogFooter>

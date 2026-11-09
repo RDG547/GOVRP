@@ -46,8 +46,8 @@ import {
     SERVICE_MODE_OPTIONS,
 } from '@/lib/serviceCatalog';
 
-const FinanceInfo = ({ finances, loading }) => (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
+const FinanceInfo = ({ finances, publicDebt, loading }) => (
+    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 mb-4">
         <div className="p-4 bg-background/30 rounded-lg">
             <p className="text-sm text-muted-foreground">Saldo do Cofre</p>
             {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <p className="text-xl font-bold">{formatCurrency(finances.treasury_balance || 0)}</p>}
@@ -57,8 +57,14 @@ const FinanceInfo = ({ finances, loading }) => (
             {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <p className="text-xl font-bold">{formatCurrency(finances.corporate_card_used || 0)} / {formatCurrency(finances.corporate_card_limit || 0)}</p>}
         </div>
         <div className="p-4 bg-background/30 rounded-lg">
-            <p className="text-sm text-muted-foreground">Empréstimos Tomados</p>
-            {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <p className="text-xl font-bold">{formatCurrency(finances.loans_balance || 0)} / {formatCurrency(finances.loan_limit || 0)}</p>}
+            <p className="text-sm text-muted-foreground">Empréstimos bancários contratados</p>
+            {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <p className="text-xl font-bold break-words">{formatCurrency(finances.loans_balance || 0)} / {formatCurrency(finances.loan_limit || 0)}</p>}
+            <p className="mt-1 text-xs text-muted-foreground">Não inclui déficits e despesas fiscais simuladas.</p>
+        </div>
+        <div className="p-4 bg-background/30 rounded-lg">
+            <p className="text-sm text-muted-foreground">Dívida pública (economia RP)</p>
+            {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <p className="text-xl font-bold break-words">{publicDebt === null ? 'Indisponível' : formatCurrency(publicDebt)}</p>}
+            <p className="mt-1 text-xs text-muted-foreground">Calculada por déficits e juros; não representa saldo em caixa.</p>
         </div>
     </div>
 );
@@ -84,34 +90,44 @@ const TreasuryManager = ({ onUpdate }) => {
     }, [amount]);
 
     const handleAction = async (action) => {
+        if (saving) return;
+        if (!Number.isFinite(amount) || amount < 0 || (action !== 'set' && amount === 0)) {
+            toast({ title: 'Valor inválido', description: 'Informe um valor monetário válido.', variant: 'destructive' });
+            return;
+        }
+        const justification = reason.trim();
+        if (justification.length < 20) {
+            toast({ title: 'Justificativa muito curta', description: `O motivo deve ter pelo menos 20 caracteres. Faltam ${20 - justification.length}.`, variant: 'destructive' });
+            return;
+        }
         setSaving(true);
-        if (amount <= 0 && action !== 'set') {
-            toast({ title: "Valor inválido", variant: "destructive" });
-            setSaving(false);
-            return;
-        }
-        if (!reason) {
-            toast({ title: "Motivo obrigatório", variant: "destructive" });
-            setSaving(false);
-            return;
-        }
-
-        const { data, error } = await supabase.rpc('admin_modify_treasury', {
-            p_amount: amount,
-            p_action: action,
-            p_reason: reason
-        });
-
-        if (error || !data.success) {
-            toast({ title: "Erro ao modificar cofre", description: data?.message || error.message, variant: "destructive" });
-        } else {
-            toast({ title: "Sucesso!", description: data.message });
+        try {
+            const { data, error } = await supabase.rpc('admin_modify_treasury', {
+                p_amount: amount, p_action: action, p_reason: justification,
+            });
+            if (error || !data?.success) {
+                const failure = error?.message || data?.message || 'Não foi possível concluir a operação.';
+                const explanations = {
+                    JUSTIFICATION_REQUIRED: 'Descreva o motivo com pelo menos 20 caracteres.',
+                    ADMIN_REQUIRED: 'Somente administradores podem modificar o cofre.',
+                    INVALID_AMOUNT: 'Informe um valor válido.',
+                    INVALID_ACTION: 'Ação desconhecida.',
+                    TREASURY_BALANCE_INSUFFICIENT: 'O cofre não tem saldo para essa retirada.',
+                };
+                const translated = Object.entries(explanations).find(([code]) => failure.includes(code))?.[1] || failure;
+                toast({ title: 'Erro ao modificar cofre', description: translated, variant: 'destructive' });
+                return;
+            }
+            toast({ title: 'Cofre atualizado', description: data.message });
             setAmount(0);
             setInputValue('');
             setReason('');
-            onUpdate();
+            await onUpdate();
+        } catch (error) {
+            toast({ title: 'Erro ao modificar cofre', description: error?.message || 'Tente novamente.', variant: 'destructive' });
+        } finally {
+            setSaving(false);
         }
-        setSaving(false);
     };
 
     return (
@@ -127,13 +143,16 @@ const TreasuryManager = ({ onUpdate }) => {
                 </div>
                 <div>
                     <Label htmlFor="treasury-reason">Motivo da Operação</Label>
-                    <Input id="treasury-reason" value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Ex: Arrecadação de impostos" />
+                    <Input id="treasury-reason" value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Ex: Ajuste do caixa do governo para nova gestão" maxLength={2000} aria-describedby="treasury-reason-hint" />
+                    <p id="treasury-reason-hint" className="mt-1 text-xs text-muted-foreground">
+                        Motivo obrigatório com 20 caracteres ou mais ({reason.trim().length}/20). Toda alteração é auditada.
+                    </p>
                 </div>
             </CardContent>
-            <CardFooter className="gap-2">
-                <Button onClick={() => handleAction('add')} disabled={saving} variant="secondary"><PlusCircle className="mr-2 h-4 w-4" />Adicionar</Button>
-                <Button onClick={() => handleAction('remove')} disabled={saving} variant="destructive"><MinusCircle className="mr-2 h-4 w-4" />Remover</Button>
-                <Button onClick={() => handleAction('set')} disabled={saving}><Target className="mr-2 h-4 w-4" />Definir Valor Exato</Button>
+            <CardFooter className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+                <Button onClick={() => handleAction('add')} disabled={saving} variant="secondary" className="w-full min-w-0 sm:w-auto"><PlusCircle className="mr-2 h-4 w-4 shrink-0" />Adicionar</Button>
+                <Button onClick={() => handleAction('remove')} disabled={saving} variant="destructive" className="w-full min-w-0 sm:w-auto"><MinusCircle className="mr-2 h-4 w-4 shrink-0" />Remover</Button>
+                <Button onClick={() => handleAction('set')} disabled={saving} className="w-full min-w-0 whitespace-normal sm:w-auto"><Target className="mr-2 h-4 w-4 shrink-0" />Definir Valor Exato</Button>
             </CardFooter>
         </Card>
     );
@@ -224,7 +243,7 @@ const GovLoanManager = ({ onUpdate }) => {
         <Card className="glass-effect">
             <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-white"><Handshake className="w-5 h-5 text-green-400" /> Empréstimos do Governo</CardTitle>
-                <CardDescription>Defina o limite total de empréstimos que o governo pode tomar.</CardDescription>
+                <CardDescription>Defina o limite de crédito contratado. A dívida fiscal da economia RP é separada.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
                 <div>
@@ -756,6 +775,7 @@ const SystemSettings = () => {
         citizen_income: { enabled: false, amount: 0, day_of_week: 6 }
     });
     const [govFinances, setGovFinances] = useState({});
+    const [publicDebt, setPublicDebt] = useState(null);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
 
@@ -773,6 +793,10 @@ const SystemSettings = () => {
             const { data: financesData, error: financesError } = await supabase.from('government_finances').select('*').single();
             if (financesError) throw financesError;
             setGovFinances(financesData);
+            const { data: debtData, error: debtError } = await supabase.from('economic_state')
+                .select('public_debt').eq('id', true).maybeSingle();
+            if (debtError) console.warn('finance-public-debt', debtError);
+            setPublicDebt(debtError || debtData?.public_debt == null ? null : Number(debtData.public_debt));
 
         } catch (error) {
             toast({ title: "Erro ao carregar configurações", description: error.message, variant: "destructive" });
@@ -856,7 +880,7 @@ const SystemSettings = () => {
             </TabsList>
             <TabsContent value="government" className="mt-6">
                 <div className="space-y-6">
-                    <FinanceInfo finances={govFinances} loading={loading} />
+                    <FinanceInfo finances={govFinances} publicDebt={publicDebt} loading={loading} />
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                         <TreasuryManager onUpdate={fetchSettings} />
                         <GovCardManager onUpdate={fetchSettings} />
