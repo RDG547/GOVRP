@@ -365,7 +365,7 @@ const Elections = () => {
         {
             value: "candidato", label: "Candidato", icon: ClipboardSignature,
             services: [
-                { title: 'Registrar Candidatura', description: 'Inicie o processo para se candidatar a um cargo eletivo.', icon: ClipboardSignature, onAction: () => setIsRegisterOpen(true) },
+                { title: ['Presidente','Deputado','Senador'].some((role)=>[user?.role,...(user?.effective_roles||[])].includes(role)) ? 'Candidatar-se / Reeleição' : 'Registrar Candidatura', description: 'Candidate-se a um cargo eletivo ou tente a reeleição, quando permitida pelas regras constitucionais.', icon: ClipboardSignature, onAction: () => setIsRegisterOpen(true) },
                 { title: 'Acompanhar Situação', description: 'Verifique o status de seus registros de candidatura.', icon: CheckSquare, onAction: () => setIsTrackOpen(true) },
             ]
         },
