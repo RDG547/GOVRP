@@ -161,7 +161,10 @@ export const AuthProvider = ({ children }) => {
           .eq('id', currentSession.user.id)
           .single();
 
-        if (error?.code === 'PGRST116' || !profile) {
+        // Recreate only when PostgREST confirms there is no profile.
+        // A 401/403/5xx or network error also returns no data, and must not
+        // trigger an administrative profile creation attempt.
+        if (error?.code === 'PGRST116' || (!error && !profile)) {
           const { error: creationError } = await supabase.rpc('ensure_profile_exists');
           if (creationError) {
             throw creationError;
