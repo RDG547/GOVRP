@@ -64,18 +64,20 @@ BEGIN
   new.term_start_date:=coalesce(new.term_start_date,current_date);
   normal_limit:=(new.term_start_date+interval '1 month')::date;
   IF new.term_end_date IS NULL THEN new.term_end_date:=normal_limit; END IF;
-  IF new.term_end_date>normal_limit AND NOT (
-    tg_op='UPDATE'
-    AND new.term_start_date IS NOT DISTINCT FROM old.term_start_date
-    AND EXISTS(
-      SELECT 1 FROM public.election_office_assignments a
-      WHERE a.profile_id=new.user_id
-        AND a.office_role=public.get_parliament_base_role_label(new.house_id)
-        AND a.status='active'
-        AND a.metadata->>'holdover'='true'
-        AND a.term_ends_at::date>=new.term_end_date
-    )
-  ) THEN
+  IF new.term_end_date>normal_limit THEN
+    IF tg_op='UPDATE' THEN
+      IF new.term_start_date IS NOT DISTINCT FROM old.term_start_date
+        AND EXISTS(
+          SELECT 1 FROM public.election_office_assignments a
+          WHERE a.profile_id=new.user_id
+            AND a.office_role=public.get_parliament_base_role_label(new.house_id)
+            AND a.status='active'
+            AND a.metadata->>'holdover'='true'
+            AND a.term_ends_at::date>=new.term_end_date
+        ) THEN
+        RETURN new;
+      END IF;
+    END IF;
     new.term_end_date:=normal_limit;
   END IF;
   RETURN new;
