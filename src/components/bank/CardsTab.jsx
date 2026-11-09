@@ -240,11 +240,9 @@ const CardsTab = ({ onUpdate }) => {
     const fetchData = useCallback(() => refreshSections(CARD_SECTIONS), [refreshSections]);
     useEffect(() => {
         setCards([]); setInvoices([]); setCardApplications([]); setItemRevisions({}); setLoading(true);
-        const load = async () => {
-            await supabase.rpc('close_due_invoices');
-            await fetchData();
-        };
-        void load().catch(() => setLoading(false));
+        // This screen is read-only on load. Invoice closure is a privileged,
+        // scheduled server-side operation; never invoke it with citizen JWTs.
+        void fetchData().catch(() => setLoading(false));
     }, [fetchData]);
     useDomainRealtime('bank', user?.id, bankRealtimeTables(user?.id), events => {
         void refreshSections(bankSectionsForEvents(events, CARD_SECTIONS));
