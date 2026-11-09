@@ -35,7 +35,14 @@ export default function AccountEmailSettings() {
       // profiles directly; Secure Email Change verifies the addresses.
       const { error: authError } = await supabase.auth.updateUser(
         { email: newEmail },
-        { emailRedirectTo: getAppRedirectUrl('/settings?email-change=confirmed') }
+        { emailRedirectTo: (() => {
+          const requested = getAppRedirectUrl('/settings?email-change=confirmed');
+          // Native routes currently allow /auth/callback and /update-password,
+          // not /settings. Use the verified web domain for email confirmations.
+          return requested.startsWith('br.com.govrp.app:')
+            ? 'https://govrp.vercel.app/settings?email-change=confirmed'
+            : requested;
+        })() }
       );
       if (authError) throw authError;
       setSuccess(true);
