@@ -109,7 +109,9 @@ const RegisterCandidacy = ({ onFinished }) => {
   const selectedViceCandidateId = form.watch('vice_candidate_id');
   const selectedElection = elections.find((election) => election.id === selectedElectionId) || null;
   const requiresViceCandidate = isPresidentialTicketElection(selectedElection);
-  const currentElectionOffice = ['Presidente', 'Deputado', 'Senador'].includes(user?.role) ? user.role : null;
+  const currentElectionOffice = ['Presidente', 'Deputado', 'Senador'].find(
+    (role) => [user?.role, ...(user?.effective_roles || [])].includes(role)
+  ) || null;
   const selectedElectionOffice = selectedElection?.election_types?.name;
   const seekingReelection = Boolean(currentElectionOffice && selectedElectionOffice === currentElectionOffice);
   const numberDigits = electionNumberDigits(selectedElection);
