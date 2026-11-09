@@ -43,6 +43,7 @@ export const AuthProvider = ({ children }) => {
   const userRef = useRef(null);
   const resumeRefreshRef = useRef(false);
   const lastResumeRefreshAtRef = useRef(0);
+  const initialHydrationDoneRef = useRef(false);
 
   useEffect(() => { sessionRef.current = session; }, [session]);
   useEffect(() => { void supabase.realtime.setAuth(session?.access_token); }, [session?.access_token]);
@@ -216,11 +217,14 @@ export const AuthProvider = ({ children }) => {
     if (!currentSession?.user) {
       setUser(null);
       userRef.current = null;
+      initialHydrationDoneRef.current = true;
       setLoading(false);
       return null;
     }
 
-    if (showLoading) setLoading(true);
+    // Avoid remounting the entire login/register route when Supabase refreshes
+    // or signs in after initial hydration. Only the first load uses the auth wall.
+    if (showLoading && !initialHydrationDoneRef.current) setLoading(true);
 
     try {
       const profile = await withTimeout(
@@ -232,6 +236,7 @@ export const AuthProvider = ({ children }) => {
       if (requestId !== hydrationRequestRef.current) return profile;
       setUser(current => JSON.stringify(current) === JSON.stringify(profile) ? current : profile);
       userRef.current = profile;
+      initialHydrationDoneRef.current = true;
       setLoading(false);
       return profile;
     } catch (error) {
@@ -240,6 +245,7 @@ export const AuthProvider = ({ children }) => {
       setUser(null);
       userRef.current = null;
       setAuthError(error?.message || 'Não foi possível carregar sua conta.');
+      initialHydrationDoneRef.current = true;
       setLoading(false);
       return null;
     }
@@ -349,6 +355,7 @@ export const AuthProvider = ({ children }) => {
       setUser(null);
       setSession(null);
       setAuthError(error?.message || 'Não foi possível restaurar sua sessão.');
+      initialHydrationDoneRef.current = true;
       setLoading(false);
     }
   }, [hydrateSession]);

@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { Helmet } from 'react-helmet-async';
 import { Check, Eye, EyeOff, Loader2, Lock, Mail, User, UserPlus } from 'lucide-react';
 import { parsePhoneNumber } from 'react-phone-number-input';
-import { FaDiscord, FaFacebook, FaGoogle } from 'react-icons/fa';
+import SocialAuthButtons from '@/components/auth/SocialAuthButtons';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -181,16 +181,8 @@ const Register = () => {
           </form>
 
           <div className="relative"><div className="absolute inset-0 flex items-center"><div className="w-full border-t border-white/20" /></div><div className="relative flex justify-center text-sm"><span className="bg-background px-2 text-gray-400">Ou autentique com</span></div></div>
-          <div className="grid gap-3 sm:grid-cols-3">
-            {[
-              ['google', FaGoogle, 'Google'], ['facebook', FaFacebook, 'Facebook'], ['discord', FaDiscord, 'Discord'],
-            ].map(([provider, Icon, label]) => (
-              <Button key={provider} variant="outline" onClick={() => handleSocialLogin(provider)} disabled={loading || Boolean(socialLoadingProvider)}>
-                {socialLoadingProvider === provider ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Icon className="mr-2" />}{label}
-              </Button>
-            ))}
-          </div>
-          <p className="text-center text-gray-300">Já tem conta? <Link to="/login" className="font-medium text-blue-400 hover:underline">Entrar</Link></p>
+          <SocialAuthButtons onSelect={handleSocialLogin} disabled={loading} loadingProvider={socialLoadingProvider} />
+          <p className="text-center text-gray-300">Já tem conta? <Link to="/login" className="font-medium text-blue-400 hover:underline">Entrar</Link><span className="mx-2 text-slate-500">·</span><Link to="/forgot-password" className="font-medium text-blue-400 hover:underline">Esqueceu a senha?</Link></p>
         </motion.div>
       </div>
     </>

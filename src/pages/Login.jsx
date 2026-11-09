@@ -8,7 +8,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/components/ui/use-toast';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { FaGoogle, FaFacebook, FaDiscord } from 'react-icons/fa';
+import SocialAuthButtons from '@/components/auth/SocialAuthButtons';
 import { isAuthPopupClosedError, signInWithOAuthPopup } from '@/lib/oauthPopup';
 import HCaptchaChallenge from '@/components/auth/HCaptchaChallenge';
 
@@ -145,7 +145,7 @@ const Login = () => {
             <div>
                <div className="flex items-center justify-between">
                   <Label htmlFor="password" className="text-gray-300 mb-2 block">Senha</Label>
-                  <Link to="/forgot-password" tabIndex={-1} className="text-sm text-blue-400 hover:underline">Esqueceu a senha?</Link>
+                  <Link to="/forgot-password" className="text-sm text-blue-400 hover:underline">Esqueceu a senha?</Link>
               </div>
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
@@ -189,20 +189,7 @@ const Login = () => {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <Button variant="outline" onClick={() => handleSocialLogin('google')} disabled={loading || Boolean(socialLoadingProvider)} className="w-full flex justify-center items-center gap-2">
-              {socialLoadingProvider === 'google' ? <Loader2 className="h-4 w-4 animate-spin" /> : <FaGoogle />}
-              <span>Google</span>
-            </Button>
-            <Button variant="outline" onClick={() => handleSocialLogin('facebook')} disabled={loading || Boolean(socialLoadingProvider)} className="w-full flex justify-center items-center gap-2">
-              {socialLoadingProvider === 'facebook' ? <Loader2 className="h-4 w-4 animate-spin" /> : <FaFacebook />}
-              <span>Facebook</span>
-            </Button>
-            <Button variant="outline" onClick={() => handleSocialLogin('discord')} disabled={loading || Boolean(socialLoadingProvider)} className="w-full flex justify-center items-center gap-2">
-              {socialLoadingProvider === 'discord' ? <Loader2 className="h-4 w-4 animate-spin" /> : <FaDiscord />}
-              <span>Discord</span>
-            </Button>
-          </div>
+          <SocialAuthButtons onSelect={handleSocialLogin} disabled={loading} loadingProvider={socialLoadingProvider} />
 
           <div className="mt-6 text-center">
             <p className="text-gray-300">

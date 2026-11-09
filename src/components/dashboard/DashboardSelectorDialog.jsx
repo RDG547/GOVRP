@@ -61,6 +61,10 @@ const DashboardSelectorDialog = ({
               <span>Painel Presidencial</span>
             </Button>
           )}
+          {isAdmin && <Button type="button" variant="outline" className="w-full justify-center gap-3" onClick={() => selectDashboard('/role-dashboard')}>
+            <FolderKanban className="h-5 w-5" />
+            <span>Painéis de todos os cargos</span>
+          </Button>}
           {isAdmin && (
             <Button
               type="button"

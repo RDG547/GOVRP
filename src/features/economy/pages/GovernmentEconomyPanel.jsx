@@ -1,4 +1,6 @@
-import React from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/lib/supabaseClient';
 import { BadgeDollarSign, Building2, Landmark, Scale } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -14,7 +16,69 @@ import {
   projectStatusLabels,
 } from '@/lib/economy/format';
 
+const GOVERNMENT_FISCAL_POLICIES = [
+  'consumption_tax', 'corporate_tax', 'income_tax', 'payroll_tax',
+  'minimum_wage', 'public_spending',
+];
+const READABLE_MONETARY_POLICIES = ['selic', 'inflation_target'];
+
 const GovernmentEconomyPanel = ({ data, toast, onRefresh }) => {
+  const { user } = useAuth();
+  const [ministry, setMinistry] = useState(null);
+  const [ministryLoaded, setMinistryLoaded] = useState(false);
+  const [currentRates, setCurrentRates] = useState(null);
+  const isAdmin = user?.is_platform_admin === true || user?.role === 'Admin';
+  const executiveRoles = [user?.role, ...(user?.effective_roles || [])];
+  const executive = executiveRoles.includes('Presidente') || isAdmin;
+
+  useEffect(() => {
+    let active = true;
+    if (!user?.id || executive) {
+      setMinistry(null);
+      setMinistryLoaded(true);
+      return;
+    }
+    setMinistryLoaded(false);
+    void supabase.from('ministers').select('ministry,status').eq('user_id',user.id)
+      .eq('status','active').limit(1).maybeSingle()
+      .then(({ data: appointment, error }) => {
+        if (!active) return;
+        if (error) console.warn('ministry-portfolio', error);
+        setMinistry(error ? null : appointment?.ministry || null);
+        setMinistryLoaded(true);
+      });
+    return () => { active = false; };
+  }, [user?.id, executive]);
+
+  useEffect(() => {
+    let active = true;
+    void supabase.from('economic_state').select('current_selic,inflation_target,updated_at')
+      .eq('id',true).maybeSingle()
+      .then(({ data: state, error }) => {
+        if (!active) return;
+        if (error) console.warn('economy-current-policy', error);
+        setCurrentRates(error ? null : state);
+      });
+    return () => { active = false; };
+  }, [data]);
+
+  const canDecideFiscal = executive || ministry === 'Ministério da Economia';
+  const canDecideMonetary = executive;
+  const allowedPolicies = useMemo(() => [
+    ...(canDecideMonetary ? READABLE_MONETARY_POLICIES : []),
+    ...(canDecideFiscal ? GOVERNMENT_FISCAL_POLICIES : []),
+  ], [canDecideFiscal, canDecideMonetary]);
+
+  const latestByPolicy = useMemo(() => {
+    const found = new Map();
+    (data?.policies || []).forEach((policy) => {
+      if (!found.has(policy.policy_type) && ['effective','announced'].includes(policy.status)) {
+        found.set(policy.policy_type, policy);
+      }
+    });
+    return found;
+  }, [data?.policies]);
+
   const fiscal = data?.fiscal || {};
   const treasury = data?.treasury || {};
   const projects = data?.projects || [];
@@ -29,7 +93,49 @@ const GovernmentEconomyPanel = ({ data, toast, onRefresh }) => {
         <EconomyCard label="Reservas do Tesouro" value={formatCurrency(treasury.treasury_balance, true)} detail={`Juros: ${formatCurrency(fiscal.debt_interest, true)}`} icon={Building2} accent="text-violet-300" />
       </div>
 
-      <PolicyStudio toast={toast} onApplied={onRefresh} />
+      <Card className="border-border/70 bg-card/75">
+        <CardHeader>
+          <CardTitle className="text-base">Políticas e parâmetros atuais</CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Acompanhamento dos parâmetros monetários e das últimas decisões fiscais registradas.
+            A Selic e a meta de inflação pertencem à autoridade monetária, não ao ministro da Economia.
+          </p>
+        </CardHeader>
+        <CardContent className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          {[...READABLE_MONETARY_POLICIES, ...GOVERNMENT_FISCAL_POLICIES].map((policy) => {
+            const recorded = latestByPolicy.get(policy);
+            const stateValue = policy === 'selic' ? currentRates?.current_selic
+              : policy === 'inflation_target' ? currentRates?.inflation_target : null;
+            const value = stateValue == null ? recorded?.new_value : stateValue;
+            return <div key={policy} className="rounded-xl border border-border/60 bg-background/30 p-3">
+              <p className="text-sm font-medium">{policyLabels[policy] || policy}</p>
+              <p className="mt-2 text-xl font-semibold">{value == null ? 'Não informado' :
+                (['minimum_wage','public_spending'].includes(policy) ? formatCurrency(value) : formatPercent(value))}</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {stateValue != null ? 'Parâmetro atual do motor econômico'
+                  : recorded ? (recorded.status === 'announced' ? 'Última decisão anunciada' : 'Última decisão efetiva registrada')
+                  : 'Sem decisão efetiva no histórico consultado'}
+              </p>
+            </div>;
+          })}
+        </CardContent>
+      </Card>
+
+      {ministryLoaded && allowedPolicies.length > 0 ? (
+        <>
+          <p className="text-sm text-muted-foreground">
+            {executive ? 'Gestão econômica do Governo.'
+              : 'Ministério da Economia: você pode decidir políticas fiscais. As políticas monetárias são apenas para consulta.'}
+          </p>
+          <PolicyStudio toast={toast} onApplied={onRefresh} allowedPolicies={allowedPolicies} />
+        </>
+      ) : (
+        <p className="rounded-lg border border-border/60 bg-card/50 p-4 text-sm text-muted-foreground">
+          {ministryLoaded
+            ? 'Este painel permite acompanhar a economia. Ações de política fiscal exigem a titularidade ativa do Ministério da Economia ou a Presidência.'
+            : 'Verificando suas competências ministeriais...'}
+        </p>
+      )}
 
       <div className="grid gap-6 xl:grid-cols-2">
         <Card className="border-border/70 bg-card/75">

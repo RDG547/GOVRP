@@ -2,7 +2,7 @@ import React, { useCallback, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Helmet } from 'react-helmet-async';
-import { Mail, ArrowLeft } from 'lucide-react';
+import { Mail, ArrowLeft, KeyRound, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/components/ui/use-toast';
@@ -30,16 +30,18 @@ const ForgotPassword = () => {
     setMessage('');
     try {
       await sendPasswordResetEmail(email, captchaToken);
-      setMessage('Um link de redefinição de senha foi enviado para o seu e-mail.');
+      setMessage('Se este endereço estiver cadastrado no GOVRP, você receberá um link seguro de redefinição. Verifique também a pasta de spam.');
       toast({
         title: "Verifique seu e-mail",
-        description: "Enviamos um link para você redefinir sua senha.",
+        description: "Se houver uma conta vinculada, confira sua caixa de entrada e spam.",
       });
     } catch (error) {
       setCaptchaResetKey((value) => value + 1);
       toast({
         title: "Erro ao enviar e-mail",
-        description: error.message || "Não foi possível enviar o e-mail de redefinição. Tente novamente.",
+        description: /rate limit|too many|429/i.test(error?.message || '')
+          ? 'Limite temporário de envios atingido. Aguarde alguns minutos antes de tentar novamente.'
+          : error.message || "Não foi possível enviar o e-mail de redefinição. Tente novamente.",
         variant: "destructive",
       });
     } finally {
@@ -60,6 +62,7 @@ const ForgotPassword = () => {
             animate={{ opacity: 1, y: 0 }}
             className="text-center"
           >
+            <KeyRound aria-hidden="true" className="mx-auto mb-2 h-10 w-10 text-sky-400" />
             <h1 className="text-4xl font-bold gradient-text mb-2">Recuperar Senha</h1>
             <p className="text-gray-300">Insira seu e-mail para receber um link de redefinição.</p>
           </motion.div>
@@ -105,7 +108,7 @@ const ForgotPassword = () => {
                   disabled={loading || (captchaEnabled && !captchaToken)}
                   className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 py-3 text-lg font-medium"
                 >
-                  {loading ? 'Enviando...' : 'Enviar Link de Recuperação'}
+                  {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Enviando...</> : <><Mail className="mr-2 h-5 w-5" />Enviar link de recuperação</>}
                 </Button>
               </form>
             )}

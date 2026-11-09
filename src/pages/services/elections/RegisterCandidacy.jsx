@@ -109,6 +109,11 @@ const RegisterCandidacy = ({ onFinished }) => {
   const selectedViceCandidateId = form.watch('vice_candidate_id');
   const selectedElection = elections.find((election) => election.id === selectedElectionId) || null;
   const requiresViceCandidate = isPresidentialTicketElection(selectedElection);
+  const currentElectionOffice = ['Presidente', 'Deputado', 'Senador'].find(
+    (role) => [user?.role, ...(user?.effective_roles || [])].includes(role)
+  ) || null;
+  const selectedElectionOffice = selectedElection?.election_types?.name;
+  const seekingReelection = Boolean(currentElectionOffice && selectedElectionOffice === currentElectionOffice);
   const numberDigits = electionNumberDigits(selectedElection);
   const affiliatedParty = parties.find(party => party.id === userAffiliation) || null;
   const inactiveAffiliation = Boolean(userAffiliation && (!affiliatedParty || !affiliatedParty.is_active));
@@ -581,6 +586,11 @@ const RegisterCandidacy = ({ onFinished }) => {
                 </p>
                 <p className="text-sm text-muted-foreground mt-2">
                   Mandato: 1 mês. Limite: apenas 1 reeleição consecutiva.
+                  {seekingReelection && !presidentialRunBlocked && (
+                    <span className="mt-2 block font-semibold text-emerald-300">
+                      Você é o presidente em exercício e pode tentar a reeleição. Seu mandato atual continua vigente durante a campanha, votação e apuração, até a posse oficial da nova chapa.
+                    </span>
+                  )}
                 </p>
                 {presidentialRunBlocked ? (
                   <p className="text-sm text-red-300 mt-3">
@@ -589,6 +599,12 @@ const RegisterCandidacy = ({ onFinished }) => {
                 ) : null}
               </div>
             ) : null}
+
+            {seekingReelection && !requiresViceCandidate && (
+              <p className="rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-3 text-sm text-emerald-200">
+                Você ocupa este cargo atualmente e pode apresentar sua candidatura à reeleição. Seu mandato não é interrompido por participar da disputa.
+              </p>
+            )}
 
             <FormField
               control={form.control}
@@ -709,7 +725,7 @@ const RegisterCandidacy = ({ onFinished }) => {
           <CardFooter>
             <Button type="submit" disabled={isSubmitting || presidentialRunBlocked || presidentialViceMissing}>
               {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Vote className="mr-2 h-4 w-4" />}
-              Enviar Candidatura
+              {seekingReelection ? 'Solicitar reeleição' : 'Enviar candidatura'}
             </Button>
           </CardFooter>
         </form>
