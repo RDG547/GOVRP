@@ -98,10 +98,14 @@ const warnOnce = (error) => {
 };
 
 const UserActivityTracker = () => {
-  const { user } = useAuth();
+  const { user, session: authSession } = useAuth();
   const location = useLocation();
   const [activitySessionId, setActivitySessionId] = useState(null);
   const sessionRef = useRef(null);
+  const authSessionRef = useRef(authSession);
+  // Keep this ref synchronized during render so a sign-out does not let
+  // cleanup fire a write with an already-invalid JWT.
+  authSessionRef.current = authSession;
   const disabledRef = useRef(false);
   const currentPath = `${location.pathname}${location.search || ''}`;
   const currentPathRef = useRef(currentPath);
@@ -165,7 +169,11 @@ const UserActivityTracker = () => {
       sessionRef.current = null;
       setActivitySessionId(null);
 
-      if (!currentSession?.id || disabledRef.current) {
+      if (!currentSession?.id || disabledRef.current ||
+          authSessionRef.current?.user?.id !== currentSession.userId ||
+          !authSessionRef.current?.access_token) {
+        // A user whose session has ended is no longer authorized to update it.
+        // Keep server-side RLS intact instead of attempting a forbidden write.
         return;
       }
 
@@ -246,7 +254,9 @@ const UserActivityTracker = () => {
     const heartbeat = async (endedAt = null) => {
       const session = sessionRef.current;
 
-      if (!session?.id) {
+      if (!session?.id ||
+          authSessionRef.current?.user?.id !== session.userId ||
+          !authSessionRef.current?.access_token) {
         return;
       }
 
