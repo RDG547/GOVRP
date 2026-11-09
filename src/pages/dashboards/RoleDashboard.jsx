@@ -1,4 +1,4 @@
-import React, { lazy, Suspense } from 'react';
+import React, { lazy, Suspense, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 import {
   Award,
@@ -18,6 +18,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import ErrorPage from '@/pages/ErrorPage';
 import PageHeader from '@/components/layout/PageHeader';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { PARLIAMENT_LEADERSHIP_ROLES } from '@/lib/parliament';
 import { hasAnyJusticeRole } from '@/lib/justice/constants';
 
@@ -129,7 +130,11 @@ const resolveRoleKey = (user, forcedRole) => {
 
 const RoleDashboard = ({ forcedRole = null }) => {
   const { user } = useAuth();
-  const roleKey = resolveRoleKey(user, forcedRole);
+  const isAdmin = user?.is_platform_admin === true || user?.role === 'Admin';
+  const [selectedDashboard, setSelectedDashboard] = useState('Ministro');
+  // All official role panels are viewable to a platform administrator; the RPCs
+  // still enforce their own authorization and audit the real action separately.
+  const roleKey = (isAdmin && !forcedRole) ? selectedDashboard : resolveRoleKey(user, forcedRole);
   const dashboardConfig = dashboards[roleKey];
 
   if (!dashboardConfig) {
@@ -173,7 +178,15 @@ const RoleDashboard = ({ forcedRole = null }) => {
             centered
           />
 
-          <Tabs defaultValue={defaultTab} className="mt-8 space-y-6">
+          {isAdmin && !forcedRole && <section className="mx-auto mt-6 max-w-lg space-y-2 rounded-lg border border-white/10 bg-card/60 p-4">
+            <label className="text-sm font-medium" htmlFor="administrator-role-panel">Painel do cargo</label>
+            <Select value={selectedDashboard} onValueChange={setSelectedDashboard}>
+              <SelectTrigger id="administrator-role-panel"><SelectValue placeholder="Selecionar painel" /></SelectTrigger>
+              <SelectContent>{Object.keys(dashboards).map((key)=><SelectItem key={key} value={key}>{dashboards[key].title}</SelectItem>)}</SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">Visualização técnica de todos os cargos. Operações reais continuam sujeitas às validações de segurança.</p>
+          </section>}
+          <Tabs key={roleKey} defaultValue={defaultTab} className="mt-8 space-y-6">
             <TabsList className="grid h-auto w-full grid-cols-3 gap-2 bg-muted/50 p-2 [&>button]:min-w-0 [&>button]:whitespace-normal [&>button]:px-2">
               <TabsTrigger value="office">
                 <LayoutDashboard className="mr-2 h-4 w-4" />
