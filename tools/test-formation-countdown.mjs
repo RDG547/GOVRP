@@ -11,7 +11,7 @@ try{
  const offices=await request(service.from('executive_office_definitions').select('*').eq('required_for_formation',true)),ministries=await request(service.from('government_ministries').select('*').eq('is_active',true));
  for(const office of offices.filter(item=>['federal_police_director','armed_forces_commander','intelligence_commander'].includes(item.office_key))){const person=await actor('countdown-office');await rpc(president.client,'manage_executive_appointment',{p_office_key:office.office_key,p_user_id:person.id,p_note:'Nomeação controlada para verificar formação de governo no ambiente local.'});}
  for(const ministry of ministries){const person=await actor('countdown-invited');await rpc(president.client,'appoint_minister',{p_user_id:person.id,p_ministry:ministry.name});}
- const formation=await rpc(president.client,'get_presidential_formation');assert.equal(formation.awaiting,ministries.length);assert(formation.offices.every(o=>o.appointment?.user_id));
+ const formation=await rpc(president.client,'get_presidential_formation');assert.equal(formation.awaiting,ministries.length);assert(formation.offices.filter(o=>['federal_police_director','armed_forces_commander','intelligence_commander'].includes(o.office_key)).every(o=>o.appointment?.user_id));
  await rpc(president.client,'claim_daily_check_in');await request(service.from('notifications').update({metadata:{popup_shown_at:new Date().toISOString()}}).eq('user_id',president.id));
  await waitFor(async()=>{try{return(await fetch(origin)).ok;}catch{return false;}},'Vite local',30000);
  browser=await chromium.launch({headless:true,executablePath:'/opt/google/chrome/chrome',args:['--no-sandbox']});p=await browser.newPage({viewport:{width:390,height:950}});
