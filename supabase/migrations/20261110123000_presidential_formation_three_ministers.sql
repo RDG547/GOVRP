@@ -22,7 +22,7 @@ begin
  select count(*) into appointed_ministers from jsonb_array_elements(ministries) m where m->>'holder_id' is not null;
  remaining:=greatest(0,required_ministers-appointed_ministers);
  if f.status='pending' then update public.presidential_formation set status='in_progress' where id=f.id returning * into f; end if;
- return to_jsonb(f)||jsonb_build_object('offices',offices,'ministries',ministries,'remaining',remaining,'appointed_ministers',appointed_ministers,'required_ministers',required_ministers,'awaiting',(select count(*) from public.minister_invitations where government_id=f.government_id and ministry_id is not null and status='pending' and expires_at>clock_timestamp())),'revision',(select max(coalesce(responded_at,created_at)) from public.minister_invitations where government_id=f.government_id),'government',(select to_jsonb(g) from public.government_terms g where g.ended_at is null and g.head_id=auth.uid()));
+ return to_jsonb(f)||jsonb_build_object('offices',offices,'ministries',ministries,'remaining',remaining,'appointed_ministers',appointed_ministers,'required_ministers',required_ministers,'awaiting',(select count(*) from public.minister_invitations where government_id=f.government_id and ministry_id is not null and status='pending' and expires_at>clock_timestamp()),'revision',(select max(coalesce(responded_at,created_at)) from public.minister_invitations where government_id=f.government_id),'government',(select to_jsonb(g) from public.government_terms g where g.ended_at is null and g.head_id=auth.uid()));
 end; $function$;
 
 
