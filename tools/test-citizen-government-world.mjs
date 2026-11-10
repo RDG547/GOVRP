@@ -12,7 +12,7 @@ try {
  originalMix=await request(service.from('economic_state').select('metadata,player_share,simulated_share').eq('id',true).single());
  await request(service.from('system_settings').upsert({key:'executive_governance',value:{...(originalGovernance?.value||{}),specialAppointments:{}}}));
  const initial=await rpc(president.client,'get_presidential_formation');
- check(initial && initial.offices.length===3 && initial.remaining>=3,'Presidente recebe formação persistente com três chefias obrigatórias');
+ check(initial && initial.required_ministers===3 && initial.appointed_ministers===0 && initial.remaining===3,'Formação exige três ministros em exercício sem exigir cargos estratégicos');
  check((await rpc(president.client,'get_presidential_formation')).id===initial.id,'nova sessão retoma a mesma formação');
  check(Boolean((await citizen.client.rpc('manage_executive_appointment',{p_office_key:'federal_police_director',p_user_id:citizen.id})).error),'cidadão comum não nomeia chefias');
  for(const office of initial.offices) {
@@ -26,7 +26,7 @@ try {
    check(await rpc(appointed.client,'justice_has_role',{p_roles:[permission]}),'chefia recebe suas capacidades institucionais no backend');
  }
  const formed=await rpc(president.client,'get_presidential_formation');
- check(formed.remaining===initial.remaining-3,'formação avança com as nomeações sem depender da interface');
+ check(formed.remaining===initial.remaining,'nomeações estratégicas não bloqueiam nem contam como ministros da formação');
  check(Boolean((await president.client.from('system_settings').update({value:{specialAppointments:{}}}).eq('key','executive_governance')).error),'escrita direta não contorna nomeações auditadas');
  const policeBefore=await request(service.from('system_settings').select('value').eq('key','executive_governance').single());
  const policeId=policeBefore.value.specialAppointments.federal_police_director.user_id;
