@@ -1,3 +1,4 @@
+import NationalProductionMarket from '@/features/economy/components/NationalProductionMarket';
 import ContainedImage from '@/components/ui/contained-image';
 import PageHeader from '@/components/layout/PageHeader';
 import NeedEffects from '@/components/NeedEffects';
@@ -27,6 +28,7 @@ function NationalMarket() {
   const housing = false;
   const { user } = useAuth(); const { toast } = useToast();
   const [offers,setOffers] = useState([]);
+  const [productionOpen,setProductionOpen] = useState(false);
   const [search,setSearch] = useState(''); const [category,setCategory] = useState('all');
   const [selected,setSelected] = useState(null); const [busy,setBusy] = useState(''); const [error,setError] = useState('');
   const actionKey = useRef(null);
@@ -53,6 +55,7 @@ function NationalMarket() {
   const visible=offers.filter(item=>(category==='all'||(housing?item.residence_spec.state:group(item))===category)&&`${item.name} ${item.residence_spec?.city||''}`.toLocaleLowerCase('pt-BR').includes(search.toLocaleLowerCase('pt-BR')));
   return <div className="mx-auto min-w-0 max-w-6xl space-y-6 px-3 py-8 sm:px-6"><PageHeader centered icon={ShoppingBasket} iconColor="text-orange-400" title="Mercado Nacional" description="Alimentos e bebidas essenciais para seu cidadão. Compare também as ofertas dos jogadores no Negócios Livres."/>
 
+    <details className="rounded-xl border p-4" onToggle={event=>setProductionOpen(event.currentTarget.open)}><summary className="cursor-pointer font-semibold">Produção empresarial, preços e abastecimento</summary><div className="mt-5">{productionOpen&&<NationalProductionMarket />}</div></details>
     <div className="grid gap-3 sm:grid-cols-2"><Input aria-label="Buscar ofertas" placeholder={housing?'Buscar por nome ou cidade':'Buscar alimento ou bebida'} value={search} onChange={e=>setSearch(e.target.value)}/><GovSelect aria-label={housing?'Estado':'Categoria'} value={category} onChange={e=>setCategory(e.target.value)}><option value="all">{housing?'Todos os estados':'Todas as categorias'}</option>{[...new Set(offers.map(item=>housing?item.residence_spec.state:group(item)))].map(value=><option key={value} value={value}>{React.createElement(housing?Home:categoryIcon(value),{className:"mr-2 inline h-4 w-4"})}{value}</option>)}</GovSelect></div>
     {error&&<div role="alert">{error}<Button onClick={load}>Tentar novamente</Button></div>}
     {[...new Set(visible.map(group))].map(categoryName=><section key={categoryName} className="space-y-4"><h2 className="text-xl font-semibold">{categoryName}</h2><div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{visible.filter(item=>group(item)===categoryName).map(item=><Card key={item.id} className="min-w-0 overflow-hidden"><div className="flex h-32 items-center justify-center bg-gradient-to-br from-primary/20 to-secondary">{<ContainedImage src={item.image_url} alt={item.name} fallback={Icon}/>}</div><CardHeader><CardTitle className="text-lg">{item.name}</CardTitle></CardHeader><CardContent className="space-y-3"><p className="text-sm text-muted-foreground">{item.description}</p>{housing?<p className="text-sm">{item.residence_spec.city} / {item.residence_spec.state} · {item.residence_spec.area_sqm} m²</p>:<NeedEffects effects={item.consumable_effects}/>}<p className="text-xl font-semibold">{money(item.quote?.total_debited)}</p><p className="text-xs text-muted-foreground">{item.stock} unidades disponíveis</p><p className="text-xs text-muted-foreground">Valor: {money(item.price)} · Impostos e taxas: {money(item.quote?.buyer_tax)}</p><Button className="w-full" disabled={item.quote?.restricted||Number(item.stock)<1} onClick={()=>choose(item)}><ShoppingCart className="mr-2 h-4 w-4" />{item.quote?.restricted?'Indisponível por norma vigente':'Comprar'}</Button></CardContent></Card>)}</div></section>)}

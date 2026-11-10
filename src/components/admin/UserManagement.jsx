@@ -248,7 +248,7 @@ const EditUserDialog = ({ user, onFinish, onUpdate }) => {
         }
     };
 
-    const availableRoles = ['Usuário', 'Cidadão', 'Presidente', 'Vice-Presidente', 'Presidente da Câmara dos Deputados', 'Vice-Presidente da Câmara dos Deputados', 'Presidente do Senado', 'Vice-Presidente do Senado Federal', 'Presidente do STF', 'Presidente do Banco Nacional', 'Deputado', 'Senador', 'Juiz', 'Promotor', 'Policial', 'Ministro', 'Agente Secreto', 'Militar', 'Diretor-Geral de Polícia', 'Comandante-Geral das Forças Armadas', 'Comandante da Agência de Inteligência'];
+    const availableRoles = ['Usuário', 'Cidadão', 'Presidente', 'Vice-Presidente', 'Presidente da Câmara dos Deputados', 'Vice-Presidente da Câmara dos Deputados', 'Presidente do Senado', 'Vice-Presidente do Senado Federal', 'Presidente do STF', 'Presidente do Banco Nacional', 'Deputado', 'Senador', 'Juiz Federal', 'Promotor','Procurador-Geral da República', 'Policial', 'Ministro', 'Agente Secreto', 'Militar', 'Diretor-Geral de Polícia', 'Comandante-Geral das Forças Armadas', 'Comandante da Agência de Inteligência'];
 
     return (
         <DialogContent className="glass-effect max-h-[90vh] overflow-y-auto text-white">
@@ -437,7 +437,7 @@ const roleConfig = {
     'Ministro': { color: 'text-purple-400', bg: 'bg-purple-500/80', icon: Briefcase },
     'Senador': { color: 'text-blue-400', bg: 'bg-blue-500/80', icon: Scale },
     'Deputado': { color: 'text-sky-400', bg: 'bg-sky-500/80', icon: Scale },
-    'Juiz': { color: 'text-gray-300', bg: 'bg-gray-400/80', icon: Gavel },
+    'Juiz Federal': { color: 'text-gray-300', bg: 'bg-gray-400/80', icon: Gavel },
     'Policial': { color: 'text-indigo-400', bg: 'bg-indigo-500/80', icon: Shield },
     'Agente Secreto': { color: 'text-zinc-300', bg: 'bg-zinc-600/80', icon: User },
     'Militar': { color: 'text-green-400', bg: 'bg-green-600/80', icon: Shield },
@@ -449,7 +449,7 @@ const roleConfig = {
 const USERS_PER_PAGE = 12;
 const roleOrder = [
     'Admin', 'Presidente', 'Vice-Presidente', 'Presidente da Câmara dos Deputados', 'Vice-Presidente da Câmara dos Deputados', 'Presidente do Senado', 'Vice-Presidente do Senado Federal', 'Presidente do STF', 'Presidente do Banco Nacional', 'Ministro', 'Senador', 'Deputado',
-    'Juiz', 'Policial', 'Agente Secreto', 'Militar', 'Cidadão', 'Usuário'
+    'Juiz Federal', 'Policial', 'Agente Secreto', 'Militar', 'Cidadão', 'Usuário'
 ];
 
 const getDisplayRole = (user) => user?.display_role || user?.role || 'Usuário';

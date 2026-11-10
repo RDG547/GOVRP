@@ -175,7 +175,7 @@ const PenalSystemPanel = () => {
         return () => clearInterval(interval);
     }, [fetchRecords]);
     
-    const isAuthorized = ['Admin', 'Juiz'].some(role => (Array.isArray(user?.role) ? user.role.includes(role) : user?.role === role));
+    const isAuthorized = ['Admin', 'Juiz Federal'].some(role => (Array.isArray(user?.role) ? user.role.includes(role) : user?.role === role));
 
     return (
         <>
@@ -221,7 +221,7 @@ const PenalSystemPanel = () => {
                                 <TableRow className="hover:bg-transparent border-b-white/10">
                                     <TableHead className="text-white">Condenado</TableHead>
                                     <TableHead className="text-white">Crime</TableHead>
-                                    <TableHead className="text-white">Juiz</TableHead>
+                                    <TableHead className="text-white">Juiz Federal</TableHead>
                                     <TableHead className="text-white">Data da Sentença</TableHead>
                                     <TableHead className="text-white">Fim da Pena</TableHead>
                                     <TableHead className="text-white text-right">Status</TableHead>

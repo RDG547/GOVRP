@@ -39,7 +39,7 @@ export const EXECUTIVE_SPECIAL_OFFICES = [
     key: 'national_bank_president',
     label: 'Presidente do Banco Nacional',
     description: 'Dirige o banco estatal, decide crédito e administra a política de juros.',
-    eligibleRoles: ['Cidadão', 'Ministro', 'Deputado', 'Senador', 'Juiz', 'Policial', 'Agente Secreto', 'Militar'],
+    eligibleRoles: ['Cidadão', 'Ministro', 'Deputado', 'Senador', 'Juiz Federal', 'Policial', 'Agente Secreto', 'Militar'],
   },
 ];
 
@@ -551,7 +551,7 @@ const attachProfilesToSettings = async (supabase, settingsValue) => {
   ]);
 
   const [profilesMap, officeResult] = await Promise.all([fetchProfilesMap(supabase, profileIds), supabase.from('executive_office_definitions').select('*').eq('is_assignable',true).order('sort_order')]);
-  const offices = officeResult.data?.map(office => ({ key: office.office_key, label: office.office_key.startsWith('supreme_court_') ? `Juiz do STF · vaga ${office.office_key.split('_').at(-1)}` : office.role_label, description: office.description, governmentBound: office.government_bound })) || EXECUTIVE_SPECIAL_OFFICES;
+  const offices = officeResult.data?.map(office => ({ key: office.office_key, label: office.office_key.startsWith('supreme_court_') ? `Juiz Federal do STF · vaga ${office.office_key.split('_').at(-1)}` : office.role_label, description: office.description, governmentBound: office.government_bound })) || EXECUTIVE_SPECIAL_OFFICES;
 
   return {
     ...settingsValue,

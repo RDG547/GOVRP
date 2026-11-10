@@ -1,3 +1,4 @@
+import NationalProductionMarket from '@/features/economy/components/NationalProductionMarket';
 import CompanySaleDetails from '@/components/business/CompanySaleDetails';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import BrazilStateFlag from '@/components/onboarding/BrazilStateFlag';
@@ -998,6 +999,7 @@ const EntrepreneurPortal = () => {
   };
 
   const tabs = [
+    {id:'national-production',label:'Produção Nacional',icon:Factory},
     { id: 'country', label: 'Empresas do País', icon: Building2 },
     { id: 'catalog', label: 'Catálogo de Empresas', icon: ShoppingBag },
     { id: 'my-businesses', label: `Minhas Empresas (${myBusinesses.length})`, icon: Building2 },
@@ -1090,6 +1092,7 @@ const EntrepreneurPortal = () => {
           ))}
         </div>
 
+        {activeTab==='national-production'&&<NationalProductionMarket companies={myBusinesses}/>}
         {/* TAB: Catalog */}
         <AnimatePresence mode="wait">
           {activeTab==='country'&&<CountryCompanies key="country" types={catalogTypes}/>}

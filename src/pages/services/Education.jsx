@@ -19,7 +19,7 @@ const educationLevels = [
 ];
 
 const jobCourses = [
-    { id: 'law', title: 'Direito (OAB)', cost: 5000, duration: '6 Meses', roles: 'Advogado, Promotor, Juiz', icon: Award, color: 'text-red-400' },
+    { id: 'law', title: 'Direito (OAB)', cost: 5000, duration: '6 Meses', roles: 'Advogado, Promotor, Juiz Federal', icon: Award, color: 'text-red-400' },
     { id: 'med', title: 'Medicina (CRM)', cost: 8000, duration: '8 Meses', roles: 'Médico', icon: Award, color: 'text-emerald-400' },
     { id: 'tech', title: 'Gestão em TI', cost: 2500, duration: '3 Meses', roles: 'Especialista, Diretor TI', icon: Award, color: 'text-cyan-400' }
 ];

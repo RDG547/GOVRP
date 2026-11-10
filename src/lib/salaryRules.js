@@ -2,6 +2,8 @@ export const SALARY_TIMEZONE = 'America/Sao_Paulo';
 export const WEEKLY_SALARY_PAYMENT_HOUR = 9;
 
 export const SALARY_TABLE = [
+  {role:'Juiz Federal',title:'Juiz Federal',salary:17500},
+  {role:'Procurador-Geral da República',title:'Procurador-Geral da República',salary:14000},
   { role: 'Presidente', title: 'Presidente da República', salary: 35000 },
   { role: 'Vice-Presidente', title: 'Vice-Presidente', salary: 24500 },
   { role: 'Deputado', title: 'Deputado Federal', salary: 10500 },
@@ -21,11 +23,14 @@ export const SALARY_ROLE_PRIORITY = [
   'Presidente do Banco Nacional',
   'Ministro',
   'Senador',
+  'Juiz Federal',
+  'Procurador-Geral da República',
   'Promotor',
   'Deputado',
 ];
 
 export const SALARY_ROLE_ALIASES = {
+  Juiz:'Juiz Federal',
   'Presidente da Camara': 'Presidente da Câmara',
   'Presidente da Câmara dos Deputados': 'Presidente da Câmara',
   'Vice-Presidente da Câmara dos Deputados': 'Deputado',

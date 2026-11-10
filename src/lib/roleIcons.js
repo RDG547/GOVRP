@@ -1,6 +1,7 @@
 import { User, Crown, Building2, Landmark, Gavel, Shield, Scale, Briefcase, ShieldCheck, Medal, Eye, GraduationCap, Vote } from 'lucide-react';
 
 export const ROLE_ALIASES = {
+  Juiz: 'Juiz Federal',
   Delegado: 'Diretor-Geral de Polícia',
   'Presidente da Câmara': 'Presidente da Câmara dos Deputados',
   'Vice-Presidente do Senado': 'Vice-Presidente do Senado Federal',
@@ -9,11 +10,12 @@ export const ROLE_ALIASES = {
 };
 export const canonicalRole = role => ROLE_ALIASES[role] || role;
 export const ROLE_ICONS = {
+  'Procurador-Geral da República': Scale,
   'Presidente do Portal Eleitoral': Vote, 'Agente Penitenciário': Shield, 'Diretor Penitenciário': ShieldCheck,
   Admin: ShieldCheck, Presidente: Crown, 'Vice-Presidente': Crown, Deputado: Building2, Senador: Landmark,
   'Presidente da Câmara dos Deputados': Building2, 'Vice-Presidente da Câmara dos Deputados': Building2,
   'Presidente do Senado': Landmark, 'Vice-Presidente do Senado Federal': Landmark,
-  'Presidente do STF': Gavel, Juiz: Gavel, Policial: Shield, Delegado: ShieldCheck, Promotor: Scale,
+  'Presidente do STF': Gavel, 'Juiz Federal': Gavel, Policial: Shield, Delegado: ShieldCheck, Promotor: Scale,
   Advogado: Scale, 'Defensor Público': Scale, Ministro: Briefcase, 'Diretor-Geral de Polícia': ShieldCheck,
   'Comandante-Geral das Forças Armadas': Medal, 'Comandante da Agência de Inteligência': Eye,
   'Presidente do Banco Nacional': Landmark, 'Agente Secreto': Eye, Militar: Medal,
@@ -22,7 +24,8 @@ export const ROLE_ICONS = {
 export const roleIcon = role => ROLE_ICONS[canonicalRole(role)] || User;
 
 export const officialRoleCapabilities = role => ({
-  'Presidente do STF': ['Presidente do STF','Juiz'],
+  'Procurador-Geral da República': ['Procurador-Geral da República','Promotor'],
+  'Presidente do STF': ['Presidente do STF','Juiz Federal'],
   'Presidente da Câmara dos Deputados': ['Presidente da Câmara dos Deputados', 'Deputado'],
   'Vice-Presidente da Câmara dos Deputados': ['Vice-Presidente da Câmara dos Deputados', 'Deputado'],
   'Presidente do Senado': ['Presidente do Senado', 'Senador'],

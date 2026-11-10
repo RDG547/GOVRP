@@ -1,4 +1,5 @@
 const destinations = {
+ 'Procurador-Geral da República': ['/services/justice','Ir para o Ministério Público','Acompanhe investigações, denúncias e processos do Ministério Público.'],
  'Presidente do Portal Eleitoral': ['/services/elections','Ir para o Portal Eleitoral','Você organiza o calendário e analisa candidaturas conforme as regras eleitorais. Votos e resultados permanecem sob o processo eleitoral.'],
  'Diretor-Geral de Polícia': ['/services/justice','Ir para Segurança e Justiça','Você dirige a Polícia do GOVRP e acompanha ocorrências, investigações e cumprimento de mandados.'],
  'Comandante-Geral das Forças Armadas': ['/services/armed-forces','Conhecer as Forças Armadas','Você coordena o comando militar e suas atribuições institucionais.'],
@@ -7,7 +8,7 @@ const destinations = {
  Senador: ['/services/parliament', 'Ir para o Parlamento', 'Você pode participar das deliberações e votações do Senado.'],
  Presidente: ['/dashboard', 'Conhecer minhas novas funções', 'Acesse as atribuições do Executivo e acompanhe as medidas do governo.'],
  'Vice-Presidente': ['/dashboard', 'Conhecer minhas novas funções', 'Acesse seu painel institucional e as atribuições da Vice-Presidência.'],
- Juiz: ['/services/justice', 'Ir para a Justiça', 'Você pode analisar os processos atribuídos a você e proferir decisões fundamentadas.'],
+ 'Juiz Federal': ['/services/justice', 'Ir para a Justiça', 'Você pode analisar os processos atribuídos a você e proferir decisões fundamentadas.'],
  Promotor: ['/services/justice', 'Ir para o Ministério Público', 'Acompanhe investigações remetidas e a atuação do Ministério Público.'],
  Delegado: ['/services/justice', 'Ir para Segurança e Justiça', 'Você pode conduzir investigações e encaminhar relatórios ao Ministério Público.'],
  Policial: ['/services/justice', 'Ir para Segurança e Justiça', 'Acompanhe as ocorrências e os mandados disponíveis para cumprimento.'],
@@ -19,5 +20,6 @@ export function roleEventPresentation(notification) {
  const loss = metadata.loss || ['Cidadão','Preso','Prisioneiro'].includes(role);
  const [to, action, description] = destinations[role] || ['/dashboard', 'Ir para meu painel', 'Seu painel e suas permissões acompanham o novo cargo.'];
  return { role, loss, to, action, description: loss ? 'Suas permissões foram atualizadas conforme a nova situação institucional.' : description,
-  title: loss ? 'Seu cargo foi encerrado ou alterado' : 'Você assumiu um novo cargo!' };
+  title: metadata.competition_approved ? 'PARABÉNS! VOCÊ FOI APROVADO!' : loss ? 'Seu cargo foi encerrado ou alterado' : 'Você assumiu um novo cargo!',
+  ...(metadata.competition_approved ? {action:'Entendi — Acessar minhas funções',description:`Situação: Efetivado · Salário semanal: ${Number(metadata.weekly_salary).toLocaleString('pt-BR',{style:'currency',currency:'BRL'})}. Suas funções já estão disponíveis.`} : {}) };
 }

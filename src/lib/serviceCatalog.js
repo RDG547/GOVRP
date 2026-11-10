@@ -90,6 +90,7 @@ export const SERVICE_CATEGORIES = [
       { key: '/services/economy', name: 'Economia Nacional', path: '/services/economy', icon: DollarSign, color: 'text-cyan-300', description: 'Acompanhe PIB, inflação, emprego, poder de compra e as consequências das decisões econômicas.' },
       { key: '/services/my-work', name: 'Portal do Trabalhador', path: '/services/my-work', icon: Briefcase, color: 'text-amber-400', description: 'Vagas, carreira, experiência profissional e remuneração.' },
       { key: '/services/entrepreneur-portal', name: 'Portal do Empreendedor', path: '/services/entrepreneur-portal', icon: Building2, color: 'text-cyan-400', description: 'Hub empresarial para criar, gerir, investir e negociar com empresas da nação.' },
+      { key: '/services/public-competitions', name: 'Concursos Públicos', path: '/services/public-competitions', icon: GraduationCap, color: 'text-blue-400', description: 'Editais, inscrições, provas e resultados das carreiras públicas.' },
       { key: '/services/business', name: 'Negócios Livres', path: '/services/business', icon: Store, color: 'text-blue-400', description: 'Compre e venda produtos e serviços no marketplace da comunidade.' },
     ],
   },

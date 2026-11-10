@@ -41,7 +41,7 @@ DO $test$ DECLARE pres uuid;candidate uuid;outsider uuid;i uuid;r jsonb;v uuid;t
   PERFORM set_config('request.jwt.claim.sub',s.user_id::text,true);PERFORM public.cast_parliament_vote(v,s.id,'Aprovar');
  END LOOP;
  SELECT id INTO t FROM public.institutional_terms WHERE invitation_id=i AND status='active';
- IF t IS NULL OR (SELECT role FROM public.profiles WHERE id=candidate)<>'Juiz' THEN RAISE EXCEPTION 'Aprovação não deu posse';END IF;
+ IF t IS NULL OR (SELECT role FROM public.profiles WHERE id=candidate)<>'Juiz Federal' THEN RAISE EXCEPTION 'Aprovação não deu posse';END IF;
  IF NOT EXISTS(SELECT 1 FROM public.institutional_terms WHERE id=t AND ends_at BETWEEN starts_at+interval '2 months'-interval '1 second' AND starts_at+interval '2 months'+interval '1 second') THEN RAISE EXCEPTION 'Prazo do mandato incorreto';END IF;
  PERFORM private.finish_institutional_vote(v);
  IF (SELECT count(*) FROM public.institutional_terms WHERE invitation_id=i)<>1 THEN RAISE EXCEPTION 'Posse duplicada';END IF;
@@ -55,14 +55,14 @@ DO $test$ DECLARE pres uuid;candidate uuid;outsider uuid;i uuid;r jsonb;v uuid;t
  FOR n IN 1..5 LOOP
   extra:=gen_random_uuid();
   INSERT INTO auth.users(id,email,raw_app_meta_data,raw_user_meta_data) VALUES(extra,'qa-seat-'||extra||'@govrp.local','{}','{}');
-  IF n<=4 THEN UPDATE public.profiles SET role='Juiz' WHERE id=extra;
-  ELSE denied:=false;BEGIN UPDATE public.profiles SET role='Juiz' WHERE id=extra;EXCEPTION WHEN OTHERS THEN denied:=true;END;IF NOT denied THEN RAISE EXCEPTION 'Sexto ministro foi permitido';END IF;END IF;
+  IF n<=4 THEN UPDATE public.profiles SET role='Juiz Federal' WHERE id=extra;
+  ELSE denied:=false;BEGIN UPDATE public.profiles SET role='Juiz Federal' WHERE id=extra;EXCEPTION WHEN OTHERS THEN denied:=true;END;IF NOT denied THEN RAISE EXCEPTION 'Sexto ministro foi permitido';END IF;END IF;
  END LOOP;
  IF (SELECT count(*) FROM public.institutional_terms WHERE status='active' AND office_key LIKE 'supreme_court_%')<>5 THEN RAISE EXCEPTION 'Limite de cinco vagas inconsistente';END IF;
  -- A judicial chair keeps the same individual mandate.
  UPDATE public.profiles SET role='Presidente do STF' WHERE id=candidate;
  IF NOT EXISTS(SELECT 1 FROM public.institutional_terms WHERE id=t AND status='active') THEN RAISE EXCEPTION 'Mesa do STF reiniciou mandato';END IF;
- UPDATE public.profiles SET role='Juiz' WHERE id=candidate;
+ UPDATE public.profiles SET role='Juiz Federal' WHERE id=candidate;
  -- Overlapping windows rotate distinct pairs; repeated maintenance is inert.
  INSERT INTO public.elections(name,candidacy_start_date,candidacy_end_date,voting_start_date,voting_end_date) VALUES('Janela institucional QA',now()+interval '1 day',now()+interval '2 days',now()+interval '3 days',now()+interval '4 days') RETURNING id INTO en;
  INSERT INTO public.elections(name,candidacy_start_date,candidacy_end_date,voting_start_date,voting_end_date) VALUES('Janela sobreposta QA',now()+interval '1 day',now()+interval '2 days',now()+interval '4 days',now()+interval '5 days');
@@ -92,7 +92,7 @@ DO $test$ DECLARE pres uuid;candidate uuid;outsider uuid;i uuid;r jsonb;v uuid;t
  -- Prosecutor accepts the independent invitation without a Senate vote.
  PERFORM set_config('request.jwt.claim.sub',pres::text,true);r:=public.manage_executive_appointment('public_prosecutor',outsider,'Indicação ao Ministério Público.');i:=(r->'invitation'->>'id')::uuid;
  PERFORM set_config('request.jwt.claim.sub',outsider::text,true);PERFORM public.respond_minister_invitation(i,true);
- IF (SELECT role FROM public.profiles WHERE id=outsider)<>'Promotor' THEN RAISE EXCEPTION 'Aceite do Promotor não deu posse';END IF;
+ IF (SELECT role FROM public.profiles WHERE id=outsider)<>'Procurador-Geral da República' THEN RAISE EXCEPTION 'Aceite do Promotor não deu posse';END IF;
  PERFORM set_config('request.jwt.claim.sub',candidate::text,true);r:=public.resign_judicial_term(t,'Renúncia voluntária no teste de integração.');
  IF (SELECT status FROM public.institutional_terms WHERE id=t)<>'resigned' OR (SELECT role FROM public.profiles WHERE id=candidate)<>'Cidadão' THEN RAISE EXCEPTION 'Renúncia não abriu vaga';END IF;
  IF NOT EXISTS(SELECT 1 FROM public.notifications WHERE user_id=pres AND type='institutional_vacancy' AND metadata->>'institutional_source'=t::text) THEN RAISE EXCEPTION 'Vacância não notificou Presidente';END IF;

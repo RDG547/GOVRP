@@ -74,7 +74,7 @@ const dashboards = {
     economyView: 'public',
   },
   Promotor: { icon: Scale, title: 'Ministério Público', description: 'Analise remessas policiais, apresente denúncias e acompanhe processos.', color: 'text-purple-400', component: AuthorityJusticeDashboard, economyView: 'public' },
-  Juiz: {
+  'Juiz Federal': {
     icon: Gavel,
     title: 'Painel Judicial',
     description: 'Analise pedidos, processos, prazos, mandados e execução penal auditável.',
@@ -121,7 +121,8 @@ const resolveRoleKey = (user, forcedRole) => {
   if (['Deputado', 'Senador', ...PARLIAMENT_LEADERSHIP_ROLES].some((role) => rolePool.includes(role))) {
     return 'Parlamentar';
   }
-  if (rolePool.some((role) => ['Juiz', 'Presidente do STF'].includes(role))) return 'Juiz';
+  if (rolePool.some((role) => ['Juiz Federal', 'Presidente do STF'].includes(role))) return 'Juiz Federal';
+  if (rolePool.some((role) => ['Promotor','Procurador-Geral da República'].includes(role))) return 'Promotor';
   if (rolePool.some((role) => ['Police', 'Policial', 'Delegado'].includes(role))) return 'Police';
   if (rolePool.some((role) => ['AGIES', 'Agente Secreto'].includes(role))) return 'AGIES';
   if (rolePool.some((role) => ['Forças Armadas', 'Militar'].includes(role))) return 'Forças Armadas';
@@ -155,7 +156,7 @@ const RoleDashboard = ({ forcedRole = null }) => {
     economyView,
   } = dashboardConfig;
   const justiceAuthority = hasAnyJusticeRole(user);
-  const defaultTab = ['Juiz', 'Promotor', 'Police'].includes(roleKey)
+  const defaultTab = ['Juiz Federal', 'Promotor', 'Police'].includes(roleKey)
     ? 'justice'
     : roleKey === 'Presidente do Banco Nacional'
       ? 'economy'

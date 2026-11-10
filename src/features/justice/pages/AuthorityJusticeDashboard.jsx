@@ -114,7 +114,7 @@ const AuthorityJusticeDashboard = () => {
   const isDelegate = hasAnyJusticeRole(user, ['Admin', 'Diretor-Geral de Polícia']);
   const isAdmin = hasAnyJusticeRole(user, ['Admin']);
   const canDecideCase = criminalCase => isAdmin || (isJudge && criminalCase.judge_id === user?.id);
-  const isJudge = hasAnyJusticeRole(user, ['Admin', 'Juiz']);
+  const isJudge = hasAnyJusticeRole(user, ['Admin', 'Juiz Federal']);
   const isProsecutor = hasAnyJusticeRole(user, ['Admin', 'Promotor']);
   const isLawyer = hasAnyJusticeRole(user, ['Admin', 'Advogado', 'Defensor Público']);
   const isPrisonStaff = hasAnyJusticeRole(user, ['Admin', 'Agente Penitenciário', 'Diretor Penitenciário']);
@@ -606,7 +606,7 @@ const AuthorityJusticeDashboard = () => {
                 </div>
                 <div className="rounded-lg border border-border/70 p-3">
                   <Gavel className="mb-2 h-5 w-5 text-amber-300" />
-                  <p className="text-muted-foreground">Juiz</p>
+                  <p className="text-muted-foreground">Juiz Federal</p>
                   <p>{data.profiles.find(profile => profile.id === criminalCase.judge_id)?.full_name || (criminalCase.judge_id ? 'Distribuído a outro juiz' : 'Pendente de distribuição')}</p>
                 </div>
                 <div className="rounded-lg border border-border/70 p-3">
@@ -669,7 +669,7 @@ const AuthorityJusticeDashboard = () => {
                 </span>
                 <div className="flex items-center gap-3"><span className="font-semibold text-red-200">
                   {formatRealDuration(getCountdown(term.expected_release_at, now))}
-                </span>{hasAnyJusticeRole(user, ['Admin', 'Juiz', 'Diretor Penitenciário']) ? <Button size="sm" variant="outline" onClick={() => setAction({ type: 'release', item: term })}>Registrar soltura</Button> : null}</div>
+                </span>{hasAnyJusticeRole(user, ['Admin', 'Juiz Federal', 'Diretor Penitenciário']) ? <Button size="sm" variant="outline" onClick={() => setAction({ type: 'release', item: term })}>Registrar soltura</Button> : null}</div>
               </CardContent>
             </Card>
           )) : (

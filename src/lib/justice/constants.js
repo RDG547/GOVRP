@@ -4,9 +4,10 @@ export const JUSTICE_AUTHORITY_ROLES = [
   'Police',
   'Diretor-Geral de Polícia',
   'Promotor',
+  'Procurador-Geral da República',
   'Advogado',
   'Defensor Público',
-  'Juiz',
+  'Juiz Federal',
   'Agente Penitenciário',
   'Diretor Penitenciário',
 ];
