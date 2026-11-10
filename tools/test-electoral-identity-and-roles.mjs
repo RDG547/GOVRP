@@ -30,7 +30,7 @@ try {
  assert((await outsider.client.rpc('schedule_leadership_election',{p_house_id:chamber,p_position:'president',p_start_at:new Date().toISOString(),p_nomination_end_at:new Date(Date.now()+100000).toISOString(),p_voting_start_at:new Date(Date.now()+200000).toISOString(),p_end_at:new Date(Date.now()+300000).toISOString()})).error);
  console.log('OK criação e cor em Realtime, HEX inválido e tentativas não autorizadas bloqueadas pelo backend');
  const output=sql(`begin;
- do $test$ declare e uuid; c uuid; original jsonb; candidate_row public.candidates%rowtype; member uuid; other_member uuid; leadership uuid; nomination uuid; f jsonb; fid uuid; result jsonb; denied boolean; bill uuid; voting uuid; notices integer; vote_role text; office_key text; root_id uuid; child_id uuid; ministry_count integer; topic uuid; house uuid:='${chamber}';
+ do $test$ declare e uuid; c uuid; original jsonb; candidate_row public.candidates%rowtype; member uuid; other_member uuid; leadership uuid; nomination uuid; f jsonb; fid uuid; result jsonb; denied boolean; bill uuid; voting uuid; notices integer; vote_role text; target_office_key text; root_id uuid; child_id uuid; ministry_count integer; topic uuid; house uuid:='${chamber}';
  begin
  -- Every institutional mutation here is rolled back, including shared Mesa and cabinet fixtures.
  perform set_config('request.jwt.claim.sub','${admin.id}',true);
@@ -93,10 +93,10 @@ try {
  denied:=false;begin perform public.complete_presidential_formation();exception when others then denied:=true;end;
  if not denied then raise exception 'Formacao encerrada antes de preencher as chefias';end if;
  for notices in 0..2 loop
-   select office_key into office_key from public.executive_office_definitions
+   select office_key into target_office_key from public.executive_office_definitions
       where required_for_formation and government_bound and is_assignable
       order by sort_order offset notices limit 1;
-   result:=public.manage_executive_appointment(office_key,(array['${formationOfficers[0].id}','${formationOfficers[1].id}','${formationOfficers[2].id}']::uuid[])[notices+1],'Obrigacao de formacao do Governo.');
+   result:=public.manage_executive_appointment(target_office_key,(array['${formationOfficers[0].id}','${formationOfficers[1].id}','${formationOfficers[2].id}']::uuid[])[notices+1],'Obrigacao de formacao do Governo.');
    if result->>'success'<>'true' then raise exception 'Convite estrategico nao criado';end if;
    perform set_config('request.jwt.claim.sub',(array['${formationOfficers[0].id}','${formationOfficers[1].id}','${formationOfficers[2].id}']::text[])[notices+1],true);
    perform public.respond_minister_invitation((result->'invitation'->>'id')::uuid,true);
