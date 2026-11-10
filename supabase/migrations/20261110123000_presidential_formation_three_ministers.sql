@@ -23,7 +23,7 @@ begin
  remaining:=greatest(0,required_ministers-appointed_ministers);
  if f.status='pending' then update public.presidential_formation set status='in_progress' where id=f.id returning * into f; end if;
  return to_jsonb(f)||jsonb_build_object('offices',offices,'ministries',ministries,'remaining',remaining,'appointed_ministers',appointed_ministers,'required_ministers',required_ministers,'awaiting',(select count(*) from public.minister_invitations where government_id=f.government_id and ministry_id is not null and status='pending' and expires_at>clock_timestamp())),'revision',(select max(coalesce(responded_at,created_at)) from public.minister_invitations where government_id=f.government_id),'government',(select to_jsonb(g) from public.government_terms g where g.ended_at is null and g.head_id=auth.uid()));
-end; $function$
+end; $function$;
 
 
 CREATE OR REPLACE FUNCTION public.complete_presidential_formation()
@@ -38,7 +38,7 @@ begin
  if f is null then raise exception 'Somente o Presidente em exercício pode concluir a formação.' using errcode='42501'; end if;
  if coalesce((f->>'appointed_ministers')::integer,0)<3 then raise exception 'É necessário empossar pelo menos três ministros para concluir a formação do Governo.'; end if;
  update public.presidential_formation set completed_at=coalesce(completed_at,clock_timestamp()),status='completed' where id=(f->>'id')::uuid;
-end $function$
+end $function$;
 
 
 -- Convites recusados/expirados nao reabrem uma formacao ja concluida.
@@ -71,7 +71,7 @@ begin
  end if;
  perform economy_private.audit('minister_invitation_'||new.status,'minister_invitation',new.id::text,case when tg_op='UPDATE' then to_jsonb(old) else null end,to_jsonb(new),'Fluxo de convite ministerial.',auth.uid());
  return new;
-end $function$
+end $function$;
 
 
 -- Em sucessao com gabinete mantido, exigir tres ministros se a equipe for menor.
@@ -99,7 +99,7 @@ BEGIN
  UPDATE public.government_terms SET cabinet_decision=CASE WHEN p_choice='keep' THEN 'kept' ELSE 'reformed' END WHERE id=g.id RETURNING * INTO g;
  PERFORM public.justice_write_audit('executive.cabinet_choice','government',g.id,NULL,to_jsonb(g),'Escolha ministerial após sucessão.');
  RETURN to_jsonb(g);
-END; $function$
+END; $function$;
 
 
 COMMIT;
