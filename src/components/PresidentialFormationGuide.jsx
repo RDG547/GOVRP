@@ -150,7 +150,7 @@ export default function PresidentialFormationGuide() {
           <Landmark className="mx-auto h-10 w-10 text-primary" />
           <DialogTitle className="text-center">
             {cabinetPending ? 'Como deseja conduzir o Governo?' :
-              remaining === 0 ? 'Governo pronto' : 'Forme seu Governo'}
+              remaining === 0 ? 'Governo pronto' : target ? 'Forme seu Governo' : formation?.awaiting ? 'Aguardando sua equipe' : 'Forme seu Governo'}
           </DialogTitle>
           <DialogDescription className="text-center">
             {cabinetPending
