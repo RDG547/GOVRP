@@ -27,6 +27,7 @@ const GovernmentEconomyPanel = ({ data, toast, onRefresh }) => {
   const [ministry, setMinistry] = useState(null);
   const [ministryLoaded, setMinistryLoaded] = useState(false);
   const [currentRates, setCurrentRates] = useState(null);
+  const [economyPortfolio, setEconomyPortfolio] = useState(false);
   const isAdmin = user?.is_platform_admin === true || user?.role === 'Admin';
   const executiveRoles = [user?.role, ...(user?.effective_roles || [])];
   const executive = executiveRoles.includes('Presidente') || isAdmin;
@@ -35,18 +36,29 @@ const GovernmentEconomyPanel = ({ data, toast, onRefresh }) => {
     let active = true;
     if (!user?.id || executive) {
       setMinistry(null);
+      setEconomyPortfolio(false);
       setMinistryLoaded(true);
       return;
     }
     setMinistryLoaded(false);
-    void supabase.from('ministers').select('ministry,status').eq('user_id',user.id)
-      .eq('status','active').limit(1).maybeSingle()
-      .then(({ data: appointment, error }) => {
-        if (!active) return;
-        if (error) console.warn('ministry-portfolio', error);
-        setMinistry(error ? null : appointment?.ministry || null);
-        setMinistryLoaded(true);
-      });
+    void Promise.all([
+      supabase.from('ministers').select('ministry,status').eq('user_id',user.id)
+        .eq('status','active').limit(1).maybeSingle(),
+      supabase.rpc('current_minister_has_portfolio', { p_ministry_name: 'Ministério da Economia' }),
+    ]).then(([appointmentResult, portfolioResult]) => {
+      if (!active) return;
+      if (appointmentResult.error) console.warn('ministry-portfolio', appointmentResult.error);
+      if (portfolioResult.error) console.warn('merged-economy-portfolio', portfolioResult.error);
+      setMinistry(appointmentResult.error ? null : appointmentResult.data?.ministry || null);
+      setEconomyPortfolio(!portfolioResult.error && portfolioResult.data === true);
+      setMinistryLoaded(true);
+    }).catch(error => {
+      if (!active) return;
+      console.warn('economy-portfolio-check', error);
+      setMinistry(null);
+      setEconomyPortfolio(false);
+      setMinistryLoaded(true);
+    });
     return () => { active = false; };
   }, [user?.id, executive]);
 
@@ -62,7 +74,7 @@ const GovernmentEconomyPanel = ({ data, toast, onRefresh }) => {
     return () => { active = false; };
   }, [data]);
 
-  const canDecideFiscal = executive || ministry === 'Ministério da Economia';
+  const canDecideFiscal = executive || ministry === 'Ministério da Economia' || economyPortfolio;
   const canDecideMonetary = executive;
   const allowedPolicies = useMemo(() => [
     ...(canDecideMonetary ? READABLE_MONETARY_POLICIES : []),
