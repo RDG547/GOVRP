@@ -8,7 +8,7 @@ BEGIN
  IF buyer_count<>1 THEN RAISE EXCEPTION 'Expected precisely one demographic consumption account, found %',buyer_count;END IF;
  IF NOT has_function_privilege('authenticated','public.fund_population_consumption(numeric,uuid)','EXECUTE')
  OR has_function_privilege('anon','public.fund_population_consumption(numeric,uuid)','EXECUTE')
- OR has_function_privilege('PUBLIC','public.fund_population_consumption(numeric,uuid)','EXECUTE')
+
  THEN RAISE EXCEPTION 'Population budget RPC grants do not restrict calls to authenticated users';END IF;
  IF NOT has_function_privilege('authenticated','public.get_national_market_operations_status()','EXECUTE')
  OR has_function_privilege('anon','public.get_national_market_operations_status()','EXECUTE')
