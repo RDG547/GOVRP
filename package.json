@@ -45,6 +45,7 @@
     "test:citizen-world-repairs": "node tools/test-citizen-world-repairs.mjs",
     "test:citizen-needs": "node tools/test-citizen-needs-world.mjs",
     "test:citizen-government": "node tools/test-citizen-government-world.mjs",
+    "test:government-ministry-merges": "node tools/test-presidential-ministry-merges.mjs",
     "test:citizen-interface": "node tools/test-citizen-needs-interface.mjs",
     "test:citizen-commerce-notifications": "node tools/test-citizen-commerce-notifications.mjs",
     "test:continuous-world": "node tools/test-continuous-world.mjs",

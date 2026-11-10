@@ -22,7 +22,7 @@ const MinisterDashboard = () => {
       setLoading(true);
       setError('');
       const [ministerRes, projectsRes, policyRes] = await Promise.all([
-        supabase.from('ministers').select('user_id,ministry,status').eq('status','active'),
+        supabase.rpc('get_active_ministry_portfolios'),
         supabase.from('government_projects').select('id,name,ministry,status,approved_budget,spent_amount,progress,created_at').order('created_at',{ascending:false}).limit(150),
         supabase.from('economic_policy_decisions').select('id,authority_profile_id,policy_type,status,announced_at_real,justification').order('announced_at_real',{ascending:false}).limit(150),
       ]);
@@ -70,6 +70,7 @@ const MinisterDashboard = () => {
       {!error && office && <>
         <div className="rounded-xl border border-white/10 bg-white/5 p-4">
           <h3 className="flex items-center gap-2 text-xl font-semibold"><Landmark className="h-5 w-5 text-sky-400"/>{office.ministry}</h3>
+          {office.merged && <p className="mt-1 text-sm text-sky-300">Pasta incorporada ao {office.primary_ministry}; gestão exercida pelo mesmo ministro.</p>}
           <p className="mt-1 text-sm text-muted-foreground">Indicadores oficiais e projetos efetivamente registrados nesta pasta.</p>
         </div>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">

@@ -64,6 +64,7 @@ import { fetchWithSessionAuth } from '@/lib/apiAuth';
 import { applyPolicy } from '@/lib/economy/api';
 import UserSelectOption from '@/components/UserSelectOption';
 import { fetchActiveMinistersWithProfiles } from '@/lib/ministers';
+import MinistryMergeManager from '@/components/government/MinistryMergeManager';
 
 const MINISTRY_INFO = {
     'Ministério da Justiça': { icon: Shield, color: 'text-blue-400', bgColor: 'bg-blue-500/20' },
@@ -89,7 +90,15 @@ const MinisterManager = ({ ministers, ministries, onUpdate }) => {
     const [changingMinistry, setChangingMinistry] = useState(null);
 
     const [invitations,setInvitations]=useState([]);
-    const loadInvitations=useCallback(async()=>{const result=await supabase.from('minister_invitations').select('*, ministry:government_ministries(name), candidate:profiles!candidate_id(full_name), government:government_terms!inner(ended_at)').is('government.ended_at',null).order('created_at',{ascending:false}).limit(100);if(!result.error)setInvitations(result.data||[]);},[]);
+    const [merges,setMerges]=useState([]);
+    const loadInvitations=useCallback(async()=>{
+      const [result,mergeResult] = await Promise.all([
+        supabase.from('minister_invitations').select('*, ministry:government_ministries(name), candidate:profiles!candidate_id(full_name), government:government_terms!inner(ended_at)').is('government.ended_at',null).order('created_at',{ascending:false}).limit(100),
+        supabase.rpc('get_government_ministry_merges'),
+      ]);
+      if(!result.error) setInvitations(result.data||[]);
+      if(!mergeResult.error) setMerges(Array.isArray(mergeResult.data)?mergeResult.data:[]);
+    },[]);
     useEffect(()=>{void loadInvitations();},[loadInvitations]);
     useDomainRealtime('cabinet-invitations','current',['minister_invitations','government_terms'],loadInvitations);
     const cancelInvitation=async id=>{const result=await supabase.rpc('cancel_minister_invitation',{p_invitation_id:id});if(result.error)toast({title:'Não foi possível cancelar',description:result.error.message,variant:'destructive'});else{await loadInvitations();onUpdate();}};
@@ -98,7 +107,7 @@ const MinisterManager = ({ ministers, ministries, onUpdate }) => {
         : Object.keys(MINISTRY_INFO);
 
     const availableMinistries = allMinistries.filter(
-        (ministry) => !ministers.some((minister) => minister.ministry === ministry)
+        (ministry) => !ministers.some((minister) => minister.ministry === ministry) && !merges.some((item) => item.merged_name === ministry)
     );
 
 
@@ -196,11 +205,14 @@ const MinisterManager = ({ ministers, ministries, onUpdate }) => {
                 </Dialog>
             </div>
 
+            <MinistryMergeManager ministries={ministries} occupiedMinistries={ministers.map(item=>item.ministry)}
+              onUpdate={async () => { await loadInvitations(); await onUpdate?.(); }} />
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {allMinistries.map(ministry => {
                     const info = MINISTRY_INFO[ministry] || { icon: Building2, color: 'text-cyan-400', bgColor: 'bg-cyan-500/20' };
                     const MinIcon = info.icon;
                     const minister = ministers.find(m => m.ministry === ministry);
+                    const mergedInto = merges.find(item => item.merged_name === ministry);
                     const invitation = invitations.find(item=>item.ministry?.name===ministry);
                     return (
                         <Card key={ministry} className={`glass-effect transition-colors ${minister ? 'border-primary/30' : 'border-dashed border-muted-foreground/30'}`}>
@@ -211,7 +223,9 @@ const MinisterManager = ({ ministers, ministries, onUpdate }) => {
                                     </div>
                                     <div className="flex-1 min-w-0">
                                         <CardTitle className="text-sm font-semibold truncate">{ministry.replace('Ministério ', 'Min. ')}</CardTitle>{invitation?.status==='pending'&&<><p className="text-xs text-muted-foreground">Prazo: {new Date(invitation.expires_at).toLocaleString('pt-BR')}</p><Button variant="ghost" size="sm" onClick={()=>cancelInvitation(invitation.id)}>Cancelar convite</Button></>}
-                                        {minister ? (
+                                        {mergedInto ? (
+                                            <CardDescription>Integrado a {mergedInto.primary_name}. Uma única nomeação cobre ambas as pastas.</CardDescription>
+                                        ) : minister ? (
                                             <CardDescription className="truncate">{minister.profile.full_name} · reputação {Number(minister.reputation_score ?? 50).toFixed(0)}%</CardDescription>
                                         ) : (
                                             <CardDescription>{invitation?.status==='pending'?`Aguardando ${invitation.candidate?.full_name}`:`Não preenchida${invitation ? ' · '+({declined:'Convite recusado',expired:'Convite expirado',cancelled:'Convite cancelado'}[invitation.status]||'') : ''}`}</CardDescription>
@@ -220,7 +234,9 @@ const MinisterManager = ({ ministers, ministries, onUpdate }) => {
                                 </div>
                             </CardHeader>
                             <CardFooter className="pt-0 gap-2">
-                                {minister ? (
+                                {mergedInto ? (
+                                    <p className="w-full text-center text-xs text-muted-foreground">Pasta unificada · desfazer fusão para nomear separadamente</p>
+                                ) : minister ? (
                                     <>
                                         <Button variant="outline" size="sm" className="flex-1" onClick={() => openChangeDialog(minister)}>
                                             <Edit className="mr-1 h-3 w-3" /> Alterar
