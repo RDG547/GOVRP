@@ -9,6 +9,7 @@ let partyIds=[];
 try {
  const admin=await actor('identity-admin','Admin'),owner=await actor('identity-owner'),vice=await actor('identity-vice'),outsider=await actor('identity-outsider');
  const deputy=await actor('identity-deputy','Deputado'),senator=await actor('identity-senator','Senador');
+ const formationCandidates=await Promise.all([0,1,2,3].map(i=>actor(`identity-formation-minister-${i}`)));
  for(const role of ['Deputado','Senador','Presidente da Câmara dos Deputados','Vice-Presidente do Senado Federal'])assert.equal(resolvePrimaryRole({role}),role);
  assert(getProfileRolePool({role:'Presidente da Câmara dos Deputados'}).includes('Deputado'));
  assert(!getProfileRolePool({role:'Cidadão',titles:['Deputado']}).includes('Deputado'));
@@ -59,10 +60,34 @@ try {
  update public.profiles set role='Presidente',role_assigned_at=clock_timestamp() where id='${outsider.id}';
  perform set_config('request.jwt.claim.sub','${outsider.id}',true);f:=public.get_presidential_formation();fid:=(f->>'id')::uuid;
  if f->>'status'<>'in_progress' or (public.get_presidential_formation()->>'id')::uuid<>fid then raise exception 'Formação não retomada';end if;
+ -- Strategic offices and invitations do not count toward the three ministers.
  update public.executive_office_definitions set required_for_formation=false;
- update public.government_ministries set is_active=false;
- f:=public.get_presidential_formation();if f->>'completed_at' is not null then raise exception 'Formação concluiu sem confirmação';end if;
- perform public.complete_presidential_formation();if public.get_presidential_formation()->>'status'<>'completed' then raise exception 'Conclusão não persistiu';end if;
+ f:=public.get_presidential_formation();
+ if (f->>'required_ministers')::integer<>3 or (f->>'remaining')::integer<>3 or f->>'completed_at' is not null then raise exception 'A regra inicial nao exige tres ministros empossados';end if;
+ denied:=false;begin perform public.complete_presidential_formation();exception when others then denied:=true;end;
+ if not denied then raise exception 'Formacao concluida sem ministros';end if;
+ for notices in 0..2 loop
+   select name into vote_role from public.government_ministries where is_active order by name offset notices limit 1;
+   perform set_config('request.jwt.claim.sub','${outsider.id}',true);
+   result:=to_jsonb(public.appoint_minister((array['${formationCandidates[0].id}','${formationCandidates[1].id}','${formationCandidates[2].id}']::uuid[])[notices+1],vote_role));
+   if result->>'success'<>'true' then raise exception 'Convite de ministro nao criado';end if;
+   -- Convite pendente ainda nao corresponde a posse.
+   f:=public.get_presidential_formation();if (f->>'appointed_ministers')::integer<>notices then raise exception 'Convite foi contado como posse';end if;
+   perform set_config('request.jwt.claim.sub',(array['${formationCandidates[0].id}','${formationCandidates[1].id}','${formationCandidates[2].id}']::text[])[notices+1],true);
+   perform public.respond_minister_invitation((result->'invitation'->>'id')::uuid,true);
+   perform set_config('request.jwt.claim.sub','${outsider.id}',true);
+   f:=public.get_presidential_formation();
+   if (f->>'appointed_ministers')::integer<>notices+1 then raise exception 'Posse nao atualizou a formacao';end if;
+ end loop;
+ if (f->>'remaining')::integer<>0 then raise exception 'Tres ministros nao liberaram a conclusao';end if;
+ perform public.complete_presidential_formation();if public.get_presidential_formation()->>'status'<>'completed' then raise exception 'Conclusao nao persistiu';end if;
+ -- Um convite adicional recusado nao deve reabrir a formacao finalizada.
+ select name into vote_role from public.government_ministries where is_active order by name offset 3 limit 1;
+ result:=to_jsonb(public.appoint_minister('${formationCandidates[3].id}',vote_role));
+ perform set_config('request.jwt.claim.sub','${formationCandidates[3].id}',true);
+ perform public.respond_minister_invitation((result->'invitation'->>'id')::uuid,false);
+ perform set_config('request.jwt.claim.sub','${outsider.id}',true);
+ if (public.get_presidential_formation()->>'status')<>'completed' then raise exception 'Convite adicional reabriu a formacao';end if;
  perform set_config('request.jwt.claim.sub','${admin.id}',true);
  update public.profiles set role_assigned_at=clock_timestamp()+interval '1 second' where id='${outsider.id}';
  perform set_config('request.jwt.claim.sub','${outsider.id}',true);f:=public.get_presidential_formation();if (f->>'id')::uuid=fid or f->>'completed_at' is not null then raise exception 'Nova posse reutilizou formação';end if;
