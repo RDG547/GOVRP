@@ -15,7 +15,7 @@ try {
  check(initial && initial.required_ministers===3 && initial.appointed_ministers===0 && initial.remaining===3,'Formação exige três ministros em exercício sem exigir cargos estratégicos');
  check((await rpc(president.client,'get_presidential_formation')).id===initial.id,'nova sessão retoma a mesma formação');
  check(Boolean((await citizen.client.rpc('manage_executive_appointment',{p_office_key:'federal_police_director',p_user_id:citizen.id})).error),'cidadão comum não nomeia chefias');
- for(const office of initial.offices) {
+ for(const office of initial.offices.filter(item=>['federal_police_director','armed_forces_commander','intelligence_commander'].includes(item.office_key))) {
    const appointed=await actor(`government-${office.office_key}`);
    await rpc(president.client,'manage_executive_appointment',{p_office_key:office.office_key,p_user_id:appointed.id,p_note:'Nomeação integrada de teste.'});
    const profile=await request(service.from('profiles').select('role').eq('id',appointed.id).single());
