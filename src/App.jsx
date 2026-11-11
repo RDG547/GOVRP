@@ -14,6 +14,7 @@ import CompanyPage from '@/pages/services/CompanyPage';
 import { CitizenNeedsProvider } from '@/contexts/CitizenNeedsContext';
 import AdminDevelopmentBanner from '@/components/admin/AdminDevelopmentBanner';
 import PresidentialFormationGuide from '@/components/PresidentialFormationGuide';
+import ParliamentVotingStartPopup from '@/components/parliament/ParliamentVotingStartPopup';
 import CitizenNeedsHUD from '@/components/CitizenNeedsHUD';
 import NationalCitizenCommerce from '@/pages/services/NationalCitizenCommerce';
 import React from 'react';
@@ -330,7 +331,7 @@ const AppShell = ({ location, theme, isAuthCallback }) => {
           {!user?.is_admin_preview && !isEmbeddedPhone() && !isAuthCallback && !isCitizenOnboarding && !onboardingRequired && <SalaryPaymentPopup />}
           {!user?.is_admin_preview && !isEmbeddedPhone() && !isAuthCallback && !isCitizenOnboarding && !onboardingRequired && <BusinessBalancePopup />}
           {!user?.is_admin_preview && !isEmbeddedPhone() && !isAuthCallback && !isCitizenOnboarding && !onboardingRequired && <ViceCandidacyDecisionPopup />}
-          {!user?.is_admin_preview && !isEmbeddedPhone() && !isAuthCallback && !isCitizenOnboarding && !onboardingRequired && <><ElectionOfficeAwardPopup /><PresidentialFormationGuide /></>}
+          {!user?.is_admin_preview && !isEmbeddedPhone() && !isAuthCallback && !isCitizenOnboarding && !onboardingRequired && <><ElectionOfficeAwardPopup /><PresidentialFormationGuide /><ParliamentVotingStartPopup /></>}
         </div>
       </div>
     </GlobalSiteAvailabilityGate>
