@@ -60,6 +60,7 @@ export default function MinistryProgramApprovals(){
      <ThumbsDown className="mr-2 h-4 w-4"/>Rejeitar
     </Button></div>
    </DialogContent>
+   </Dialog>
   </CardContent>
  </Card>;
 }
