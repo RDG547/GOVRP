@@ -65,6 +65,7 @@ import { applyPolicy } from '@/lib/economy/api';
 import UserSelectOption from '@/components/UserSelectOption';
 import { fetchActiveMinistersWithProfiles } from '@/lib/ministers';
 import MinistryMergeManager from '@/components/government/MinistryMergeManager';
+import MinistryProgramApprovals from '@/components/government/MinistryProgramApprovals';
 
 const MINISTRY_INFO = {
     'Ministério da Justiça': { icon: Shield, color: 'text-blue-400', bgColor: 'bg-blue-500/20' },
@@ -2182,7 +2183,7 @@ const PresidentDashboard = () => {
 
                                 <TabsContent value="ministers" className="mt-0">
                                     <div className="space-y-6 max-w-5xl mx-auto">
-                                        <Tabs defaultValue="cabinet"><TabsList className="flex h-auto flex-wrap gap-2"><TabsTrigger value="cabinet"><Briefcase className="mr-2 h-4 w-4" />Gabinete de Ministros</TabsTrigger><TabsTrigger value="executive"><UserPlus className="mr-2 h-4 w-4" />Nomeações do Executivo</TabsTrigger></TabsList><TabsContent value="cabinet"><MinisterManager ministers={ministers} ministries={ministries} onUpdate={() => fetchData(false)} /></TabsContent><TabsContent value="executive"><div className="space-y-5"><SpecialAppointmentsManager executiveState={executiveState} onUpdate={() => fetchData(false)} actorId={user?.id} /><JudicialGovernance /></div></TabsContent></Tabs>
+                                        <Tabs defaultValue="cabinet"><TabsList className="flex h-auto flex-wrap gap-2"><TabsTrigger value="cabinet"><Briefcase className="mr-2 h-4 w-4" />Gabinete de Ministros</TabsTrigger><TabsTrigger value="executive"><UserPlus className="mr-2 h-4 w-4" />Nomeações do Executivo</TabsTrigger></TabsList><TabsContent value="cabinet"><div className="space-y-6"><MinistryProgramApprovals /><MinisterManager ministers={ministers} ministries={ministries} onUpdate={() => fetchData(false)} /></div></TabsContent><TabsContent value="executive"><div className="space-y-5"><SpecialAppointmentsManager executiveState={executiveState} onUpdate={() => fetchData(false)} actorId={user?.id} /><JudicialGovernance /></div></TabsContent></Tabs>
                                     </div>
                                 </TabsContent>
 
