@@ -12,6 +12,7 @@ import { formatDateTimeBR, formatLocaleBR } from '@/lib/dateTime';
 import { userErrorMessage } from '@/lib/userErrors';
 import { fetchPublicProfiles } from '@/lib/publicProfiles';
 import DecreeOversight from '@/components/parliament/DecreeOversight';
+import ParliamentVoteScheduler from '@/components/parliament/ParliamentVoteScheduler';
 import LegalMeasureStudio from '@/components/parliament/LegalMeasureStudio';
 import PartyIdentity from '@/components/parliament/PartyIdentity';
 import { PARLIAMENT_REALTIME_TABLES, parliamentSectionsForEvents } from '@/lib/parliamentRealtime';
@@ -248,6 +249,10 @@ const ParliamentPanel = () => {
   const [plebisciteRequests, setPlebisciteRequests] = useState([]);
   const [members, setMembers] = useState([]);
   const [votings, setVotings] = useState([]);
+  const [scheduledVotings,setScheduledVotings]=useState([]);
+  const [vetoTarget,setVetoTarget]=useState(null);
+  const [vetoReason,setVetoReason]=useState('');
+  const [vetoSaving,setVetoSaving]=useState(false);
   const [commissions, setCommissions] = useState([]);
   const [leadershipTerms, setLeadershipTerms] = useState([]);
   const [leadershipElections, setLeadershipElections] = useState([]);
@@ -296,6 +301,9 @@ const ParliamentPanel = () => {
   const isAdministrativeViewer =
     rolePool.includes('Admin') || rolePool.includes('Presidente');
   const canStartVote = rolePool.some((role) => canManageParliamentVoting(role));
+  const canScheduleVote = rolePool.includes('Admin') ||
+    rolePool.some(role => ['Presidente da Câmara','Presidente da Câmara dos Deputados',
+      'Presidente do Senado','Presidente do Senado Federal'].includes(role));
   const canManageGovernance = rolePool.some((role) => canManageParliamentGovernance(role));
   const canParticipateInGovernance =
     Boolean(parliamentMember) && !isAdministrativeViewer;
@@ -593,6 +601,17 @@ const ParliamentPanel = () => {
   const fetchPanelData = useQueuedRefresh(loadPanelData, [{ quiet: true }]);
   useEffect(() => { void fetchPanelData(); }, [fetchPanelData, loadPanelData]);
   useDomainRealtime('parliament', user?.id, PARLIAMENT_REALTIME_TABLES, events => fetchPanelData({ quiet: true, events }), Boolean(user?.id));
+  const loadScheduledVotings = useCallback(async () => {
+    if(!house?.id){setScheduledVotings([]);return;}
+    const {data,error}=await supabase.from('parliament_voting_schedules')
+      .select('id,bill_id,house_id,starts_at,ends_at,status')
+      .eq('house_id',house.id).eq('status','scheduled').order('starts_at');
+    if(error) console.warn('Agendamentos parlamentares:',error);
+    else setScheduledVotings(data||[]);
+  },[house?.id]);
+  useEffect(()=>{void loadScheduledVotings();},[loadScheduledVotings]);
+  useDomainRealtime('parliament-scheduled-votes',user?.id,
+    ['parliament_voting_schedules'],loadScheduledVotings,Boolean(user?.id&&house?.id));
   usePublicProfileChanges(() => fetchPanelData({ quiet: true }));
 
   useEffect(() => {
@@ -714,6 +733,20 @@ const ParliamentPanel = () => {
         variant: 'destructive',
       });
     }
+  };
+
+  const handleVetoOverride = async () => {
+    if(!vetoTarget||vetoSaving)return;
+    setVetoSaving(true);
+    try{
+      const {error}=await supabase.rpc('propose_veto_override',{
+        p_vetoed_bill_id:vetoTarget.id,p_house_id:house.id,p_reason:vetoReason.trim()
+      });
+      if(error)throw error;
+      toast({title:'Derrubada de veto protocolada',description:'A proposta legislativa está disponível para agendamento de votação nas Casas.'});
+      setVetoTarget(null);setVetoReason('');await fetchPanelData({quiet:true});
+    }catch(error){toast({title:'Não foi possível protocolar',description:error.message,variant:'destructive'});}
+    finally{setVetoSaving(false);}
   };
 
   const handleParliamentVote = async (votingId, vote) => {
@@ -1183,10 +1216,19 @@ const ParliamentPanel = () => {
                                 <p className="text-sm text-muted-foreground">{bill.summary}</p>
                               </CardContent>
                               {canStartVote && bill.status === 'Em tramitação' ? (
+                                <CardFooter className="flex flex-wrap items-center gap-2">
+                                  {!scheduledVotings.some(item=>item.bill_id===bill.id) &&
+                                    <Button size="sm" onClick={() => handleStartBillVoting(bill)}>
+                                      <Gavel className="mr-2 h-4 w-4" />Iniciar agora
+                                    </Button>}
+                                  {canScheduleVote && <ParliamentVoteScheduler bill={bill} houseId={house.id}
+                                    schedule={scheduledVotings.find(item=>item.bill_id===bill.id)}
+                                    onChanged={async()=>{await loadScheduledVotings();await fetchPanelData({quiet:true});}} />}
+                                </CardFooter>
+                              ) : canScheduleVote && ['Vetado integralmente','Vetado parcialmente'].includes(bill.status) ? (
                                 <CardFooter>
-                                  <Button size="sm" onClick={() => handleStartBillVoting(bill)}>
-                                    <Gavel className="mr-2 h-4 w-4" />
-                                    Colocar em votação
+                                  <Button variant="outline" size="sm" onClick={()=>{setVetoReason('');setVetoTarget(bill);}}>
+                                    <Gavel className="mr-2 h-4 w-4"/>Propor derrubada do veto
                                   </Button>
                                 </CardFooter>
                               ) : null}
@@ -2093,6 +2135,18 @@ const ParliamentPanel = () => {
         </DialogContent>
       </Dialog>
 
+      <Dialog open={Boolean(vetoTarget)} onOpenChange={open=>{if(!open&&!vetoSaving)setVetoTarget(null);}}>
+        <DialogContent><DialogHeader><DialogTitle>Propor derrubada de veto presidencial</DialogTitle>
+          <DialogDescription>{vetoTarget?.title}. A proposta passa por deliberação nas duas Casas.</DialogDescription>
+        </DialogHeader>
+        <Textarea aria-label="Fundamentação da derrubada do veto" value={vetoReason}
+          onChange={e=>setVetoReason(e.target.value)} placeholder="Fundamentação legislativa (mínimo 40 caracteres)" />
+        <Button onClick={()=>void handleVetoOverride()} disabled={vetoSaving||vetoReason.trim().length<40}>
+          {vetoSaving?<Loader2 className="mr-2 h-4 w-4 animate-spin"/>:<Gavel className="mr-2 h-4 w-4"/>}
+          Protocolar proposta de derrubada
+        </Button>
+        </DialogContent>
+      </Dialog>
       <Dialog open={isLeadershipDialogOpen} onOpenChange={setIsLeadershipDialogOpen}>
         <DialogContent>
           <DialogHeader className="sm:text-center">
