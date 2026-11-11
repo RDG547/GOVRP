@@ -39,7 +39,9 @@ export default function ParliamentVotingStartPopup(){
    });
   return()=>{active=false;};
  },[votingId,notification?.id]);
- const ready=Boolean(notification&&checked===notification.id&&Date.parse(notification.metadata?.ends_at)>clock);
+ const closedEarly=Boolean(votingId&&(feed?.items||[]).some(item=>
+    item.type==='parliament_voting_closed' && item.metadata?.voting_id===votingId));
+ const ready=Boolean(notification&&checked===notification.id&&!closedEarly&&Date.parse(notification.metadata?.ends_at)>clock);
  const slot=usePopupSlot(ready?'parliament-voting:'+notification.id:null,{priority:38});
  const dismiss=useCallback(async openVoting=>{
    if(!notification||busy)return;
