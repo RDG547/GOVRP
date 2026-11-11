@@ -378,6 +378,10 @@ const BudgetManager = ({ budget, treasuryBalance, onUpdate, setActiveTab }) => {
     const [areas, setAreas] = useState([]);
     const [isSaving, setIsSaving] = useState(false);
     const [editingArea, setEditingArea] = useState(null);
+    const draftDirtyRef = useRef(false);
+    const originalAreasRef = useRef([]);
+    const [isDraftDirty, setIsDraftDirty] = useState(false);
+    const [remoteConflict, setRemoteConflict] = useState(false);
     const [tempValue, setTempValue] = useState(0);
     const [inputValue, setInputValue] = useState("R$ 0,00");
     const safeTreasuryBalance = Math.max(0, Math.floor(Number(treasuryBalance) || 0));
@@ -397,13 +401,26 @@ const BudgetManager = ({ budget, treasuryBalance, onUpdate, setActiveTab }) => {
         'default': { icon: Building, color: 'text-gray-500'}
     };
 
+    // Realtime changes to treasury must not erase an unsaved budget draft.
+    const incomingBudgetSignature = JSON.stringify(budget?.rawAreas || []);
     useEffect(() => {
-        if (budget && budget.areas) {
-            const adjustedAreas = rebalanceGovernmentBudgetAreas(budget.areas, safeTreasuryBalance);
-            setAreas(adjustedAreas);
-
+        if (!budget) return;
+        const persisted = budget.rawAreas || [];
+        if (draftDirtyRef.current) {
+            if (JSON.stringify(originalAreasRef.current) !== incomingBudgetSignature) setRemoteConflict(true);
+            return;
         }
-    }, [budget, safeTreasuryBalance]);
+        originalAreasRef.current = persisted;
+        setAreas(rebalanceGovernmentBudgetAreas(persisted, safeTreasuryBalance));
+        setRemoteConflict(false);
+    }, [incomingBudgetSignature, Boolean(budget)]);
+    const resetDraft = () => {
+        draftDirtyRef.current = false;
+        setIsDraftDirty(false);
+        setRemoteConflict(false);
+        originalAreasRef.current = budget?.rawAreas || [];
+        setAreas(rebalanceGovernmentBudgetAreas(budget?.rawAreas || [], safeTreasuryBalance));
+    };
 
     useEffect(() => {
         setInputValue(formatCurrency(tempValue, true));
@@ -423,7 +440,7 @@ const BudgetManager = ({ budget, treasuryBalance, onUpdate, setActiveTab }) => {
     };
 
     const handleUpdateAreaValue = () => {
-        const maxAllowed = Math.max(0, availableToAllocate + (editingArea?.allocated_value || 0));
+        const maxAllowed = availableToAllocate;
         let finalValue = Math.max(0, tempValue);
 
         if (tempValue > maxAllowed) {
@@ -435,6 +452,8 @@ const BudgetManager = ({ budget, treasuryBalance, onUpdate, setActiveTab }) => {
             area.name === editingArea.name ? { ...area, allocated_value: finalValue } : area
         );
         setAreas(newAreas);
+        draftDirtyRef.current = true;
+        setIsDraftDirty(true);
         setEditingArea(null);
     };
 
@@ -448,17 +467,24 @@ const BudgetManager = ({ budget, treasuryBalance, onUpdate, setActiveTab }) => {
             return;
         }
 
-        const newBudgetData = { areas };
-        const { error } = await supabase
-            .from('system_settings')
-            .update({ value: newBudgetData })
-            .eq('key', 'government_budget');
-
+        if (remoteConflict) {
+            toast({ title: 'Orçamento alterado em outra sessão', description: 'Revise a distribuição atual antes de salvar para evitar sobrescrever valores.', variant: 'destructive' });
+            setIsSaving(false);
+            return;
+        }
+        const { error } = await supabase.rpc('save_presidential_budget', {
+            p_areas: areas,
+            p_expected_areas: originalAreasRef.current,
+        });
         if (error) {
             toast({ title: 'Erro ao salvar orçamento', description: error.message, variant: 'destructive' });
         } else {
-            toast({ title: 'Orçamento salvo com sucesso!' });
-            onUpdate();
+            originalAreasRef.current = areas.map(item => ({ ...item }));
+            draftDirtyRef.current = false;
+            setIsDraftDirty(false);
+            setRemoteConflict(false);
+            toast({ title: 'Orçamento salvo com sucesso!', description: 'Todas as áreas foram persistidas em uma única operação.' });
+            await onUpdate?.();
             if(setActiveTab) setActiveTab('finances');
         }
         setIsSaving(false);
@@ -503,7 +529,9 @@ const BudgetManager = ({ budget, treasuryBalance, onUpdate, setActiveTab }) => {
                     <p className="text-xs text-muted-foreground">Disponível no Cofre: {formatCurrency(safeTreasuryBalance)}</p>
                     <Progress value={safeTreasuryBalance > 0 ? (totalAllocated / safeTreasuryBalance) * 100 : 0} className="mt-2 h-2"/>
                 </div>
-                <Button onClick={handleSave} disabled={isSaving}>
+                {remoteConflict && <p role="alert" className="text-sm text-amber-300">O orçamento foi alterado em outra sessão. Recarregue os valores antes de salvar.</p>}
+                {isDraftDirty && <Button variant="outline" onClick={resetDraft} disabled={isSaving}>Descartar alterações e recarregar</Button>}
+                <Button onClick={handleSave} disabled={isSaving || remoteConflict || !isDraftDirty}>
                     <Save className="mr-2 h-4 w-4" />
                     {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : 'Salvar Orçamento'}
                 </Button>
@@ -1766,7 +1794,7 @@ const PresidentDashboard = () => {
                 budgetData.areas,
                 financesRes.data.treasury_balance
             );
-            const normalizedBudgetData = { ...budgetData, areas: adjustedBudgetAreas };
+            const normalizedBudgetData = { ...budgetData, areas: adjustedBudgetAreas, rawAreas: budgetData.areas || [] };
 
             // Reading a panel must never save world state. Persist the normalized
             // allocation only through the explicit budget action below.
