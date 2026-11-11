@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabaseClient';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { formatCurrency } from '@/lib/economy/format';
+import MinistryProgramsPanel from '@/components/government/MinistryProgramsPanel';
 
 const MinisterDashboard = () => {
   const { user } = useAuth();
@@ -87,6 +88,7 @@ const MinisterDashboard = () => {
             {relevantProjects.length ? relevantProjects.slice(0,12).map((project)=><div key={project.id} className="rounded-lg border border-white/10 p-3"><div className="flex items-start justify-between gap-3"><p className="font-medium">{project.name}</p><span className="text-xs text-muted-foreground">{project.status}</span></div><p className="mt-1 text-xs text-muted-foreground">Execução: {formatCurrency(project.spent_amount)} de {formatCurrency(project.approved_budget)} · Progresso: {Number(project.progress||0).toLocaleString('pt-BR')}%</p></div>) : <p className="text-sm text-muted-foreground">Nenhum projeto registrado para esta pasta.</p>}
           </CardContent>
         </Card>
+        <MinistryProgramsPanel ministry={selectedMinistry} isAdmin={isAdmin} />
         {selectedMinistry === 'Ministério da Economia' && <Card className="glass-effect">
           <CardContent className="pt-6"><p className="text-sm text-muted-foreground">Os valores em vigor da Selic, meta de inflação e das últimas políticas fiscais, com suas competências de alteração, estão na aba <strong>Economia</strong> deste painel.</p></CardContent>
         </Card>}
