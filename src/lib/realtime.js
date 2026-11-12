@@ -14,7 +14,7 @@ export function subscribeToDomain(domain, scope, tables, listener) {
   const key = JSON.stringify([domain, scope, specs]);
   let entry = channels.get(key);
   if (!entry) {
-    entry = { listeners: new Set(), pending: [], timer: null, disposed: false, dirtyWhileHidden: false, disconnected: false };
+    entry = { listeners: new Set(), pending: [], timer: null, disposed: false, dirtyWhileHidden: false, disconnected: false, recoveryTimer: null };
     const emit = (payload) => {
       if (entry.disposed) return;
       // Background tabs still receive websocket events, but read fresh data only
@@ -52,12 +52,25 @@ export function subscribeToDomain(domain, scope, tables, listener) {
       if (entry.disposed) return;
       if (status === 'SUBSCRIBED') {
         entry.disconnected = false;
+        if (entry.recoveryTimer) {
+          clearInterval(entry.recoveryTimer);
+          entry.recoveryTimer = null;
+        }
         // A reconnect might have missed database events: recover once from
         // the authoritative state, not with an endless polling loop.
         entry.sync();
       } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
         entry.disconnected = true;
         entry.dirtyWhileHidden = true;
+        // A scoped REST revalidation is a fallback only while the websocket is
+        // disconnected. The timer is removed as soon as Realtime reconnects.
+        if (!entry.recoveryTimer) {
+          entry.recoveryTimer = setInterval(() => {
+            if (!entry.disposed && entry.disconnected && document.visibilityState === 'visible') {
+              entry.sync();
+            }
+          }, 60000);
+        }
         if (status !== 'CLOSED') console.warn(`Realtime ${domain}: ${status}`, error?.message || 'Tentaremos sincronizar na reconexão.');
       }
     });
@@ -70,7 +83,12 @@ export function subscribeToDomain(domain, scope, tables, listener) {
       // When the websocket resumes it will emit SUBSCRIBED. Do not duplicate
       // that recovery fetch with a separate online-event refresh.
       entry.dirtyWhileHidden = true;
-      entry.resume();
+      if (entry.disconnected && document.visibilityState === 'visible') {
+        entry.dirtyWhileHidden = false;
+        entry.sync();
+      } else {
+        entry.resume();
+      }
     };
     document.addEventListener('visibilitychange', entry.resume);
     window.addEventListener('online', entry.onOnline);
@@ -82,6 +100,7 @@ export function subscribeToDomain(domain, scope, tables, listener) {
     if (entry.listeners.size) return;
     entry.disposed = true;
     clearTimeout(entry.timer);
+    if (entry.recoveryTimer) clearInterval(entry.recoveryTimer);
     entry.pending = [];
     document.removeEventListener('visibilitychange', entry.resume);
     window.removeEventListener('online', entry.onOnline);
