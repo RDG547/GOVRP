@@ -1,0 +1,32 @@
+name: Economy integrity checks
+
+on:
+  pull_request:
+    paths:
+      - 'src/features/economy/**'
+      - 'src/lib/economy/**'
+      - 'src/lib/realtime.js'
+      - 'tools/test-economy-live-integrity.mjs'
+      - 'supabase/migrations/**'
+      - '.github/workflows/economy-integrity.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  economy-contracts-and-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Verify realtime scopes and financial contracts
+        run: node tools/test-economy-live-integrity.mjs
+      - name: Build GOV.RP frontend
+        run: npm run build

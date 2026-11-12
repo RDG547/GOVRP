@@ -8,6 +8,7 @@ import {
   calibrationLabels,
   economicEventLabels,
   formatDate,
+  formatCurrency,
   localizeCalibrationValue,
   periodStatusLabels,
   periodTypeLabels,
@@ -37,8 +38,87 @@ const AdminEconomyPanel = ({ data, toast, onRefresh }) => {
     }
   };
 
+  const health = data?.health;
+  const ledger = health?.accounting || {};
+  const monitoredDifferences = [
+    ledger.population_difference,
+    ledger.business_daily_revenue_difference,
+    ledger.national_weekly_revenue_difference,
+    ledger.healthcare_unlogged_amount,
+    ledger.healthcare_unlogged_visits,
+    ledger.business_daily_mismatch_count,
+    ledger.national_weekly_mismatch_count,
+    ledger.business_revenue_without_daily_row_count,
+  ];
+  const monitoredHealthy = monitoredDifferences.every(value => Math.abs(Number(value || 0)) < 0.005);
+  const number = value => Number(value || 0).toLocaleString('pt-BR', { maximumFractionDigits: 2 });
+
   return (
     <div className="space-y-6">
+      {health && (
+        <Card className="border-border/70 bg-card/75">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Database className="h-5 w-5 text-cyan-300" /> Integridade econômica e contábil
+            </CardTitle>
+            <p className="text-xs text-muted-foreground">
+              Diagnóstico somente de leitura. Nenhum saldo, imposto, parâmetro ou preço é alterado.
+              Conferido em {formatDate(health.checked_at)}.
+            </p>
+          </CardHeader>
+          <CardContent className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            <div className="space-y-2 rounded-xl border border-border/60 p-4 text-sm">
+              <p className="font-medium">Conciliação financeira</p>
+              <Badge variant={monitoredHealthy ? 'outline' : 'destructive'}>
+                {monitoredHealthy ? 'Sem divergências nos controles auditados' : 'Divergências a investigar'}
+              </Badge>
+              <p>Diferença na conta demográfica: {formatCurrency(ledger.population_difference)}</p>
+              <p>Contas com saldo negativo: {number(health.financial?.negative_accounts)}</p>
+              <p>Linhas de estoque empresarial negativas: {number(health.enterprise?.negative_inventory_lines)}</p>
+            </div>
+            <div className="space-y-2 rounded-xl border border-border/60 p-4 text-sm">
+              <p className="font-medium">Empresas e produção</p>
+              <p>Empresas ativas: {number(health.enterprise?.active_businesses)}</p>
+              <p>Receita acumulada nas operações diárias: {formatCurrency(health.enterprise?.daily_revenue)}</p>
+              <p>Folha provisionada: {formatCurrency(health.enterprise?.daily_payroll_accrued)}</p>
+              <p>Custos de insumos: {formatCurrency(health.enterprise?.daily_input_cost)}</p>
+              <p>Resultado operacional acumulado: {formatCurrency(health.enterprise?.operating_result)}</p>
+            </div>
+            <div className="space-y-2 rounded-xl border border-border/60 p-4 text-sm">
+              <p className="font-medium">Mercado Nacional</p>
+              <p>Quantidade nos estoques empresariais: {number(health.market?.business_inventory_quantity)}</p>
+              <p>Quantidade no estoque físico nacional: {number(health.market?.national_physical_stock)}</p>
+              <p>Compras registradas: {number(health.market?.completed_purchases)}</p>
+              <p>Operações de consumo populacional: {number(health.market?.population_consumptions)}</p>
+            </div>
+            <div className="space-y-2 rounded-xl border border-border/60 p-4 text-sm">
+              <p className="font-medium">Lançamentos fiscais</p>
+              <p>Estabilizadores macroeconômicos simulados: {formatCurrency(health.fiscal?.macroeconomic_simulation_expenses)}</p>
+              <p>Outras despesas registradas: {formatCurrency(health.fiscal?.other_recorded_expenses)}</p>
+              <p>Receitas registradas: {formatCurrency(health.fiscal?.recorded_revenues)}</p>
+              <p className="text-xs text-muted-foreground">
+                Despesa macroeconômica simulada não é necessariamente uma transferência bancária do Tesouro.
+              </p>
+            </div>
+            <div className="space-y-2 rounded-xl border border-border/60 p-4 text-sm">
+              <p className="font-medium">Escala macroeconômica</p>
+              <p>PIB anual de referência: {formatCurrency(health.macro?.base_annual_gdp_calibration)}</p>
+              <p>Base atual anualizada: {formatCurrency(health.macro?.current_annualized_base_gdp)}</p>
+              <p>População-base: {number(health.macro?.population_calibration)}</p>
+              <p>População simulada atual: {number(health.macro?.current_population)}</p>
+              <p className="text-xs text-muted-foreground">Valores para conferência, sem recalibração automática.</p>
+            </div>
+            <div className="space-y-2 rounded-xl border border-border/60 p-4 text-sm">
+              <p className="font-medium">Trabalho, investimentos e alertas</p>
+              <p>Pagamentos salariais registrados: {number(health.jobs_investments?.salary_payments)}</p>
+              <p>Ativos de renda fixa: {number(health.jobs_investments?.fixed_income_assets)}</p>
+              <p>Ações cadastradas: {number(health.jobs_investments?.stock_assets)}</p>
+              <p>Históricos de cotação: {number(health.jobs_investments?.stock_prices)}</p>
+              <p>Alertas ativos: {number(health.alerts?.active)} · resolvidos: {number(health.alerts?.resolved)}</p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
       {data?.periods?.some(period => period.metadata?.causal_economy) && <Card><CardHeader><CardTitle>Fatores da atividade econômica</CardTitle></CardHeader><CardContent className="space-y-4">{data.periods.filter(period=>period.metadata?.causal_economy).slice(0,3).map(period=><div key={period.id} className="rounded-lg border p-3"><p className="mb-2 font-medium">{period.rp_month}/{period.rp_year} · ciclo mensal RP</p><dl className="grid grid-cols-2 gap-2 sm:grid-cols-3">{Object.entries({consumption:'Consumo',investment:'Investimento',government:'Gasto público',exports:'Exportações',imports:'Importações',demand_index:'Demanda agregada',real_growth_factor:'Variação real',selic:'Selic'}).map(([key,label])=><div key={key}><dt className="text-xs text-muted-foreground">{label}</dt><dd className="font-medium">{Number(period.metadata.causal_economy[key]).toLocaleString('pt-BR',{maximumFractionDigits:4})}{key==='selic'?'%':' ×'}</dd></div>)}</dl></div>)}</CardContent></Card>}
       <div className="grid gap-6 xl:grid-cols-2">
         <Card className="border-border/70 bg-card/75">
