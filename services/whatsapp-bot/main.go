@@ -146,6 +146,20 @@ func (b *Bot) reply(to types.JID,text string) {
  if text=="" {return}
  go func(){_,err:=b.send(to,text);if err!=nil{log.Printf("reply failed (%s): %v",to.String(),err)}}()
 }
+// commandAllowed enforces group-only operation. Account linking is the sole private-chat exception.
+// No message is sent to unauthorized groups, and private messages other than !vincular are ignored.
+func commandAllowed(settings Settings, groups map[string]bool, isGroup bool, chatJID string, command string) bool {
+ if !settings.Enabled {return false}
+ if !isGroup {return command=="vincular"}
+ if !settings.Commands || !groups[chatJID] {return false}
+ switch command {
+ case "ajuda","noticias","economia","governo","partidos","eleicoes","votacoes","leis","perfil":
+  return true
+ default:
+  return false
+ }
+}
+
 func (b *Bot) onMessage(evt *events.Message) {
  if evt.Info.IsFromMe || evt.Message==nil{return}
  text:=strings.TrimSpace(evt.Message.GetConversation())
@@ -153,24 +167,21 @@ func (b *Bot) onMessage(evt *events.Message) {
  if text=="" {return}
  if evt.Info.IsGroup {b.discovered(evt.Info.Chat.String(),"")}
  settings,groups:=b.current()
- if !settings.Enabled || !settings.Commands{return}
- if evt.Info.IsGroup && !groups[evt.Info.Chat.String()] {return}
+ // Ignore disallowed chats before performing any RPC, sending replies or consuming rate limits.
+ if !settings.Enabled || (evt.Info.IsGroup && !groups[evt.Info.Chat.String()]) {return}
  if !strings.HasPrefix(text,settings.Prefix){return}
  words:=strings.Fields(strings.TrimSpace(strings.TrimPrefix(text,settings.Prefix)))
  if len(words)==0{return}
  command:=strings.ToLower(words[0])
+ if !commandAllowed(settings,groups,evt.Info.IsGroup,evt.Info.Chat.String(),command){return}
  if !b.rateOK(evt.Info.Sender.String()){return}
- // Pairing and unlinking are strictly private to avoid leaking one-time codes into groups.
- if command=="vincular" || command=="desvincular" {
-  if evt.Info.IsGroup {
-   b.reply(evt.Info.Chat,"🔒 Para vincular sua conta, fale com o bot no privado.")
-   return
-  }
-  go b.handlePrivate(evt.Info.Sender,command,words)
+
+ if !evt.Info.IsGroup {
+  // Linking uses a one-time code and is permitted only in the sender's private chat.
+  go b.handlePrivate(evt.Info.Sender,words)
   return
  }
- permitted:=map[string]bool{"ajuda":true,"noticias":true,"economia":true,"governo":true,"partidos":true,"eleicoes":true,"votacoes":true,"leis":true,"perfil":true}
- if !permitted[command] {return}
+ // All other supported commands work exclusively within an enabled group.
  go func(){
   ctx,cancel:=ctxTimeout();defer cancel()
   var reply string
@@ -179,21 +190,19 @@ func (b *Bot) onMessage(evt *events.Message) {
   b.reply(evt.Info.Chat,reply)
  }()
 }
-func (b *Bot) handlePrivate(sender types.JID,command string,args []string) {
+func (b *Bot) handlePrivate(sender types.JID,args []string) {
  ctx,cancel:=ctxTimeout();defer cancel()
- var text string
- var err error
- switch command {
- case "vincular":
-  if len(args)!=2 {text="Use !vincular CÓDIGO. Gere seu código em "+siteURL+"/settings";break}
-  err=b.api.rpc(ctx,"bot_whatsapp_complete_link",map[string]any{"p_sender_jid":sender.String(),"p_code":strings.ToUpper(args[1])},&text)
- case "desvincular":
-  var unlinked bool
-  err=b.api.rpc(ctx,"bot_whatsapp_unlink_sender",map[string]any{"p_sender_jid":sender.String()},&unlinked)
-  if unlinked {text="✅ WhatsApp desvinculado do GOVRP."} else {text="Este número não estava vinculado."}
+ var reply string
+ if len(args)!=2 {
+  reply="Use !vincular CÓDIGO. Gere seu código em "+siteURL+"/settings"
+ } else {
+  err:=b.api.rpc(ctx,"bot_whatsapp_complete_link",map[string]any{"p_sender_jid":sender.String(),"p_code":strings.ToUpper(args[1])},&reply)
+  if err!=nil {
+   log.Printf("account linking failed: %v",err)
+   reply="Não consegui concluir a vinculação. Tente novamente."
+  }
  }
- if err!=nil {log.Printf("link operation: %v",err);text="Não consegui concluir a operação. Tente novamente."}
- b.reply(sender,text)
+ b.reply(sender,reply)
 }
 func (b *Bot) deliver() {
  settings,groups:=b.current()
