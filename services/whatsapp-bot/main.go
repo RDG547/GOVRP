@@ -239,10 +239,9 @@ func run() error {
   }
  })
  bot.readConfig()
- var qrCancel context.CancelFunc
  if wa.Store.ID==nil {
-  var qrCtx context.Context
-  qrCtx,qrCancel=context.WithCancel(ctx)
+  qrCtx,cancelQR:=context.WithCancel(ctx)
+  defer cancelQR()
   qrChan,err:=wa.GetQRChannel(qrCtx);if err!=nil{return fmt.Errorf("QR channel: %w",err)}
   go func(){
    for q:=range qrChan {
@@ -254,7 +253,7 @@ func run() error {
   }()
  }
  if err=wa.Connect();err!=nil {bot.report(false,false,"",err.Error());return err}
- defer func(){if qrCancel!=nil {qrCancel()};wa.Disconnect();bot.report(false,wa.Store.ID!=nil,"","Serviço parado")}()
+ defer func(){wa.Disconnect();bot.report(false,wa.Store.ID!=nil,"","Serviço parado")}()
  log.Printf("GOVRP Bot iniciado. Monitore e conecte o número pelo painel admin em %s/admin-dashboard/whatsapp",siteURL)
  statusTicker:=time.NewTicker(25*time.Second)
  configTicker:=time.NewTicker(20*time.Second)
