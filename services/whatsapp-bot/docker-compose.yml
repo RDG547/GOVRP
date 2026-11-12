@@ -1,0 +1,15 @@
+services:
+  govrp-whatsapp:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - govrp_bot_session:/data
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    mem_limit: 768m
+    pids_limit: 128
+volumes:
+  govrp_bot_session:

@@ -1,5 +1,6 @@
 import AccountPasswordSettings from '@/components/AccountPasswordSettings';
 import AccountEmailSettings from '@/components/AccountEmailSettings';
+import WhatsAppAccountLink from '@/components/WhatsAppAccountLink';
 import { formatDateBR } from '@/lib/dateTime';
 import { formatLocaleBR } from '@/lib/dateTime';
 import React, { useEffect, useRef, useState } from 'react';
@@ -111,7 +112,7 @@ const Settings = () => {
         <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>
           <div className="mb-8 text-center"><h1 className="text-4xl font-bold text-white">Configurações</h1><p className="mt-3 text-slate-400">Conta real e cidadão do RP são identidades distintas.</p></div>
           <Tabs defaultValue="account" className="w-full">
-            <TabsList className="mx-auto grid w-full max-w-lg grid-cols-2"><TabsTrigger value="account">Dados da Conta</TabsTrigger><TabsTrigger value="citizen">Dados do Cidadão</TabsTrigger></TabsList>
+            <TabsList className="mx-auto grid w-full max-w-xl grid-cols-3"><TabsTrigger value="account">Conta</TabsTrigger><TabsTrigger value="citizen">Cidadão</TabsTrigger><TabsTrigger value="whatsapp">WhatsApp</TabsTrigger></TabsList>
 
             <TabsContent value="account" className="mt-6">
               <form onSubmit={saveAccount} className="glass-effect rounded-2xl border border-white/10 p-6 sm:p-8">
@@ -147,6 +148,7 @@ const Settings = () => {
                 <div className="mt-7 flex justify-end"><Button type="submit" disabled={citizenLoading}>{citizenLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}Salvar perfil público</Button></div>
               </form>
             </TabsContent>
+            <TabsContent value="whatsapp" className="mt-6"><WhatsAppAccountLink /></TabsContent>
           </Tabs>
 
           <div className="mt-8 rounded-2xl border border-red-500/20 bg-red-500/10 p-5 sm:flex sm:items-center sm:justify-between sm:gap-5"><div><h2 className="text-lg font-semibold">Solicitar exclusão da conta</h2><p className="mt-1 text-sm text-red-100/80">Use o procedimento formal para encerrar conta e dados associados.</p></div><Button asChild variant="destructive" className="mt-4 sm:mt-0"><Link to="/account-deletion">Solicitar exclusão <ArrowRight className="ml-2 h-4 w-4" /></Link></Button></div>
