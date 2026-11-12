@@ -33,6 +33,7 @@ import PageHeader from '@/components/layout/PageHeader';
 import SiteAnalytics from '@/components/admin/SiteAnalytics';
 import UserManagement from '@/components/admin/UserManagement';
 import SystemSettings from '@/components/admin/SystemSettings';
+import WhatsAppBotManagement from '@/components/admin/WhatsAppBotManagement';
 import ContentModeration from '@/components/admin/ContentModeration';
 import ElectionManagement from '@/components/admin/ElectionManagement';
 import CandidacyManagement from '@/components/admin/CandidacyManagement';
@@ -50,6 +51,7 @@ const tabs = [
   {id:'development',label:'Desenvolvimento',icon:FlaskConical,component:AdminDevelopment},
   { id: 'users', label: 'Usuários', icon: Users, component: UserManagement },
   { id: 'settings', label: 'Sistema e Serviços', icon: Settings, component: SystemSettings },
+  { id: 'whatsapp', label: 'WhatsApp Bot', icon: Newspaper, component: WhatsAppBotManagement },
   { id: "world", label: "Simulação e Sociedade", icon: Settings, component: WorldSettings },
   { id: 'reset', label: 'Resets', icon: RotateCcw, component: ResetManagement },
   { id: "salaries", label: "Remuneração", icon: Users, component: OfficialSalarySettings },
