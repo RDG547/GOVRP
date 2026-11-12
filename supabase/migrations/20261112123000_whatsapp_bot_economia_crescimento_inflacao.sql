@@ -89,8 +89,7 @@ BEGIN
   RETURN coalesce(v_result,'Perfil não encontrado.')||E'\n\nhttps://govrp.vercel.app/settings';
  END IF;
  RETURN 'Comando desconhecido. Digite !ajuda para ver as opções.';
-END $function$
-
+END $function$;
 REVOKE ALL ON FUNCTION public.bot_whatsapp_command(text,text) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.bot_whatsapp_command(text,text) TO service_role;
 COMMIT;
