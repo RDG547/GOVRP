@@ -38,10 +38,12 @@ export function economyRealtimeTablesFor(view, userId) {
   const tables = [...ECONOMY_PUBLIC_TABLES];
   const privateViewer = Boolean(userId);
 
-  if (privateViewer && ['citizen', 'business', 'admin'].includes(view)) {
-    // Owned personal accounts. Company accounts and transaction histories are
-    // additionally filtered by RLS when they are subscribed without an id filter.
+  if (privateViewer && view === 'citizen') {
+    // Personal accounts are filtered by the authenticated user's id.
     tables.push({ table: 'accounts', filter: `user_id=eq.${userId}` });
+  }
+  if (privateViewer && ['citizen', 'business', 'admin'].includes(view)) {
+    // Transaction row visibility belongs to RLS for account participants.
     tables.push('transactions');
   }
 
