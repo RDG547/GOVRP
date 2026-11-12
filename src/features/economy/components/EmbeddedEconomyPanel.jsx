@@ -1,6 +1,9 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useToast } from '@/components/ui/use-toast';
-import { supabase } from '@/lib/supabaseClient';
+import { useAuth } from '@/contexts/AuthContext';
+import { useDomainRealtime } from '@/hooks/use-domain-realtime';
+import { useQueuedRefresh } from '@/hooks/use-queued-refresh';
+import { economyRealtimeTablesFor } from '@/lib/economy/realtime-tables';
 import {
   fetchAdminEconomy,
   fetchBusinessEconomy,
@@ -57,63 +60,48 @@ const EmbeddedEconomyPanel = ({ view = 'public', showHeader = true }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
+  const { user } = useAuth();
+  const requestSequence = useRef(0);
+
   const load = useCallback(async ({ quiet = false } = {}) => {
+    const request = ++requestSequence.current;
     if (!quiet) setLoading(true);
-    setError('');
 
     try {
-      setData(await config.fetcher());
+      const result = await config.fetcher();
+      // Ignore responses from an old view or an outdated in-flight request.
+      if (request !== requestSequence.current) return;
+      setData(result);
+      setError('');
     } catch (loadError) {
-      setError(loadError.message);
+      if (request !== requestSequence.current) return;
+      if (!quiet) setError(loadError.message || 'Falha ao consultar economia.');
+      else console.warn('economy-live-refresh', loadError?.message);
     } finally {
-      if (!quiet) setLoading(false);
+      if (!quiet && request === requestSequence.current) setLoading(false);
     }
-  }, [config]);
+  }, [config.fetcher]);
+
+  // Prevent overlapping requests during bursts of economic events, while
+  // guaranteeing a final read if an update arrives during an ongoing fetch.
+  const refresh = useQueuedRefresh(load, [{ quiet: true }]);
 
   useEffect(() => {
-    load();
-  }, [load]);
+    setData(null);
+    setError('');
+    void refresh({ quiet: false });
+    return () => { requestSequence.current += 1; };
+  }, [view, refresh]);
 
-  useEffect(() => {
-    let refreshTimer;
-    const scheduleRefresh = () => {
-      window.clearTimeout(refreshTimer);
-      refreshTimer = window.setTimeout(() => load({ quiet: true }), 350);
-    };
-    let channel = supabase.channel(`embedded-economy-${view}`);
-
-    [
-      'economic_state',
-      'economic_indicators',
-      'economic_sector_snapshots',
-      'price_basket_items',
-      'economic_bulletins',
-      'economic_alerts',
-      'economic_policy_decisions',
-      'government_finances',
-      'investment_options',
-      'system_settings',
-      'country_rp_states',
-      'country_rp_economic_snapshots',
-    ].forEach((table) => {
-      channel = channel.on('postgres_changes', {
-        event: '*', schema: 'public', table,
-      }, () => {
-        window.clearTimeout(refreshTimer);
-        scheduleRefresh();
-      });
-    });
-
-    channel.subscribe();
-
-    return () => {
-      window.clearTimeout(refreshTimer);
-      supabase.removeChannel(channel);
-    };
-  }, [load, view]);
+  useDomainRealtime(
+    'embedded-economy-' + view,
+    user?.id || 'public',
+    economyRealtimeTablesFor(view, user?.id),
+    () => refresh({ quiet: true }),
+  );
 
   if (loading && !data) return <PanelLoading />;
-  if (error) return <PanelError message={error} onRetry={() => load()} />;
+  if (error) return <PanelError message={error} onRetry={() => refresh({ quiet: false })} />;
 
   const Panel = config.component;
 
@@ -134,7 +122,7 @@ const EmbeddedEconomyPanel = ({ view = 'public', showHeader = true }) => {
       <Panel
         data={data}
         toast={toast}
-        onRefresh={() => load({ quiet: true })}
+        onRefresh={() => refresh({ quiet: true })}
       />
     </div>
   );
