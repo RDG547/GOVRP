@@ -11,6 +11,17 @@ SET xmloption = content;
 SET client_min_messages = warning;
 SET row_security = off;
 
+-- Supabase Preview recreates the remote schema from a fresh database.
+-- Create the pre-existing custom grant target before the first GRANT to it.
+-- NOLOGIN grants no authentication or administrative privileges.
+DO $ensure_admin_user_role$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_catalog.pg_roles WHERE rolname = 'admin_user') THEN
+    CREATE ROLE admin_user NOLOGIN;
+  END IF;
+END
+$ensure_admin_user_role$;
+
 
 CREATE EXTENSION IF NOT EXISTS "pg_cron" WITH SCHEMA "pg_catalog";
 
