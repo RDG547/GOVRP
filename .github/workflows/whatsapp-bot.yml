@@ -1,0 +1,33 @@
+name: Validate GOVRP WhatsApp Bot
+on:
+  push:
+    paths:
+      - 'services/whatsapp-bot/**'
+      - '.github/workflows/whatsapp-bot.yml'
+  pull_request:
+    paths:
+      - 'services/whatsapp-bot/**'
+      - '.github/workflows/whatsapp-bot.yml'
+permissions:
+  contents: read
+jobs:
+  build-go:
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: services/whatsapp-bot
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: services/whatsapp-bot/go.mod
+          cache: false
+      - name: Resolve locked module versions
+        run: go mod tidy
+      - name: Validate and build Go bot
+        run: |
+          go vet ./...
+          go test ./...
+          CGO_ENABLED=1 go build -trimpath ./...
