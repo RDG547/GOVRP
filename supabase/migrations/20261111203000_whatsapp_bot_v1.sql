@@ -174,8 +174,8 @@ CREATE OR REPLACE FUNCTION public.bot_whatsapp_report_status(
 BEGIN
  IF auth.role() <> 'service_role' THEN RAISE EXCEPTION 'Serviço não autorizado.' USING errcode='42501'; END IF;
  UPDATE public.whatsapp_bot_runtime SET connected=coalesce(p_connected,false),paired=coalesce(p_paired,false),
- phone_jid=left(p_phone_jid,100),qr_image=CASE WHEN length(coalesce(p_qr_image,''))>150000 THEN null ELSE p_qr_image END,
- qr_expires_at=CASE WHEN p_qr_image IS NULL THEN null ELSE now()+interval '75 seconds' END,
+ phone_jid=left(p_phone_jid,100),qr_image=CASE WHEN p_qr_image IS NOT NULL THEN CASE WHEN length(p_qr_image)>150000 THEN null ELSE p_qr_image END WHEN coalesce(p_paired,false) THEN null ELSE qr_image END,
+ qr_expires_at=CASE WHEN p_qr_image IS NOT NULL THEN now()+interval '75 seconds' WHEN coalesce(p_paired,false) THEN null ELSE qr_expires_at END,
  last_seen_at=now(),last_error=left(p_error,500),updated_at=now() WHERE id;
 END $fn$;
 
@@ -212,11 +212,11 @@ BEGIN
  ), claimed AS (
   INSERT INTO public.whatsapp_bot_deliveries(event_id,group_jid,status,attempts,updated_at)
   SELECT c.id,c.jid,'sending',1,now() FROM candidates c
-  ON CONFLICT(event_id,group_jid) DO UPDATE SET status='sending',attempts=public.whatsapp_bot_deliveries.attempts+1,updated_at=now(),last_error=null
-   WHERE public.whatsapp_bot_deliveries.status IN ('sending','error')
-     AND public.whatsapp_bot_deliveries.attempts<3
-     AND public.whatsapp_bot_deliveries.updated_at<now()-interval '2 minutes'
-  RETURNING public.whatsapp_bot_deliveries.event_id,public.whatsapp_bot_deliveries.group_jid
+  ON CONFLICT(event_id,group_jid) DO UPDATE SET status='sending',attempts=whatsapp_bot_deliveries.attempts+1,updated_at=now(),last_error=null
+   WHERE whatsapp_bot_deliveries.status IN ('sending','error')
+     AND whatsapp_bot_deliveries.attempts<3
+     AND whatsapp_bot_deliveries.updated_at<now()-interval '2 minutes'
+  RETURNING whatsapp_bot_deliveries.event_id,whatsapp_bot_deliveries.group_jid
  )
  SELECT c.event_id,c.group_jid,
   left('📢 *'||e.title||'*'||E'\n\n'||e.message||CASE WHEN e.url IS NOT NULL THEN E'\n\n🔗 '||e.url ELSE '' END,3500)
@@ -348,21 +348,21 @@ BEGIN
   IF TG_OP='INSERT' THEN
    v_kind:='votings';v_event:='scheduled';v_title:='Votação agendada';
    v_message:=left(NEW.title,200)||E'\nInício: '||to_char(NEW.starts_at AT TIME ZONE 'America/Sao_Paulo','DD/MM HH24:MI')||E'\nTérmino: '||to_char(NEW.ends_at AT TIME ZONE 'America/Sao_Paulo','DD/MM HH24:MI');
-  ELSIF NEW.status='cancelled' AND OLD.status IS DISTINCT FROM NEW.status THEN
+  ELSIF NEW.status IN ('cancelled','canceled') AND OLD.status IS DISTINCT FROM NEW.status THEN
    v_kind:='votings';v_event:='cancelled';v_title:='Votação cancelada';v_message:=left(NEW.title,250);
   ELSE RETURN NEW;END IF;
-  v_url:='https://govrp.vercel.app/parliament';
+  v_url:='https://govrp.vercel.app/services/parliament';
  ELSIF TG_TABLE_NAME='parliament_votings' THEN
   IF NEW.status='active' AND (TG_OP='INSERT' OR OLD.status IS DISTINCT FROM NEW.status) THEN
    v_kind:='votings';v_event:='active';v_title:='Votação parlamentar iniciada';
   ELSIF TG_OP='UPDATE' AND NEW.status='closed' AND OLD.status IS DISTINCT FROM NEW.status THEN
    v_kind:='votings';v_event:='closed';v_title:='Votação parlamentar encerrada';
   ELSE RETURN NEW;END IF;
-  v_message:=left(NEW.title,240);v_url:='https://govrp.vercel.app/parliament';
+  v_message:=left(NEW.title,240);v_url:='https://govrp.vercel.app/services/parliament';
  ELSIF TG_TABLE_NAME='elections' AND TG_OP='UPDATE' AND NEW.status IS DISTINCT FROM OLD.status THEN
   IF NEW.status NOT IN ('Candidacy','Voting','Finished') THEN RETURN NEW; END IF;
   v_kind:='elections';v_event:=NEW.status;v_title:='Eleições: '||NEW.status;
-  v_message:=left(NEW.name,240);v_url:='https://govrp.vercel.app/elections';
+  v_message:=left(NEW.name,240);v_url:='https://govrp.vercel.app/services/elections';
  ELSIF TG_TABLE_NAME='decrees' AND (TG_OP='INSERT' OR TG_OP='UPDATE') THEN
   IF NOT NEW.is_published OR (TG_OP='UPDATE' AND coalesce(OLD.is_published,false)) THEN RETURN NEW; END IF;
   v_kind:='government';v_event:='published';v_title:='Novo decreto publicado';v_message:=left(NEW.title,240);
@@ -370,7 +370,7 @@ BEGIN
  ELSIF TG_TABLE_NAME='bills' AND TG_OP='UPDATE' AND NEW.status IS DISTINCT FROM OLD.status THEN
   IF NEW.status NOT IN ('Sancionado','Promulgado','Vigente') THEN RETURN NEW; END IF;
   v_kind:='government';v_event:='law_'||NEW.status;v_title:='Lei aprovada e publicada';v_message:=left(NEW.title,240);
-  v_url:='https://govrp.vercel.app/parliament';
+  v_url:='https://govrp.vercel.app/services/parliament';
  ELSE RETURN NEW;END IF;
  INSERT INTO public.whatsapp_bot_events(event_kind,source_table,source_id,title,message,url)
  VALUES(v_kind,TG_TABLE_NAME,v_source||':'||v_event,v_title,coalesce(v_message,''),v_url)
