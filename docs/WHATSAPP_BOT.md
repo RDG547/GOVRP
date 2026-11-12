@@ -43,10 +43,22 @@ Inicie o contêiner e atualize o painel. Se o número nunca tiver sido pareado, 
 
 ## Operação e custos
 
+### Deploy automático na Oracle
+
+Em produção, o workflow **GOVRP WhatsApp Bot** valida as alterações da pasta `services/whatsapp-bot/` e do próprio workflow. Pull requests para `main` executam a validação. O deploy só executa depois da validação, em um push à `main` ou em uma execução manual selecionando `main`.
+
+Na aba **Actions → GOVRP WhatsApp Bot**, abra a execução para conferir o commit, a hora e o resultado. Para implantar manualmente, selecione **Run workflow → main → Run workflow**. Se o mesmo commit já estiver saudável, a execução registra isso sem reiniciar o serviço.
+
+O GitHub usa o ambiente `oracle-production`, restrito à branch `main`. O ambiente contém o segredo `GOVRP_ORACLE_DEPLOY_KEY` e as variáveis `GOVRP_ORACLE_SSH_HOST` e `GOVRP_ORACLE_KNOWN_HOSTS`. A variável de host contém o endereço da VPS. A segunda contém a entrada do `known_hosts`, verificada contra a chave pública do servidor por um acesso administrativo existente. O GitHub só acessa a conta `govrp-deploy`, que aceita `verify` ou `deploy <commit>` por comando forçado. Ela não pertence ao grupo Docker e só pode executar via sudo o programa de deploy, sem argumentos de linha de comando.
+
+Na VPS, o programa verifica o commit contra `main`, arquiva o código em `/var/lib/govrp-whatsapp-deploy/releases/` e compila uma imagem identificada pelo commit antes de trocar o contêiner. A troca mantém o projeto Compose `whatsapp-bot`, o `.env` em `/opt/govrp/services/whatsapp-bot/` e o volume externo `whatsapp-bot_govrp_bot_session` em `/data`. O deploy só passa com o contêiner esperado estável e dois sinais novos no Supabase indicando WhatsApp conectado e pareado. Se a nova versão falhar após a troca, o programa restaura uma vez a imagem anterior e verifica sua saúde. O GitHub Actions registra a falha da versão nova mesmo quando a recuperação funciona.
+
+O arquivo `/var/lib/govrp-whatsapp-deploy/current.json` indica a última versão confirmada e `deploy.log` registra o histórico de implantação. Acompanhe a execução também pelo GitHub Actions. A partir da configuração automática, use o workflow para atualizar o contêiner de produção. A seção de instalação manual se aplica a uma VPS nova. Os arquivos em `services/whatsapp-bot/deploy/` que controlam o acesso SSH e o deploy são instalados como root em `/usr/local/sbin` e em `/var/lib/govrp-whatsapp-deploy/`. Atualizações desses arquivos de controle precisam ser instaladas por um administrador da VPS antes de entrarem em uso.
+
 - O Supabase armazena configurações, eventos e histórico de entrega; não há segundo banco remoto.
 - O Whatsmeow armazena a sessão de criptografia em SQLite local, **não** no Supabase. A perda do volume exige novo pareamento.
 - O bot se conecta de saída ao Supabase a cada ~20 segundos (configuração), 8 segundos (fila, apenas quando habilitado) e 25 segundos (saúde). Não faz consultas infinitas aos dados econômicos; os comandos usam RPCs com leitura pontual.
-- Comando de atualização: \`git pull --ff-only && cd services/whatsapp-bot && docker compose up -d --build\`.
+- Em uma instalação sem deploy automático, atualize com `git pull --ff-only && cd services/whatsapp-bot && docker compose up -d --build`.
 - Reiniciar: \`docker compose restart\`. Ver logs: \`docker compose logs --tail=100\`.
 - Se desconectar, o estado aparece no painel. Verifique a internet, o WhatsApp conectado e os logs. Em alguns casos será necessário parear novamente.
 - **Não** use clientes não oficiais para spam, mensagens em massa ou automações indesejadas; há risco de restrição permanente do número.

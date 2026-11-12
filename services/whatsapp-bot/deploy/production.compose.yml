@@ -1,0 +1,9 @@
+services:
+  govrp-whatsapp:
+    image: ${GOVRP_DEPLOY_IMAGE:?required}
+    env_file: !override
+      - /opt/govrp/services/whatsapp-bot/.env
+volumes:
+  govrp_bot_session: !override
+    name: whatsapp-bot_govrp_bot_session
+    external: true

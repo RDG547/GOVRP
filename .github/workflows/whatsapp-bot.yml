@@ -1,33 +1,85 @@
-name: Validate GOVRP WhatsApp Bot
+name: GOVRP WhatsApp Bot
 on:
   push:
+    branches: [main]
     paths:
       - 'services/whatsapp-bot/**'
       - '.github/workflows/whatsapp-bot.yml'
   pull_request:
+    branches: [main]
     paths:
       - 'services/whatsapp-bot/**'
       - '.github/workflows/whatsapp-bot.yml'
+  workflow_dispatch:
 permissions:
   contents: read
 jobs:
   build-go:
+    name: Validate bot and rollback
     runs-on: ubuntu-24.04
+    timeout-minutes: 15
     defaults:
       run:
         working-directory: services/whatsapp-bot
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           persist-credentials: false
-      - uses: actions/setup-go@v6
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
         with:
-          go-version-file: services/whatsapp-bot/go.mod
-          cache: false
-      - name: Resolve locked module versions
-        run: go mod tidy
+          go-version: '1.27.2'
+          cache-dependency-path: services/whatsapp-bot/go.sum
+      - name: Verify locked module versions
+        run: |
+          go mod tidy -diff
+          go mod verify
       - name: Validate and build Go bot
         run: |
-          go vet ./...
-          go test ./...
-          CGO_ENABLED=1 go build -trimpath ./...
+          go vet -mod=readonly ./...
+          go test -mod=readonly ./...
+          CGO_ENABLED=1 go build -mod=readonly -trimpath ./...
+      - name: Test deployment health and rollback without production access
+        run: |
+          bash -n deploy/oracle-ssh.sh
+          python3 -m unittest discover -s deploy -v
+
+  deploy-oracle:
+    name: Deploy to Oracle Cloud
+    needs: build-go
+    if: github.repository == 'RDG547/GOVRP' && github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    environment: oracle-production
+    concurrency:
+      group: govrp-whatsapp-oracle-production
+      cancel-in-progress: false
+    steps:
+      - name: Deploy approved commit and verify health
+        shell: bash
+        env:
+          SSH_KEY: ${{ secrets.GOVRP_ORACLE_DEPLOY_KEY }}
+          SSH_HOST: ${{ vars.GOVRP_ORACLE_SSH_HOST }}
+          SSH_KNOWN_HOSTS: ${{ vars.GOVRP_ORACLE_KNOWN_HOSTS }}
+        run: |
+          umask 077
+          ssh_dir=$(mktemp -d "$RUNNER_TEMP/govrp-ssh.XXXXXX")
+          finish() {
+            local code=$?
+            rm -f -- "$ssh_dir/deploy_key" "$ssh_dir/known_hosts"
+            rmdir -- "$ssh_dir"
+            if [[ "$code" == 0 ]]; then local result='Success'; else local result='Failed'; fi
+            {
+              printf '### GOVRP WhatsApp Bot — Oracle Cloud\n\n'
+              printf -- '- Commit: `%s`\n- Result: **%s**\n- Finished: %s\n' "$GITHUB_SHA" "$result" "$(date -u +%FT%TZ)"
+            } >> "$GITHUB_STEP_SUMMARY"
+          }
+          trap finish EXIT
+          [[ -n "$SSH_KEY" && -n "$SSH_HOST" && -n "$SSH_KNOWN_HOSTS" ]]
+          [[ "$GITHUB_SHA" =~ ^[0-9a-f]{40}$ ]]
+          printf '%s\n' "$SSH_KEY" > "$ssh_dir/deploy_key"
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > "$ssh_dir/known_hosts"
+          unset SSH_KEY SSH_KNOWN_HOSTS
+          ssh -F /dev/null -T -o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes \
+            -o GlobalKnownHostsFile=/dev/null -o "UserKnownHostsFile=$ssh_dir/known_hosts" \
+            -o ConnectTimeout=15 -o ServerAliveInterval=20 -o ServerAliveCountMax=3 \
+            -i "$ssh_dir/deploy_key" -- "govrp-deploy@$SSH_HOST" "deploy $GITHUB_SHA"
