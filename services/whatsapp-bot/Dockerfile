@@ -6,7 +6,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends gcc libc6-dev &
 COPY go.mod go.sum ./
 RUN go mod download && go mod verify
 COPY *.go ./
-RUN CGO_ENABLED=1 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -mod=readonly -trimpath -ldflags="-s -w" -o /out/govrp-bot .
+RUN --mount=type=cache,id=govrp-whatsapp-go-build,target=/root/.cache/go-build,sharing=locked \
+    CGO_ENABLED=1 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -mod=readonly -trimpath -ldflags="-s -w" -o /out/govrp-bot .
 
 FROM debian:bookworm-slim
 RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates && rm -rf /var/lib/apt/lists/* && useradd --system --uid 10001 bot && mkdir /data && chown bot:bot /data
