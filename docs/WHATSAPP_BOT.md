@@ -8,8 +8,9 @@ Bot de WhatsApp para **https://govrp.vercel.app** com comandos, notícias, vota�
 - Grupos descobertos automaticamente depois de conectar o número; **desativados por padrão**.
 - Eventos automáticos no Supabase (sem varrer tabelas de dados): publicação de notícias, agendamento e início/fim de votações, fases de eleições, decretos e promulgação de leis.
 - Comandos: !ajuda, !noticias, !economia, !governo, !partidos, !eleicoes, !votacoes, !leis e !perfil.
-- Vinculação da conta em **Configurações → WhatsApp**, com código aleatório de 12 caracteres, único, válido por 10 minutos. Enviar \`!vincular CÓDIGO\` **no privado** do bot. \`!desvincular\` também funciona pelo privado.
+- Vinculação da conta em **Configurações → WhatsApp**, com código aleatório de 12 caracteres, único, válido por 10 minutos. Enviar \`!vincular CÓDIGO\` **no privado** do bot. Para desvincular, utilize a seção WhatsApp em **Configurações** do GOVRP.
 - Antispam (5 segundos por remetente), fila idempotente (máximo 3 tentativas e intervalo de reenvio), série de envios espaçada por 2 segundos, nenhuma resposta em grupos não autorizados.
+- Os comandos de consulta funcionam **exclusivamente nos grupos autorizados no painel admin**. No privado, o único comando aceito é \`!vincular CÓDIGO\`; todos os demais são ignorados silenciosamente. O desligamento global desativa ambos.
 - O serviço não abre portas de entrada. A comunicação é feita por conexões de saída TLS; o QR aparece apenas em uma tabela que só administradores conseguem consultar.
 
 ## O que o proprietário precisa fazer
