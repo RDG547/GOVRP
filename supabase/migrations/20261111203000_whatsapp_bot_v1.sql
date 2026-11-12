@@ -212,7 +212,7 @@ BEGIN
  ), claimed AS (
   INSERT INTO public.whatsapp_bot_deliveries(event_id,group_jid,status,attempts,updated_at)
   SELECT c.id,c.jid,'sending',1,now() FROM candidates c
-  ON CONFLICT(event_id,group_jid) DO UPDATE SET status='sending',attempts=whatsapp_bot_deliveries.attempts+1,updated_at=now(),last_error=null
+  ON CONFLICT ON CONSTRAINT whatsapp_bot_deliveries_pkey DO UPDATE SET status='sending',attempts=whatsapp_bot_deliveries.attempts+1,updated_at=now(),last_error=null
    WHERE whatsapp_bot_deliveries.status IN ('sending','error')
      AND whatsapp_bot_deliveries.attempts<3
      AND whatsapp_bot_deliveries.updated_at<now()-interval '2 minutes'
