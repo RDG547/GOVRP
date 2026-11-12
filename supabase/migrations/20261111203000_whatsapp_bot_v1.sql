@@ -201,6 +201,7 @@ BEGIN
   JOIN public.whatsapp_bot_groups g ON g.enabled AND (e.target_group_jid IS NULL OR e.target_group_jid=g.jid)
   LEFT JOIN public.whatsapp_bot_deliveries d ON d.event_id=e.id AND d.group_jid=g.jid
   WHERE e.expires_at>now() AND e.created_at>now()-interval '48 hours'
+   AND e.created_at >= greatest(g.updated_at,(SELECT updated_at FROM public.whatsapp_bot_settings WHERE id=true))
    AND CASE e.event_kind
     WHEN 'news' THEN g.notify_news
     WHEN 'elections' THEN g.notify_elections
