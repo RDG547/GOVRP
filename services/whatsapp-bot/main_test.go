@@ -36,3 +36,47 @@ func TestSupabaseHelpCommand(t *testing.T) {
 		t.Errorf("unexpected reply: %q", reply)
 	}
 }
+
+
+func TestBotCommandScopes(t *testing.T) {
+ activeGroup := "120363111111111@g.us"
+ inactiveGroup := "120363222222222@g.us"
+ settings := Settings{Enabled:true,Commands:true,Prefix:"!"}
+ groups := map[string]bool{activeGroup:true, inactiveGroup:false}
+ publicCommands := []string{"ajuda","noticias","economia","governo","partidos","eleicoes","votacoes","leis","perfil"}
+ for _,cmd := range publicCommands {
+  if !commandAllowed(settings,groups,true,activeGroup,cmd) {
+   t.Errorf("!%s should work in an enabled group",cmd)
+  }
+  if commandAllowed(settings,groups,true,inactiveGroup,cmd) {
+   t.Errorf("!%s unexpectedly works in a disabled group",cmd)
+  }
+  if commandAllowed(settings,groups,false,"5511999999999@s.whatsapp.net",cmd) {
+   t.Errorf("!%s unexpectedly works in a private chat",cmd)
+  }
+ }
+ if !commandAllowed(settings,groups,false,"5511999999999@s.whatsapp.net","vincular") {
+  t.Fatal("!vincular must remain available in private chats")
+ }
+ for _,cmd:=range []string{"vincular","desvincular","ajuda","economia"} {
+  if commandAllowed(settings,groups,true,activeGroup,cmd) && (cmd=="vincular" || cmd=="desvincular") {
+   t.Errorf("!%s is a private-only/disabled administrative command and must not work in groups",cmd)
+  }
+ }
+ if commandAllowed(settings,groups,false,"5511999999999@s.whatsapp.net","desvincular") {
+  t.Error("!desvincular must not work in private chat; the GOVRP site handles unlinking")
+ }
+ if commandAllowed(settings,groups,false,"5511999999999@s.whatsapp.net","unknown") {
+  t.Error("unknown private command should be ignored")
+ }
+ noCommands:=settings
+ noCommands.Commands=false
+ if commandAllowed(noCommands,groups,true,activeGroup,"noticias") {t.Error("disabled commands must block group actions")}
+ if !commandAllowed(noCommands,groups,false,"5511999999999@s.whatsapp.net","vincular") {t.Error("account linking should remain available when public commands are disabled")}
+ off:=settings
+ off.Enabled=false
+ if commandAllowed(off,groups,true,activeGroup,"noticias") || commandAllowed(off,groups,false,"5511999999999@s.whatsapp.net","vincular") {
+  t.Error("global pause must block both groups and private linking")
+ }
+ if commandAllowed(settings,groups,true,"120363333333333@g.us","noticias") {t.Error("unknown groups must be ignored")}
+}
