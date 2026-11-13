@@ -7,6 +7,7 @@ on:
       - 'src/lib/economy/**'
       - 'src/lib/realtime.js'
       - 'tools/test-economy-live-integrity.mjs'
+      - 'tools/test-company-national-market-balance.mjs'
       - 'supabase/migrations/**'
       - '.github/workflows/economy-integrity.yml'
   workflow_dispatch:
@@ -27,6 +28,8 @@ jobs:
       - name: Install dependencies
         run: npm ci
       - name: Verify realtime scopes and financial contracts
-        run: node tools/test-economy-live-integrity.mjs
+        run: |
+          node tools/test-economy-live-integrity.mjs
+          node tools/test-company-national-market-balance.mjs
       - name: Build GOV.RP frontend
         run: npm run build
