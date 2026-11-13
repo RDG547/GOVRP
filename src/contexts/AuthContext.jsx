@@ -3,6 +3,7 @@ import {setAdminPreview} from '@/lib/adminPreview';
 import { officialRoleCapabilities } from '@/lib/roleIcons';
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { supabase } from '@/lib/supabaseClient';
+import { checkRegistrationAccess, verifySignedInAccess } from '@/lib/moderationAccess';
 import { isPrisonSentenceActive } from '@/lib/prison';
 import { fetchExecutiveConstitutionalState } from '@/lib/executiveGovernance';
 import { syncElectionOffices } from '@/lib/electionOfficeSync';
@@ -227,6 +228,12 @@ export const AuthProvider = ({ children }) => {
     if (showLoading && !initialHydrationDoneRef.current) setLoading(true);
 
     try {
+      await withTimeout(
+        verifySignedInAccess(currentSession.access_token),
+        AUTH_HYDRATION_TIMEOUT_MS,
+        'Não foi possível verificar o acesso desta conta.'
+      );
+
       const profile = await withTimeout(
         fetchUserProfile(currentSession),
         AUTH_HYDRATION_TIMEOUT_MS,
@@ -472,6 +479,7 @@ export const AuthProvider = ({ children }) => {
     // pelo e-mail para que nenhuma RPC anônima precise revelar e-mails privados.
     if (!email.includes('@')) throw new Error('Entre com o e-mail privado da sua conta.');
 
+    await checkRegistrationAccess(email);
     const { data, error } = await supabase.auth.signInWithPassword({ email, password, options: { captchaToken } });
     if (error) {
       throw new Error(AUTH_FAILURE_MESSAGE);
@@ -487,6 +495,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   const register = async ({ email, password, captchaToken, ...meta }) => {
+    await checkRegistrationAccess(email);
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
