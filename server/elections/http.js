@@ -1767,7 +1767,7 @@ const raw_respondViceCandidacyInvitationHandler = async (request, response) => {
         electoral_number: invitationMetadata.electoral_number || null,
         status: 'Pendente',
       })
-      .select('id')
+      .select('id, status')
       .single();
 
     if (candidateInsertError) {
@@ -1777,6 +1777,8 @@ const raw_respondViceCandidacyInvitationHandler = async (request, response) => {
       if (/^(Use |Informe |Defina |O partido|Seu partido|Você já está filiado|Você precisa estar filiado)/.test(candidateInsertError.message||'')) throw createHttpError(candidateInsertError.message,400);
       throw candidateInsertError;
     }
+
+    const automaticallyApproved = candidateRow?.status === 'Approved';
 
     await updateNotificationMetadata(supabase, invitationNotification.id, {
       ...invitationMetadata,
@@ -1799,7 +1801,7 @@ const raw_respondViceCandidacyInvitationHandler = async (request, response) => {
       user_id: candidateUserId,
       sender_id: requester.id,
       type: VICE_CANDIDACY_ACCEPTED_TYPE,
-      content: `${viceName} aceitou compor sua chapa presidencial na eleicao "${election.name}". A candidatura foi enviada para analise.`,
+      content: `${viceName} aceitou compor sua chapa presidencial na eleicao "${election.name}". ${automaticallyApproved ? 'A chapa foi aprovada automaticamente, conforme a regra exclusiva desta eleição.' : 'A candidatura foi enviada para análise.'}`,
       link: '/services/elections',
       is_read: false,
       metadata: {
@@ -1817,7 +1819,9 @@ const raw_respondViceCandidacyInvitationHandler = async (request, response) => {
 
     json(response, 200, {
       success: true,
-      message: 'Chapa aceita com sucesso. A candidatura presidencial foi enviada para analise.',
+      message: automaticallyApproved
+        ? 'Chapa aceita e aprovada automaticamente para a eleição extraordinária.'
+        : 'Chapa aceita com sucesso. A candidatura presidencial foi enviada para análise.',
     });
   } catch (error) {
     const statusCode = error?.statusCode || 500;
