@@ -18,7 +18,7 @@ CREATE TABLE IF NOT EXISTS private.govrp_security_bans (
  block_devices boolean NOT NULL DEFAULT true,
  reason text NOT NULL CHECK(length(btrim(reason)) BETWEEN 10 AND 1000),
  created_at timestamptz NOT NULL DEFAULT now(),
- created_by uuid NOT NULL REFERENCES auth.users(id) ON DELETE RESTRICT,
+ created_by uuid NOT NULL,
  active boolean NOT NULL DEFAULT true,
  revoked_at timestamptz,
  revoked_by uuid REFERENCES auth.users(id) ON DELETE SET NULL,
