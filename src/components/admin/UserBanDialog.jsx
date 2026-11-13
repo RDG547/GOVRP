@@ -129,8 +129,8 @@ export default function UserBanDialog({user,onFinish,onUpdate}){
     <DialogFooter>
       <Button type="button" variant="outline" disabled={busy} onClick={onFinish}>Cancelar</Button>
       {active
-        ? <Button variant="outline" disabled={busy} onClick={()=>call('unban')}>{busy&&<Loader2 className="mr-2 h-4 w-4 animate-spin"/>Revogar banimento</Button>
-        : <Button variant="destructive" disabled={busy||reason.trim().length<10} onClick={()=>call('ban')}>{busy&&<Loader2 className="mr-2 h-4 w-4 animate-spin"/>Banir conta e identificadores selecionados</Button>}
+        ? <Button variant="outline" disabled={busy} onClick={()=>call('unban')}>{busy && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}Revogar banimento</Button>
+        : <Button variant="destructive" disabled={busy||reason.trim().length<10} onClick={()=>call('ban')}>{busy && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}Banir conta e identificadores selecionados</Button>}
     </DialogFooter>
   </DialogContent>;
 }
