@@ -96,7 +96,7 @@ const sections = [
       'O motor da plataforma combina eventos reais do jogo com componentes simulados para calcular indicadores, elegibilidade, consequências econômicas e estados de serviços.',
       'Esses resultados produzem efeitos apenas dentro do RP e não definem crédito, emprego, benefícios, direitos políticos ou situação jurídica no mundo real.',
       'Você pode solicitar explicação ou revisão de uma decisão automatizada que afete de modo relevante sua participação na plataforma.',
-      'Bloqueios administrativos podem abranger conta, e-mail, nomes do personagem, endereços IP e navegadores previamente associados, com histórico de decisão e possibilidade de revisão. IPs compartilhados podem gerar bloqueios indevidos: procure o suporte para solicitar verificação humana.'
+      'Bloqueios administrativos podem abranger conta, e-mail, nomes do personagem, endereços IP e navegadores previamente associados, com histórico de decisão e possibilidade de revisão. IPs compartilhados podem gerar bloqueios indevidos: procure o suporte para solicitar verificação humana.',
     ],
   },
   {
