@@ -218,7 +218,8 @@ select
   x_username,
   x_bio,
   x_avatar_url,
-  citizenship_created_at
+  citizenship_created_at,
+  x_header_url
 from public.profiles
 where onboarding_completed = true;
 
