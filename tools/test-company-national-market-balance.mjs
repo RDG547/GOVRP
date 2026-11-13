@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
-const migration = readFileSync(new URL('../supabase/migrations/20261113093000_company_market_demand_and_physical_inputs.sql', import.meta.url),'utf8');
+const migration = readFileSync(new URL('../supabase/migrations/20261113063648_company_market_demand_and_physical_inputs.sql', import.meta.url),'utf8');
 const page = readFileSync(new URL('../src/features/economy/components/NationalProductionMarket.jsx', import.meta.url),'utf8');
 
 const mustContain = (source, value, label = value) =>
