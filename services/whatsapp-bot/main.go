@@ -14,6 +14,7 @@ import (
  "net/url"
  "os"
  "os/signal"
+ "sort"
  "strconv"
  "strings"
  "sync"
@@ -197,6 +198,57 @@ func commandAllowed(settings Settings, groups map[string]bool, isGroup bool, cha
  }
 }
 
+// A single source for the group help text avoids duplicating !eleicoes or
+// appending sections after the footer. Categories and commands stay alphabetized.
+type helpCommand struct {
+ name, args, description string
+}
+type helpCategory struct {
+ label, icon string
+ commands []helpCommand
+}
+
+func helpMessage(prefix string) string {
+ if prefix!="!" && prefix!="/" {prefix="!"}
+ categories:=[]helpCategory{
+  {label:"Conta e perfil",icon:"👤",commands:[]helpCommand{
+   {name:"perfil",description:"consulte seu perfil vinculado"},
+   {name:"vincular",args:"CÓDIGO",description:"vincule sua conta (use somente no privado do bot)"},
+  }},
+  {label:"Economia e notícias",icon:"📊",commands:[]helpCommand{
+   {name:"economia",description:"indicadores econômicos atuais"},
+   {name:"noticias",description:"últimas notícias do GOVRP"},
+  }},
+  {label:"Eleições",icon:"🗳️",commands:[]helpCommand{
+   {name:"eleicao",description:"eleições em andamento ou próxima eleição"},
+   {name:"eleicoes",description:"histórico numerado; acrescente um número para ver detalhes"},
+  }},
+  {label:"Governo e legislação",icon:"🏛️",commands:[]helpCommand{
+   {name:"governo",description:"presidente e ministros"},
+   {name:"leis",description:"propostas legislativas recentes"},
+   {name:"partidos",description:"partidos políticos ativos"},
+   {name:"votacoes",description:"votações parlamentares em andamento"},
+  }},
+  {label:"Suporte",icon:"🧭",commands:[]helpCommand{
+   {name:"ajuda",description:"veja esta lista de comandos"},
+  }},
+ }
+ sort.Slice(categories,func(i,j int)bool{return strings.ToLower(categories[i].label)<strings.ToLower(categories[j].label)})
+ var message strings.Builder
+ message.WriteString("🤖 *Comandos do GOVRP Bot*")
+ for _,category:=range categories {
+  sort.Slice(category.commands,func(i,j int)bool{return category.commands[i].name<category.commands[j].name})
+  message.WriteString("\n\n"+category.icon+" *"+category.label+"*")
+  for _,command:=range category.commands {
+   message.WriteString("\n"+prefix+command.name)
+   if command.args!="" {message.WriteString(" "+command.args)}
+   message.WriteString(" — "+command.description)
+  }
+ }
+ message.WriteString("\n\n🌐 Acesse a plataforma e participe do GOVRP:\n"+siteURL)
+ return message.String()
+}
+
 func (b *Bot) onMessage(evt *events.Message) {
  if evt.Info.IsFromMe || evt.Message==nil{return}
  text:=strings.TrimSpace(evt.Message.GetConversation())
@@ -219,6 +271,10 @@ func (b *Bot) onMessage(evt *events.Message) {
   return
  }
  // All other supported commands work exclusively within an enabled group.
+ if command=="ajuda" {
+  b.reply(evt.Info.Chat,helpMessage(settings.Prefix))
+  return
+ }
  go func(){
   ctx,cancel:=ctxTimeout();defer cancel()
   var reply string
@@ -244,9 +300,6 @@ func (b *Bot) onMessage(evt *events.Message) {
    err=b.api.rpc(ctx,"bot_whatsapp_command",map[string]any{
     "p_command":command,"p_sender_jid":evt.Info.Sender.String(),
    },&reply)
-   if err==nil && command=="ajuda" {
-    reply+="\n\n🗳️ *Eleições*\n"+settings.Prefix+"eleicao — eleições atuais ou próximas\n"+settings.Prefix+"eleicoes — histórico numerado\n"+settings.Prefix+"eleicoes N — detalhes da eleição N"
-   }
   }
   if err!=nil {log.Printf("command %s: %v",command,err);b.reply(evt.Info.Chat,"Não consegui consultar o GOVRP agora. Tente novamente.");return}
   b.reply(evt.Info.Chat,reply)
