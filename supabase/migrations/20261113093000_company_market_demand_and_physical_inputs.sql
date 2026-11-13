@@ -101,6 +101,7 @@ AS $function$ BEGIN
     'business_id',b.id,'company_name',b.name,'resource_code',e.code,'name',e.name,'unit',e.unit,
     'required_per_unit',input.value::numeric,
     'market_stock',coalesce(stock.quantity,0),
+    'wholesale_available',greatest(0,trunc((coalesce(stock.quantity,0)+coalesce(daily.sold_qty,0))*0.25,3)-coalesce(daily.sold_qty,0)),
     'company_stock',coalesce(inventory.quantity,0),
     'unit_price',round(greatest(ref.unit_price,coalesce(stock.unit_cost,0)*1.05),2)
   ) ORDER BY b.name,e.name),'[]'::jsonb)
@@ -111,6 +112,15 @@ AS $function$ BEGIN
   JOIN public.national_market_references ref ON ref.resource_code=e.code
   LEFT JOIN public.national_market_stock stock ON stock.resource_code=e.code
   LEFT JOIN public.business_inventory inventory ON inventory.business_id=b.id AND inventory.resource_code=e.code
+  LEFT JOIN LATERAL (
+    SELECT coalesce(sum((t.metadata->>'quantity')::numeric),0) sold_qty
+    FROM public.transactions t
+    WHERE t.type='business_supply'
+      AND t.metadata->>'national_market_input'='true'
+      AND t.metadata->>'resource_code'=e.code
+      AND t.created_at>=date_trunc('day',statement_timestamp())
+      AND t.created_at<date_trunc('day',statement_timestamp())+interval '1 day'
+  ) daily ON true
   WHERE b.status='active' AND b.owner_id=auth.uid()
     AND (p_business IS NULL OR b.id=p_business)),
  'purchases',(SELECT coalesce(jsonb_agg(to_jsonb(x) ORDER BY x.created_at DESC),'[]') FROM (SELECT p.id,p.business_id,p.resource_code,p.quantity,p.unit_price,p.gross_amount,p.net_amount,p.is_service,p.created_at FROM public.national_market_purchases p WHERE (p_business IS NULL OR p.business_id=p_business) AND (public.has_full_admin_access() OR EXISTS(SELECT 1 FROM public.businesses b WHERE b.id=p.business_id AND b.owner_id=auth.uid())) ORDER BY p.created_at DESC LIMIT 100)x));
@@ -132,7 +142,7 @@ DECLARE
  stock public.national_market_stock%rowtype;
  previous public.transactions%rowtype;
  unit_price numeric; amount numeric; gross numeric; net numeric;
- max_wholesale numeric; quote jsonb; tx uuid;
+ max_wholesale numeric; daily_wholesale numeric:=0; quote jsonb; tx uuid;
 BEGIN
  IF auth.uid() IS NULL OR NOT private.can_manage_company(p_business,auth.uid()) THEN
    RAISE EXCEPTION 'A compra exige autorização de gestão empresarial.' USING errcode='42501';
@@ -177,8 +187,16 @@ BEGIN
    RETURN jsonb_build_object('success',false,'reason','Sem estoque físico disponível no Mercado Nacional.');
  END IF;
 
- -- Reserve at least 75% of the current national inventory for population consumption.
- max_wholesale:=trunc(stock.quantity*0.25,3);
+ -- A GLOBAL per-resource daily cap prevents repeated buys from draining reserves.
+ -- Daily wholesale volume is counted from confirmed financial transactions.
+ SELECT coalesce(sum((t.metadata->>'quantity')::numeric),0) INTO daily_wholesale
+ FROM public.transactions t
+ WHERE t.type='business_supply'
+   AND t.metadata->>'national_market_input'='true'
+   AND t.metadata->>'resource_code'=p_resource
+   AND t.created_at>=date_trunc('day',statement_timestamp())
+   AND t.created_at<date_trunc('day',statement_timestamp())+interval '1 day';
+ max_wholesale:=greatest(0,trunc((stock.quantity+daily_wholesale)*0.25,3)-daily_wholesale);
  IF p_quantity>max_wholesale THEN
    RETURN jsonb_build_object('success',false,'reason','Quantidade superior à parcela disponível para fornecimento empresarial.',
        'max_quantity',max_wholesale);
