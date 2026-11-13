@@ -201,7 +201,6 @@ BEGIN
   JOIN public.whatsapp_bot_groups g ON g.enabled AND (e.target_group_jid IS NULL OR e.target_group_jid=g.jid)
   LEFT JOIN public.whatsapp_bot_deliveries d ON d.event_id=e.id AND d.group_jid=g.jid
   WHERE e.expires_at>now() AND e.created_at>now()-interval '48 hours'
-   AND e.created_at >= greatest(g.updated_at,(SELECT updated_at FROM public.whatsapp_bot_settings WHERE id=true))
    AND CASE e.event_kind
     WHEN 'news' THEN g.notify_news
     WHEN 'elections' THEN g.notify_elections
@@ -213,7 +212,7 @@ BEGIN
  ), claimed AS (
   INSERT INTO public.whatsapp_bot_deliveries(event_id,group_jid,status,attempts,updated_at)
   SELECT c.id,c.jid,'sending',1,now() FROM candidates c
-  ON CONFLICT ON CONSTRAINT whatsapp_bot_deliveries_pkey DO UPDATE SET status='sending',attempts=whatsapp_bot_deliveries.attempts+1,updated_at=now(),last_error=null
+  ON CONFLICT(event_id,group_jid) DO UPDATE SET status='sending',attempts=whatsapp_bot_deliveries.attempts+1,updated_at=now(),last_error=null
    WHERE whatsapp_bot_deliveries.status IN ('sending','error')
      AND whatsapp_bot_deliveries.attempts<3
      AND whatsapp_bot_deliveries.updated_at<now()-interval '2 minutes'
