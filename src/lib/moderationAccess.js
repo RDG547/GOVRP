@@ -1,6 +1,6 @@
 // Ban checks use a same-origin Vercel API and a server-issued HttpOnly browser token.
 // This is not a physical device fingerprint; clearing cookies can rotate the identifier.
-const ACCESS_URL='/api/auth/access';
+const ACCESS_URL='/api/world-runtime';
 const requestAccess=async(payload,token=null)=>{
   let response;
   try {
