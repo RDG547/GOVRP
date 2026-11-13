@@ -14,6 +14,7 @@ import (
  "net/url"
  "os"
  "os/signal"
+ "strconv"
  "strings"
  "sync"
  "syscall"
@@ -132,12 +133,48 @@ func (b *Bot) rateOK(key string) bool {
  if len(b.last)>1000 {for k,t:=range b.last{if now.Sub(t)>2*time.Minute{delete(b.last,k)}}}
  return true
 }
+// Each election notice explicitly mentions every member who can be resolved in the
+// authorized WhatsApp group. Merely writing "@todos" would not be a real mention.
+func electionMentionMessage(text string, members []types.JID) (*waE2E.Message,error) {
+ seen:=map[string]bool{}
+ jids:=make([]string,0,len(members))
+ names:=make([]string,0,len(members))
+ for _,person:=range members {
+  if person.User=="" || (person.Server!=types.DefaultUserServer && person.Server!=types.HiddenUserServer) {continue}
+  id:=person.ToNonAD().String()
+  if seen[id] {continue}
+  seen[id]=true
+  jids=append(jids,id)
+  names=append(names,"@"+person.User)
+ }
+ if len(jids)==0{return nil,errors.New("nenhum participante foi identificado para menção")}
+ body:=text+"\n\n🔔 "+strings.Join(names," ")
+ if len(body)>60000 {return nil,fmt.Errorf("lista de menções excede tamanho de mensagem: %d",len(body))}
+ return &waE2E.Message{ExtendedTextMessage:&waE2E.ExtendedTextMessage{
+  Text:proto.String(body),
+  ContextInfo:&waE2E.ContextInfo{MentionedJID:jids},
+ }},nil
+}
+
+func isElectionNotice(text string) bool {
+ return strings.HasPrefix(text,"📢 *🗳️ ")
+}
+
 func (b *Bot) send(to types.JID,message string) (string,error) {
  if !b.wa.IsLoggedIn() {return "",errors.New("WhatsApp desconectado")}
  b.sendMu.Lock();defer b.sendMu.Unlock()
  // A single sender and a two-second spacing avoid bursts from multiple event sources.
- ctx,cancel:=context.WithTimeout(context.Background(),25*time.Second);defer cancel()
- resp,err:=b.wa.SendMessage(ctx,to,&waE2E.Message{Conversation:proto.String(message)})
+ ctx,cancel:=context.WithTimeout(context.Background(),30*time.Second);defer cancel()
+ payload:=&waE2E.Message{Conversation:proto.String(message)}
+ if to.Server==types.GroupServer && isElectionNotice(message) {
+  group,err:=b.wa.GetGroupInfo(ctx,to)
+  if err!=nil{return "",fmt.Errorf("não foi possível obter os membros do grupo para marcar a todos: %w",err)}
+  members:=make([]types.JID,0,len(group.Participants))
+  for _,part:=range group.Participants {members=append(members,part.JID)}
+  payload,err=electionMentionMessage(message,members)
+  if err!=nil{return "",err}
+ }
+ resp,err:=b.wa.SendMessage(ctx,to,payload)
  time.Sleep(2*time.Second)
  if err!=nil{return "",err}
  return string(resp.ID),nil
@@ -153,7 +190,7 @@ func commandAllowed(settings Settings, groups map[string]bool, isGroup bool, cha
  if !isGroup {return command=="vincular"}
  if !settings.Commands || !groups[chatJID] {return false}
  switch command {
- case "ajuda","noticias","economia","governo","partidos","eleicoes","votacoes","leis","perfil":
+ case "ajuda","noticias","economia","governo","partidos","eleicao","eleicoes","votacoes","leis","perfil":
   return true
  default:
   return false
@@ -185,7 +222,32 @@ func (b *Bot) onMessage(evt *events.Message) {
  go func(){
   ctx,cancel:=ctxTimeout();defer cancel()
   var reply string
-  err:=b.api.rpc(ctx,"bot_whatsapp_command",map[string]any{"p_command":command,"p_sender_jid":evt.Info.Sender.String()},&reply)
+  var err error
+  if command=="eleicao" || command=="eleicoes" {
+   var number any
+   if len(words)>1 {
+    parsed,parseErr:=strconv.Atoi(words[1])
+    if parseErr!=nil || parsed<1 || parsed>1000000 || len(words)!=2 {
+     b.reply(evt.Info.Chat,"Número de eleição inválido. Consulte a lista com "+settings.Prefix+"eleicoes e escolha um número.")
+     return
+    }
+    if command=="eleicao" {
+     b.reply(evt.Info.Chat,"Para consultar uma eleição específica, use "+settings.Prefix+"eleicoes N.")
+     return
+    }
+    number=parsed
+   }
+   err=b.api.rpc(ctx,"bot_whatsapp_election_command",map[string]any{
+    "p_command":command,"p_number":number,
+   },&reply)
+  } else {
+   err=b.api.rpc(ctx,"bot_whatsapp_command",map[string]any{
+    "p_command":command,"p_sender_jid":evt.Info.Sender.String(),
+   },&reply)
+   if err==nil && command=="ajuda" {
+    reply+="\n\n🗳️ *Eleições*\n"+settings.Prefix+"eleicao — eleições atuais ou próximas\n"+settings.Prefix+"eleicoes — histórico numerado\n"+settings.Prefix+"eleicoes N — detalhes da eleição N"
+   }
+  }
   if err!=nil {log.Printf("command %s: %v",command,err);b.reply(evt.Info.Chat,"Não consegui consultar o GOVRP agora. Tente novamente.");return}
   b.reply(evt.Info.Chat,reply)
  }()
@@ -204,6 +266,18 @@ func (b *Bot) handlePrivate(sender types.JID,args []string) {
  }
  b.reply(sender,reply)
 }
+// Polling with a database-side idempotency key handles time-based transitions even
+// when no one opens the GOVRP site. The DB uses America/Sao_Paulo for displayed dates.
+func (b *Bot) enqueueElectionMilestones() {
+ settings,groups:=b.current()
+ if !settings.Enabled || len(groups)==0 || !b.wa.IsLoggedIn(){return}
+ ctx,cancel:=ctxTimeout();defer cancel()
+ var created int
+ err:=b.api.rpc(ctx,"bot_whatsapp_enqueue_election_lifecycle",map[string]any{},&created)
+ if err!=nil {log.Printf("election schedule poll: %v",err);return}
+ if created>0 {log.Printf("election events queued: %d",created)}
+}
+
 func (b *Bot) deliver() {
  settings,groups:=b.current()
  if !settings.Enabled || len(groups)==0 || !b.wa.IsLoggedIn(){return}
@@ -267,7 +341,8 @@ func run() error {
  statusTicker:=time.NewTicker(25*time.Second)
  configTicker:=time.NewTicker(20*time.Second)
  deliveryTicker:=time.NewTicker(8*time.Second)
- defer statusTicker.Stop();defer configTicker.Stop();defer deliveryTicker.Stop()
+ electionTicker:=time.NewTicker(30*time.Second)
+ defer statusTicker.Stop();defer configTicker.Stop();defer deliveryTicker.Stop();defer electionTicker.Stop()
  signals:=make(chan os.Signal,1);signal.Notify(signals,syscall.SIGINT,syscall.SIGTERM);defer signal.Stop(signals)
  groupSynced:=false
  for {
@@ -283,6 +358,8 @@ func run() error {
    bot.readConfig()
   case <-deliveryTicker.C:
    bot.deliver()
+  case <-electionTicker.C:
+   bot.enqueueElectionMilestones()
   }
  }
 }
