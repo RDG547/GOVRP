@@ -133,3 +133,68 @@ func TestSupabaseElectionDetailsCommand(t *testing.T) {
  },&reply);err!=nil{t.Fatal(err)}
  if !strings.Contains(reply,"Eleição 3"){t.Errorf("unexpected details reply %q",reply)}
 }
+
+
+func TestHelpMessageCategoriesAndAlphabeticalOrder(t *testing.T) {
+ help:=helpMessage("!")
+ categories:=[]string{
+  "👤 *Conta e perfil*",
+  "📊 *Economia e notícias*",
+  "🗳️ *Eleições*",
+  "🏛️ *Governo e legislação*",
+  "🧭 *Suporte*",
+ }
+ lastIndex:=-1
+ for _,category:=range categories{
+  index:=strings.Index(help,category)
+  if index<=lastIndex {t.Errorf("category %q is missing or out of order",category)}
+  lastIndex=index
+ }
+ var commandLines []string
+ for _,line:=range strings.Split(help,"\n") {
+  if strings.HasPrefix(line,"!") {
+   name:=strings.Fields(line)[0]
+   commandLines=append(commandLines,name)
+  }
+ }
+ want:=[]string{
+  "!perfil","!vincular",
+  "!economia","!noticias",
+  "!eleicao","!eleicoes",
+  "!governo","!leis","!partidos","!votacoes",
+  "!ajuda",
+ }
+ if len(commandLines)!=len(want) {
+  t.Fatalf("expected exactly %d command entries; got %d: %v",len(want),len(commandLines),commandLines)
+ }
+ for i,command:=range want{
+  if commandLines[i]!=command {
+   t.Errorf("commands not in alphabetical category order at %d: got %q want %q",i,commandLines[i],command)
+  }
+ }
+ if !strings.Contains(help,"!vincular CÓDIGO —") || !strings.Contains(help,"somente no privado") {
+  t.Error("the private-only link command must be listed and clearly scoped")
+ }
+ if strings.Contains(help,"!eleicoes N —") {
+  t.Error("election history and parameterized election detail are one command, not duplicated listings")
+ }
+ if !strings.HasSuffix(help,"🌐 Acesse a plataforma e participe do GOVRP:\n"+siteURL) {
+  t.Error("the message must end with only the short platform invitation and official link")
+ }
+ if strings.Count(help,siteURL)!=1 {
+  t.Error("platform URL should appear exactly once")
+ }
+ if strings.Count(help,"*Eleições*")!=1 {
+  t.Error("election category should be present exactly once")
+ }
+}
+
+func TestHelpMessageCustomPrefix(t *testing.T){
+ help:=helpMessage("/")
+ if !strings.Contains(help,"/vincular CÓDIGO") || !strings.Contains(help,"/eleicoes —") {
+  t.Error("help commands should use the bot's configured prefix")
+ }
+ if strings.Contains(help,"\n!ajuda —") {
+  t.Error("default prefix must not leak into slash-prefix help")
+ }
+}
