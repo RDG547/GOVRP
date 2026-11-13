@@ -7,7 +7,7 @@ Bot de WhatsApp para **https://govrp.vercel.app** com comandos, notícias, vota�
 - Painel **Administração → WhatsApp Bot**: conexão/QR, ligar/desligar, grupos e tipos de aviso, anúncios manuais, fila e logs.
 - Grupos descobertos automaticamente depois de conectar o número; **desativados por padrão**.
 - Eventos automáticos no Supabase (sem varrer tabelas de dados): publicação de notícias, agendamento e início/fim de votações, fases de eleições, decretos e promulgação de leis.
-- Comandos: !ajuda, !noticias, !economia, !governo, !partidos, !eleicoes, !votacoes, !leis e !perfil.
+- Comandos: !ajuda, !noticias, !economia, !governo, !partidos, !eleicao, !eleicoes, !eleicoes N, !votacoes, !leis e !perfil.
 - Vinculação da conta em **Configurações → WhatsApp**, com código aleatório de 12 caracteres, único, válido por 10 minutos. Enviar \`!vincular CÓDIGO\` **no privado** do bot. Para desvincular, utilize a seção WhatsApp em **Configurações** do GOVRP.
 - Antispam (5 segundos por remetente), fila idempotente (máximo 3 tentativas e intervalo de reenvio), série de envios espaçada por 2 segundos, nenhuma resposta em grupos não autorizados.
 - Os comandos de consulta funcionam **exclusivamente nos grupos autorizados no painel admin**. No privado, o único comando aceito é \`!vincular CÓDIGO\`; todos os demais são ignorados silenciosamente. O desligamento global desativa ambos.
@@ -38,7 +38,7 @@ Bot de WhatsApp para **https://govrp.vercel.app** com comandos, notícias, vota�
 
 Inicie o contêiner e atualize o painel. Se o número nunca tiver sido pareado, um QR temporário aparecerá. Num **número exclusivo para o bot**, entre em WhatsApp → Dispositivos conectados → Conectar dispositivo e escaneie o QR. A sessão fica no volume privado do Docker (SQLite); após reiniciar, não precisa escanear novamente enquanto a sessão continuar válida.
 
-**7. Autorizar grupos.** Adicione o número do bot como membro de cada grupo autorizado. O serviço tenta descobrir os grupos existentes após conectar; para grupos recém-adicionados, envie uma mensagem normal no grupo e clique Atualizar no admin. Escolha as categorias que devem ser notificadas, marque **Autorizado**, salve cada grupo e só então ative o bot nas Configurações Gerais.
+**7. Autorizar grupos.** Adicione o número do bot como membro de cada grupo autorizado. Para receber avisos eleitorais, habilite também **Notificações de eleições** no grupo. O serviço tenta descobrir os grupos existentes após conectar; para grupos recém-adicionados, envie uma mensagem normal no grupo e clique Atualizar no admin. Escolha as categorias que devem ser notificadas, marque **Autorizado**, salve cada grupo e só então ative o bot nas Configurações Gerais.
 
 **8. Testar.** No grupo autorizado, envie \`!ajuda\`, \`!noticias\` e \`!economia\`. Publique uma notícia de teste no GOVRP; verifique a fila e as entregas no admin. Desative os avisos de testes, antes de liberar para grupos maiores.
 
@@ -58,7 +58,7 @@ O arquivo `/var/lib/govrp-whatsapp-deploy/current.json` indica a última versão
 
 - O Supabase armazena configurações, eventos e histórico de entrega; não há segundo banco remoto.
 - O Whatsmeow armazena a sessão de criptografia em SQLite local, **não** no Supabase. A perda do volume exige novo pareamento.
-- O bot se conecta de saída ao Supabase a cada ~20 segundos (configuração), 8 segundos (fila, apenas quando habilitado) e 25 segundos (saúde). Não faz consultas infinitas aos dados econômicos; os comandos usam RPCs com leitura pontual.
+- O bot se conecta de saída ao Supabase a cada ~20 segundos (configuração), 8 segundos (fila, apenas quando habilitado), 25 segundos (saúde) e 30 segundos (marcos eleitorais). Não faz consultas infinitas aos dados econômicos; os comandos usam RPCs com leitura pontual.
 - Em uma instalação sem deploy automático, atualize com `git pull --ff-only && cd services/whatsapp-bot && docker compose up -d --build`.
 - Reiniciar: \`docker compose restart\`. Ver logs: \`docker compose logs --tail=100\`.
 - Se desconectar, o estado aparece no painel. Verifique a internet, o WhatsApp conectado e os logs. Em alguns casos será necessário parear novamente.
@@ -80,3 +80,25 @@ Os RPCs de trabalho exigem a role \`service_role\`, e os de administração exig
 - \`src/components/WhatsAppAccountLink.jsx\`: vinculação do usuário.
 
 A implantação da VPS e o scan do QR precisam ser feitos pelo proprietário; não há acesso à conta Oracle ou ao telefone nesta integração.
+
+## Avisos eleitorais e menção de todos os participantes
+
+Nas comunidades autorizadas e com **Notificações de eleições** habilitadas, o serviço de Go consulta o calendário eleitoral do Supabase a cada 30 segundos, sem depender da abertura do site. São criados cinco alertas diferentes:
+
+1. Abertura de candidaturas — inclui o prazo para enviar candidatura.
+2. Início da votação — inclui a data/hora de encerramento.
+3. Aviso quando restam 30 minutos — inclui o horário-limite do voto.
+4. Encerramento do período de votação — aguarda a publicação da apuração.
+5. Resultado da apuração oficial — emitido somente depois que um registro de apuração `election_settlements` estiver marcado como `settled`; mostra votos válidos e a contagem por candidatura.
+
+O bot busca os participantes atuais de cada grupo no WhatsApp e usa `ExtendedTextMessage.ContextInfo.MentionedJID` para fazer **menções reais** a cada membro, em vez de apenas escrever `@todos`. Essa operação ocorre apenas nos alertas eleitorais e **nunca** em grupos desabilitados, privados ou com a categoria de notificações eleitorais desativada. Grupos grandes podem enfrentar limites ou restrições impostos pelo WhatsApp. Se a lista de participantes não puder ser obtida, o envio falha e a fila tentará novamente em até três ocasiões; não será registrado como entregue sem menções.
+
+Cada marco é registrado com identificador único (eleição + fase + horário), evitando alertas duplicados mesmo que o bot reinicie. Eventos antigos não são reemitidos na instalação da atualização, e períodos de indisponibilidade prolongados podem impedir avisos já vencidos. As mensagens exibem o horário oficial de Brasília.
+
+### Comandos de eleições
+
+- `!eleicao`: eleições em andamento (ou, se nenhuma estiver ativa, a próxima cadastrada), com período de candidaturas e votação.
+- `!eleicoes`: lista histórica **enumerada**, incluindo eleições agendadas e concluídas.
+- `!eleicoes 1`, `!eleicoes 2`, etc.: detalhes da eleição escolhida, situação, calendário, candidaturas aprovadas e resultado quando já estiver apurado.
+
+A vinculação da conta (`!vincular CÓDIGO`) continua sendo o único comando permitido em conversa privada.
