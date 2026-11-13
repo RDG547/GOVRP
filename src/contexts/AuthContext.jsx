@@ -344,6 +344,26 @@ export const AuthProvider = ({ children }) => {
   }, [session?.user?.id, syncOfficeStateForSessionUser, user?.role]);
 
 
+  // Existing sessions may still carry a JWT for a short period after an Auth ban.
+  // Recheck a signed-in browser periodically, including a server-issued installation cookie.
+  useEffect(() => {
+    if (!session?.access_token) return undefined;
+    let active = true;
+    const check = async () => {
+      try {
+        await verifySignedInAccess(session.access_token);
+      } catch (error) {
+        if (!active || error?.code !== 'GOVRP_MODERATION_BAN') return;
+        setUser(null);
+        userRef.current = null;
+        setAuthError(error.message);
+        await supabase.auth.signOut({ scope: 'local' }).catch(() => {});
+      }
+    };
+    const id = window.setInterval(check, 60000);
+    return () => { active = false; window.clearInterval(id); };
+  }, [session?.access_token]);
+
   const restoreSession = useCallback(async () => {
     setLoading(true);
     setAuthError('');
