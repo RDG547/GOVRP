@@ -2,6 +2,7 @@ import PagedResults from '@/components/ui/paged-results';
 import {CurrencyInput} from '@/components/ui/currency-input';
 import { readySession, fetchWithSessionAuth } from '@/lib/apiAuth';
 import CitizenCustodyControl from '@/components/admin/CitizenCustodyControl';
+import UserBanDialog from '@/components/admin/UserBanDialog';
 import { canonicalRole, roleIcon } from '@/lib/roleIcons';
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -511,6 +512,7 @@ const UserManagement = () => {
     const [modifyingBalanceUser, setModifyingBalanceUser] = useState(null);
     const [changingPasswordUser, setChangingPasswordUser] = useState(null);
     const [managingCardLimitUser, setManagingCardLimitUser] = useState(null);
+    const [banningUser, setBanningUser] = useState(null);
     const [filters, setFilters] = useState({ letter: 'all', role: 'all', balance: [0, 1000000] });
     const [maxBalance, setMaxBalance] = useState(1000000);
     const [currentPage, setCurrentPage] = useState(1);
@@ -518,17 +520,19 @@ const UserManagement = () => {
 
     const fetchUsers = useCallback(async () => {
       try {
-        const [{ data, error }, syncState] = await Promise.all([
+        const [{ data, error }, syncState, banResult] = await Promise.all([
             fetchAdminUsers(),
             fetchElectionOfficeSyncState(supabase).catch((syncError) => {
                 console.error('Erro ao carregar cargos eleitorais no admin:', syncError);
                 return null;
             }),
+            supabase.rpc('govrp_admin_list_bans'),
         ]);
         if (error) {
             toast({ title: "Erro ao buscar usuários", description: error.message, variant: "destructive" });
         } else {
             const manualRoleMetadataByUserId = await fetchManualRoleMetadataByUserId((data || []).map((currentUser) => currentUser.id));
+            const activeBannedIds = new Set((banResult.data || []).map(item => item.target_user_id));
             const enhancedUsers = (data || []).map((currentUser) => {
                 const currentProfile = {
                     ...currentUser,
@@ -537,6 +541,7 @@ const UserManagement = () => {
 
                 return {
                     ...currentProfile,
+                    is_banned: activeBannedIds.has(currentProfile.id),
                     display_role: resolvePrimaryRole(
                         {
                             id: currentProfile.id,
@@ -714,7 +719,7 @@ const UserManagement = () => {
                                     <Separator className="flex-1 bg-border min-w-0" />
                                 </div>
                             )}
-                            <UserCard user={user} adminUser={adminUser} setModifyingBalanceUser={setModifyingBalanceUser} setChangingPasswordUser={setChangingPasswordUser} setEditingUser={setEditingUser} handleDeleteUser={handleDeleteUser} setManagingCardLimitUser={setManagingCardLimitUser} deletingUserId={deletingUserId} />
+                            <UserCard user={user} adminUser={adminUser} setModifyingBalanceUser={setModifyingBalanceUser} setChangingPasswordUser={setChangingPasswordUser} setEditingUser={setEditingUser} handleDeleteUser={handleDeleteUser} setManagingCardLimitUser={setManagingCardLimitUser} setBanningUser={setBanningUser} deletingUserId={deletingUserId} />
                         </React.Fragment>
                     );
                 }) : (
@@ -754,7 +759,7 @@ const UserManagement = () => {
                                         </td>
                                     </tr>
                                 )}
-                                <UserRow user={user} adminUser={adminUser} setModifyingBalanceUser={setModifyingBalanceUser} setChangingPasswordUser={setChangingPasswordUser} setEditingUser={setEditingUser} handleDeleteUser={handleDeleteUser} setManagingCardLimitUser={setManagingCardLimitUser} deletingUserId={deletingUserId} />
+                                <UserRow user={user} adminUser={adminUser} setModifyingBalanceUser={setModifyingBalanceUser} setChangingPasswordUser={setChangingPasswordUser} setEditingUser={setEditingUser} handleDeleteUser={handleDeleteUser} setManagingCardLimitUser={setManagingCardLimitUser} setBanningUser={setBanningUser} deletingUserId={deletingUserId} />
                                </React.Fragment>
                              )
                         }) : (
@@ -770,6 +775,11 @@ const UserManagement = () => {
                     <span className="text-sm text-muted-foreground">Página {currentPage} de {totalPages}</span>
                     <Button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} variant="outline"><ChevronRight className="w-4 h-4" /></Button>
                 </div>
+            )}
+            {banningUser && (
+                <Dialog open={!!banningUser} onOpenChange={() => setBanningUser(null)}>
+                    <UserBanDialog user={banningUser} onFinish={() => setBanningUser(null)} onUpdate={fetchUsers} />
+                </Dialog>
             )}
             {editingUser && (
                 <Dialog open={!!editingUser} onOpenChange={() => setEditingUser(null)}>
@@ -795,7 +805,7 @@ const UserManagement = () => {
     );
 };
 
-const UserActionButtons = ({ user, adminUser, setModifyingBalanceUser, setChangingPasswordUser, setEditingUser, handleDeleteUser, setManagingCardLimitUser, deletingUserId }) => {
+const UserActionButtons = ({ user, adminUser, setModifyingBalanceUser, setChangingPasswordUser, setEditingUser, handleDeleteUser, setManagingCardLimitUser, setBanningUser, deletingUserId }) => {
     const navigate = useNavigate();
     const isDeleting = deletingUserId === user.id;
     return (
@@ -814,6 +824,9 @@ const UserActionButtons = ({ user, adminUser, setModifyingBalanceUser, setChangi
                     </Button>
                 </>
             )}
+            <Button variant="ghost" size="icon" disabled={user.id === adminUser.id || user.is_platform_admin} onClick={() => setBanningUser(user)} title={user.is_banned ? 'Gerenciar banimento' : 'Banir usuário e identificadores'} aria-label={user.is_banned ? 'Gerenciar banimento de '+(user.full_name||user.username) : 'Banir '+(user.full_name||user.username)}>
+                <Shield className={'w-4 h-4 '+(user.is_banned?'text-red-500':'text-amber-400')} />
+            </Button>
             <Button variant="ghost" size="icon" onClick={() => setChangingPasswordUser(user)} title="Alterar Senha">
                 <KeyRound className="w-4 h-4 text-yellow-400" />
             </Button>
@@ -847,7 +860,7 @@ const UserActionButtons = ({ user, adminUser, setModifyingBalanceUser, setChangi
     );
 };
 
-const UserCard = ({ user, adminUser, setModifyingBalanceUser, setChangingPasswordUser, setEditingUser, handleDeleteUser, setManagingCardLimitUser, deletingUserId }) => {
+const UserCard = ({ user, adminUser, setModifyingBalanceUser, setChangingPasswordUser, setEditingUser, handleDeleteUser, setManagingCardLimitUser, setBanningUser, deletingUserId }) => {
     const displayRole = getDisplayRole(user);
     const config = roleConfig[displayRole] || roleConfig.default;
     const Icon = config.icon;
@@ -857,6 +870,7 @@ const UserCard = ({ user, adminUser, setModifyingBalanceUser, setChangingPasswor
             <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0 flex-1">
                     <div className="font-medium text-white truncate">{user.full_name}</div>
+                    {user.is_banned && <Badge variant="destructive">Banido</Badge>}
                     <div className="text-xs text-gray-400 truncate">@{user.username}</div>
                     <div className="mt-1 text-xs text-blue-300 truncate">Conta: {user.real_full_name || 'nome real pendente'}</div>
                     <div className="text-xs text-gray-500 truncate mt-0.5">{user.email}</div>
@@ -876,16 +890,17 @@ const UserCard = ({ user, adminUser, setModifyingBalanceUser, setChangingPasswor
             </div>
             <div className="flex flex-wrap items-center gap-2 text-xs">
                 <Badge variant={user.onboarding_completed ? 'default' : 'secondary'}>{user.onboarding_completed ? 'Cidadania concluída' : formatCitizenshipStep(user.onboarding_step)}</Badge>
+                {user.is_banned && <Badge variant="destructive">Banido</Badge>}
                 <span className="text-gray-500">{user.document_types?.length || 0} documentos</span>
             </div>
             <div className="flex flex-wrap gap-1 pt-1 border-t border-slate-700">
-                <UserActionButtons user={user} adminUser={adminUser} setModifyingBalanceUser={setModifyingBalanceUser} setChangingPasswordUser={setChangingPasswordUser} setEditingUser={setEditingUser} handleDeleteUser={handleDeleteUser} setManagingCardLimitUser={setManagingCardLimitUser} deletingUserId={deletingUserId} />
+                <UserActionButtons user={user} adminUser={adminUser} setModifyingBalanceUser={setModifyingBalanceUser} setChangingPasswordUser={setChangingPasswordUser} setEditingUser={setEditingUser} handleDeleteUser={handleDeleteUser} setManagingCardLimitUser={setManagingCardLimitUser} setBanningUser={setBanningUser} deletingUserId={deletingUserId} />
             </div>
         </div>
     );
 };
 
-const UserRow = ({ user, adminUser, setModifyingBalanceUser, setChangingPasswordUser, setEditingUser, handleDeleteUser, setManagingCardLimitUser, deletingUserId }) => {
+const UserRow = ({ user, adminUser, setModifyingBalanceUser, setChangingPasswordUser, setEditingUser, handleDeleteUser, setManagingCardLimitUser, setBanningUser, deletingUserId }) => {
     const displayRole = getDisplayRole(user);
     const config = roleConfig[displayRole] || roleConfig.default;
     const Icon = config.icon;
@@ -894,6 +909,7 @@ const UserRow = ({ user, adminUser, setModifyingBalanceUser, setChangingPassword
         <tr className="border-b border-slate-700 hover:bg-slate-800/50 transition-colors">
             <td className="px-6 py-4">
                 <div className="font-medium text-white">{user.full_name}</div>
+                {user.is_banned && <Badge variant="destructive">Banido</Badge>}
                 <div className="text-xs text-gray-400">@{user.username}</div>
                 <div className="mt-1 text-xs text-blue-300">Conta: {user.real_full_name || 'pendente'}</div>
                 <div className="mt-1 text-xs text-gray-500">{user.onboarding_completed ? 'Cidadania concluída' : `Jornada: ${formatCitizenshipStep(user.onboarding_step)}`}</div>
@@ -909,7 +925,7 @@ const UserRow = ({ user, adminUser, setModifyingBalanceUser, setChangingPassword
               </Badge>
             </td>
             <td className="px-6 py-4 text-right space-x-2">
-                <UserActionButtons user={user} adminUser={adminUser} setModifyingBalanceUser={setModifyingBalanceUser} setChangingPasswordUser={setChangingPasswordUser} setEditingUser={setEditingUser} handleDeleteUser={handleDeleteUser} setManagingCardLimitUser={setManagingCardLimitUser} deletingUserId={deletingUserId} />
+                <UserActionButtons user={user} adminUser={adminUser} setModifyingBalanceUser={setModifyingBalanceUser} setChangingPasswordUser={setChangingPasswordUser} setEditingUser={setEditingUser} handleDeleteUser={handleDeleteUser} setManagingCardLimitUser={setManagingCardLimitUser} setBanningUser={setBanningUser} deletingUserId={deletingUserId} />
             </td>
         </tr>
     );

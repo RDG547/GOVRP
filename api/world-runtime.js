@@ -1,7 +1,9 @@
 import process from 'node:process';
+import { authAccessHandler } from '../server/security/access.js';
 // Same-origin read-only fallback when a mobile network cannot reach the
 // Supabase RPC directly. No service-role key or user data is involved.
 export default async function handler(req, res) {
+  if (req.method === 'POST') return authAccessHandler(req, res);
   res.setHeader('Cache-Control', 'private, no-store, max-age=0');
   res.setHeader('X-Content-Type-Options', 'nosniff');
   if (req.method !== 'GET') {
