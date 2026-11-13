@@ -11,7 +11,7 @@ DECLARE
   a public.election_office_assignments%rowtype;
   new_end timestamptz;
   changed boolean := false;
-  v_house_id uuid;
+  house_id uuid;
 BEGIN
   FOR a IN
     SELECT ea.* FROM public.election_office_assignments ea
@@ -39,12 +39,12 @@ BEGIN
        WHERE g.ended_at IS NULL AND g.head_id=a.profile_id
          AND g.election_id=a.election_id AND g.term_ends_at<new_end;
     ELSIF a.office_role IN('Deputado','Senador') THEN
-      v_house_id:=CASE a.office_role
+      house_id:=CASE a.office_role
         WHEN 'Deputado' THEN 'a1b2c3d4-e5f6-7890-1234-567890abcdef'::uuid
         ELSE 'fedcba09-8765-4321-0987-654321fedcba'::uuid END;
       UPDATE public.parliament_members
          SET term_end_date=new_end::date
-       WHERE user_id=a.profile_id AND parliament_members.house_id=v_house_id
+       WHERE user_id=a.profile_id AND house_id=house_id
          AND term_end_date<new_end::date;
     END IF;
     changed:=true;
