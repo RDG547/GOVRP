@@ -44,7 +44,7 @@ export default function UserBanDialog({user,onFinish,onUpdate}){
     }
     setBusy(true);
     try{
-      const response=await fetchWithSessionAuth('/api/admin/ban-user',{
+      const response=await fetchWithSessionAuth('/api/admin/update-user?security=ban',{
         method:'POST',
         headers:{'Content-Type':'application/json'},
         body:JSON.stringify({action,userId:user.id,reason:reason.trim(),scope})
