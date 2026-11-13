@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 
 const migration = readFileSync(new URL('../supabase/migrations/20261113063648_company_market_demand_and_physical_inputs.sql', import.meta.url),'utf8');
 const page = readFileSync(new URL('../src/features/economy/components/NationalProductionMarket.jsx', import.meta.url),'utf8');
+const allocation = readFileSync(new URL('../supabase/migrations/20261113064338_population_market_spending_allocation.sql', import.meta.url),'utf8');
 
 const mustContain = (source, value, label = value) =>
   assert(source.includes(value), 'Contract missing: ' + label);
@@ -15,6 +16,12 @@ for (const f of [
 ]) mustContain(migration, f);
 
 mustContain(migration,'exists(select 1 from public.business_inventory','Demand must require actual seller stock');
+mustContain(allocation,'active_direct_offers','Market must not consume entire budget when sellers exist');
+mustContain(allocation,'macro.simulated_share','Respect administrative simulated-sector participation');
+mustContain(allocation,'macro.player_share','Respect administrative player participation');
+mustContain(allocation,'case when active_direct_offers then market_share else 1 end','Leave remaining budget for private companies');
+assert(!/UPDATE\\s+public\\.(?:accounts|economic_calibrations|system_settings)\\s+SET/i.test(allocation),'Market budget update must not create or reset money');
+
 mustContain(migration,'b.status=\'active\'','Only active businesses can sell');
 mustContain(migration,"md5(p_day::text||':'||i.business_id::text","Procurement must rotate daily");
 mustContain(migration,'NOT private.can_manage_company','Company authorization required');
