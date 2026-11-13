@@ -34,6 +34,8 @@ const sections = [
       'Você deve fornecer informações corretas, manter seus meios de autenticação protegidos e avisar o suporte ao suspeitar de acesso indevido.',
       'Cada pessoa deve utilizar uma única conta, salvo autorização expressa da administração para testes ou operação da plataforma.',
       'Não é permitido vender, ceder, compartilhar ou utilizar contas para contornar suspensões, votações, limites ou regras do jogo.',
+      'O CDA pode suspender ou banir contas por infrações reais às regras da comunidade e impedir novos cadastros por identificadores associados, como e-mail, nome de usuário, nome de cidadão, IPs e instalações de navegador. Cada medida deve ter motivo registrado e pode ser submetida a revisão administrativa.',
+      'A verificação de navegador não é um identificador físico infalível. O compartilhamento de IP não prova por si só a identidade de alguém; casos contestados deverão ser analisados individualmente.'
       'A plataforma é destinada a pessoas com 13 anos ou mais. Pessoas menores de idade devem observar a legislação aplicável e contar com a assistência de seu responsável quando necessário.',
     ],
   },
