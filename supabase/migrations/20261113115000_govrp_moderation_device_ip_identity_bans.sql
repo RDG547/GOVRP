@@ -93,6 +93,15 @@ REVOKE ALL ON FUNCTION private.govrp_before_user_created_hook(jsonb) FROM PUBLIC
 GRANT USAGE ON SCHEMA private TO supabase_auth_admin;
 GRANT EXECUTE ON FUNCTION private.govrp_before_user_created_hook(jsonb) TO supabase_auth_admin;
 
+-- Public wrapper enables selecting the hook in the Supabase Auth dashboard.
+-- The function is not executable by anonymous/authenticated clients.
+CREATE OR REPLACE FUNCTION public.govrp_before_user_created_hook(event jsonb)
+RETURNS jsonb LANGUAGE sql SECURITY DEFINER SET search_path='' AS $fn$
+ SELECT private.govrp_before_user_created_hook(event);
+$fn$;
+REVOKE ALL ON FUNCTION public.govrp_before_user_created_hook(jsonb) FROM PUBLIC,anon,authenticated,service_role;
+GRANT EXECUTE ON FUNCTION public.govrp_before_user_created_hook(jsonb) TO supabase_auth_admin;
+
 -- Extra email safeguard applies across email signup and OAuth even if the hook is not yet configured.
 CREATE OR REPLACE FUNCTION private.govrp_guard_auth_email()
 RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path='' AS $fn$
