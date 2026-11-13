@@ -29,6 +29,7 @@ const sections = [
       'Atividade econômica virtual: saldos, pagamentos, empresas, empregos, produtos, investimentos, tributos e eventos usados pelo motor econômico do RP.',
       'Dados políticos do RP: partido, ideologia declarada, candidaturas, cargos, votos quando públicos e atos institucionais. Essas informações podem revelar opinião ou filiação política e recebem proteção compatível com sua natureza.',
       'Dados técnicos e de segurança: endereço IP, sessão, navegador, dispositivo, sistema operacional, registros de acesso, falhas, auditoria e sinais de abuso.',
+      'Para prevenir o retorno de contas banidas, podemos relacionar IPs registrados no login e identificadores aleatórios da instalação do navegador aos usuários autenticados. O identificador do navegador é guardado em forma de hash, não é uma identificação física do aparelho e pode mudar quando cookies são apagados.',
     ],
   },
   {
@@ -85,6 +86,7 @@ const sections = [
       'A medição de uso da Vercel Analytics somente é carregada quando você escolhe aceitar essa categoria no aviso de privacidade.',
       'Selecionar “Somente essenciais” não impede login, navegação nem uso das principais funcionalidades.',
       'Você pode apagar os dados locais nas configurações do navegador ou do sistema, mas isso pode encerrar a sessão e redefinir preferências.',
+      'Um cookie essencial HttpOnly é utilizado para segurança da conta e prevenção de evasão de banimento. Ele é separado de cookies de análise e não é empregado para publicidade.',
     ],
   },
   {
@@ -94,6 +96,7 @@ const sections = [
       'O motor da plataforma combina eventos reais do jogo com componentes simulados para calcular indicadores, elegibilidade, consequências econômicas e estados de serviços.',
       'Esses resultados produzem efeitos apenas dentro do RP e não definem crédito, emprego, benefícios, direitos políticos ou situação jurídica no mundo real.',
       'Você pode solicitar explicação ou revisão de uma decisão automatizada que afete de modo relevante sua participação na plataforma.',
+      'Bloqueios administrativos podem abranger conta, e-mail, nomes do personagem, endereços IP e navegadores previamente associados, com histórico de decisão e possibilidade de revisão. IPs compartilhados podem gerar bloqueios indevidos: procure o suporte para solicitar verificação humana.'
     ],
   },
   {
