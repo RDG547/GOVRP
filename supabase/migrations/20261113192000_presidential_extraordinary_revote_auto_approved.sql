@@ -214,7 +214,7 @@ BEGIN
  ) VALUES (
   'Eleição Presidencial Extraordinária Direta — Reconvocação 14/11/2026',
   'Reconvocação da eleição anulada. Mesmo modelo majoritário da 1ª eleição presidencial: Presidente e Vice-Presidente por voto popular. Exclusivamente nesta edição, as chapas elegíveis são aprovadas automaticamente. A posse ocorre 24 horas após o encerramento da votação; o mandato completa o período original.',
-  v_first_e.election_type_id,clock_timestamp(),
+  v_first_e.election_type_id,now(),
   '2026-11-14 04:00:00-03'::timestamptz,
   '2026-11-14 06:00:00-03'::timestamptz,
   '2026-11-15 06:00:00-03'::timestamptz,
