@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { ShieldBan, ShieldCheck, AlertTriangle, Loader2, Monitor, Globe, Mail, UserRound } from 'lucide-react';
+import { ShieldBan, ShieldCheck, AlertTriangle, Loader2, Monitor, Globe, Mail, User } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 import { fetchWithSessionAuth } from '@/lib/apiAuth';
 import { Button } from '@/components/ui/button';
@@ -13,8 +13,8 @@ import { useToast } from '@/components/ui/use-toast';
 const defaultScope={email:true,username:true,citizen_name:true,ip:true,devices:true};
 const options=[
   {key:'email',label:'E-mail da conta',icon:Mail,desc:'Bloquear novos cadastros usando este e-mail.'},
-  {key:'username',label:'Nome de usuário',icon:UserRound,desc:'Impedir o uso do mesmo @username durante a criação do personagem.'},
-  {key:'citizen_name',label:'Nome do cidadão',icon:UserRound,desc:'Impedir que outro personagem utilize o mesmo nome civil.'},
+  {key:'username',label:'Nome de usuário',icon:User,desc:'Impedir o uso do mesmo @username durante a criação do personagem.'},
+  {key:'citizen_name',label:'Nome do cidadão',icon:User,desc:'Impedir que outro personagem utilize o mesmo nome civil.'},
   {key:'ip',label:'IPs associados à conta',icon:Globe,desc:'Pode atingir outras pessoas que compartilham a mesma rede.'},
   {key:'devices',label:'Navegadores já vinculados',icon:Monitor,desc:'Identifica instalações do navegador, não o hardware físico.'}
 ];
