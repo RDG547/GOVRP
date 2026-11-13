@@ -20,7 +20,7 @@ mustContain(allocation,'active_direct_offers','Market must not consume entire bu
 mustContain(allocation,'macro.simulated_share','Respect administrative simulated-sector participation');
 mustContain(allocation,'macro.player_share','Respect administrative player participation');
 mustContain(allocation,'case when active_direct_offers then market_share else 1 end','Leave remaining budget for private companies');
-assert(!/UPDATE\\s+public\\.(?:accounts|economic_calibrations|system_settings)\\s+SET/i.test(allocation),'Market budget update must not create or reset money');
+assert(!/UPDATE\s+public\.(?:accounts|economic_calibrations|system_settings)\s+SET/i.test(allocation),'Market budget update must not create or reset money');
 
 mustContain(migration,'b.status=\'active\'','Only active businesses can sell');
 mustContain(migration,"md5(p_day::text||':'||i.business_id::text","Procurement must rotate daily");
