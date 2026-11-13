@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+ "strings"
+ "go.mau.fi/whatsmeow/types"
 )
 
 func TestSupabaseHelpCommand(t *testing.T) {
@@ -43,7 +45,7 @@ func TestBotCommandScopes(t *testing.T) {
  inactiveGroup := "120363222222222@g.us"
  settings := Settings{Enabled:true,Commands:true,Prefix:"!"}
  groups := map[string]bool{activeGroup:true, inactiveGroup:false}
- publicCommands := []string{"ajuda","noticias","economia","governo","partidos","eleicoes","votacoes","leis","perfil"}
+ publicCommands := []string{"ajuda","noticias","economia","governo","partidos","eleicao","eleicoes","votacoes","leis","perfil"}
  for _,cmd := range publicCommands {
   if !commandAllowed(settings,groups,true,activeGroup,cmd) {
    t.Errorf("!%s should work in an enabled group",cmd)
@@ -79,4 +81,55 @@ func TestBotCommandScopes(t *testing.T) {
   t.Error("global pause must block both groups and private linking")
  }
  if commandAllowed(settings,groups,true,"120363333333333@g.us","noticias") {t.Error("unknown groups must be ignored")}
+}
+
+
+func TestElectionMentionMessage(t *testing.T) {
+  a:=types.NewJID("5511999991111",types.DefaultUserServer)
+  b:=types.NewJID("123456789",types.HiddenUserServer)
+  group:=types.NewJID("120363555",types.GroupServer)
+  msg,err:=electionMentionMessage("📢 *🗳️ Votação iniciada*",
+    []types.JID{a,b,a,group})
+  if err!=nil{t.Fatalf("unexpected mention error: %v",err)}
+  if msg.GetConversation()!="" {t.Error("group mentions must use extendedTextMessage")}
+  text:=msg.GetExtendedTextMessage().GetText()
+  if !strings.Contains(text,"@5511999991111") || !strings.Contains(text,"@123456789") {
+    t.Fatalf("missing visible mentions in %q",text)
+  }
+  ids:=msg.GetExtendedTextMessage().GetContextInfo().GetMentionedJID()
+  if len(ids)!=2 || ids[0]!=a.String() || ids[1]!=b.String() {
+    t.Errorf("unexpected distinct mentioned JIDs: %v",ids)
+  }
+  if _,err:=electionMentionMessage("election",[]types.JID{group});err==nil {
+    t.Error("no valid members should be an error instead of silently failing to mention anyone")
+  }
+  if !isElectionNotice("📢 *🗳️ Votação iniciada*\nMensagem") ||
+    isElectionNotice("📢 *Nova notícia*\nMensagem") ||
+    isElectionNotice("🗳️ Votação iniciada") {
+    t.Error("only dedicated election notification events should mention everyone")
+  }
+}
+
+func TestSupabaseElectionDetailsCommand(t *testing.T) {
+ server:=httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter,r *http.Request){
+  if r.URL.Path!="/rest/v1/rpc/bot_whatsapp_election_command" {
+    t.Errorf("unexpected RPC: %s",r.URL.Path)
+  }
+  var payload struct {
+    Command string `json:"p_command"`
+    Number *int `json:"p_number"`
+  }
+  if err:=json.NewDecoder(r.Body).Decode(&payload);err!=nil{t.Fatal(err)}
+  if payload.Command!="eleicoes" || payload.Number==nil || *payload.Number!=3 {
+    t.Errorf("unexpected election selection: %+v",payload)
+  }
+  _=json.NewEncoder(w).Encode("🗳️ Eleição 3")
+ }))
+ defer server.Close()
+ api:=&API{base:server.URL,key:"test-key",http:server.Client()}
+ var reply string
+ if err:=api.rpc(context.Background(),"bot_whatsapp_election_command",map[string]any{
+  "p_command":"eleicoes","p_number":3,
+ },&reply);err!=nil{t.Fatal(err)}
+ if !strings.Contains(reply,"Eleição 3"){t.Errorf("unexpected details reply %q",reply)}
 }
