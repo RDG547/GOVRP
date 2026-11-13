@@ -103,6 +103,21 @@ CREATE TRIGGER govrp_notify_special_candidacy_approved
  AFTER INSERT ON public.candidates FOR EACH ROW
  EXECUTE FUNCTION private.govrp_notify_special_candidacy_approved();
 
+-- Prevent a duplicate generic "candidacies open" notification from the 30s bot
+-- poller when the exclusive manually authored announcement is already in the outbox.
+DO $poller_guard$
+DECLARE v_def text;v_old text;v_new text;
+BEGIN
+ SELECT pg_get_functiondef('public.bot_whatsapp_enqueue_election_lifecycle()'::regprocedure)
+ INTO v_def;
+ v_old:='AND x.phase_at > clock_timestamp() - interval ''8 minutes''';
+ IF position(v_old IN v_def)=0 THEN
+   RAISE EXCEPTION 'Padrão de agendamento eleitoral mudou. Não duplicar notificações.';
+ END IF;
+ v_new:=v_old||E'\n     AND NOT (x.phase_key = ''candidacy_open'' AND EXISTS (\n       SELECT 1 FROM private.govrp_election_auto_approval_exceptions sp\n       WHERE sp.election_id = e.id\n         AND EXISTS (SELECT 1 FROM public.whatsapp_bot_events event\n                     WHERE event.event_kind = ''elections''\n                       AND event.source_table = ''elections''\n                       AND event.source_id LIKE e.id::text||'':candidacy_open:%'')\n     ))';
+ EXECUTE replace(v_def,v_old,v_new);
+END $poller_guard$;
+
 -- One transaction: cancel the old election, undo its future awards/PP,
 -- create the fresh ballot, copy the two approved tickets, schedule bot notice.
 DO $reconvocation$
@@ -298,7 +313,7 @@ BEGIN
   ||E'\n🏛️ *POSSE:* segunda-feira, *16/11, às 06h*, conforme regra de 24 horas após a votação. O mandato vai até 09/12/2026 às 06h.'
   ||E'\n\nA eleição segue o modelo majoritário da *1ª Eleição Presidencial*: chapa Presidente + Vice. O governo interino segue até a posse.'
   ||E'\n\nNão haverá transferência dos votos antigos. Toda a votação será refeita.'
-  ||E'\n\n🔗 Confira em: https://govrp.vercel.app/services/elections';
+  ;
 
  INSERT INTO public.whatsapp_bot_events(
   event_kind,source_table,source_id,title,message,url,target_group_jid,expires_at
