@@ -32,9 +32,9 @@ Banimento OOC não apaga registro de personagem, votos, mandatos ou ações hist
 
 ## Fluxos
 
-- \`POST /api/auth/access\` com \`{action:"preflight",email}\` verifica IP/navegador/e-mail antes do cadastro ou login. Não recebe nem deve receber senha.
-- \`POST /api/auth/access\` com \`{action:"attest"}\` e bearer token autentica, registra IP/navegador associado ao usuário e recusa acesso banido. Chamado na hidratação de sessão e periodicamente.
-- \`POST /api/admin/ban-user\` exige bearer token de admin real, respeita pré-visualização, verifica a conta e aplica/remova restrições e o bloqueio do Supabase Auth.
+- \`POST /api/world-runtime\` com \`{action:"preflight",email}\` verifica IP/navegador/e-mail antes do cadastro ou login. Não recebe nem deve receber senha.
+- \`POST /api/world-runtime\` com \`{action:"attest"}\` e bearer token autentica, registra IP/navegador associado ao usuário e recusa acesso banido. Chamado na hidratação de sessão e periodicamente.
+- \`POST /api/admin/update-user?security=ban\` exige bearer token de admin real, respeita pré-visualização, verifica a conta e aplica/remova restrições e o bloqueio do Supabase Auth.
 - \`public.govrp_admin_ban_context\` e \`public.govrp_admin_list_bans\` mostram dados somente a admins. Tabelas reais estão em schema \`private\`, sem acesso às roles \`anon\` e \`authenticated\`.
 
 ## Privacidade, atendimento e limitações
