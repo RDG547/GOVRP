@@ -56,7 +56,7 @@ BEGIN
 
  SELECT * INTO v_bill FROM public.bills WHERE id=p_bill_id FOR UPDATE;
  IF NOT FOUND THEN RAISE EXCEPTION 'Projeto legislativo não encontrado.';END IF;
- v_is_pec:=upper(coalesce(v_bill.type,'')) LIKE '%PEC%';
+ v_is_pec:=upper(coalesce(v_bill.type,'')) LIKE '%PEC%' OR v_bill.type='Proposta de Emenda Constitucional';
  IF v_is_pec AND v_action<>'promulgate' THEN
    RAISE EXCEPTION 'Emenda constitucional aprovada exige promulgação, sem sanção ou veto.';
  END IF;
