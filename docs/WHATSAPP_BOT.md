@@ -102,3 +102,9 @@ Cada marco é registrado com identificador único (eleição + fase + horário),
 - `!eleicoes 1`, `!eleicoes 2`, etc.: detalhes da eleição escolhida, situação, calendário, candidaturas aprovadas e resultado quando já estiver apurado.
 
 A vinculação da conta (`!vincular CÓDIGO`) continua sendo o único comando permitido em conversa privada.
+
+## Comandos enviados pelo próprio número e diretório de partidos
+
+- O número conectado ao bot também pode enviar comandos em **grupos autorizados**. As mensagens `IsFromMe` não são mais descartadas automaticamente, mas continuam sujeitas à pausa global, à ativação de comandos, à lista de grupos e à limitação de frequência. O bot não interpreta suas próprias respostas como novos comandos, pois elas não começam pelo prefixo configurado.
+- Para consultar dados vinculados à conta, comandos enviados pelo próprio número usam o identificador de conta do WhatsApp pareado, evitando o identificador de dispositivo/companhia. O único comando permitido em conversas privadas continua sendo `!vincular CÓDIGO`.
+- `!partidos`: mostra **todos** os partidos cadastrados (inclusive inativos), nome, sigla, número eleitoral, quantidade de membros, atividade real (`is_active`) e situação de registro (`status`, por exemplo `Em Formação`). Esses dois estados são mostrados separadamente porque um partido pode estar ativo e ainda ter registro `Em Formação` no banco. Os dados são consultados em tempo real via `public.bot_whatsapp_parties()`, acessível somente a `service_role`.
