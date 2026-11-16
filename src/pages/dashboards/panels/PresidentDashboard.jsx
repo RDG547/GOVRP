@@ -996,7 +996,7 @@ const BillReviewManager = ({ executiveState, onUpdate, actorId }) => {
     const recentActions = executiveState?.settings?.billActionsDetailed || [];
 
     const openReviewDialog = (bill, action) => {
-        setReviewState({ bill, action });
+        setReviewState({ bill, action, recovering: ['Vetado integralmente', 'Vetado parcialmente'].includes(bill?.status) });
         setReason('');
         setPartialScope('');
     };
@@ -1025,7 +1025,12 @@ const BillReviewManager = ({ executiveState, onUpdate, actorId }) => {
                 reason,
                 partialScope,
             });
-            toast({ title: 'Ato presidencial registrado', description: 'O projeto foi atualizado e publicado no Diário Oficial.' });
+            toast({
+                title: reviewState.recovering ? 'Registro do veto regularizado' : 'Ato presidencial registrado',
+                description: reviewState.recovering
+                    ? 'A fundamentação foi registrada e publicada sem executar outro veto.'
+                    : 'O projeto, o registro presidencial e a publicação oficial foram concluídos juntos.',
+            });
             setReviewState(null);
             await onUpdate();
         } catch (error) {
@@ -1042,10 +1047,11 @@ const BillReviewManager = ({ executiveState, onUpdate, actorId }) => {
                     <FileSignature className="w-6 h-6 text-primary" />
                     Sanção, Promulgação e Veto
                 </CardTitle>
-                <CardDescription>Projetos aprovados pelo Parlamento aguardam ato presidencial antes de entrarem na ordem jurídica.</CardDescription>
+                <CardDescription>Projetos aguardando sanção, veto ou promulgação e eventuais atos antigos que precisam de regularização.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
                 {pendingBills.length ? pendingBills.map((bill) => {
+                    const isVetoRecovery = ['Vetado integralmente', 'Vetado parcialmente'].includes(bill.status);
                     const isPromulgationOnly = bill.status === 'Aguardando promulgação presidencial' || `${bill.type || ''}`.toUpperCase().includes('PEC');
 
                     return (
@@ -1059,20 +1065,32 @@ const BillReviewManager = ({ executiveState, onUpdate, actorId }) => {
                                 <LegalEffectsForSource sourceKind="bill" sourceId={bill.id} />
                             </div>
                             <div className="flex flex-wrap gap-2">
-                                <Button onClick={() => openReviewDialog(bill, isPromulgationOnly ? 'promulgate' : 'sanction')}>
-                                    <Megaphone className="mr-2 h-4 w-4" />
-                                    {isPromulgationOnly ? 'Promulgar' : 'Sancionar'}
-                                </Button>
-                                {!isPromulgationOnly && (
+                                {isVetoRecovery ? (
+                                    <div className="space-y-2">
+                                        <p className="text-sm text-amber-300">O veto já foi aplicado, mas seu registro complementar não foi concluído. Informe novamente a fundamentação para finalizar a publicação.</p>
+                                        <Button variant="outline" onClick={() => openReviewDialog(bill, bill.status === 'Vetado integralmente' ? 'veto_total' : 'veto_partial')}>
+                                            <FileSignature className="mr-2 h-4 w-4" />
+                                            Concluir registro do veto
+                                        </Button>
+                                    </div>
+                                ) : (
                                     <>
-                                        <Button variant="outline" className="border-red-500/50 text-red-400 hover:bg-red-500/10 hover:text-red-300" onClick={() => openReviewDialog(bill, 'veto_total')}>
-                                            <Ban className="mr-2 h-4 w-4" />
-                                            Veto total
+                                        <Button onClick={() => openReviewDialog(bill, isPromulgationOnly ? 'promulgate' : 'sanction')}>
+                                            <Megaphone className="mr-2 h-4 w-4" />
+                                            {isPromulgationOnly ? 'Promulgar' : 'Sancionar'}
                                         </Button>
-                                        <Button variant="outline" className="border-orange-500/50 text-orange-400 hover:bg-orange-500/10 hover:text-orange-300" onClick={() => openReviewDialog(bill, 'veto_partial')}>
-                                            <CircleSlash className="mr-2 h-4 w-4" />
-                                            Veto parcial
-                                        </Button>
+                                        {!isPromulgationOnly && (
+                                            <>
+                                                <Button variant="outline" className="border-red-500/50 text-red-400 hover:bg-red-500/10 hover:text-red-300" onClick={() => openReviewDialog(bill, 'veto_total')}>
+                                                    <Ban className="mr-2 h-4 w-4" />
+                                                    Veto total
+                                                </Button>
+                                                <Button variant="outline" className="border-orange-500/50 text-orange-400 hover:bg-orange-500/10 hover:text-orange-300" onClick={() => openReviewDialog(bill, 'veto_partial')}>
+                                                    <CircleSlash className="mr-2 h-4 w-4" />
+                                                    Veto parcial
+                                                </Button>
+                                            </>
+                                        )}
                                     </>
                                 )}
                             </div>
@@ -1111,6 +1129,11 @@ const BillReviewManager = ({ executiveState, onUpdate, actorId }) => {
                         </DialogTitle>
                         <DialogDescription>
                             {reviewState?.bill?.title}
+                            {reviewState?.recovering && (
+                                <span className="block mt-2 text-amber-300">
+                                    A decisão já consta no histórico. Este procedimento somente regulariza a justificativa e a publicação pendentes.
+                                </span>
+                            )}
                         </DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4 py-4">
