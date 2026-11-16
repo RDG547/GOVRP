@@ -226,7 +226,7 @@ func helpMessage(prefix string) string {
   {label:"Governo e legislação",icon:"🏛️",commands:[]helpCommand{
    {name:"governo",description:"presidente e ministros"},
    {name:"leis",description:"propostas legislativas recentes"},
-   {name:"partidos",description:"partidos políticos ativos"},
+   {name:"partidos",description:"partidos cadastrados, membros e situação"},
    {name:"votacoes",description:"votações parlamentares em andamento"},
   }},
   {label:"Suporte",icon:"🧭",commands:[]helpCommand{
@@ -249,25 +249,39 @@ func helpMessage(prefix string) string {
  return message.String()
 }
 
-func (b *Bot) onMessage(evt *events.Message) {
- if evt.Info.IsFromMe || evt.Message==nil{return}
+// parseIncomingCommand accepts the owner's own WhatsApp messages too. Do not
+// discard IsFromMe: the phone paired with the bot also needs to issue commands.
+// The group allowlist, global toggle and command scope still apply to everyone.
+func parseIncomingCommand(evt *events.Message, settings Settings, groups map[string]bool) (string,[]string,bool) {
+ if evt==nil || evt.Message==nil || !settings.Enabled {return "",nil,false}
+ if evt.Info.IsGroup && !groups[evt.Info.Chat.String()] {return "",nil,false}
  text:=strings.TrimSpace(evt.Message.GetConversation())
  if text=="" {text=strings.TrimSpace(evt.Message.GetExtendedTextMessage().GetText())}
- if text=="" {return}
+ if text=="" || !strings.HasPrefix(text,settings.Prefix) {return "",nil,false}
+ words:=strings.Fields(strings.TrimSpace(strings.TrimPrefix(text,settings.Prefix)))
+ if len(words)==0 {return "",nil,false}
+ command:=strings.ToLower(words[0])
+ if !commandAllowed(settings,groups,evt.Info.IsGroup,evt.Info.Chat.String(),command) {return "",nil,false}
+ return command,words,true
+}
+
+func (b *Bot) onMessage(evt *events.Message) {
+ if evt==nil || evt.Message==nil{return}
  if evt.Info.IsGroup {b.discovered(evt.Info.Chat.String(),"")}
  settings,groups:=b.current()
- // Ignore disallowed chats before performing any RPC, sending replies or consuming rate limits.
- if !settings.Enabled || (evt.Info.IsGroup && !groups[evt.Info.Chat.String()]) {return}
- if !strings.HasPrefix(text,settings.Prefix){return}
- words:=strings.Fields(strings.TrimSpace(strings.TrimPrefix(text,settings.Prefix)))
- if len(words)==0{return}
- command:=strings.ToLower(words[0])
- if !commandAllowed(settings,groups,evt.Info.IsGroup,evt.Info.Chat.String(),command){return}
- if !b.rateOK(evt.Info.Sender.String()){return}
+ command,words,ok:=parseIncomingCommand(evt,settings,groups)
+ if !ok {return}
+ sender:=evt.Info.Sender
+ // Whatsmeow may use a device-specific sender on own outgoing messages.
+ // Use the bot's paired account JID for rate limits and linked-profile queries.
+ if evt.Info.IsFromMe && b.wa!=nil && b.wa.Store!=nil && b.wa.Store.ID!=nil {
+  sender=b.wa.Store.ID.ToNonAD()
+ }
+ if !b.rateOK(sender.String()){return}
 
  if !evt.Info.IsGroup {
   // Linking uses a one-time code and is permitted only in the sender's private chat.
-  go b.handlePrivate(evt.Info.Sender,words)
+  go b.handlePrivate(sender,words)
   return
  }
  // All other supported commands work exclusively within an enabled group.
@@ -296,9 +310,11 @@ func (b *Bot) onMessage(evt *events.Message) {
    err=b.api.rpc(ctx,"bot_whatsapp_election_command",map[string]any{
     "p_command":command,"p_number":number,
    },&reply)
+  } else if command=="partidos" {
+   err=b.api.rpc(ctx,"bot_whatsapp_parties",map[string]any{},&reply)
   } else {
    err=b.api.rpc(ctx,"bot_whatsapp_command",map[string]any{
-    "p_command":command,"p_sender_jid":evt.Info.Sender.String(),
+    "p_command":command,"p_sender_jid":sender.String(),
    },&reply)
   }
   if err!=nil {log.Printf("command %s: %v",command,err);b.reply(evt.Info.Chat,"Não consegui consultar o GOVRP agora. Tente novamente.");return}
