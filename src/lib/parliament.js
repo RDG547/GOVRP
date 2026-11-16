@@ -83,7 +83,7 @@ export const inferBillTypeFromTitle = (title = '') => {
 };
 
 /**
- * Checks if a bill type is a PEC (requires 2/3 of BOTH houses).
+ * Checks if a bill type is a PEC (requires 3/5 of BOTH houses under Art. 66 of the RP Constitution).
  */
 const isPEC = (billType = '') => {
   const normalized = billType.trim().toUpperCase();
@@ -218,9 +218,9 @@ const checkPECOtherHouseApproval = async (supabase, billId, currentHouseId) => {
   if (votesError) throw votesError;
 
   const totals = countVotes(votes || []);
-  // For PEC: need 2/3 approval
+  // For PEC: need 3/5 of the seats in each house (not of votes cast)
   const totalVoted = totals.approve + totals.reject + totals.abstain;
-  const threshold = Math.ceil(totalVoted * 2 / 3);
+  const threshold = Math.ceil(totalVoted * 3 / 5);
   const wasApproved = totals.approve >= threshold && totals.approve > 0;
 
   return { wasApproved, houseId: otherVoting.house_id };
@@ -229,12 +229,12 @@ const checkPECOtherHouseApproval = async (supabase, billId, currentHouseId) => {
 /**
  * Determines if a bill vote passed based on its type.
  * - PL: Simple majority (50%+1 of votes cast, excluding abstentions)
- * - PEC: 2/3 of ALL members in the house (abstention = against)
+ * - PEC: 3/5 of ALL members in the house (abstention = against)
  */
 const isBillApproved = (billType, voteTotals, seatCount) => {
   if (isPEC(billType)) {
-    // PEC needs 2/3 of all members (including those who didn't vote - counted as abstention)
-    const threshold = Math.ceil(seatCount * 2 / 3);
+    // PEC needs 3/5 of all members (including those who didn't vote - counted as abstention)
+    const threshold = Math.ceil(seatCount * 3 / 5);
     return voteTotals.approve >= threshold;
   } else {
     // PL: simple majority of votes cast (abstentions don't count against)
@@ -251,7 +251,7 @@ const isBillApproved = (billType, voteTotals, seatCount) => {
  * - 24h has passed (non-voters count as abstention)
  *
  * For PEC: After first house approval, creates voting in the other house.
- * Only fully approved when both houses approve with 2/3.
+ * Only fully approved when both houses approve with 3/5.
  */
 export const finalizeParliamentVotingIfReady = async (
   supabase,
@@ -360,7 +360,7 @@ export const finalizeParliamentVotingIfReady = async (
             billId: bill.id,
             houseId: otherHouseId,
             title: `[2ª Casa] ${bill.title}`,
-            description: `Votação de PEC proveniente da ${bill.house?.name || 'outra casa'}. Necessário 2/3 para aprovação.`,
+            description: `Votação de PEC proveniente da ${bill.house?.name || 'outra casa'}. Necessário 3/5 para aprovação.`,
           });
 
           return {
@@ -370,13 +370,13 @@ export const finalizeParliamentVotingIfReady = async (
           };
         }
       } else if (otherHouseResult.wasApproved) {
-        // Both houses approved! PEC now depends on presidential promulgation
+        // Legacy branch: PEC ratification is an automatic legislative outcome. The authoritative RPC returns before this branch.
         await supabase.rpc('update_bill_status', {
           p_bill_id: bill.id,
-          p_new_status: 'Aguardando promulgação presidencial',
+          p_new_status: 'Promulgado',
         });
 
-        // Publish news, but don't push to the Official Gazette until the Executive acts
+        // The legal publication is executed by the authoritative legislative RPC.
         try {
           await publishBillResultNews(supabase, {
             bill,
@@ -393,7 +393,7 @@ export const finalizeParliamentVotingIfReady = async (
         return {
           finalized: true,
           approved: true,
-          message: 'PEC aprovada por ambas as casas do Parlamento e encaminhada para promulgação presidencial.',
+          message: 'PEC aprovada pelas duas Casas e promulgada pelo fluxo legislativo.',
         };
       } else {
         // Other house rejected - PEC is fully rejected
