@@ -5,6 +5,7 @@ const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf
 const source = read('src/lib/executiveGovernance.js');
 const president = read('src/pages/dashboards/panels/PresidentDashboard.jsx');
 const migration = read('supabase/migrations/20261116133000_atomic_presidential_bill_review.sql');
+const constitutionalRite = read('supabase/migrations/20261116162000_pec_constitutional_rite.sql');
 
 const review = source.slice(source.indexOf('export const reviewPresidentialBill = async'));
 assert.ok(review.includes("supabase.rpc('review_presidential_bill'"), 'Presidential review must use the atomic server RPC');
@@ -40,4 +41,10 @@ assert.ok(migration.includes('public.dou_entries'),
 assert.ok(migration.includes('GRANT EXECUTE ON FUNCTION public.review_presidential_bill'),
   'The authenticated access grant must be explicit');
 
-console.log('✓ Presidential sanction/veto is atomic, constrained and recoverable.');
+assert.ok(constitutionalRite.includes("'numerator',3,'denominator',5"), 'PEC quorum must follow Art. 66, 3/5 per house');
+assert.ok(constitutionalRite.includes("THEN 'Promulgado'"), 'PEC approval in both houses promulgates without presidential act');
+assert.ok(constitutionalRite.includes("PECs são deliberadas pelo Congresso"), 'Server must reject presidential PEC actions');
+assert.ok(source.includes("if (isConstitutionalAmendment)"), 'Client must block all presidential actions on PECs');
+assert.ok(!source.includes("'Aguardando promulgação presidencial',"), 'PECs must not be queued for the President');
+assert.ok(!president.includes("isPromulgationOnly"), 'President dashboard must not show a PEC promulgation button');
+console.log('✓ Presidential sanction/veto is atomic and PECs follow the GOVRP constitutional rite.');
