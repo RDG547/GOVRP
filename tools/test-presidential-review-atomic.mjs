@@ -6,6 +6,7 @@ const source = read('src/lib/executiveGovernance.js');
 const president = read('src/pages/dashboards/panels/PresidentDashboard.jsx');
 const migration = read('supabase/migrations/20261116133000_atomic_presidential_bill_review.sql');
 const constitutionalRite = read('supabase/migrations/20261116162000_pec_constitutional_rite.sql');
+const explicitDecision = read('supabase/migrations/20261116220000_presidential_veto_confirmation_and_reset.sql');
 
 const review = source.slice(source.indexOf('export const reviewPresidentialBill = async'));
 assert.ok(review.includes("supabase.rpc('review_presidential_bill'"), 'Presidential review must use the atomic server RPC');
@@ -15,17 +16,12 @@ assert.ok(!review.includes('publishOfficialGazetteEntry('), 'Official publicatio
 assert.ok(review.includes('p_reason: reason.trim()') && review.includes('p_partial_scope: partialScope.trim()'),
   'The entire veto explanation must be included in the server transaction');
 
-assert.ok(source.includes("'Vetado integralmente', 'Vetado parcialmente'"),
-  'Legacy incomplete vetoes must be available for recovery');
-assert.ok(source.includes("entry.resulting_status === bill.status"),
-  'Already completed vetoes must not appear as unfinished');
-assert.ok(president.includes('Concluir registro do veto'),
-  'President must be able to complete an interrupted veto');
-assert.ok(president.includes('A decisão já consta no histórico'),
-  'Recovery UI must explain that no second veto is being issued');
-assert.ok(president.includes('reviewState.recovering'),
-  'Recovery must use a dedicated confirmation flow');
-
+assert.ok(!source.includes(".in('status', [...PRESIDENTIAL_PENDING_BILL_STATUSES, 'Vetado integralmente'"), 'Vetoed bills must not be offered for silent recovery');
+assert.ok(president.includes('confirmedDecision'), 'Presidential action requires explicit confirmation');
+assert.ok(president.includes('disabled={isSaving || !confirmedDecision}'), 'Action button remains disabled until confirmation');
+assert.ok(explicitDecision.includes('CREATE TRIGGER require_explicit_presidential_bill_decision'), 'Direct status changes are guarded');
+assert.ok(explicitDecision.includes("PERFORM set_config('govrp.presidential_bill_decision'"), 'Authorized decisions use a transaction-local guard');
+assert.ok(explicitDecision.includes('IF v_count<>2'), 'Both incomplete vetoes must be reopened');
 assert.ok(migration.includes('PERFORM public.update_bill_status'),
   'The server must reuse existing legal review/permission validation');
 assert.ok(migration.includes("WHERE h.bill_id=p_bill_id AND h.status=v_result_status"),
@@ -47,4 +43,4 @@ assert.ok(constitutionalRite.includes("PECs são deliberadas pelo Congresso"), '
 assert.ok(source.includes("if (isConstitutionalAmendment)"), 'Client must block all presidential actions on PECs');
 assert.ok(!source.includes("'Aguardando promulgação presidencial',"), 'PECs must not be queued for the President');
 assert.ok(!president.includes("isPromulgationOnly"), 'President dashboard must not show a PEC promulgation button');
-console.log('✓ Presidential sanction/veto is atomic and PECs follow the GOVRP constitutional rite.');
+console.log('✓ Explicit presidential decisions, constitutional PEC rules and veto reset verified.');
