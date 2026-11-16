@@ -771,7 +771,7 @@ export const reviewPresidentialBill = async (
   if (!['sanction', 'promulgate', 'veto_total', 'veto_partial'].includes(normalizedAction)) {
     throw new Error('Ação presidencial inválida.');
   }
-  const isConstitutionalAmendment = `${bill.type || ''}`.toUpperCase().includes('PEC');
+  const isConstitutionalAmendment = `${bill.type || ''}`.toUpperCase().includes('PEC') || bill.type === 'Proposta de Emenda Constitucional';
   if (isConstitutionalAmendment && normalizedAction !== 'promulgate') {
     throw new Error('Emendas constitucionais aguardam promulgação, não sanção ou veto.');
   }
