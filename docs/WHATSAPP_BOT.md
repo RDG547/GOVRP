@@ -108,3 +108,18 @@ A vinculação da conta (`!vincular CÓDIGO`) continua sendo o único comando pe
 - O número conectado ao bot também pode enviar comandos em **grupos autorizados**. As mensagens `IsFromMe` não são mais descartadas automaticamente, mas continuam sujeitas à pausa global, à ativação de comandos, à lista de grupos e à limitação de frequência. O bot não interpreta suas próprias respostas como novos comandos, pois elas não começam pelo prefixo configurado.
 - Para consultar dados vinculados à conta, comandos enviados pelo próprio número usam o identificador de conta do WhatsApp pareado, evitando o identificador de dispositivo/companhia. O único comando permitido em conversas privadas continua sendo `!vincular CÓDIGO`.
 - `!partidos`: mostra **todos** os partidos cadastrados (inclusive inativos), nome, sigla, número eleitoral, quantidade de membros, atividade real (`is_active`) e situação de registro (`status`, por exemplo `Em Formação`). Esses dois estados são mostrados separadamente porque um partido pode estar ativo e ainda ter registro `Em Formação` no banco. Os dados são consultados em tempo real via `public.bot_whatsapp_parties()`, acessível somente a `service_role`.
+
+## Política, Câmara e Senado (16/11/2026)
+
+- `!ajuda` apresenta as categorias **Conta e perfil**, **Economia e notícias**, **Política** e **Suporte**, em ordem alfabética. Os comandos eleitorais agora estão em **Política**, sem categoria separada de eleições nem repetições.
+- `!partidos` separa **Partidos ativos** primeiro e **Partidos em formação / inativos** depois. O status cadastral é mostrado individualmente e não confundido com a ativação do partido; por exemplo, um partido pode ter `is_active=true` e `status='Em Formação'`.
+- `!deputados` mostra todos os membros **atualmente em exercício** na Câmara, com nome, sigla do partido atual e tempo restante, além da data de término do mandato.
+- `!senadores` aplica as mesmas informações ao Senado. Membros com mandatos encerrados não aparecem nas listas atuais; nenhuma tabela histórica é modificada.
+- O tempo restante é calculado pelo horário de Brasília, considerando a data final do mandato como dia válido (inclusive). A função `public.get_active_parliament_member_id` confirma a participação vigente na respectiva Casa.
+- Todos os comandos respeitam a restrição a grupos WhatsApp habilitados; no privado, apenas `!vincular CÓDIGO` permanece permitido.
+
+### Ajuste de tributos da Presidência
+
+A criação e publicação de decreto presidencial ao alterar uma alíquota por `public.adjust_existing_levy` acionava `private.whatsapp_bot_outbox_trigger`, uma função compartilhada. Sua condição `ELSIF` tentava consultar `NEW.status` mesmo quando `NEW` era um decreto, tabela sem campo `status`. A condição de tabela e operação passou a ser avaliada antes do acesso ao campo específico de eleições ou projetos de lei.
+
+Validação: simulou-se um ajuste de `transaction_tax` usando o usuário que atualmente ocupa a Presidência, com **transação ROLLBACK**. A operação completou o fluxo sem erro e nenhuma mudança de imposto foi persistida.
