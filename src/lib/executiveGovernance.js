@@ -631,7 +631,7 @@ export const fetchExecutiveConstitutionalState = async (supabase) => {
       supabase
         .from('bills')
         .select('id, title, summary, full_text, author_id, house_id, type, status, created_at, updated_at, house:parliament_houses(name), author:profiles(full_name, avatar_url)')
-        .in('status', PRESIDENTIAL_PENDING_BILL_STATUSES)
+        .in('status', [...PRESIDENTIAL_PENDING_BILL_STATUSES, 'Vetado integralmente', 'Vetado parcialmente'])
         .order('updated_at', { ascending: false }),
       fetchElectionOfficeSyncState(supabase).catch((error) => {
         console.error('Erro ao carregar sincronização eleitoral do Executivo:', error);
@@ -674,7 +674,14 @@ export const fetchExecutiveConstitutionalState = async (supabase) => {
     viceAssumedPresidency, viceAssumptionSource: viceAssumedPresidency ? 'registered_succession' : null,
     isVacant, actingAuthority, successionLine,
     settingsRowExists: settingsRow.exists, settings,
-    pendingBills: pendingBillsResponse.data || [],
+    pendingBills: (pendingBillsResponse.data || []).filter((bill) => {
+      if (!['Vetado integralmente', 'Vetado parcialmente'].includes(bill.status)) return true;
+      // Older attempts changed the bill before failing to save its presidential act.
+      // Show them for completion of the missing foundation, without issuing a new veto.
+      return !(settingsRow.value.billActions || []).some((entry) =>
+        entry.bill_id === bill.id && entry.resulting_status === bill.status
+      );
+    }),
   };
 };
 
@@ -754,86 +761,37 @@ export const createExecutiveProvisionalMeasure = async (
 
 export const reviewPresidentialBill = async (
   supabase,
-  { bill, action, actorId, reason = '', partialScope = '' }
+  { bill, action, reason = '', partialScope = '' }
 ) => {
   if (!bill?.id) {
     throw new Error('Projeto selecionado não foi encontrado.');
   }
 
   const normalizedAction = action?.toLowerCase();
-  const isConstitutionalAmendment = `${bill.type || ''}`.toUpperCase().includes('PEC');
-
+  if (!['sanction', 'promulgate', 'veto_total', 'veto_partial'].includes(normalizedAction)) {
+    throw new Error('Ação presidencial inválida.');
+  }
+  const isConstitutionalAmendment = `${bill.type || ''}`.toUpperCase().includes('PEC') || bill.type === 'Proposta de Emenda Constitucional';
   if (isConstitutionalAmendment && normalizedAction !== 'promulgate') {
     throw new Error('Emendas constitucionais aguardam promulgação, não sanção ou veto.');
   }
-
-  let nextStatus = bill.status;
-  let gazetteType = mapBillTypeToGazetteType(bill.type || '');
-  let gazetteTitle = bill.title;
-  let gazetteSummary = bill.summary || '';
-  let gazetteContent = bill.full_text || bill.summary || '';
-
-  if (normalizedAction === 'sanction') {
-    nextStatus = 'Sancionado';
-    gazetteSummary = bill.summary || 'Lei sancionada e publicada pela Presidência da República.';
-  } else if (normalizedAction === 'promulgate') {
-    nextStatus = 'Promulgado';
-    gazetteSummary = bill.summary || 'Texto promulgado e publicado pela Presidência da República.';
-  } else if (normalizedAction === 'veto_total') {
-    nextStatus = 'Vetado integralmente';
-    gazetteType = 'Veto Presidencial';
-    gazetteTitle = `Veto total ao projeto: ${bill.title}`;
-    gazetteSummary = reason || 'Projeto vetado integralmente pela Presidência da República.';
-    gazetteContent = reason || 'Veto total sem fundamentação adicional registrada.';
-  } else if (normalizedAction === 'veto_partial') {
-    nextStatus = 'Vetado parcialmente';
-    gazetteType = 'Veto Presidencial';
-    gazetteTitle = `Veto parcial ao projeto: ${bill.title}`;
-    gazetteSummary = reason || 'Projeto vetado parcialmente pela Presidência da República.';
-    gazetteContent =
-      `Trechos alcançados pelo veto parcial: ${partialScope || 'Não especificados.'}` +
-      (reason ? ` Fundamentação: ${reason}` : '');
-  } else {
-    throw new Error('Ação presidencial inválida.');
+  if (['veto_total', 'veto_partial'].includes(normalizedAction) && !reason.trim()) {
+    throw new Error('Informe a fundamentação obrigatória do veto.');
+  }
+  if (normalizedAction === 'veto_partial' && !partialScope.trim()) {
+    throw new Error('Informe os dispositivos alcançados pelo veto parcial.');
   }
 
-  const { error: updateError } = await supabase.rpc('update_bill_status', {
+  // Atomic RPC: status + executive act + Diário Oficial are committed together.
+  // Never upsert the whole executive_governance setting from a stale client copy:
+  // it contains protected institutional appointments and may reject/clobber changes.
+  const { data, error } = await supabase.rpc('review_presidential_bill', {
     p_bill_id: bill.id,
-    p_new_status: nextStatus,
+    p_action: normalizedAction,
+    p_reason: reason.trim(),
+    p_partial_scope: partialScope.trim(),
   });
 
-  if (updateError) {
-    throw updateError;
-  }
-
-  const settingsRow = await fetchExecutiveGovernanceSettings(supabase);
-  const actionRecord = {
-    id: createId(),
-    bill_id: bill.id,
-    bill_title: bill.title,
-    action: normalizedAction,
-    resulting_status: nextStatus,
-    actor_id: actorId,
-    created_at: todayIso(),
-    reason,
-    partial_scope: partialScope,
-  };
-
-  await saveExecutiveGovernanceSettings(supabase, {
-    ...settingsRow.value,
-    billActions: [actionRecord, ...(settingsRow.value.billActions || [])].slice(0, 30),
-  });
-
-  await publishOfficialGazetteEntry(supabase, {
-    title: gazetteTitle,
-    summary: gazetteSummary,
-    content: gazetteContent,
-    type: gazetteType,
-    sourceId: `${bill.id}-${normalizedAction}`,
-  });
-
-  return {
-    ...actionRecord,
-    type: gazetteType,
-  };
+  if (error) throw error;
+  return data;
 };
