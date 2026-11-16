@@ -191,7 +191,7 @@ func commandAllowed(settings Settings, groups map[string]bool, isGroup bool, cha
  if !isGroup {return command=="vincular"}
  if !settings.Commands || !groups[chatJID] {return false}
  switch command {
- case "ajuda","noticias","economia","governo","partidos","eleicao","eleicoes","votacoes","leis","perfil":
+ case "ajuda","noticias","economia","governo","partidos","eleicao","eleicoes","votacoes","leis","perfil","deputados","senadores":
   return true
  default:
   return false
@@ -219,14 +219,14 @@ func helpMessage(prefix string) string {
    {name:"economia",description:"indicadores econômicos atuais"},
    {name:"noticias",description:"últimas notícias do GOVRP"},
   }},
-  {label:"Eleições",icon:"🗳️",commands:[]helpCommand{
+  {label:"Política",icon:"🏛️",commands:[]helpCommand{
+   {name:"deputados",description:"deputados, partidos e tempo de mandato"},
    {name:"eleicao",description:"eleições em andamento ou próxima eleição"},
    {name:"eleicoes",description:"histórico numerado; acrescente um número para ver detalhes"},
-  }},
-  {label:"Governo e legislação",icon:"🏛️",commands:[]helpCommand{
    {name:"governo",description:"presidente e ministros"},
    {name:"leis",description:"propostas legislativas recentes"},
-   {name:"partidos",description:"partidos cadastrados, membros e situação"},
+   {name:"partidos",description:"partidos ativos e em formação, com membros"},
+   {name:"senadores",description:"senadores, partidos e tempo de mandato"},
    {name:"votacoes",description:"votações parlamentares em andamento"},
   }},
   {label:"Suporte",icon:"🧭",commands:[]helpCommand{
@@ -312,6 +312,8 @@ func (b *Bot) onMessage(evt *events.Message) {
    },&reply)
   } else if command=="partidos" {
    err=b.api.rpc(ctx,"bot_whatsapp_parties",map[string]any{},&reply)
+  } else if command=="deputados" || command=="senadores" {
+   err=b.api.rpc(ctx,"bot_whatsapp_parliament_house",map[string]any{"p_house":command},&reply)
   } else {
    err=b.api.rpc(ctx,"bot_whatsapp_command",map[string]any{
     "p_command":command,"p_sender_jid":sender.String(),

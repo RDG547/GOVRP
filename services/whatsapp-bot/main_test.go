@@ -48,7 +48,7 @@ func TestBotCommandScopes(t *testing.T) {
  inactiveGroup := "120363222222222@g.us"
  settings := Settings{Enabled:true,Commands:true,Prefix:"!"}
  groups := map[string]bool{activeGroup:true, inactiveGroup:false}
- publicCommands := []string{"ajuda","noticias","economia","governo","partidos","eleicao","eleicoes","votacoes","leis","perfil"}
+ publicCommands := []string{"ajuda","noticias","economia","governo","partidos","eleicao","eleicoes","votacoes","leis","perfil","deputados","senadores"}
  for _,cmd := range publicCommands {
   if !commandAllowed(settings,groups,true,activeGroup,cmd) {
    t.Errorf("!%s should work in an enabled group",cmd)
@@ -143,8 +143,7 @@ func TestHelpMessageCategoriesAndAlphabeticalOrder(t *testing.T) {
  categories:=[]string{
   "👤 *Conta e perfil*",
   "📊 *Economia e notícias*",
-  "🗳️ *Eleições*",
-  "🏛️ *Governo e legislação*",
+  "🏛️ *Política*",
   "🧭 *Suporte*",
  }
  lastIndex:=-1
@@ -163,8 +162,7 @@ func TestHelpMessageCategoriesAndAlphabeticalOrder(t *testing.T) {
  want:=[]string{
   "!perfil","!vincular",
   "!economia","!noticias",
-  "!eleicao","!eleicoes",
-  "!governo","!leis","!partidos","!votacoes",
+  "!deputados","!eleicao","!eleicoes","!governo","!leis","!partidos","!senadores","!votacoes",
   "!ajuda",
  }
  if len(commandLines)!=len(want) {
@@ -187,8 +185,11 @@ func TestHelpMessageCategoriesAndAlphabeticalOrder(t *testing.T) {
  if strings.Count(help,siteURL)!=1 {
   t.Error("platform URL should appear exactly once")
  }
- if strings.Count(help,"*Eleições*")!=1 {
-  t.Error("election category should be present exactly once")
+ if strings.Count(help,"*Política*")!=1 || strings.Contains(help,"*Eleições*") || strings.Contains(help,"Governo e legislação") {
+  t.Error("all political commands must share a single Política category")
+ }
+ if !strings.Contains(help,"!deputados —") || !strings.Contains(help,"!senadores —") {
+  t.Error("both legislative house commands must appear in help")
  }
 }
 
@@ -271,5 +272,33 @@ func TestLivePartyDirectoryRPC(t *testing.T) {
  if err:=api.rpc(context.Background(),"bot_whatsapp_parties",map[string]any{},&message);err!=nil{t.Fatal(err)}
  if !strings.Contains(message,"Membros: 5") || !strings.Contains(message,"Ativo"){
   t.Fatalf("unexpected live party directory: %q",message)
+ }
+}
+
+
+func TestParliamentHouseCommandsRPC(t *testing.T) {
+ for _,house:=range []string{"deputados","senadores"} {
+  t.Run(house,func(t *testing.T){
+   server:=httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter,r *http.Request){
+    if r.Method!=http.MethodPost || r.URL.Path!="/rest/v1/rpc/bot_whatsapp_parliament_house" {
+     t.Errorf("unexpected parliament RPC path: %s %s",r.Method,r.URL.Path)
+    }
+    var params map[string]string
+    if err:=json.NewDecoder(r.Body).Decode(&params);err!=nil{t.Fatal(err)}
+    if params["p_house"]!=house || len(params)!=1 {
+     t.Errorf("unexpected parliament RPC parameters: %+v",params)
+    }
+    _=json.NewEncoder(w).Encode("🏛️ Mandato restante: 23d 12h")
+   }))
+   defer server.Close()
+   api:=&API{base:server.URL,key:"test-key",http:server.Client()}
+   var reply string
+   if err:=api.rpc(context.Background(),"bot_whatsapp_parliament_house",map[string]any{
+    "p_house":house,
+   },&reply);err!=nil {t.Fatal(err)}
+   if !strings.Contains(reply,"Mandato restante:") {
+    t.Errorf("missing term details: %s",reply)
+   }
+  })
  }
 }
