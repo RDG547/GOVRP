@@ -1052,7 +1052,7 @@ const BillReviewManager = ({ executiveState, onUpdate, actorId }) => {
             <CardContent className="space-y-4">
                 {pendingBills.length ? pendingBills.map((bill) => {
                     const isVetoRecovery = ['Vetado integralmente', 'Vetado parcialmente'].includes(bill.status);
-                    const isPromulgationOnly = bill.status === 'Aguardando promulgação presidencial' || `${bill.type || ''}`.toUpperCase().includes('PEC');
+                    const isPromulgationOnly = bill.status === 'Aguardando promulgação presidencial' || `${bill.type || ''}`.toUpperCase().includes('PEC') || bill.type === 'Proposta de Emenda Constitucional';
 
                     return (
                         <div key={bill.id} className="rounded-xl border border-white/10 bg-white/5 p-4 space-y-3">
