@@ -10,7 +10,6 @@ export const PROVISIONAL_MEASURE_MAX_DAYS = 7;
 
 export const PRESIDENTIAL_PENDING_BILL_STATUSES = [
   'Aguardando sanção presidencial',
-  'Aguardando promulgação presidencial',
   'Aprovado',
 ];
 
@@ -675,6 +674,7 @@ export const fetchExecutiveConstitutionalState = async (supabase) => {
     isVacant, actingAuthority, successionLine,
     settingsRowExists: settingsRow.exists, settings,
     pendingBills: (pendingBillsResponse.data || []).filter((bill) => {
+      if (`${bill.type || ''}`.toUpperCase().includes('PEC') || bill.type === 'Proposta de Emenda Constitucional') return false;
       if (!['Vetado integralmente', 'Vetado parcialmente'].includes(bill.status)) return true;
       // Older attempts changed the bill before failing to save its presidential act.
       // Show them for completion of the missing foundation, without issuing a new veto.
@@ -768,12 +768,12 @@ export const reviewPresidentialBill = async (
   }
 
   const normalizedAction = action?.toLowerCase();
-  if (!['sanction', 'promulgate', 'veto_total', 'veto_partial'].includes(normalizedAction)) {
+  if (!['sanction', 'veto_total', 'veto_partial'].includes(normalizedAction)) {
     throw new Error('Ação presidencial inválida.');
   }
   const isConstitutionalAmendment = `${bill.type || ''}`.toUpperCase().includes('PEC') || bill.type === 'Proposta de Emenda Constitucional';
-  if (isConstitutionalAmendment && normalizedAction !== 'promulgate') {
-    throw new Error('Emendas constitucionais aguardam promulgação, não sanção ou veto.');
+  if (isConstitutionalAmendment) {
+    throw new Error('PECs são decididas pelas duas Casas Legislativas, sem sanção, veto ou promulgação presidencial.');
   }
   if (['veto_total', 'veto_partial'].includes(normalizedAction) && !reason.trim()) {
     throw new Error('Informe a fundamentação obrigatória do veto.');
