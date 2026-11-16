@@ -8,6 +8,9 @@ import (
 	"testing"
  "strings"
  "go.mau.fi/whatsmeow/types"
+ "go.mau.fi/whatsmeow/types/events"
+ "go.mau.fi/whatsmeow/proto/waE2E"
+ "google.golang.org/protobuf/proto"
 )
 
 func TestSupabaseHelpCommand(t *testing.T) {
@@ -196,5 +199,77 @@ func TestHelpMessageCustomPrefix(t *testing.T){
  }
  if strings.Contains(help,"\n!ajuda —") {
   t.Error("default prefix must not leak into slash-prefix help")
+ }
+}
+
+
+func TestOwnNumberCommandsAndGroupAllowlist(t *testing.T) {
+ group:=types.NewJID("120363111111111",types.GroupServer)
+ other:=types.NewJID("120363222222222",types.GroupServer)
+ sender:=types.NewJID("5511999888777",types.DefaultUserServer)
+ settings:=Settings{Enabled:true,Commands:true,Prefix:"!"}
+ groups:=map[string]bool{group.String():true}
+ message:=&events.Message{Message:&waE2E.Message{Conversation:proto.String("!partidos")}}
+ message.Info.Chat=group
+ message.Info.Sender=sender
+ message.Info.IsGroup=true
+ message.Info.IsFromMe=true
+ cmd,words,ok:=parseIncomingCommand(message,settings,groups)
+ if !ok || cmd!="partidos" || len(words)!=1 {
+  t.Fatalf("own-number message was ignored: cmd=%q words=%q ok=%t",cmd,words,ok)
+ }
+ message.Info.IsFromMe=false
+ if _,_,ok:=parseIncomingCommand(message,settings,groups);!ok {
+  t.Fatal("incoming group messages must still work")
+ }
+ message.Info.IsFromMe=true
+ message.Info.Chat=other
+ if _,_,ok:=parseIncomingCommand(message,settings,groups);ok {
+  t.Error("own-number messages must never bypass the enabled-group allowlist")
+ }
+ message.Info.Chat=group
+ settings.Commands=false
+ if _,_,ok:=parseIncomingCommand(message,settings,groups);ok {
+  t.Error("own-number commands must respect the commands_enabled setting")
+ }
+ settings.Commands=true
+ settings.Enabled=false
+ if _,_,ok:=parseIncomingCommand(message,settings,groups);ok {
+  t.Error("own-number commands must respect the global bot pause")
+ }
+ settings.Enabled=true
+ message.Info.IsGroup=false
+ message.Info.Chat=sender
+ if _,_,ok:=parseIncomingCommand(message,settings,groups);ok {
+  t.Error("own-number private chat cannot use group-only party command")
+ }
+ message.Message=&waE2E.Message{Conversation:proto.String("!vincular ABC123")}
+ if cmd,_,ok:=parseIncomingCommand(message,settings,groups);!ok||cmd!="vincular"{
+  t.Fatal("private account-linking must keep working")
+ }
+ message.Info.Chat=group
+ message.Info.IsGroup=true
+ message.Message=&waE2E.Message{Conversation:proto.String("🚩 *Partidos políticos do GOVRP*\n!partidos")}
+ if _,_,ok:=parseIncomingCommand(message,settings,groups);ok {
+  t.Error("bot replies must not be interpreted as commands: no command loop")
+ }
+}
+
+func TestLivePartyDirectoryRPC(t *testing.T) {
+ server:=httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter,r *http.Request){
+  if r.Method!=http.MethodPost||r.URL.Path!="/rest/v1/rpc/bot_whatsapp_parties"{
+    t.Errorf("unexpected party directory RPC: %s %s",r.Method,r.URL.Path)
+  }
+  var payload map[string]any
+  if err:=json.NewDecoder(r.Body).Decode(&payload);err!=nil{t.Fatal(err)}
+  if len(payload)!=0{t.Errorf("party RPC should not receive user-controlled parameters: %v",payload)}
+  _=json.NewEncoder(w).Encode("🚩 *Partidos políticos do GOVRP*\n👥 Membros: 5\n🟢 Ativo")
+ }))
+ defer server.Close()
+ api:=&API{base:server.URL,key:"test-key",http:server.Client()}
+ var message string
+ if err:=api.rpc(context.Background(),"bot_whatsapp_parties",map[string]any{},&message);err!=nil{t.Fatal(err)}
+ if !strings.Contains(message,"Membros: 5") || !strings.Contains(message,"Ativo"){
+  t.Fatalf("unexpected live party directory: %q",message)
  }
 }
