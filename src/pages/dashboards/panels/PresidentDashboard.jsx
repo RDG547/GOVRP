@@ -1045,14 +1045,13 @@ const BillReviewManager = ({ executiveState, onUpdate, actorId }) => {
             <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                     <FileSignature className="w-6 h-6 text-primary" />
-                    Sanção, Promulgação e Veto
+                    Sanção e Veto
                 </CardTitle>
-                <CardDescription>Projetos aguardando sanção, veto ou promulgação e eventuais atos antigos que precisam de regularização.</CardDescription>
+                <CardDescription>Projetos de lei aguardando sanção ou veto e eventuais atos antigos que precisam de regularização.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
                 {pendingBills.length ? pendingBills.map((bill) => {
                     const isVetoRecovery = ['Vetado integralmente', 'Vetado parcialmente'].includes(bill.status);
-                    const isPromulgationOnly = bill.status === 'Aguardando promulgação presidencial' || `${bill.type || ''}`.toUpperCase().includes('PEC') || bill.type === 'Proposta de Emenda Constitucional';
 
                     return (
                         <div key={bill.id} className="rounded-xl border border-white/10 bg-white/5 p-4 space-y-3">
@@ -1075,11 +1074,11 @@ const BillReviewManager = ({ executiveState, onUpdate, actorId }) => {
                                     </div>
                                 ) : (
                                     <>
-                                        <Button onClick={() => openReviewDialog(bill, isPromulgationOnly ? 'promulgate' : 'sanction')}>
+                                        <Button onClick={() => openReviewDialog(bill, 'sanction')}>
                                             <Megaphone className="mr-2 h-4 w-4" />
-                                            {isPromulgationOnly ? 'Promulgar' : 'Sancionar'}
+                                            Sancionar
                                         </Button>
-                                        {!isPromulgationOnly && (
+                                        {(
                                             <>
                                                 <Button variant="outline" className="border-red-500/50 text-red-400 hover:bg-red-500/10 hover:text-red-300" onClick={() => openReviewDialog(bill, 'veto_total')}>
                                                     <Ban className="mr-2 h-4 w-4" />
@@ -1122,7 +1121,6 @@ const BillReviewManager = ({ executiveState, onUpdate, actorId }) => {
                 <DialogContent>
                     <DialogHeader>
                         <DialogTitle>
-                            {reviewState?.action === 'promulgate' && 'Promulgar texto aprovado'}
                             {reviewState?.action === 'sanction' && 'Sancionar projeto'}
                             {reviewState?.action === 'veto_total' && 'Registrar veto total'}
                             {reviewState?.action === 'veto_partial' && 'Registrar veto parcial'}
