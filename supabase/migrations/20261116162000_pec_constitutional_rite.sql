@@ -55,7 +55,7 @@ BEGIN
  ) INTO NEW.rule_snapshot FROM public.parliament_members m
  WHERE m.house_id=NEW.house_id AND m.id=public.get_active_parliament_member_id(m.user_id,m.house_id);
  RETURN NEW;
-END $function$
+END $function$;
 
 
 CREATE OR REPLACE FUNCTION private.finalize_bill_voting(p_voting_id uuid)
@@ -118,7 +118,7 @@ begin
  from public.parliament_voting_votes vote join public.parliament_members m on m.id=vote.member_id where vote.voting_id=v.id
  and not exists(select 1 from public.notifications n where n.user_id=m.user_id and n.type='parliament_voting_result' and n.metadata->>'voting_id'=v.id::text);
  return jsonb_build_object('finalized',true,'approved',approved,'message','Votação encerrada. '||next_status||'.');
-end $function$
+end $function$;
 
 
 CREATE OR REPLACE FUNCTION public.review_presidential_bill(p_bill_id uuid, p_action text, p_reason text DEFAULT ''::text, p_partial_scope text DEFAULT ''::text)
@@ -270,7 +270,7 @@ BEGIN
 
  RETURN v_record;
 END
-$function$
+$function$;
 
 
 CREATE OR REPLACE FUNCTION public.update_bill_status(p_bill_id uuid, p_new_status text)
@@ -312,7 +312,7 @@ BEGIN
   SELECT bill.title,CASE WHEN p_new_status='Sancionado' THEN 'Lei sancionada pela Presidência da República.' ELSE 'Norma promulgada e publicada oficialmente.' END,coalesce(nullif(bill.full_text,''),bill.summary),clock_timestamp(),bill.type,bill.id
   WHERE NOT EXISTS(SELECT 1 FROM public.dou_entries WHERE source_id=bill.id);
  END IF;
-END $function$
+END $function$;
 
 
 -- Apply the Constitutional quorum to active PEC votings without rewriting settled results.
