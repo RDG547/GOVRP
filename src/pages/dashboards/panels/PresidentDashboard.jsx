@@ -23,6 +23,7 @@ import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter }
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger, DialogClose } from '@/components/ui/dialog';
@@ -991,12 +992,14 @@ const BillReviewManager = ({ executiveState, onUpdate, actorId }) => {
     const [reason, setReason] = useState('');
     const [partialScope, setPartialScope] = useState('');
     const [isSaving, setIsSaving] = useState(false);
+    const [confirmedDecision, setConfirmedDecision] = useState(false);
 
     const pendingBills = executiveState?.pendingBills || [];
     const recentActions = executiveState?.settings?.billActionsDetailed || [];
 
     const openReviewDialog = (bill, action) => {
-        setReviewState({ bill, action, recovering: ['Vetado integralmente', 'Vetado parcialmente'].includes(bill?.status) });
+        setReviewState({ bill, action });
+        setConfirmedDecision(false);
         setReason('');
         setPartialScope('');
     };
@@ -1006,6 +1009,10 @@ const BillReviewManager = ({ executiveState, onUpdate, actorId }) => {
             return;
         }
 
+        if (!confirmedDecision) {
+            toast({ title: 'Confirmação necessária', description: 'Confirme expressamente a decisão antes de registrá-la.', variant: 'destructive' });
+            return;
+        }
         if (reviewState.action === 'veto_total' && !reason.trim()) {
             toast({ title: 'Fundamentação obrigatória', description: 'Informe a motivação do veto total.', variant: 'destructive' });
             return;
@@ -1025,12 +1032,7 @@ const BillReviewManager = ({ executiveState, onUpdate, actorId }) => {
                 reason,
                 partialScope,
             });
-            toast({
-                title: reviewState.recovering ? 'Registro do veto regularizado' : 'Ato presidencial registrado',
-                description: reviewState.recovering
-                    ? 'A fundamentação foi registrada e publicada sem executar outro veto.'
-                    : 'O projeto, o registro presidencial e a publicação oficial foram concluídos juntos.',
-            });
+            toast({ title: 'Ato presidencial registrado', description: 'A decisão foi confirmada, registrada e publicada oficialmente.' });
             setReviewState(null);
             await onUpdate();
         } catch (error) {
@@ -1047,12 +1049,10 @@ const BillReviewManager = ({ executiveState, onUpdate, actorId }) => {
                     <FileSignature className="w-6 h-6 text-primary" />
                     Sanção e Veto
                 </CardTitle>
-                <CardDescription>Projetos de lei aguardando sanção ou veto e eventuais atos antigos que precisam de regularização.</CardDescription>
+                <CardDescription>Projetos de lei aguardando decisão expressa do Presidente. Nenhum veto ou sanção é automático.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
                 {pendingBills.length ? pendingBills.map((bill) => {
-                    const isVetoRecovery = ['Vetado integralmente', 'Vetado parcialmente'].includes(bill.status);
-
                     return (
                         <div key={bill.id} className="rounded-xl border border-white/10 bg-white/5 p-4 space-y-3">
                             <div className="flex flex-col gap-1">
@@ -1064,34 +1064,18 @@ const BillReviewManager = ({ executiveState, onUpdate, actorId }) => {
                                 <LegalEffectsForSource sourceKind="bill" sourceId={bill.id} />
                             </div>
                             <div className="flex flex-wrap gap-2">
-                                {isVetoRecovery ? (
-                                    <div className="space-y-2">
-                                        <p className="text-sm text-amber-300">O veto já foi aplicado, mas seu registro complementar não foi concluído. Informe novamente a fundamentação para finalizar a publicação.</p>
-                                        <Button variant="outline" onClick={() => openReviewDialog(bill, bill.status === 'Vetado integralmente' ? 'veto_total' : 'veto_partial')}>
-                                            <FileSignature className="mr-2 h-4 w-4" />
-                                            Concluir registro do veto
-                                        </Button>
-                                    </div>
-                                ) : (
-                                    <>
-                                        <Button onClick={() => openReviewDialog(bill, 'sanction')}>
-                                            <Megaphone className="mr-2 h-4 w-4" />
-                                            Sancionar
-                                        </Button>
-                                        {(
-                                            <>
-                                                <Button variant="outline" className="border-red-500/50 text-red-400 hover:bg-red-500/10 hover:text-red-300" onClick={() => openReviewDialog(bill, 'veto_total')}>
-                                                    <Ban className="mr-2 h-4 w-4" />
-                                                    Veto total
-                                                </Button>
-                                                <Button variant="outline" className="border-orange-500/50 text-orange-400 hover:bg-orange-500/10 hover:text-orange-300" onClick={() => openReviewDialog(bill, 'veto_partial')}>
-                                                    <CircleSlash className="mr-2 h-4 w-4" />
-                                                    Veto parcial
-                                                </Button>
-                                            </>
-                                        )}
-                                    </>
-                                )}
+                                <Button onClick={() => openReviewDialog(bill, 'sanction')}>
+                                    <Megaphone className="mr-2 h-4 w-4" />
+                                    Sancionar
+                                </Button>
+                                <Button variant="outline" className="border-red-500/50 text-red-400 hover:bg-red-500/10 hover:text-red-300" onClick={() => openReviewDialog(bill, 'veto_total')}>
+                                    <Ban className="mr-2 h-4 w-4" />
+                                    Veto total
+                                </Button>
+                                <Button variant="outline" className="border-orange-500/50 text-orange-400 hover:bg-orange-500/10 hover:text-orange-300" onClick={() => openReviewDialog(bill, 'veto_partial')}>
+                                    <CircleSlash className="mr-2 h-4 w-4" />
+                                    Veto parcial
+                                </Button>
                             </div>
                         </div>
                     );
@@ -1127,11 +1111,7 @@ const BillReviewManager = ({ executiveState, onUpdate, actorId }) => {
                         </DialogTitle>
                         <DialogDescription>
                             {reviewState?.bill?.title}
-                            {reviewState?.recovering && (
-                                <span className="block mt-2 text-amber-300">
-                                    A decisão já consta no histórico. Este procedimento somente regulariza a justificativa e a publicação pendentes.
-                                </span>
-                            )}
+
                         </DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4 py-4">
@@ -1160,13 +1140,19 @@ const BillReviewManager = ({ executiveState, onUpdate, actorId }) => {
                             </div>
                         )}
                     </div>
+                    <div className="flex items-start gap-3 rounded-md border border-amber-500/30 bg-amber-500/5 p-3">
+                        <Checkbox id="presidential-explicit-confirmation" checked={confirmedDecision} onCheckedChange={(checked) => setConfirmedDecision(checked === true)} disabled={isSaving} />
+                        <Label htmlFor="presidential-explicit-confirmation" className="cursor-pointer text-sm leading-snug">
+                            Confirmo expressamente que desejo {reviewState?.action === 'sanction' ? 'sancionar' : 'vetar'} este projeto. A decisão não será executada automaticamente.
+                        </Label>
+                    </div>
                     <DialogFooter>
                         <DialogClose asChild>
                             <Button variant="outline">Cancelar</Button>
                         </DialogClose>
-                        <Button onClick={handleConfirm} disabled={isSaving}>
+                        <Button onClick={handleConfirm} disabled={isSaving || !confirmedDecision}>
                             {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                            Confirmar ato presidencial
+                            {reviewState?.action === 'sanction' ? 'Confirmar sanção' : 'Confirmar veto'}
                         </Button>
                     </DialogFooter>
                 </DialogContent>

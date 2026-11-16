@@ -630,7 +630,7 @@ export const fetchExecutiveConstitutionalState = async (supabase) => {
       supabase
         .from('bills')
         .select('id, title, summary, full_text, author_id, house_id, type, status, created_at, updated_at, house:parliament_houses(name), author:profiles(full_name, avatar_url)')
-        .in('status', [...PRESIDENTIAL_PENDING_BILL_STATUSES, 'Vetado integralmente', 'Vetado parcialmente'])
+        .in('status', PRESIDENTIAL_PENDING_BILL_STATUSES)
         .order('updated_at', { ascending: false }),
       fetchElectionOfficeSyncState(supabase).catch((error) => {
         console.error('Erro ao carregar sincronização eleitoral do Executivo:', error);
@@ -675,12 +675,7 @@ export const fetchExecutiveConstitutionalState = async (supabase) => {
     settingsRowExists: settingsRow.exists, settings,
     pendingBills: (pendingBillsResponse.data || []).filter((bill) => {
       if (`${bill.type || ''}`.toUpperCase().includes('PEC') || bill.type === 'Proposta de Emenda Constitucional') return false;
-      if (!['Vetado integralmente', 'Vetado parcialmente'].includes(bill.status)) return true;
-      // Older attempts changed the bill before failing to save its presidential act.
-      // Show them for completion of the missing foundation, without issuing a new veto.
-      return !(settingsRow.value.billActions || []).some((entry) =>
-        entry.bill_id === bill.id && entry.resulting_status === bill.status
-      );
+      return true;
     }),
   };
 };
