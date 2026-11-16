@@ -51,6 +51,5 @@ BEGIN
  VALUES(v_kind,TG_TABLE_NAME,v_source||':'||v_event,v_title,coalesce(v_message,''),v_url)
  ON CONFLICT(event_kind,source_table,source_id) DO NOTHING;
  RETURN NEW;
-END $function$
-
+END $function$;
 COMMIT;
