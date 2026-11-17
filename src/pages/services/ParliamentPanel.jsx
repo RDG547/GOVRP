@@ -259,6 +259,21 @@ const ParliamentPanel = () => {
   const [leadershipElections, setLeadershipElections] = useState([]);
   const [governanceSchemaReady, setGovernanceSchemaReady] = useState(true);
   const [activeMainTab, setActiveMainTab] = useState('projects');
+  const [partyGuidanceByBill, setPartyGuidanceByBill] = useState({});
+  useEffect(() => {
+    let active = true;
+    const partyId = parliamentMember?.party_id;
+    setPartyGuidanceByBill({});
+    if (!partyId) return undefined;
+    supabase.from('party_vote_guidance')
+      .select('bill_id,position,rationale,updated_at')
+      .eq('party_id',partyId).then(({data,error}) => {
+        if (active && !error) {
+          setPartyGuidanceByBill(Object.fromEntries((data || []).map(item => [item.bill_id,item])));
+        }
+      });
+    return () => { active = false; };
+  },[parliamentMember?.party_id,activeMainTab]);
   const [activeSubTab, setActiveSubTab] = useState('citizen_suggestions');
   const [billStatusFilter, setBillStatusFilter] = useState('all');
   const [commissionTypeFilter, setCommissionTypeFilter] = useState('all');
@@ -1215,7 +1230,7 @@ const ParliamentPanel = () => {
                               </CardHeader>
                               <CardContent>
                                 <p className="text-sm text-muted-foreground">{bill.summary}</p>
-                                <PartyGuidanceNotice billId={bill.id} partyId={parliamentMember?.party_id} />
+                                <PartyGuidanceNotice guidance={partyGuidanceByBill[bill.id]} />
                               </CardContent>
                               {canStartVote && bill.status === 'Em tramitação' ? (
                                 <CardFooter className="flex flex-wrap items-center gap-2">
@@ -1346,7 +1361,7 @@ const ParliamentPanel = () => {
                               </div>
                             </CardHeader>
                             <CardContent>
-                              {voting.type === 'bill' && <PartyGuidanceNotice billId={voting.related_id} partyId={parliamentMember?.party_id} />}
+                              {voting.type === 'bill' && <PartyGuidanceNotice guidance={partyGuidanceByBill[voting.related_id]} />}
                               <p className="text-sm mb-2">{voting.rule_snapshot?.label}{voting.tie_break_pending ? " · Aguardando voto de desempate" : ` · ${Math.max(0, (voting.eligible_member_ids?.length || 0) - (voting.votes?.length || 0))} voto(s) restante(s)`}</p><VotingChart votes={voting.votes || []} />
                             </CardContent>
                             <CardFooter className="flex flex-wrap gap-2">
