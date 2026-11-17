@@ -15,6 +15,7 @@ import DecreeOversight from '@/components/parliament/DecreeOversight';
 import ParliamentVoteScheduler from '@/components/parliament/ParliamentVoteScheduler';
 import LegalMeasureStudio from '@/components/parliament/LegalMeasureStudio';
 import PartyIdentity from '@/components/parliament/PartyIdentity';
+import { PartyGuidanceNotice } from '@/components/parties/PartyVoteGuidance';
 import { PARLIAMENT_REALTIME_TABLES, parliamentSectionsForEvents } from '@/lib/parliamentRealtime';
 import { useQueuedRefresh } from '@/hooks/use-queued-refresh';
 import { useDomainRealtime } from '@/hooks/use-domain-realtime';
@@ -797,8 +798,8 @@ const ParliamentPanel = () => {
     setCommissionActionId('create');
     try {
       const houseIds =
-        commissionForm.type === 'cpmi'
-          ? (availableHouses || []).map((item) => item.id)
+        ['cpmi','mixed'].includes(commissionForm.type)
+          ? [house.id, ...(availableHouses || []).filter((item) => item.id !== house.id).map((item) => item.id)]
           : [house.id];
 
       const { data, error } = await supabase.rpc('create_parliament_commission', {
@@ -1214,6 +1215,7 @@ const ParliamentPanel = () => {
                               </CardHeader>
                               <CardContent>
                                 <p className="text-sm text-muted-foreground">{bill.summary}</p>
+                                <PartyGuidanceNotice billId={bill.id} partyId={parliamentMember?.party_id} />
                               </CardContent>
                               {canStartVote && bill.status === 'Em tramitação' ? (
                                 <CardFooter className="flex flex-wrap items-center gap-2">
@@ -1344,6 +1346,7 @@ const ParliamentPanel = () => {
                               </div>
                             </CardHeader>
                             <CardContent>
+                              {voting.type === 'bill' && <PartyGuidanceNotice billId={voting.related_id} partyId={parliamentMember?.party_id} />}
                               <p className="text-sm mb-2">{voting.rule_snapshot?.label}{voting.tie_break_pending ? " · Aguardando voto de desempate" : ` · ${Math.max(0, (voting.eligible_member_ids?.length || 0) - (voting.votes?.length || 0))} voto(s) restante(s)`}</p><VotingChart votes={voting.votes || []} />
                             </CardContent>
                             <CardFooter className="flex flex-wrap gap-2">
@@ -1398,7 +1401,7 @@ const ParliamentPanel = () => {
                   <div>
                     <CardTitle>Comissões Parlamentares</CardTitle>
                     <CardDescription>
-                      Gerencie comissões permanentes, temporárias, CPIs e CPMIs dentro das regras da Casa.
+                      Gerencie comissões permanentes, temporárias, mistas, CPIs e CPMIs dentro das regras de cada Casa.
                     </CardDescription>
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
@@ -1490,6 +1493,11 @@ const ParliamentPanel = () => {
                               </div>
                             ) : null}
 
+                            {commission.type === 'mixed' && (
+                              <p className="text-sm text-muted-foreground">
+                                Aprovações das Casas: {(commission.joint_approvals || []).length}/2. A comissão será composta por deputados e senadores.
+                              </p>
+                            )}
                             <div className="grid gap-4 md:grid-cols-3">
                               <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
                                 <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Composição</p>
@@ -1539,6 +1547,18 @@ const ParliamentPanel = () => {
                             ) : null}
                           </CardContent>
                           <CardFooter className="flex flex-wrap gap-2">
+                            {canManageGovernance && commission.type === 'mixed' && commission.status === 'pending_joint_approval' &&
+                              !(commission.joint_approvals || []).some(approval => approval.house_id === house.id) ? (
+                                <Button size="sm" onClick={() => runCommissionRpc(
+                                  'approve_mixed_parliament_commission',
+                                  { p_commission_id: commission.id, p_house_id: house.id },
+                                  'Aprovação da Casa registrada',
+                                  'A comissão mista só será instalada após a aprovação de ambas as Casas.'
+                                )} disabled={commissionActionId === `approve_mixed_parliament_commission:${commission.id}`}>
+                                  <Check className="mr-2 h-4 w-4" />Aprovar pela {house.name}
+                                </Button>
+                              ) : null}
+
                             {canParticipateInGovernance &&
                             isInquiryCommission(commission.type) &&
                             commission.status === 'collecting_support' &&
@@ -1946,7 +1966,7 @@ const ParliamentPanel = () => {
           <DialogHeader>
             <DialogTitle>Nova Comissão</DialogTitle>
             <DialogDescription>
-              Estruture uma comissão permanente, temporária, CPI ou CPMI dentro do rito institucional da Casa.
+              Estruture uma comissão permanente, temporária, mista, CPI ou CPMI dentro do rito institucional das Casas.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
