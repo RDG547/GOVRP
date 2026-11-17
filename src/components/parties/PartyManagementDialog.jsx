@@ -1,4 +1,5 @@
 import PartyCustomizationForm from './PartyCustomizationForm';
+import PartyVoteGuidance from './PartyVoteGuidance';
 import CitizenSelector from '@/components/CitizenSelector';
 import { politicalOrientations, orientationColors } from '@/lib/partyIdentity';
 import { fetchPublicProfiles, unavailablePublicProfile } from '@/lib/publicProfiles';
@@ -331,8 +332,10 @@ const PartyManagementDialog = ({ party, onAction, isFromDetailsPage = false }) =
                         <TabsTrigger value="edit"><Pencil className="mr-2 h-4 w-4"/>Editar</TabsTrigger>
                         <TabsTrigger value="members"><Users className="mr-2 h-4 w-4"/>Membros</TabsTrigger>
                         <TabsTrigger value="requests"><Inbox className="mr-2 h-4 w-4"/>Pedidos</TabsTrigger>
+                        <TabsTrigger value="votes"><ScrollText className="mr-2 h-4 w-4"/>Orientação de voto</TabsTrigger>
                         <TabsTrigger value="customization"><Settings className="mr-2 h-4 w-4"/>Personalização</TabsTrigger><TabsTrigger value="settings"><Settings className="mr-2 h-4 w-4"/>Ajustes</TabsTrigger>
                     </TabsList>
+                    <TabsContent value="votes" className="pt-4"><PartyVoteGuidance party={party} canManage={canManageRequests} /></TabsContent>
                     <TabsContent value="customization" className="pt-4"><PartyCustomizationForm party={party} onAction={onAction}/></TabsContent><TabsContent value="edit" className="pt-4">
                         <EditPartyForm party={party} onAction={onAction} closeDialog={() => setIsOpen(false)} userRole={userRole} members={members} />
                     </TabsContent>

@@ -10,6 +10,14 @@ on:
       - 'tools/test-company-national-market-balance.mjs'
       - 'tools/test-presidential-review-atomic.mjs'
       - 'src/lib/executiveGovernance.js'
+      - 'src/components/business/CompanyRankings.jsx'
+      - 'src/components/social-x/PostCard.jsx'
+      - 'src/components/PhoneAppViewport.jsx'
+      - 'src/components/elections/ElectoralManagement.jsx'
+      - 'src/components/parties/**'
+      - 'src/lib/parliamentGovernance.js'
+      - 'src/pages/services/ParliamentPanel.jsx'
+      - 'tools/test-nov17-govrp-enhancements.mjs'
       - 'src/pages/dashboards/panels/PresidentDashboard.jsx'
       - 'supabase/migrations/**'
       - '.github/workflows/economy-integrity.yml'
@@ -35,5 +43,6 @@ jobs:
           node tools/test-economy-live-integrity.mjs
           node tools/test-company-national-market-balance.mjs
           node tools/test-presidential-review-atomic.mjs
+          node tools/test-nov17-govrp-enhancements.mjs
       - name: Build GOV.RP frontend
         run: npm run build

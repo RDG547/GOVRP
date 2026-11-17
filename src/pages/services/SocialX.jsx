@@ -47,7 +47,7 @@ import React, { useState, useRef } from 'react';
                                     <XSidebar onPostClick={() => setIsPostModalOpen(true)} />
                                 </header>
                                 
-                                <div className="min-w-0 border-x border-border min-h-screen pb-16 md:pb-0">
+                                <div className="min-w-0 w-full overflow-x-hidden border-x border-border min-h-screen pb-16 md:pb-0">
                                     <div className={`md:hidden sticky ${phone?'top-0':'top-20'} bg-background/80 backdrop-blur-sm z-30`}>
                                         <XHeader />
                                     </div>

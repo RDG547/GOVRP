@@ -88,7 +88,9 @@ export default function PhoneAppViewport({ app, active, register, goHome, openFu
     };
     syncStyles();
     const observer=new MutationObserver(syncStyles);observer.observe(document.head,{childList:true,subtree:true,characterData:true});
-    doc.body.className='bg-background text-foreground phone-app';doc.body.style.margin='0';
+    doc.body.className='bg-background text-foreground phone-app min-w-0 overflow-x-hidden';doc.body.style.margin='0';
+    doc.documentElement.style.overflowX='hidden';
+    const viewport=doc.createElement('meta');viewport.name='viewport';viewport.content='width=device-width,initial-scale=1,viewport-fit=cover';doc.head.append(viewport);
     setHost(doc.body);
     return()=>observer.disconnect();
   },[app]);
