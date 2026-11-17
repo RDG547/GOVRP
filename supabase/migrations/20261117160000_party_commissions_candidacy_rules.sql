@@ -125,7 +125,7 @@ BEGIN
  IF v_actor IS NULL THEN RAISE EXCEPTION 'Autenticação necessária.' USING ERRCODE='42501';END IF;
  SELECT * INTO v_party FROM public.political_parties WHERE id=p_party_id;
  IF NOT FOUND OR NOT coalesce(v_party.is_active,false) THEN RAISE EXCEPTION 'Partido não ativo ou não encontrado.';END IF;
- IF NOT (v_actor=v_party.owner_id OR v_actor=v_party.president_id OR v_actor=v_party.vice_president_id) THEN
+ IF v_actor IS DISTINCT FROM v_party.owner_id AND v_actor IS DISTINCT FROM v_party.president_id AND v_actor IS DISTINCT FROM v_party.vice_president_id THEN
   RAISE EXCEPTION 'Somente a direção partidária pode emitir orientação de bancada.' USING ERRCODE='42501';
  END IF;
  IF p_position NOT IN ('support','oppose','abstain','free') THEN RAISE EXCEPTION 'Orientação inválida.';END IF;
