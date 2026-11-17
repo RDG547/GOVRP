@@ -263,7 +263,7 @@ const PostCard = ({ post, onPostUpdate, onPostDelete, onRepostCreated, commentsA
                 <div className={`p-2 rounded-full group-hover:bg-opacity-10 ${active ? activeColor.replace('text-', 'bg-') + '/10' : ''}`}>
                     <Icon className={`w-5 h-5 ${active ? activeColor : ''} ${active && label === 'Curtir' ? 'fill-current' : ''}`} />
                 </div>
-                <span className={`text-xs ${active ? activeColor : ''}`}>
+                <span className={`max-w-full break-words text-center text-[10px] leading-tight sm:text-xs ${active ? activeColor : ''}`}>
                     {label} ({count})
                 </span>
             </button>
@@ -291,12 +291,12 @@ const PostCard = ({ post, onPostUpdate, onPostDelete, onRepostCreated, commentsA
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="border-b border-border p-4 flex space-x-4 hover:bg-muted/30 transition-colors duration-200 cursor-pointer"
+            className="min-w-0 border-b border-border px-2 py-3 sm:p-4 flex gap-2 sm:gap-4 hover:bg-muted/30 transition-colors duration-200 cursor-pointer"
             onClick={handleCardClick}
         >
-            <Link to={`/services/x/profile/${handle}`} className="no-navigate shrink-0"><img src={avatar} alt={name} className="w-12 h-12 rounded-full bg-secondary" /></Link>
-            <div className="min-w-0 flex-1">
-                <div className="flex items-center justify-between">
+            <Link to={`/services/x/profile/${handle}`} className="no-navigate shrink-0"><img src={avatar} alt={name} className="h-9 w-9 rounded-full bg-secondary sm:h-12 sm:w-12" /></Link>
+            <div className="min-w-0 flex-1 overflow-hidden">
+                <div className="flex min-w-0 items-center justify-between gap-2">
                     <div className="min-w-0 flex flex-col">
                         <div className="flex min-w-0 flex-wrap items-center">
                             <Link to={`/services/x/profile/${handle}`} className="min-w-0 break-words font-bold text-foreground hover:underline no-navigate">
@@ -334,26 +334,26 @@ const PostCard = ({ post, onPostUpdate, onPostDelete, onRepostCreated, commentsA
                     </div>
                 )}
                 {post.image_url && (
-                    <div className="mt-3 rounded-xl border border-border max-h-96 w-full overflow-hidden">
+                    <div className="mt-3 min-w-0 w-full overflow-hidden rounded-xl border border-border">
                         {mediaType === 'video' ? (
-                            <video src={post.image_url} controls className="w-full h-full object-cover no-navigate" onClick={(e) => e.stopPropagation()} />
+                            <video src={post.image_url} controls className="block max-h-80 w-full object-contain no-navigate sm:max-h-96" onClick={(e) => e.stopPropagation()} />
                         ) : mediaType === 'gif' ? (
-                             <img src={post.image_url} alt="Post media" className="w-full h-full object-contain" />
+                             <img src={post.image_url} alt="Post media" className="block max-h-80 w-full object-contain sm:max-h-96" />
                         ) : (
-                            <img src={post.image_url} alt="Post media" className="w-full h-full object-cover" />
+                            <img src={post.image_url} alt="Post media" className="block max-h-80 w-full object-contain sm:max-h-96" />
                         )}
                     </div>
                 )}
                 {post.original_post && <OriginalPost original={post.original_post} />}
 
-                <div className="flex justify-around items-center mt-4 no-navigate">
+                <div className="mt-3 grid min-w-0 grid-cols-4 items-start gap-1 no-navigate">
                     <ActionButton icon={MessageCircle} label="Comentar" count={commentsCount} onClick={(e) => {e.stopPropagation(); handleInteraction('comment')}} active={isCommenting} activeColor="text-blue-500" hoverColor="hover:text-blue-500"/>
                     <ActionButton icon={Repeat2} label="Repostar" count={repostsCount} onClick={(e) => {e.stopPropagation(); handleInteraction('repost')}} active={isReposted} activeColor="text-green-500" hoverColor="hover:text-green-500"/>
                     <ActionButton icon={Heart} label="Curtir" count={likesCount} onClick={(e) => {e.stopPropagation(); handleInteraction('like')}} active={isLiked} activeColor="text-red-500" hoverColor="hover:text-red-500"/>
 
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                            <motion.button whileTap={{ scale: 0.95 }} className="flex items-center justify-center gap-2 flex-1 group text-muted-foreground hover:text-yellow-500">
+                            <motion.button whileTap={{ scale: 0.95 }} className="flex min-w-0 w-full items-center justify-center gap-2 group text-muted-foreground hover:text-yellow-500">
                                 <div className="p-2 rounded-full"><Upload className="w-5 h-5" /></div>
                             </motion.button>
                         </DropdownMenuTrigger>
