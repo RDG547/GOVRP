@@ -32,6 +32,11 @@ export const COMMISSION_TYPE_OPTIONS = [
     description: 'Comissão de inquérito criada por requerimento de 1/3 da Casa.',
   },
   {
+    value: 'mixed',
+    label: 'Comissão Mista',
+    description: 'Comissão conjunta de Câmara e Senado, aprovada pela Mesa de cada Casa (sem caráter de inquérito).',
+  },
+  {
     value: 'cpmi',
     label: 'CPMI',
     description: 'Comissão mista de inquérito com apoio qualificado nas duas Casas.',
@@ -50,6 +55,10 @@ export const COMMISSION_STATUS_META = {
   pending_plenary: {
     label: 'Aguardando Plenário',
     className: 'bg-sky-500/15 text-sky-300 border-sky-500/30',
+  },
+  pending_joint_approval: {
+    label: 'Aguardando aprovação das duas Casas',
+    className: 'bg-indigo-500/15 text-indigo-300 border-indigo-500/30',
   },
   approved_pending_officialization: {
     label: 'Aguardando Oficialização',
@@ -273,7 +282,7 @@ export const fetchCommissionGovernanceData = async (supabase, { houseId = null }
     ] = await Promise.all([
       supabase
         .from('parliament_commissions')
-        .select('id, title, summary, purpose, scope, type, status, requested_by, officialized_by, voting_id, reporter_member_id, officialized_at, opened_at, closed_at, final_report, final_report_submitted_at, created_at, updated_at')
+        .select('id, title, summary, purpose, scope, type, status, joint_approvals, requested_by, officialized_by, voting_id, reporter_member_id, officialized_at, opened_at, closed_at, final_report, final_report_submitted_at, created_at, updated_at')
         .in('id', commissionIds)
         .order('created_at', { ascending: false }),
       supabase
