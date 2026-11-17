@@ -160,6 +160,11 @@ func electionMentionMessage(text string, members []types.JID) (*waE2E.Message,er
 func isElectionNotice(text string) bool {
  return strings.HasPrefix(text,"📢 *🗳️ ")
 }
+// An opt-in administrative changelog uses real group mentions, not literal "@todos".
+// All other manual announcements keep their previous quiet delivery behavior.
+func isChangelogEveryoneNotice(text string) bool {
+ return strings.HasPrefix(text,"📢 *🆕 GOVRP — Changelog ")
+}
 
 func (b *Bot) send(to types.JID,message string) (string,error) {
  if !b.wa.IsLoggedIn() {return "",errors.New("WhatsApp desconectado")}
@@ -167,7 +172,7 @@ func (b *Bot) send(to types.JID,message string) (string,error) {
  // A single sender and a two-second spacing avoid bursts from multiple event sources.
  ctx,cancel:=context.WithTimeout(context.Background(),30*time.Second);defer cancel()
  payload:=&waE2E.Message{Conversation:proto.String(message)}
- if to.Server==types.GroupServer && isElectionNotice(message) {
+ if to.Server==types.GroupServer && (isElectionNotice(message) || isChangelogEveryoneNotice(message)) {
   group,err:=b.wa.GetGroupInfo(ctx,to)
   if err!=nil{return "",fmt.Errorf("não foi possível obter os membros do grupo para marcar a todos: %w",err)}
   members:=make([]types.JID,0,len(group.Participants))
