@@ -14,20 +14,7 @@ const positions = {
   free: 'Voto liberado (sem orientação)',
 };
 
-export function PartyGuidanceNotice({ billId, partyId }) {
-  const [guidance, setGuidance] = useState(null);
-  useEffect(() => {
-    let alive = true;
-    setGuidance(null);
-    if (!billId || !partyId) return undefined;
-    supabase.from('party_vote_guidance')
-      .select('position,rationale,updated_at')
-      .eq('bill_id', billId).eq('party_id', partyId).maybeSingle()
-      .then(({ data, error }) => {
-        if (alive && !error) setGuidance(data || null);
-      });
-    return () => { alive = false; };
-  }, [billId, partyId]);
+export function PartyGuidanceNotice({ guidance }) {
   if (!guidance) return null;
   return (
     <div className="mt-3 min-w-0 space-y-1 rounded-xl border border-sky-500/30 bg-sky-500/10 p-3 text-sm">
