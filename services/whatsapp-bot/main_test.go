@@ -302,3 +302,20 @@ func TestParliamentHouseCommandsRPC(t *testing.T) {
   })
  }
 }
+
+func TestChangelogEveryoneMentionNotice(t *testing.T) {
+ valid:="📢 *🆕 GOVRP — Changelog 17/11/2026*\n\nAtualizações publicadas"
+ if !isChangelogEveryoneNotice(valid) { t.Fatal("explicit admin changelog must notify every participant") }
+ for _,message:=range []string{
+  "📢 *Atualização geral*\nNotícias", "📢 *Novo decreto*",
+  "📢 *🗳️ Eleição", "🆕 GOVRP — Changelog 17/11/2026",
+ } {
+  if isChangelogEveryoneNotice(message) { t.Fatalf("other announcements must not mention everyone: %q",message) }
+ }
+ members:=[]types.JID{types.NewJID("5511999991111",types.DefaultUserServer),types.NewJID("12098765",types.HiddenUserServer)}
+ msg,err:=electionMentionMessage(valid,members)
+ if err!=nil { t.Fatal(err) }
+ if got:=len(msg.GetExtendedTextMessage().GetContextInfo().GetMentionedJID());got!=2 {
+  t.Fatalf("expected two actual mentions, got %d",got)
+ }
+}
