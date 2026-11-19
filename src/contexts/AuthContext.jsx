@@ -2,7 +2,8 @@ import {getWorldRuntime} from '@/lib/worldRuntime';
 import {setAdminPreview} from '@/lib/adminPreview';
 import { officialRoleCapabilities } from '@/lib/roleIcons';
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { supabase } from '@/lib/supabaseClient';
+import { supabase, supabaseUrl } from '@/lib/supabaseClient';
+import { isRevokedSessionError, clearLocalSessionAndOpenLogin } from '@/lib/sessionRecovery';
 import { checkRegistrationAccess, verifySignedInAccess } from '@/lib/moderationAccess';
 import { isPrisonSentenceActive } from '@/lib/prison';
 import { fetchExecutiveConstitutionalState } from '@/lib/executiveGovernance';
@@ -37,6 +38,7 @@ export const AuthProvider = ({ children }) => {
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
   const [authError, setAuthError] = useState('');
+  const recoveringRevokedSessionRef = useRef(false);
   const [triggerTutorial, setTriggerTutorial] = useState(false);
   const hydrationRequestRef = useRef(0);
   const profileRefreshRef = useRef(0);
@@ -137,10 +139,23 @@ export const AuthProvider = ({ children }) => {
     }
   }, []);
 
+  // Only the current browser signs out; the default global scope silently
+  // revokes the user's PC, phone and any other active device sessions.
+  const returnToLogin = useCallback(async () => {
+    if (recoveringRevokedSessionRef.current) return;
+    recoveringRevokedSessionRef.current = true;
+    setAuthError('');
+    setUser(null);
+    userRef.current = null;
+    setSession(null);
+    sessionRef.current = null;
+    await clearLocalSessionAndOpenLogin(supabase, supabaseUrl);
+  }, []);
+
   const logout = useCallback(async () => {
     for (const key of Object.keys(sessionStorage)) if (key.startsWith('govrp:tutorial:')) sessionStorage.removeItem(key);
     try {
-      const { error } = await supabase.auth.signOut();
+      const { error } = await supabase.auth.signOut({ scope: 'local' });
       if (error) {
         if (error.message !== 'Invalid Refresh Token: Refresh Token Not Found') {
             console.error("Error logging out on server:", error.message);
@@ -249,6 +264,10 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       if (requestId !== hydrationRequestRef.current) return null;
       console.error('Falha na hidratação da sessão:', error);
+      if (isRevokedSessionError(error)) {
+        void returnToLogin();
+        return null;
+      }
       setUser(null);
       userRef.current = null;
       setAuthError(error?.message || 'Não foi possível carregar sua conta.');
@@ -256,7 +275,7 @@ export const AuthProvider = ({ children }) => {
       setLoading(false);
       return null;
     }
-  }, [fetchUserProfile]);
+  }, [fetchUserProfile, returnToLogin]);
 
   const refreshUser = useCallback(async ({ skipSync = false } = {}) => {
     const session = sessionRef.current;
@@ -379,13 +398,17 @@ export const AuthProvider = ({ children }) => {
       await hydrateSession(data.session, { showLoading: true });
     } catch (error) {
       console.error('Erro ao restaurar sessão:', error);
+      if (isRevokedSessionError(error)) {
+        void returnToLogin();
+        return;
+      }
       setUser(null);
       setSession(null);
       setAuthError(error?.message || 'Não foi possível restaurar sua sessão.');
       initialHydrationDoneRef.current = true;
       setLoading(false);
     }
-  }, [hydrateSession]);
+  }, [hydrateSession, returnToLogin]);
 
   useEffect(() => {
     const reset = async () => {
@@ -432,11 +455,12 @@ export const AuthProvider = ({ children }) => {
         setAuthError('');
       }
     } catch (error) {
-      console.warn('Não foi possível atualizar a sessão silenciosamente:', error);
+      if (isRevokedSessionError(error)) void returnToLogin();
+      else console.warn('Não foi possível atualizar a sessão silenciosamente:', error);
     } finally {
       resumeRefreshRef.current = false;
     }
-  }, [fetchUserProfile]);
+  }, [fetchUserProfile, returnToLogin]);
 
   useEffect(() => {
     let isMounted = true;
@@ -617,9 +641,14 @@ export const AuthProvider = ({ children }) => {
           <div className="w-full max-w-md rounded-2xl border border-red-400/20 bg-white/5 p-6 text-center shadow-2xl">
             <h1 className="text-xl font-semibold">Não foi possível carregar o GOV.RP</h1>
             <p className="mt-3 text-sm leading-6 text-slate-300">{authError}</p>
-            <button type="button" onClick={restoreSession} className="mt-6 rounded-lg bg-blue-600 px-4 py-2 font-medium text-white hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-300">
-              Tentar novamente
-            </button>
+            <div className="mt-6 flex flex-wrap justify-center gap-3">
+              <button type="button" onClick={restoreSession} className="rounded-lg border border-blue-400/40 px-4 py-2 font-medium text-white hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-blue-300">
+                Tentar novamente
+              </button>
+              <button type="button" onClick={() => { void returnToLogin(); }} className="rounded-lg bg-blue-600 px-4 py-2 font-medium text-white hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-300">
+                Entrar novamente
+              </button>
+            </div>
           </div>
         </div>
       ) : children}

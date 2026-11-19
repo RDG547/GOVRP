@@ -19,6 +19,13 @@ const requestAccess=async(payload,token=null)=>{
     error.code='GOVRP_MODERATION_BAN';
     throw error;
   }
+  // A revoked Supabase session must be distinguished from a moderation ban,
+  // a temporary network failure or a genuinely unavailable service.
+  if (response.status === 401) {
+    const invalid = new Error('Sua sessão anterior foi encerrada. Entre novamente para continuar.');
+    invalid.code = 'GOVRP_SESSION_REVOKED';
+    throw invalid;
+  }
   if(!response.ok||data.allowed!==true){
     throw new Error(data.error||'Verificação de acesso indisponível. Tente novamente.');
   }
