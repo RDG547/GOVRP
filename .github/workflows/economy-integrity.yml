@@ -13,6 +13,10 @@ on:
       - 'src/components/business/CompanyRankings.jsx'
       - 'src/components/social-x/PostCard.jsx'
       - 'src/components/PhoneAppViewport.jsx'
+      - 'src/contexts/AuthContext.jsx'
+      - 'src/lib/moderationAccess.js'
+      - 'src/lib/sessionRecovery.js'
+      - 'tools/test-auth-session-recovery.mjs'
       - 'src/components/bank/CardLimitRequest.jsx'
       - 'src/components/bank/BankManagementPanel.jsx'
       - 'tools/test-card-limit-review-contract.mjs'
@@ -48,5 +52,6 @@ jobs:
           node tools/test-presidential-review-atomic.mjs
           node tools/test-nov17-govrp-enhancements.mjs
           node tools/test-card-limit-review-contract.mjs
+          node tools/test-auth-session-recovery.mjs
       - name: Build GOV.RP frontend
         run: npm run build
