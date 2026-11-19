@@ -92,7 +92,7 @@ func (b *Bot) readConfig() {
  ctx,cancel:=ctxTimeout();defer cancel()
  config,err:=b.api.selectRows(ctx,"whatsapp_bot_settings",url.Values{"select":{"enabled,commands_enabled,command_prefix"},"id":{"eq.true"},"limit":{"1"}})
  if err!=nil || len(config)==0 {log.Printf("config: %v",err);return}
- gr,err:=b.api.selectRows(ctx,"whatsapp_bot_groups",url.Values{"select":{"jid,enabled"},"enabled":{"eq.true"},"limit":{"300"}})
+ gr,err:=b.api.selectRows(ctx,"whatsapp_bot_groups",url.Values{"select":{"jid,enabled"},"enabled":{"eq.true"},"bot_joined":{"eq.true"},"or":{"(is_official.eq.true,authorized_at.not.is.null)"},"limit":{"300"}})
  if err!=nil {log.Printf("groups: %v",err);return}
  allowed:=make(map[string]bool,len(gr))
  for _,g:=range gr {allowed[val(g["jid"])]=true}
@@ -123,8 +123,9 @@ func (b *Bot) discovered(jid,name string) {
 func (b *Bot) syncJoinedGroups() error {
  ctx,cancel:=ctxTimeout();defer cancel()
  gr,err:=b.wa.GetJoinedGroups(ctx);if err!=nil{return err}
- for _,g:=range gr {b.discovered(g.JID.String(),g.Name)}
- return nil
+ ids:=make([]string,0,len(gr))
+ for _,g:=range gr {ids=append(ids,g.JID.String());b.discovered(g.JID.String(),g.Name)}
+ return b.api.rpc(ctx,"bot_sync_whatsapp_group_membership",map[string]any{"p_jids":ids},nil)
 }
 func (b *Bot) rateOK(key string) bool {
  b.lastMu.Lock();defer b.lastMu.Unlock()
@@ -431,6 +432,8 @@ func run() error {
    }
    bot.report(wa.IsConnected(),wa.IsLoggedIn(),"","")
   case <-configTicker.C:
+   bot.processGroupInvites()
+   if wa.IsLoggedIn(){if err:=bot.syncJoinedGroups();err!=nil{log.Print("group membership reconciliation unavailable")}}
    bot.readConfig()
   case <-deliveryTicker.C:
    bot.deliver()

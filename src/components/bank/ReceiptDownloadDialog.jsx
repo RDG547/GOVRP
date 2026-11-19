@@ -6,7 +6,7 @@ import React, { useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Loader2, FileText, Image as ImageIcon, ArrowLeft, Share2 } from 'lucide-react';
-import { formatCurrency, formatCPF, formatAgency, formatAccount } from '@/lib/utils';
+import { formatCPF, formatAgency, formatAccount } from '@/lib/utils';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { useToast } from '../ui/use-toast';
@@ -97,7 +97,7 @@ const ReceiptContent = React.forwardRef(({ receipt }, ref) => {
 
                 <div className="text-center">
                     <p className="text-sm text-muted-foreground">{values.sent ? 'Total debitado' : 'Líquido recebido'}</p>
-                    <p className="text-4xl font-bold text-blue-400">{formatCurrency(values.displayed)}</p>
+                    <p className="text-4xl font-bold text-blue-400">{new Intl.NumberFormat('pt-BR',{style:'currency',currency:receipt.metadata?.currency||'BRL'}).format(values.displayed)}</p>
                 </div>
 
                 <TransactionTaxBreakdown transaction={receipt} receipt />

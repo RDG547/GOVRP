@@ -1,3 +1,4 @@
+import { Label as ModalFieldLabel } from '@/components/ui/label';
 import React,{useMemo,useState} from 'react';
 import {Circle,Loader2,AlertTriangle} from 'lucide-react';
 import {Dialog,DialogContent,DialogHeader,DialogTitle,DialogDescription} from '@/components/ui/dialog';
@@ -129,8 +130,8 @@ function PreviewTemplate({entry,role,width,onClose,onFeedback,definition,embedde
     };
    }
    if(tag==='img'){attrs.src=undefined;attrs.alt=attrs.alt||'Imagem de exemplo';}
-   if(tag==='CitizenSelector')return <label className="block space-y-2 text-sm">{attrs.label||'Selecionar cidadão'}<GovSelect value={values.previewCitizen||''} onChange={e=>update('previewCitizen',e.target.value)}><option value="">Selecione um cidadão</option><option value="example">Maria Exemplo · {role}</option></GovSelect></label>;
-   if(tag==='PaymentSelector')return <label className="block space-y-2 text-sm">Forma de pagamento<GovSelect value={values.previewPayment||'balance'} onChange={e=>update('previewPayment',e.target.value)}><option value="balance">Saldo em conta · R$ 10.000,00</option><option value="credit">Cartão de crédito · final 1234</option></GovSelect></label>;
+   if(tag==='CitizenSelector')return <ModalFieldLabel className="block space-y-2 text-sm">{attrs.label||'Selecionar cidadão'}<GovSelect value={values.previewCitizen||''} onChange={e=>update('previewCitizen',e.target.value)}><option value="">Selecione um cidadão</option><option value="example">Maria Exemplo · {role}</option></GovSelect></ModalFieldLabel>;
+   if(tag==='PaymentSelector')return <ModalFieldLabel className="block space-y-2 text-sm">Forma de pagamento<GovSelect value={values.previewPayment||'balance'} onChange={e=>update('previewPayment',e.target.value)}><option value="balance">Saldo em conta · R$ 10.000,00</option><option value="credit">Cartão de crédito · final 1234</option></GovSelect></ModalFieldLabel>;
    const alias=blueprint.aliases[tag];
    if(alias?.startsWith('embedded:')&&depth<4){const nested=templates.embedded[alias.slice(9)];if(nested)return <PreviewTemplate entry={entry} definition={nested} embeddedProps={attrs} role={role} width={width} onClose={onClose} onFeedback={onFeedback} depth={depth+1}/>;}
    const Component=['AlertDialogAction','AlertDialogCancel'].includes(tag)?Button:componentRegistry[alias]||safeCustom[tag];

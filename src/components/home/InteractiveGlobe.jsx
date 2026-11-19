@@ -206,7 +206,7 @@ const InteractiveGlobe = () => {
   const hoveredCountry = hoveredCountryId
     ? countriesById.get(String(hoveredCountryId))
     : null;
-  const { profile: displayedCountryProfile, rpContext } = useCountryRpProfile(
+  const { profile: displayedCountryProfile, rpContext, loading: rpLoading, error: rpError } = useCountryRpProfile(
     selectedCountry,
     countryProfile,
   );
@@ -288,8 +288,8 @@ const InteractiveGlobe = () => {
       return undefined;
     }
 
-    const cached=getCountryBasics(selectedCountry.info.alpha2);setCountryProfile(cached);setProfileStatus(cached?'refreshing':'loading');
-    void preloadCountryBasics().then(()=>{if(isCurrentSelection){setCountryProfile(previous=>previous||getCountryBasics(selectedCountry.info.alpha2));setProfileStatus(previous=>previous==='loading'?'refreshing':previous);}}).catch(()=>{});
+    setCountryProfile(null);setProfileStatus('loading');
+    void preloadCountryBasics().then(()=>{if(isCurrentSelection){setCountryProfile(previous=>previous||getCountryBasics(selectedCountry.info.alpha2));}}).catch(()=>{});
 
     const refreshProfile = (force = false) => loadCountryProfile({
       ...selectedCountry.info,
@@ -336,6 +336,7 @@ const InteractiveGlobe = () => {
   }, [isCountryMenuOpen]);
 
   const selectCountry = useCallback((country) => {
+    setCountryProfile(null);setProfileStatus('loading');
     setSelectedCountryId(String(country.id));
     setHoveredCountryId(null);
     setIsCountryMenuOpen(false);
@@ -416,7 +417,7 @@ const InteractiveGlobe = () => {
     scheduleRotationResume();
   }, [pauseRotation, scheduleRotationResume]);
 
-  const isProfileLoading = profileStatus === 'loading';
+  const isProfileLoading = profileStatus === 'loading' || rpLoading;
   const economicData = displayedCountryProfile?.economy;
   const exchangeData = displayedCountryProfile?.exchange;
   const governmentData = displayedCountryProfile?.government;
@@ -693,7 +694,7 @@ const InteractiveGlobe = () => {
                 <div className="mb-2 flex items-center justify-between gap-2">
                   <p className="text-[9px] font-semibold uppercase tracking-[0.16em] text-slate-500">Panorama nacional</p>
                   <div className="flex items-center gap-2">
-                    {!isProfileLoading && profileStatus !== 'error' && (
+                    {!isProfileLoading && profileStatus !== 'error' && !rpError && (
                       <span className={`rounded-full border px-2 py-0.5 text-[8px] font-semibold uppercase tracking-wider ${
                         isRpProfile
                           ? 'border-cyan-400/25 bg-cyan-400/10 text-cyan-300'
@@ -709,8 +710,8 @@ const InteractiveGlobe = () => {
                         Carregando dados
                       </span>
                     )}
-                    {profileStatus === 'error' && (
-                      <span className="text-[9px] text-amber-300">Dados externos indisponíveis</span>
+                    {(profileStatus === 'error' || rpError) && (
+                      <span className="text-[9px] text-amber-300">Não foi possível carregar os dados deste país. Tente selecioná-lo novamente.</span>
                     )}
                   </div>
                 </div>

@@ -1,3 +1,4 @@
+import { useDomainRealtime } from '@/hooks/use-domain-realtime';
 import React, { useCallback, useEffect, useState } from 'react';
 import { Bot, CheckCircle2, Copy, Loader2, MessageCircle, RefreshCw, Send, ShieldAlert, Wifi, WifiOff } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
@@ -36,6 +37,7 @@ export default function WhatsAppBotManagement() {
   const [config, setConfig] = useState(blank);
   const [runtime, setRuntime] = useState(null);
   const [groups, setGroups] = useState([]);
+  const [invitations,setInvitations]=useState([]);
   const [events, setEvents] = useState([]);
   const [deliveries, setDeliveries] = useState([]);
   const [busy, setBusy] = useState('');
@@ -46,20 +48,22 @@ export default function WhatsAppBotManagement() {
 
   const load = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
-    const [s, r, g, e, d] = await Promise.all([
+    const [s, r, g, e, d, invites] = await Promise.all([
       supabase.from('whatsapp_bot_settings').select('*').eq('id', true).maybeSingle(),
       supabase.from('whatsapp_bot_runtime').select('*').eq('id', true).maybeSingle(),
-      supabase.from('whatsapp_bot_groups').select('*').order('display_name').limit(250),
+      supabase.from('whatsapp_bot_groups').select('*').or('is_official.eq.true,authorized_at.not.is.null').order('display_name').limit(250),
       supabase.from('whatsapp_bot_events').select('id,event_kind,title,created_at').order('id', { ascending: false }).limit(12),
       supabase.from('whatsapp_bot_deliveries').select('event_id,group_jid,status,last_error,updated_at').order('updated_at', { ascending: false }).limit(20),
+      supabase.from('whatsapp_bot_group_invitations').select('id,status,group_name,error_message,updated_at').order('requested_at',{ascending:false}).limit(30),
     ]);
-    const failure = [s,r,g,e,d].find((item) => item.error)?.error;
+    const failure = [s,r,g,e,d,invites].find((item) => item.error)?.error;
     if (failure && !silent) toast({ title: 'Não foi possível carregar o bot', description: failure.message, variant: 'destructive' });
     if (!s.error && s.data) setConfig(s.data);
     if (!r.error) setRuntime(r.data);
     if (!g.error) setGroups(g.data || []);
     if (!e.error) setEvents(e.data || []);
     if (!d.error) setDeliveries(d.data || []);
+    if (!invites.error) setInvitations(invites.data||[]);
     setClock(Date.now());
     setLoading(false);
   }, [toast]);
@@ -70,6 +74,7 @@ export default function WhatsAppBotManagement() {
     return () => clearInterval(interval);
   }, [load]);
 
+  useDomainRealtime('whatsapp-admin','admin',['whatsapp_bot_group_invitations','whatsapp_bot_groups'],()=>load(true));
   const saveConfig = async () => {
     setBusy('settings');
     const { error } = await supabase.rpc('admin_save_whatsapp_bot_settings', {
@@ -98,18 +103,12 @@ export default function WhatsAppBotManagement() {
   };
 
   const addGroup = async () => {
-    const jid = newGroup.trim();
-    if (!/^[A-Za-z0-9_.:-]+@g\.us$/.test(jid)) {
-      toast({ title: 'JID de grupo inválido', description: 'Exemplo: 120363XXXXXXXXX@g.us', variant: 'destructive' }); return;
-    }
-    const group = { jid, display_name: 'Grupo cadastrado manualmente', enabled: false, notify_news: true, notify_elections: true, notify_votings: true, notify_government: true };
-    setBusy('add');
-    const { error } = await supabase.rpc('admin_save_whatsapp_bot_group', {
-      p_jid: jid, p_enabled: false, p_news: true, p_elections: true, p_votings: true, p_government: true,
-    });
-    setBusy('');
-    if (error) toast({ title: 'Erro ao adicionar grupo', description: error.message, variant: 'destructive' });
-    else { setNewGroup(''); setGroups((previous) => [...previous, group]); await load(true); }
+    const link=newGroup.trim();
+    if(!/^https:\/\/chat\.whatsapp\.com\/[A-Za-z0-9]{20,32}\/?(?:\?mode=[A-Za-z0-9_]+)?$/.test(link)){toast({title:'Link de convite inválido',description:'Informe o link de chat.whatsapp.com fornecido pelo administrador do grupo.',variant:'destructive'});return;}
+    if(busy)return;setBusy('add');
+    const result=await supabase.rpc('admin_add_whatsapp_group_invite',{p_link:link});setBusy('');
+    if(result.error)toast({title:'Não foi possível cadastrar o convite',description:result.error.message,variant:'destructive'});
+    else{setNewGroup('');toast({title:'Convite registrado',description:'O bot verificará o grupo e sua participação antes de permitir notificações.'});await load(true);}
   };
 
   const sendAnnouncement = async () => {
@@ -182,15 +181,16 @@ export default function WhatsAppBotManagement() {
       </Card>
 
       <Card>
-        <CardHeader><CardTitle>Grupos autorizados ({activeGroups.length}/{groups.length})</CardTitle><CardDescription>Os grupos associados ao número aparecem automaticamente. Você decide em quais o bot pode responder ou publicar.</CardDescription></CardHeader>
+        <CardHeader><CardTitle>Grupos autorizados ({activeGroups.length}/{groups.length})</CardTitle><CardDescription>Somente o grupo oficial e os grupos cadastrados por convite são exibidos. O bot deve participar do grupo para ativar notificações.</CardDescription></CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex flex-wrap gap-2"><Input className="min-w-0 flex-1" value={newGroup} onChange={(e) => setNewGroup(e.target.value)} placeholder="Opcional: ID do grupo, como 120363…@g.us" /><Button variant="outline" onClick={addGroup} disabled={busy === 'add'}>Adicionar grupo</Button></div>
-          {groups.length === 0 && <p className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">Nenhum grupo descoberto. Conecte o bot à VPS e adicione o número a um grupo; o serviço detectará os grupos existentes.</p>}
+          <div className="flex flex-wrap gap-2"><Input className="min-w-0 flex-1" value={newGroup} onChange={(e) => setNewGroup(e.target.value)} aria-label="Link de convite do grupo WhatsApp" placeholder="https://chat.whatsapp.com/…" /><Button variant="outline" onClick={addGroup} disabled={busy === 'add'}>Adicionar grupo</Button></div>
+          {groups.length === 0 && <p className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">Nenhum grupo autorizado. Informe o link de convite e aguarde a confirmação de participação do bot.</p>}
+          {invitations.map(invite=><div key={invite.id} className="rounded-lg border p-3 text-sm"><p className="font-semibold">{invite.group_name||'Novo convite'} · {({pending:'Aguardando bot',processing:'Verificando participação',connected:'Participação confirmada',awaiting_approval:'Aguardando aprovação no WhatsApp',error:'Vínculo não concluído'})[invite.status]}</p>{invite.error_message&&<p className="text-xs text-muted-foreground">{invite.error_message}</p>}</div>)}
           {groups.map((group) => (
             <div key={group.jid} className="space-y-3 rounded-xl border p-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
-                <div className="min-w-0"><p className="font-semibold">{group.display_name || 'Grupo sem nome'}</p><p className="break-all text-xs text-muted-foreground">{group.jid}</p></div>
-                <div className="flex items-center gap-2"><Label htmlFor={'group-' + group.jid}>Autorizado</Label><Switch id={'group-' + group.jid} checked={group.enabled} onCheckedChange={(enabled) => setGroups((all) => patchGroup(all, group.jid, { enabled }))} /></div>
+                <div className="min-w-0"><p className="font-semibold">{group.display_name || 'Grupo sem nome'}{group.is_official&&<span className="ml-2 text-xs text-emerald-400">Oficial GOVRP</span>}</p><p className="text-xs text-muted-foreground">{group.bot_joined?'Participação confirmada':'Bot ainda não participa deste grupo'}</p><p className="break-all text-xs text-muted-foreground">{group.jid}</p></div>
+                <div className="flex items-center gap-2"><Label htmlFor={'group-' + group.jid}>Autorizado</Label><Switch id={'group-' + group.jid} checked={group.enabled} disabled={!group.bot_joined||!online} onCheckedChange={(enabled) => setGroups((all) => patchGroup(all, group.jid, { enabled }))} /></div>
               </div>
               <div className="flex flex-wrap gap-x-5 gap-y-3">
                 {categoryLabels.map(([key,label]) => <div className="flex items-center gap-2" key={key}><Switch id={key + '-' + group.jid} checked={group[key]} onCheckedChange={(v) => setGroups((all) => patchGroup(all,group.jid,{ [key]: v }))} /><Label htmlFor={key + '-' + group.jid}>{label}</Label></div>)}

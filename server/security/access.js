@@ -1,3 +1,4 @@
+import process from 'node:process';
 import crypto from 'node:crypto';
 import net from 'node:net';
 import { createClient } from '@supabase/supabase-js';
@@ -61,7 +62,8 @@ const trimmed = value => typeof value==='string'?value.trim():'';
 export async function authAccessHandler(request,response){
   if(request.method!=='POST')return json(response,405,{error:'Método inválido.'});
   try{
-    if(request.headers.origin && ![ORIGIN,'https://'+request.headers.host].includes(request.headers.origin)){
+    const localOrigin=process.env.VERCEL!=='1' && /^http:\/\/(127\.0\.0\.1|localhost):\d+$/.test(request.headers.origin||'') && new URL(request.headers.origin).host===request.headers.host;
+    if(request.headers.origin && !localOrigin && ![ORIGIN,'https://'+request.headers.host].includes(request.headers.origin)){
       return json(response,403,{error:'Origem não autorizada.'});
     }
     const body=await readBody(request);

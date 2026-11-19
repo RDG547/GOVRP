@@ -1,4 +1,4 @@
-import {ModalPresentationContext,modalAction} from '@/contexts/ModalPresentationContext'
+import {ModalPresentationContext,modalSemanticIcon} from '@/contexts/ModalPresentationContext'
 import { phonePortal } from '@/contexts/PhoneAppContext'
 import { withServiceSuspension } from '@/contexts/ServiceSuspensionContext'
 import * as React from "react"
@@ -71,11 +71,11 @@ const DialogFooter = ({
 )
 DialogFooter.displayName = "DialogFooter"
 
-const DialogTitle = React.forwardRef(({ className, ...props }, ref) => (
+const DialogTitle = React.forwardRef(({ className, children, ...props }, ref) => (
   <DialogPrimitive.Title
     ref={ref}
     className={cn("text-lg font-semibold leading-none tracking-tight", className)}
-    {...props} />
+    {...props}>{modalSemanticIcon(children, {heading:true})}{children}</DialogPrimitive.Title>
 ))
 DialogTitle.displayName = DialogPrimitive.Title.displayName
 

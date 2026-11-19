@@ -1,6 +1,11 @@
 // Generated from the real modal templates by tools/sync-modal-catalog.mjs.
 export const MODAL_CATALOG=[
  {
+  "id": "src/components/admin/UserBanDialog.jsx:1",
+  "title": "— / Banimento ativo / Restringir acesso",
+  "source": "src/components/admin/UserBanDialog.jsx"
+ },
+ {
   "id": "src/components/social-x/profile/FollowListModal.jsx:1",
   "title": "( / ) / Seguidores / Seguindo",
   "source": "src/components/social-x/profile/FollowListModal.jsx"
@@ -11,7 +16,7 @@ export const MODAL_CATALOG=[
   "source": "src/components/bank/OpenAccount.jsx"
  },
  {
-  "id": "src/pages/services/ParliamentPanel.jsx:4",
+  "id": "src/pages/services/ParliamentPanel.jsx:5",
   "title": "Abrir Eleição Interna",
   "source": "src/pages/services/ParliamentPanel.jsx"
  },
@@ -41,6 +46,11 @@ export const MODAL_CATALOG=[
   "source": "src/components/social-x/stories/UploadStoryModal.jsx"
  },
  {
+  "id": "src/components/parliament/ParliamentVoteScheduler.jsx:1",
+  "title": "Agendar votação legislativa",
+  "source": "src/components/parliament/ParliamentVoteScheduler.jsx"
+ },
+ {
   "id": "src/pages/services/AGIESPanel.jsx:1",
   "title": "AGIESPanel",
   "source": "src/pages/services/AGIESPanel.jsx"
@@ -51,9 +61,14 @@ export const MODAL_CATALOG=[
   "source": "src/pages/dashboards/panels/PresidentDashboard.jsx"
  },
  {
-  "id": "src/components/admin/UserManagement.jsx:3",
+  "id": "src/components/admin/UserManagement.jsx:2",
   "title": "Alterar Senha de",
   "source": "src/components/admin/UserManagement.jsx"
+ },
+ {
+  "id": "src/components/government/MinistryProgramApprovals.jsx:1",
+  "title": "Analisar programa ministerial",
+  "source": "src/components/government/MinistryProgramApprovals.jsx"
  },
  {
   "id": "src/components/business/HousingMarket.jsx:3",
@@ -127,7 +142,7 @@ export const MODAL_CATALOG=[
  },
  {
   "id": "src/components/PresidentialFormationGuide.jsx:1",
-  "title": "Como deseja conduzir o Governo? / Forme seu Governo / Aguardando sua equipe / Governo formado",
+  "title": "Como deseja conduzir o Governo? / Governo pronto / Forme seu Governo / Aguardando sua equipe / Forme seu Governo",
   "source": "src/components/PresidentialFormationGuide.jsx"
  },
  {
@@ -139,6 +154,11 @@ export const MODAL_CATALOG=[
   "id": "src/components/bank/ReceiptDownloadDialog.jsx:2",
   "title": "Compartilhar Comprovante",
   "source": "src/components/bank/ReceiptDownloadDialog.jsx"
+ },
+ {
+  "id": "src/features/competitions/CompetitionAdministration.jsx:3",
+  "title": "Competition Administration",
+  "source": "src/features/competitions/CompetitionAdministration.jsx"
  },
  {
   "id": "src/pages/services/ParliamentPanel.jsx:2",
@@ -161,6 +181,11 @@ export const MODAL_CATALOG=[
   "source": "src/components/business/PublicCompanyOpportunities.jsx"
  },
  {
+  "id": "src/features/economy/components/NationalProductionMarket.jsx:2",
+  "title": "Comprar insumo físico",
+  "source": "src/features/economy/components/NationalProductionMarket.jsx"
+ },
+ {
   "id": "src/components/bank/ReceiptDownloadDialog.jsx:1",
   "title": "Comprovante de transação",
   "source": "src/components/bank/ReceiptDownloadDialog.jsx"
@@ -169,6 +194,11 @@ export const MODAL_CATALOG=[
   "id": "src/components/admin/SystemSettings.jsx:1",
   "title": "Confirmar Ação",
   "source": "src/components/admin/SystemSettings.jsx"
+ },
+ {
+  "id": "src/features/competitions/CompetitionAdministration.jsx:2",
+  "title": "Confirmar aprovação e efetivação / Confirmar reprovação",
+  "source": "src/features/competitions/CompetitionAdministration.jsx"
  },
  {
   "id": "src/components/business/PurchaseDialog.jsx:1",
@@ -291,6 +321,11 @@ export const MODAL_CATALOG=[
   "source": "src/components/parties/PartyDetailsDialog.jsx"
  },
  {
+  "id": "src/components/parliament/BillDetailsDialog.jsx:1",
+  "title": "Detalhes do projeto",
+  "source": "src/components/parliament/BillDetailsDialog.jsx"
+ },
+ {
   "id": "src/components/government/GovernmentDynamicsPanel.jsx:4",
   "title": "Distribuir pauta à imprensa",
   "source": "src/components/government/GovernmentDynamicsPanel.jsx"
@@ -309,6 +344,11 @@ export const MODAL_CATALOG=[
   "id": "src/pages/Documentation.jsx:1",
   "title": "Documentation",
   "source": "src/pages/Documentation.jsx"
+ },
+ {
+  "id": "src/features/competitions/CompetitionAdministration.jsx:1",
+  "title": "Editar concurso / Criar concurso",
+  "source": "src/features/competitions/CompetitionAdministration.jsx"
  },
  {
   "id": "src/pages/dashboards/panels/PresidentDashboard.jsx:2",
@@ -356,7 +396,7 @@ export const MODAL_CATALOG=[
   "source": "src/pages/AdminDashboard.jsx"
  },
  {
-  "id": "src/components/admin/UserManagement.jsx:2",
+  "id": "src/components/admin/UserManagement.jsx:1",
   "title": "Editar Usuário:",
   "source": "src/components/admin/UserManagement.jsx"
  },
@@ -451,7 +491,7 @@ export const MODAL_CATALOG=[
   "source": "src/components/parties/PartyManagementDialog.jsx"
  },
  {
-  "id": "src/components/admin/UserManagement.jsx:4",
+  "id": "src/components/admin/UserManagement.jsx:3",
   "title": "Gerenciar Limite de Crédito",
   "source": "src/components/admin/UserManagement.jsx"
  },
@@ -491,9 +531,9 @@ export const MODAL_CATALOG=[
   "source": "src/components/justice/JudicialGovernance.jsx"
  },
  {
-  "id": "src/components/admin/UserManagement.jsx:1",
-  "title": "Modificar Saldo de",
-  "source": "src/components/admin/UserManagement.jsx"
+  "id": "src/components/admin/WalletBalanceDialog.jsx:1",
+  "title": "Modificar saldo de",
+  "source": "src/components/admin/WalletBalanceDialog.jsx"
  },
  {
   "id": "src/pages/News.jsx:1",
@@ -519,6 +559,16 @@ export const MODAL_CATALOG=[
   "id": "src/components/government/OfficialSalaryProposal.jsx:1",
   "title": "O que esta lei alterará?",
   "source": "src/components/government/OfficialSalaryProposal.jsx"
+ },
+ {
+  "id": "src/features/economy/components/NationalProductionMarket.jsx:4",
+  "title": "Orçamento de abastecimento",
+  "source": "src/features/economy/components/NationalProductionMarket.jsx"
+ },
+ {
+  "id": "src/features/economy/components/NationalProductionMarket.jsx:5",
+  "title": "Orçamento de consumo populacional",
+  "source": "src/features/economy/components/NationalProductionMarket.jsx"
  },
  {
   "id": "src/components/bank/CardsTab.jsx:1",
@@ -581,9 +631,9 @@ export const MODAL_CATALOG=[
   "source": "src/pages/dashboards/panels/PresidentDashboard.jsx"
  },
  {
-  "id": "src/pages/dashboards/panels/PresidentDashboard.jsx:5",
-  "title": "Promulgar texto aprovado / Sancionar projeto / Registrar veto total / Registrar veto parcial",
-  "source": "src/pages/dashboards/panels/PresidentDashboard.jsx"
+  "id": "src/pages/services/ParliamentPanel.jsx:4",
+  "title": "Propor derrubada de veto presidencial",
+  "source": "src/pages/services/ParliamentPanel.jsx"
  },
  {
   "id": "src/components/parliament/LegalMeasureStudio.jsx:1",
@@ -606,12 +656,17 @@ export const MODAL_CATALOG=[
   "source": "src/components/dashboard/DashboardSelectorDialog.jsx"
  },
  {
+  "id": "src/features/economy/components/NationalProductionMarket.jsx:3",
+  "title": "Referência:",
+  "source": "src/features/economy/components/NationalProductionMarket.jsx"
+ },
+ {
   "id": "src/pages/services/Elections.jsx:1",
   "title": "Registrar Candidatura",
   "source": "src/pages/services/Elections.jsx"
  },
  {
-  "id": "src/pages/services/ParliamentPanel.jsx:5",
+  "id": "src/pages/services/ParliamentPanel.jsx:6",
   "title": "Registrar Candidatura",
   "source": "src/pages/services/ParliamentPanel.jsx"
  },
@@ -646,7 +701,7 @@ export const MODAL_CATALOG=[
   "source": "src/pages/services/ParliamentPanel.jsx"
  },
  {
-  "id": "src/components/admin/UserManagement.jsx:5",
+  "id": "src/components/admin/UserManagement.jsx:4",
   "title": "Remover a conta de / ?",
   "source": "src/components/admin/UserManagement.jsx"
  },
@@ -671,6 +726,11 @@ export const MODAL_CATALOG=[
   "source": "src/components/social-x/RepostModal.jsx"
  },
  {
+  "id": "src/pages/dashboards/panels/PresidentDashboard.jsx:5",
+  "title": "Sancionar projeto / Registrar veto total / Registrar veto parcial",
+  "source": "src/pages/dashboards/panels/PresidentDashboard.jsx"
+ },
+ {
   "id": "src/components/ServiceAccess.jsx:1",
   "title": "Selecionar acesso ao serviço",
   "source": "src/components/ServiceAccess.jsx"
@@ -689,6 +749,11 @@ export const MODAL_CATALOG=[
   "id": "src/components/admin/CitizenCustodyControl.jsx:1",
   "title": "Situação prisional",
   "source": "src/components/admin/CitizenCustodyControl.jsx"
+ },
+ {
+  "id": "src/components/bank/CardLimitRequest.jsx:1",
+  "title": "Solicitar aumento de limite",
+  "source": "src/components/bank/CardLimitRequest.jsx"
  },
  {
   "id": "src/components/bank/LoansTab.jsx:1",
@@ -716,8 +781,18 @@ export const MODAL_CATALOG=[
   "source": "src/pages/services/PoliticalParties.jsx"
  },
  {
+  "id": "src/features/economy/components/NationalProductionMarket.jsx:1",
+  "title": "Vender produção",
+  "source": "src/features/economy/components/NationalProductionMarket.jsx"
+ },
+ {
   "id": "src/features/justice/pages/AuthorityJusticeDashboard.jsx:2",
   "title": "Vincular pessoa à investigação",
   "source": "src/features/justice/pages/AuthorityJusticeDashboard.jsx"
+ },
+ {
+  "id": "src/components/parliament/ParliamentVotingStartPopup.jsx:1",
+  "title": "Votação iniciada na sua Casa Legislativa",
+  "source": "src/components/parliament/ParliamentVotingStartPopup.jsx"
  }
 ];

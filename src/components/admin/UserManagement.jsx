@@ -1,3 +1,5 @@
+import ModifyBalanceDialog from './WalletBalanceDialog';
+import { Label as ModalFieldLabel } from '@/components/ui/label';
 import PagedResults from '@/components/ui/paged-results';
 import {CurrencyInput} from '@/components/ui/currency-input';
 import { readySession, fetchWithSessionAuth } from '@/lib/apiAuth';
@@ -61,117 +63,6 @@ const CITIZENSHIP_STEP_LABELS = {
 };
 
 const formatCitizenshipStep = (step) => CITIZENSHIP_STEP_LABELS[step] || 'Etapa pendente';
-
-const ModifyBalanceDialog = ({ user, onFinish }) => {
-    const [amount, setAmount] = useState('');
-    const [action, setAction] = useState('add');
-    const [reason, setReason] = useState('');
-    const [isProcessing, setIsProcessing] = useState(false);
-    const { toast } = useToast();
-
-    const formatCurrencyInput = (value) => {
-        // Remove tudo que não é dígito
-        const digits = value.replace(/\D/g, '');
-
-        // Se não há dígitos, retorna R$ 0,00
-        if (!digits) return 'R$ 0,00';
-
-        // Converte para número e divide por 100 para obter os centavos
-        const numericValue = parseInt(digits, 10) / 100;
-
-        // Formata como moeda brasileira
-        return new Intl.NumberFormat('pt-BR', {
-            style: 'currency',
-            currency: 'BRL',
-            minimumFractionDigits: 2
-        }).format(numericValue);
-    };
-
-    const handleAmountChange = (e) => {
-        const inputValue = e.target.value;
-        const formattedValue = formatCurrencyInput(inputValue);
-        setAmount(formattedValue);
-    };
-
-    const parseCurrencyInput = (formattedValue) => {
-        // Remove "R$", espaços e substitui vírgula por ponto
-        const numericString = formattedValue
-            .replace('R$', '')
-            .replace(/\./g, '')
-            .replace(',', '.')
-            .trim();
-
-        return parseFloat(numericString) || 0;
-    };
-
-    const handleSubmit = async () => {
-        setIsProcessing(true);
-        const numericAmount = parseCurrencyInput(amount);
-
-        if (numericAmount <= 0 || !reason) {
-            toast({ title: 'Erro de Validação', description: 'Por favor, insira um valor válido e um motivo.', variant: 'destructive' });
-            setIsProcessing(false);
-            return;
-        }
-
-        const { data, error } = await supabase.rpc('admin_modify_balance', {
-            p_user_id: user.id,
-            p_amount: numericAmount,
-            p_action: action,
-            p_reason: reason
-        });
-
-        if (error || !data.success) {
-            toast({ title: "Erro ao modificar saldo", description: data?.message || error?.message, variant: "destructive" });
-        } else {
-            toast({ title: "Sucesso", description: data.message });
-            onFinish();
-        }
-        setIsProcessing(false);
-    };
-
-    return (
-        <DialogContent className="glass-effect max-h-[90vh] overflow-y-auto text-white">
-            <DialogHeader>
-                <DialogTitle>Modificar Saldo de {user.full_name}</DialogTitle>
-                <DialogDescription>
-                    Adicione ou remova fundos da conta. Saldo atual: <span className="font-bold text-green-400">{formatCurrency(user.balance ?? 0)}</span>
-                </DialogDescription>
-            </DialogHeader>
-            <div className="py-4 space-y-4">
-                <div>
-                    <Label htmlFor="action">Ação</Label>
-                    <Select value={action} onValueChange={setAction}>
-                        <SelectTrigger id="action" className="w-full">
-                            <SelectValue placeholder="Selecione uma ação" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="add">Adicionar Dinheiro</SelectItem>
-                            <SelectItem value="remove">Remover Dinheiro</SelectItem>
-                        </SelectContent>
-                    </Select>
-                </div>
-                <div>
-                    <Label htmlFor="amount">Valor</Label>
-                    <CurrencyInput
-                        id="amount"
-                        value={amount}
-                        onChange={handleAmountChange}
-                        placeholder="R$ 0,00"
-                    />
-                </div>
-                <div>
-                    <Label htmlFor="reason">Motivo</Label>
-                    <Input id="reason" value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Ex: Prêmio de evento" />
-                </div>
-            </div>
-            <DialogFooter>
-                <DialogClose asChild><Button variant="outline">Cancelar</Button></DialogClose>
-                <Button onClick={handleSubmit} disabled={isProcessing}>{isProcessing && <Loader2 className="animate-spin mr-2 w-4 h-4"/>} Confirmar</Button>
-            </DialogFooter>
-        </DialogContent>
-    );
-};
 
 const EditUserDialog = ({ user, onFinish, onUpdate }) => {
     const [formData, setFormData] = useState({
@@ -276,7 +167,7 @@ const EditUserDialog = ({ user, onFinish, onUpdate }) => {
                         </SelectContent>
                     </Select>
                 </div>
-                <label className="flex items-start gap-3 rounded-lg border p-3 text-sm"><input type="checkbox" disabled={formData.isPlatformAdmin===null} checked={formData.isPlatformAdmin===true} onChange={e=>setFormData(current=>({...current,isPlatformAdmin:e.target.checked}))} className="mt-1"/>Administrador técnico da plataforma. Este acesso é independente do cargo do personagem.</label>
+                <ModalFieldLabel className="flex items-start gap-3 rounded-lg border p-3 text-sm"><input type="checkbox" disabled={formData.isPlatformAdmin===null} checked={formData.isPlatformAdmin===true} onChange={e=>setFormData(current=>({...current,isPlatformAdmin:e.target.checked}))} className="mt-1"/>Administrador técnico da plataforma. Este acesso é independente do cargo do personagem.</ModalFieldLabel>
                 <div><Label htmlFor="titles" className="flex items-center gap-2"><Award className="h-4 w-4 text-primary"/>Títulos (separados por vírgula)</Label><Input id="titles" value={formData.titles} onChange={handleChange} /></div>
             </div>
             <DialogFooter className="gap-2 sm:justify-center sm:space-x-0">

@@ -1,3 +1,4 @@
+import { Label as ModalFieldLabel } from '@/components/ui/label';
 import {CurrencyInput} from '@/components/ui/currency-input';
 import { usePhoneApp } from '@/contexts/PhoneAppContext';
 import NeedEffects from '@/components/NeedEffects';
@@ -358,8 +359,8 @@ const ProductFormDialog = ({ isOpen, setIsOpen, product, onSuccess }) => {
           </Select>
           </div>
           {['Alimentos','Bebidas'].includes(formData.category) && formData.product_type==='one-time' && <fieldset className="space-y-3 rounded-xl border p-3"><legend>Efeitos ao consumir</legend>
-            {formData.category==='Bebidas'&&<label className="flex items-center gap-2 text-sm"><Wine className="h-4 w-4"/><input type="checkbox" checked={Number(consumableEffects.health)<0} onChange={e=>setConsumableEffects(e.target.checked?{thirst:15,happiness:8,health:-3}:{thirst:40})}/>Bebida alcoólica</label>}
-            {Number(consumableEffects.health)<0?<><NeedEffects effects={consumableEffects}/><p className="text-xs text-muted-foreground">Efeitos balanceados: recupera menos sede que a água, melhora a socialização e reduz levemente a saúde.</p></>:<><p className="text-xs text-muted-foreground">Defina de 0 a 60 pontos. Zero mantém o produto sem efeito nessa necessidade.</p>{NEEDS.filter(need=>['hunger','thirst'].includes(need.key)).map(({key,name,icon:Icon,text})=><label key={key} className={`block text-sm ${text}`}><span className="flex items-center gap-2"><Icon className="h-4 w-4"/>{name}</span><Input type="number" min="0" max="60" step="1" value={consumableEffects[key]||0} onChange={e=>setConsumableEffects(previous=>({...previous,[key]:e.target.value}))}/></label>)}</>}
+            {formData.category==='Bebidas'&&<ModalFieldLabel className="flex items-center gap-2 text-sm"><Wine className="h-4 w-4"/><input type="checkbox" checked={Number(consumableEffects.health)<0} onChange={e=>setConsumableEffects(e.target.checked?{thirst:15,happiness:8,health:-3}:{thirst:40})}/>Bebida alcoólica</ModalFieldLabel>}
+            {Number(consumableEffects.health)<0?<><NeedEffects effects={consumableEffects}/><p className="text-xs text-muted-foreground">Efeitos balanceados: recupera menos sede que a água, melhora a socialização e reduz levemente a saúde.</p></>:<><p className="text-xs text-muted-foreground">Defina de 0 a 60 pontos. Zero mantém o produto sem efeito nessa necessidade.</p>{NEEDS.filter(need=>['hunger','thirst'].includes(need.key)).map(({key,name,icon:Icon,text})=><ModalFieldLabel key={key} className={`block text-sm ${text}`}><span className="flex items-center gap-2"><Icon className="h-4 w-4"/>{name}</span><Input type="number" min="0" max="60" step="1" value={consumableEffects[key]||0} onChange={e=>setConsumableEffects(previous=>({...previous,[key]:e.target.value}))}/></ModalFieldLabel>)}</>}
           </fieldset>}
 
           {showCustomCategory && (
@@ -416,7 +417,7 @@ const ProductFormDialog = ({ isOpen, setIsOpen, product, onSuccess }) => {
               </div>
             )}
           </div>
-          <div className="grid gap-3"><ListingCosts enterprise={sourceEnterprise} selected={!formData.business_id}/><ListingCosts enterprise={sourceEnterprise} business selected={Boolean(formData.business_id)}/></div>{!product&&listingFee>0&&<label className="flex items-start gap-2 text-sm"><input type="checkbox" className="mt-1 h-4 w-4" checked={feeConsent} onChange={e=>setFeeConsent(e.target.checked)}/>Autorizo a cobrança da taxa de anúncio exibida, na conta selecionada para a venda.</label>}{product&&<p className="text-xs text-muted-foreground">Editar não renova nem cobra o anúncio. Use Renovar anúncio se o período terminou.</p>}
+          <div className="grid gap-3"><ListingCosts enterprise={sourceEnterprise} selected={!formData.business_id}/><ListingCosts enterprise={sourceEnterprise} business selected={Boolean(formData.business_id)}/></div>{!product&&listingFee>0&&<ModalFieldLabel className="flex items-start gap-2 text-sm"><input type="checkbox" className="mt-1 h-4 w-4" checked={feeConsent} onChange={e=>setFeeConsent(e.target.checked)}/>Autorizo a cobrança da taxa de anúncio exibida, na conta selecionada para a venda.</ModalFieldLabel>}{product&&<p className="text-xs text-muted-foreground">Editar não renova nem cobra o anúncio. Use Renovar anúncio se o período terminou.</p>}
           <DialogFooter className="sm:justify-center">
             <Button type="submit" disabled={loading || imagePreparing || !enterprise || (!product&&listingFee>0&&!feeConsent) || !formData.image_url && !imageFile}>
               {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}

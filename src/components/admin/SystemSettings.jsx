@@ -1,8 +1,10 @@
+import { useServiceAvailability } from '@/hooks/use-service-availability';
+import PlatformAccessExceptions from './PlatformAccessExceptions';
 import {CurrencyInput} from '@/components/ui/currency-input';
 import { fetchCitizenDirectory } from '@/lib/publicProfileQueries';
 import CitizenSelector from '@/components/CitizenSelector';
 import { formatLocaleBR } from '@/lib/dateTime';
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
@@ -770,6 +772,8 @@ const ServiceAvailabilityManager = ({ serviceAvailability, onModeChange, onSave,
 };
 
 const SystemSettings = () => {
+    const liveAvailability=useServiceAvailability(),serviceEdits=useRef({});
+    useEffect(()=>{if(!liveAvailability.loading)setSettings(previous=>({...previous,service_availability:{...liveAvailability.settings,...serviceEdits.current}}));},[liveAvailability.settings,liveAvailability.loading]);
     const { toast } = useToast();
     const [settings, setSettings] = useState({
         citizen_income: { enabled: false, amount: 0, day_of_week: 6 }
@@ -820,6 +824,7 @@ const SystemSettings = () => {
     };
 
     const handleServiceAvailabilityChange = (serviceKey, mode) => {
+        serviceEdits.current[serviceKey]={mode,updated_at:new Date().toISOString()};
         setSettings((prev) => ({
             ...prev,
             service_availability: {
@@ -847,22 +852,19 @@ const SystemSettings = () => {
     };
 
     const handleSaveServiceAvailability = async () => {
+        if(saving)return;
+        const changes={...serviceEdits.current};
+        if(!Object.keys(changes).length){toast({title:'Nenhuma alteração pendente'});return;}
         setSaving(true);
-
-        const { error } = await supabase
-            .from('system_settings')
-            .upsert({
-                key: SERVICE_AVAILABILITY_SETTINGS_KEY,
-                value: normalizeServiceAvailabilitySettings(settings.service_availability),
-            });
-
-        if (error) {
-            toast({ title: "Erro ao salvar disponibilidade", description: error.message, variant: "destructive" });
-        } else {
-            toast({ title: "Sucesso", description: "Disponibilidade dos serviços atualizada." });
-        }
-
-        setSaving(false);
+        try{
+            const result=await supabase.rpc('admin_set_service_availability',{p_changes:changes});
+            if(result.error)throw result.error;
+            for(const key of Object.keys(changes))if(serviceEdits.current[key]===changes[key])delete serviceEdits.current[key];
+            setSettings(previous=>({...previous,service_availability:{...result.data,...serviceEdits.current}}));
+            await liveAvailability.refresh?.();
+            toast({title:'Disponibilidade atualizada',description:'As sessões autorizadas acompanham a alteração automaticamente.'});
+        }catch(error){console.error('Disponibilidade administrativa',error);toast({title:'Não foi possível salvar a disponibilidade',description:error.message,variant:'destructive'});}
+        finally{setSaving(false);}
     };
 
     const weekDays = [ { value: 0, label: 'Domingo' }, { value: 1, label: 'Segunda-feira' }, { value: 2, label: 'Terça-feira' }, { value: 3, label: 'Quarta-feira' }, { value: 4, label: 'Quinta-feira' }, { value: 5, label: 'Sexta-feira' }, { value: 6, label: 'Sábado' }];
@@ -935,6 +937,7 @@ const SystemSettings = () => {
                 </div>
             </TabsContent>
             <TabsContent value="services" className="mt-6">
+                <PlatformAccessExceptions/>
                 <ServiceAvailabilityManager
                     serviceAvailability={normalizeServiceAvailabilitySettings(settings.service_availability)}
                     onModeChange={handleServiceAvailabilityChange}

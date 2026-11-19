@@ -1,3 +1,4 @@
+import { Label as ModalFieldLabel } from '@/components/ui/label';
 import CitizenMultiSelector from '@/components/CitizenMultiSelector';
 import { PoliceEvidenceUploader } from '@/features/justice/components/PoliceEvidenceFiles';
 import OccurrenceDetails from '@/features/justice/components/OccurrenceDetails';
@@ -459,7 +460,7 @@ const CitizenJusticeDashboard = () => {
                   <PoliceEvidenceUploader value={form.uploads} onChange={uploads=>setForm(current=>({...current,uploads}))} onBusyChange={setUploadingEvidence}/><div className="space-y-2"><Label htmlFor="occurrence-evidence">Referências adicionais</Label><Textarea id="occurrence-evidence" rows={3} value={form.evidence} onChange={(event) => setForm((current) => ({ ...current, evidence: event.target.value }))} placeholder="Links, documentos ou protocolos, um por linha" /></div>
                 </div>
 
-                <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-border/70 p-4">
+                <ModalFieldLabel className="flex cursor-pointer items-start gap-3 rounded-xl border border-border/70 p-4">
                   <input
                     type="checkbox"
                     checked={form.anonymous}
@@ -476,7 +477,7 @@ const CitizenJusticeDashboard = () => {
                       andamento pela área do cidadão.
                     </span>
                   </span>
-                </label>
+                </ModalFieldLabel>
 
                 <Button type="submit" disabled={submitting || uploadingEvidence || !form.occurrenceType}>
                   {submitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileText className="mr-2 h-4 w-4" />}

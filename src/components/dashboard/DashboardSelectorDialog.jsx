@@ -20,6 +20,9 @@ const DashboardSelectorDialog = ({
   realRole = null,
 }) => {
   const navigate = useNavigate();
+  const hasRolePanel=Boolean(realRole&&!['Cidadão','Usuário','Admin','Presidente'].includes(realRole));
+  const choices=1+Number(hasRolePanel)+Number(hasPresidentAccess)+(isAdmin?2:0);
+  const columns=choices>4?'sm:grid-cols-3':choices>2?'sm:grid-cols-2':'sm:grid-cols-1';
 
   const selectDashboard = (path) => {
     if (onSelect) {
@@ -33,14 +36,14 @@ const DashboardSelectorDialog = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="border-white/10 bg-[#07101f]/95 text-white sm:max-w-lg">
+      <DialogContent className="border-white/10 bg-[#07101f]/95 text-white sm:max-w-2xl">
         <DialogHeader className="pr-8 text-center sm:text-center">
           <DialogTitle>Qual dashboard você deseja acessar?</DialogTitle>
           <DialogDescription className="text-gray-400">
             Todos os painéis autorizados incluem os módulos integrados de Economia e Justiça.
           </DialogDescription>
         </DialogHeader>
-        <DialogFooter className="flex-col gap-2 sm:flex-col sm:space-x-0">
+        <DialogFooter className={`grid w-full grid-cols-1 items-stretch gap-3 min-[420px]:grid-cols-2 sm:space-x-0 [&>button]:h-auto [&>button]:min-h-24 [&>button]:min-w-0 [&>button]:flex-col [&>button]:whitespace-normal [&>button]:px-3 [&>button]:py-4 [&>button]:text-center [&>button]:leading-snug [&_span]:break-words ${columns}`}>
           <Button
             type="button"
             onClick={() => selectDashboard('/dashboard/citizen')}

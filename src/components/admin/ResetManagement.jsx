@@ -1,3 +1,4 @@
+import { Label as ModalFieldLabel } from '@/components/ui/label';
 import {useWorldRuntime} from '@/contexts/WorldRuntimeContext';
 import ControlledWorldReset from './ControlledWorldReset';
 import PagedResults from '@/components/ui/paged-results';
@@ -136,11 +137,11 @@ export default function ResetManagement() {
         </div>
         <PagedResults page={currentPage} loading={loading}>{loading ? <p role="status" className="flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Carregando contas…</p> : (
           <div className="divide-y rounded-lg border">
-            {visible.map((person) => <label key={person.id} className="flex cursor-pointer items-center gap-3 p-3">
+            {visible.map((person) => <ModalFieldLabel key={person.id} className="flex cursor-pointer items-center gap-3 p-3">
               <Checkbox aria-label={`Selecionar ${person.full_name || person.username}`} checked={selected.has(person.id)} onCheckedChange={() => toggle(person.id)} />
               <span className="min-w-0 flex-1"><span className="block truncate font-medium">{person.full_name || 'Cidadão ainda não criado'}</span><span className="block truncate text-xs text-muted-foreground">@{person.username} · {person.email}</span></span>
               <span className="text-xs text-muted-foreground">{person.role}{person.id === user.id ? ' (você)' : ''}</span>
-            </label>)}
+            </ModalFieldLabel>)}
             {!visible.length && <p className="p-4 text-sm text-muted-foreground">Nenhuma conta encontrada.</p>}
           </div>
         )}

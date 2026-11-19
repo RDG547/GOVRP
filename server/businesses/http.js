@@ -254,5 +254,5 @@ const raw_processWeeklyBusinessBalancesHandler = async (request, response) => {
   }
 };
 
-export const registerBusinessHandler=(request,response)=>withWorldRequest(request,()=>raw_registerBusinessHandler(request,response));
-export const processWeeklyBusinessBalancesHandler=(request,response)=>withWorldRequest(request,()=>raw_processWeeklyBusinessBalancesHandler(request,response));
+export const registerBusinessHandler=(request,response)=>withWorldRequest(request,()=>raw_registerBusinessHandler(request,response),response);
+export const processWeeklyBusinessBalancesHandler=(request,response)=>withWorldRequest(request,()=>raw_processWeeklyBusinessBalancesHandler(request,response),response);

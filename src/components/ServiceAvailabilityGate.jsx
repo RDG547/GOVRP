@@ -13,10 +13,10 @@ import { ServiceSuspensionContext } from '@/contexts/ServiceSuspensionContext';
 const ServiceAvailabilityGate = ({ serviceKey, children }) => {
   const { user } = useAuth();
   const parentSuspended = useContext(ServiceSuspensionContext);
-  const { settings, loading } = useServiceAvailability();
+  const { settings, loading, bypass } = useServiceAvailability();
   const [wasAvailable, setWasAvailable] = useState(false);
   const isAdmin = user?.is_platform_admin || user?.role === 'Admin' || user?.effective_roles?.includes('Admin');
-  const serviceMode = isAdmin ? 'active' : resolveServiceMode(settings, serviceKey);
+  const serviceMode = isAdmin || bypass ? 'active' : resolveServiceMode(settings, serviceKey);
   useEffect(() => { if (!loading && serviceMode === 'active') setWasAvailable(true); }, [loading, serviceMode]);
 
   if (loading) {

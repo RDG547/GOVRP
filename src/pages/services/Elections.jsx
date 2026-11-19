@@ -1,6 +1,6 @@
+import SequentialBallot from '@/components/elections/SequentialBallot';
 import ElectionResults from '@/components/elections/ElectionResults';
 import CandidateIdentity, { candidateIdentity } from '@/components/elections/CandidateIdentity';
-import ElectronicBallot from '@/components/elections/ElectronicBallot';
 import { formatDateBR, formatDateTimeBR } from '@/lib/dateTime';
 import ElectoralManagement from '@/components/elections/ElectoralManagement';
 import React, { useState, useEffect, useCallback } from 'react';
@@ -96,7 +96,7 @@ const CandidatesList = ({ election, onRecorded, userVote }) => {
     return (
         <div className="space-y-6">
             {election.extraordinary && <p className="rounded-xl border p-3 text-sm">Eleição extraordinária {election.election_mode==='indirect'?'indireta · eleitores: Congresso Nacional':'direta · voto popular'}. Mandato até {formatDateBR(election.original_term_ends_at)}.{election.election_mode==='indirect'&&` Quórum mínimo: ${election.quorum_min_votes} votos válidos em candidatos.`}</p>}
-            {election.status === 'Voting' && <ElectronicBallot election={election} candidates={candidates} hasVoted={Boolean(userVote)} onRecorded={onRecorded} />}
+
             <h3 className="font-semibold">Candidaturas aprovadas</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {candidates.map(candidate => (
@@ -358,7 +358,8 @@ const Elections = () => {
         {
             value: "cidadao", label: "Eleitor", icon: Users,
             services: [
-                { title: 'Votar / Consultar Candidatos', description: 'Conheça os candidatos e exerça seu direito de voto.', icon: Users, onAction: () => setActiveDisplay('candidatos') },
+                { title: 'Votar', description: 'Abra a urna e vote em sequência nos cargos disponíveis.', icon: Vote, onAction: () => setActiveDisplay('vote') },
+                { title: 'Consultar candidatos', description: 'Escolha uma eleição para conhecer seus candidatos, sem iniciar a votação.', icon: Users, onAction: () => setActiveDisplay('candidatos') },
                 { title: 'Resultados de Eleições', description: 'Confira os resultados detalhados das eleições.', icon: BarChart3, onAction: () => setActiveDisplay('resultados') }
             ]
         },
@@ -378,7 +379,7 @@ const Elections = () => {
     ];
 
     const currentElections = elections.filter(election => isCurrentElection(election));
-    const displayedElections = activeDisplay === 'candidatos' ? currentElections : elections;
+    const displayedElections = elections;
     useEffect(() => {
         if (selectedElection !== 'all' && !displayedElections.some(election => election.id === selectedElection)) setSelectedElection('all');
     }, [selectedElection, displayedElections]);
@@ -450,6 +451,7 @@ const Elections = () => {
                                     <div className="flex flex-col md:flex-row justify-between md:items-center gap-4">
                                         <CardTitle>
                                             {activeDisplay === 'candidatos' && 'Candidatos'}
+                                            {activeDisplay === 'vote' && 'Votar'}
                                             {activeDisplay === 'resultados' && 'Resultados da Eleição'}
                                             {activeDisplay === 'calendar' && 'Calendário Eleitoral'}
                                         </CardTitle>
@@ -469,11 +471,12 @@ const Elections = () => {
                                     </div>
                                 </CardHeader>
                                 <CardContent>
+                                    {activeDisplay === 'vote' && <SequentialBallot/>}
                                     {activeDisplay === 'candidatos' && currentElection && <CandidatesList election={currentElection} onRecorded={() => fetchElectionsAndVotes()} userVote={userVotes[selectedElection]} />}
                                     {activeDisplay === 'candidatos' && selectedElection === 'all' && (
-                                        currentElections.length > 0 ? (
+                                        displayedElections.length > 0 ? (
                                             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-                                                {currentElections.map(e => (
+                                                {displayedElections.map(e => (
                                                     <ElectionOverviewCard key={e.id} election={e} type="candidates" onClick={(id) => setSelectedElection(id)} />
                                                 ))}
                                             </div>

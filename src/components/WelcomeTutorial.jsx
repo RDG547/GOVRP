@@ -1,3 +1,4 @@
+import { Label as ModalFieldLabel } from '@/components/ui/label';
 import { ASPIRATIONS, ASPIRATION_TONES } from '@/lib/citizenOnboarding';
 import { Checkbox } from '@/components/ui/checkbox';
 import { tutorialPath, shouldShowTutorial } from '@/lib/tutorial';
@@ -92,7 +93,7 @@ export default function WelcomeTutorial() {
         {current.links ? <div className="w-full rounded-xl bg-secondary p-3 text-xs text-muted-foreground sm:text-sm"><p className="mb-2 font-medium">Áreas para conhecer</p><ul className="flex flex-wrap justify-center gap-x-4 gap-y-2">{current.links.map(link => { const AreaIcon = areaSteps[link.key].icon; return <li key={link.key} className="flex items-center gap-2"><AreaIcon className={`h-4 w-4 ${areaSteps[link.key].color.split(' ')[0]}`} />{link.label}</li>; })}</ul></div> : current.hint && <p className="rounded-xl bg-secondary p-3 text-xs text-muted-foreground sm:text-sm">{current.hint}</p>}
       </div>
       <div className="shrink-0 space-y-3">
-        <label className="flex items-center justify-center gap-3 text-sm cursor-pointer"><Checkbox checked={dontShowAgain} onCheckedChange={value => setDontShowAgain(value === true)} />Não mostrar novamente</label>
+        <ModalFieldLabel className="flex items-center justify-center gap-3 text-sm cursor-pointer"><Checkbox checked={dontShowAgain} onCheckedChange={value => setDontShowAgain(value === true)} />Não mostrar novamente</ModalFieldLabel>
         <div className="flex gap-1" aria-label={`Etapa ${index + 1} de ${orderedSteps.length}`}>{orderedSteps.map((step, i) => <span key={`${i}-${step.title}`} className={`h-1 flex-1 rounded-full ${i <= index ? 'bg-primary' : 'bg-secondary'}`} />)}</div>
         <div className="grid grid-cols-[auto_1fr_1fr] gap-1.5">
           <Button className="px-2" variant="ghost" disabled={saving} onClick={() => finish(false)}>Pular</Button>

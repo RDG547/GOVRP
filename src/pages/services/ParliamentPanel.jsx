@@ -1,3 +1,4 @@
+import BillDetailsDialog from '@/components/parliament/BillDetailsDialog';
 import { PARLIAMENT_HOUSE_IDS } from '@/lib/parliamentGovernance';
 import JudicialGovernance from '@/components/justice/JudicialGovernance';
 import {CurrencyInput} from '@/components/ui/currency-input';
@@ -25,6 +26,8 @@ import { Helmet } from 'react-helmet-async';
 import { motion } from 'framer-motion';
 import {
   BadgeCheck,
+  Info,
+  Eye,
   Check,
   ClipboardCheck,
   ClipboardList,
@@ -44,7 +47,7 @@ import {
   Vote,
   X,
 } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { PieChart, Pie, Cell, Legend, ResponsiveContainer, Tooltip } from 'recharts';
 import { supabase } from '@/lib/supabaseClient';
 import { useAuth } from '@/contexts/AuthContext';
@@ -238,6 +241,7 @@ const VotingChart = ({ votes = [] }) => {
 
 const ParliamentPanel = () => {
   const { user } = useAuth();
+  const [params] = useSearchParams();
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [accessData, setAccessData] = useState({ hasAccess: false, reason: 'Verificando permissões...' });
@@ -258,7 +262,9 @@ const ParliamentPanel = () => {
   const [leadershipTerms, setLeadershipTerms] = useState([]);
   const [leadershipElections, setLeadershipElections] = useState([]);
   const [governanceSchemaReady, setGovernanceSchemaReady] = useState(true);
-  const [activeMainTab, setActiveMainTab] = useState('projects');
+  const [detailBillId, setDetailBillId] = useState(null);
+  const [activeMainTab, setActiveMainTab] = useState(params.get('section')==='appointments'?'appointments':'projects');
+  useEffect(()=>{if(params.get('section')==='appointments')setActiveMainTab('appointments');},[params]);
   const [partyGuidanceByBill, setPartyGuidanceByBill] = useState({});
   useEffect(() => {
     let active = true;
@@ -525,7 +531,7 @@ const ParliamentPanel = () => {
           .order('created_at', { ascending: false }) : { data: [] },
         (sections.includes('members')) ? supabase
           .from('parliament_members')
-          .select('id, user_id, house_id, term_start_date, term_end_date, profile:profiles(id, full_name, avatar_url, x_handle, role, titles), party:political_parties!parliament_members_party_id_fkey(name, acronym, logo_url, color)')
+          .select('id, user_id, house_id, term_start_date, term_end_date, profile:profiles(id, full_name, avatar_url, x_handle, username, role, titles), party:political_parties!parliament_members_party_id_fkey(name, acronym, logo_url, color)')
           .eq('house_id', selectedHouseId)
           .order('term_start_date', { ascending: false }) : { data: [] },
         (sections.includes('bills') || sections.includes('governance')) ? supabase
@@ -575,6 +581,7 @@ const ParliamentPanel = () => {
           full_name: member.profile?.full_name,
           avatar_url: member.profile?.avatar_url,
           x_handle: member.profile?.x_handle,
+          username: member.profile?.username,
           role: member.profile?.role,
           display_role: resolvePrimaryRole(
             {
@@ -1054,6 +1061,7 @@ const ParliamentPanel = () => {
 
   return (
     <>
+      <BillDetailsDialog billId={detailBillId} onClose={() => setDetailBillId(null)}/>
       <Helmet>
         <title>Painel do Parlamento - GOV.RP</title>
       </Helmet>
@@ -1068,8 +1076,7 @@ const ParliamentPanel = () => {
           centered={true}
         />
 
-        <GovernanceRulesGrid />
-        {house?.id===PARLIAMENT_HOUSE_IDS.senate&&<div className="my-5"><JudicialGovernance /></div>}
+
 
         <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-3">
           <GovernanceMetricCard
@@ -1112,7 +1119,7 @@ const ParliamentPanel = () => {
 
         <div className="mb-4 flex justify-end"><ParliamentResignation houseId={house?.id} member={parliamentMember} hasLeadership={activeLeadershipTerms.some(term => term.member_id === parliamentMember?.id) || /Presidente d[ao]/.test(user?.stored_role || user?.role || '')} onUpdated={() => fetchPanelData({ quiet: true })}/></div>
         <Tabs value={activeMainTab} onValueChange={setActiveMainTab} className="w-full">
-          <TabsList className={`grid h-auto w-full grid-cols-2 items-stretch gap-2 ${house?.name?.toLocaleLowerCase('pt-BR').includes('câmara') ? 'md:grid-cols-7' : 'md:grid-cols-6'}`}>
+          <TabsList className="grid h-auto w-full grid-cols-2 items-stretch gap-2 sm:grid-cols-3 xl:grid-cols-5">
             <TabsTrigger className="h-full min-h-10 whitespace-normal px-2 py-2 text-center leading-tight" value="projects">
               <ScrollText className="mr-2 h-4 w-4 shrink-0" />Projetos
             </TabsTrigger>
@@ -1132,6 +1139,8 @@ const ParliamentPanel = () => {
             <TabsTrigger className="h-full min-h-10 whitespace-normal px-2 py-2 text-center leading-tight" value="members">
               <Users className="mr-2 h-4 w-4 shrink-0" />Membros
             </TabsTrigger>
+            <TabsTrigger value="information" className="min-h-12 whitespace-normal px-2 py-2"><Info className="mr-2 h-4 w-4 shrink-0"/>Informações</TabsTrigger>
+            <TabsTrigger value="appointments" className="min-h-12 whitespace-normal px-2 py-2 text-center leading-tight"><Gavel className="mr-2 h-4 w-4 shrink-0"/>STF e Nomeações Institucionais</TabsTrigger>
           </TabsList>
 
           <motion.div
@@ -1142,6 +1151,8 @@ const ParliamentPanel = () => {
             className="mt-6"
           >
             {house?.name?.toLocaleLowerCase('pt-BR').includes('câmara') && <TabsContent value="institutional"><InstitutionalProceedings houseId={house.id} memberId={parliamentMember?.id || parliamentMember?.parliament_member_id}/></TabsContent>}
+            <TabsContent value="information"><GovernanceRulesGrid /></TabsContent>
+            <TabsContent value="appointments"><JudicialGovernance /></TabsContent>
             <TabsContent value="projects" className="space-y-6">
               <DecreeOversight houseId={house?.id} onUpdated={() => fetchPanelData({ quiet: true })} />
               <Tabs value={activeSubTab} onValueChange={setActiveSubTab}>
@@ -1365,6 +1376,7 @@ const ParliamentPanel = () => {
                               <p className="text-sm mb-2">{voting.rule_snapshot?.label}{voting.tie_break_pending ? " · Aguardando voto de desempate" : ` · ${Math.max(0, (voting.eligible_member_ids?.length || 0) - (voting.votes?.length || 0))} voto(s) restante(s)`}</p><VotingChart votes={voting.votes || []} />
                             </CardContent>
                             <CardFooter className="flex flex-wrap gap-2">
+                              {voting.type === 'bill' && <Button type="button" variant="outline" size="sm" onClick={() => setDetailBillId(voting.related_id)}><Eye className="mr-2 h-4 w-4"/>Ver detalhes</Button>}
                               {votingOn === voting.id ? (
                                 <Loader2 className="animate-spin" />
                               ) : !canVote ? (<p className="text-sm text-muted-foreground">{voting.tie_break_pending ? "Aguardando a Presidência da Casa desempatar." : "A Presidência da Casa vota apenas em caso de empate nesta matéria."}</p>) : userHasVoted ? (
@@ -1936,25 +1948,21 @@ const ParliamentPanel = () => {
                 <CardContent className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
                   {members.length ? (
                     members.map((member) => (
-                      <Card key={member.parliament_member_id} className="bg-background/30 p-4 text-center">
+                      <Card key={member.parliament_member_id} className="flex min-w-0 flex-col items-center gap-2 bg-background/30 p-4 text-center [overflow-wrap:anywhere]">
                         <Avatar className="mx-auto mb-4 h-20 w-20">
                           <AvatarImage src={member.avatar_url} />
                           <AvatarFallback>{member.full_name?.charAt(0) || 'P'}</AvatarFallback>
                         </Avatar>
-                        <CardTitle className="text-lg">{member.full_name}</CardTitle><ParliamentRoleBadges role={member.role}/>
+                        <CardTitle className="w-full break-words text-lg leading-snug">{member.full_name}</CardTitle><ParliamentRoleBadges role={member.role}/>
                         {member.x_handle ? (
-                          <Link to={`/services/x/profile/${member.x_handle}`} className="text-sm text-primary hover:underline">
-                            @{member.x_handle}
+                          <Link to={`/services/x/profile/${member.x_handle}`} className="break-words text-sm text-primary hover:underline">
+                            @{member.username || member.x_handle}
                           </Link>
-                        ) : (
-                          <CardDescription>{member.display_role || member.role || 'Parlamentar'}</CardDescription>
-                        )}
-                        {member.party ? (
-                          <Badge variant="secondary" className="mt-3 inline-flex items-center gap-2">
+                        ) : <p className="break-words text-sm text-muted-foreground">{member.username ? `@${member.username}` : 'Usuário não informado'}</p>}
+                        <Badge variant="secondary" className="mt-3 inline-flex min-w-0 max-w-full items-center gap-2 whitespace-normal">
                             <PartyIdentity party={member.party} />
                           </Badge>
-                        ) : null}
-                        <p className="mt-3 text-xs text-muted-foreground">
+                        <p className="mt-auto pt-3 text-xs text-muted-foreground">
                           Encerramento registrado em{' '}
                           {member.term_end_date
                             ? formatLocaleBR(new Date(`${member.term_end_date}T00:00:00`), 'toLocaleDateString', 'pt-BR')

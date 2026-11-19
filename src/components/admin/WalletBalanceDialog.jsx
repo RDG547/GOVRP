@@ -1,0 +1,24 @@
+import { userErrorMessage } from '@/lib/userErrors';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { Loader2 } from 'lucide-react';
+import { supabase } from '@/lib/supabaseClient';
+import { useToast } from '@/components/ui/use-toast';
+import { useDomainRealtime } from '@/hooks/use-domain-realtime';
+import { DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { CurrencyInput } from '@/components/ui/currency-input';
+import { Textarea } from '@/components/ui/textarea';
+import { GovSelect } from '@/components/ui/gov-select';
+import { Button } from '@/components/ui/button';
+
+const money = (value, code) => new Intl.NumberFormat('pt-BR', {style:'currency',currency:code}).format(Number(value||0));
+export default function WalletBalanceDialog({ user, onFinish }) {
+ const [data,setData]=useState(null),[currency,setCurrency]=useState('BRL'),[action,setAction]=useState('add'),[amount,setAmount]=useState(''),[reason,setReason]=useState(''),[error,setError]=useState(''),[busy,setBusy]=useState(false),[review,setReview]=useState(false);
+ const intent=useRef(null),lock=useRef(false),{toast}=useToast();
+ const load=useCallback(async()=>{const result=await supabase.rpc('admin_get_wallet_balances',{p_user_id:user.id});if(result.error)setError(result.error.message);else{setData(result.data);setError('');}},[user.id]);
+ useEffect(()=>{void load();},[load]);
+ useDomainRealtime('admin-wallet',user.id,[{table:'accounts',filter:`user_id=eq.${user.id}`}],load);
+ const rows=data?[{code:'BRL',balance:data.BRL,decimals:2},...data.currencies]:[],selected=rows.find(row=>row.code===currency);
+ const submit=async event=>{event.preventDefault();if(lock.current)return;if(!review){setReview(true);return;}lock.current=true;setBusy(true);const payload={p_user_id:user.id,p_currency_code:currency,p_amount:Number(amount),p_action:action,p_reason:reason.trim()};const signature=JSON.stringify(payload);if(intent.current?.signature!==signature)intent.current={signature,key:crypto.randomUUID()};try{const result=await supabase.rpc('admin_adjust_wallet_balance',{...payload,p_operation_key:intent.current.key});if(result.error)throw result.error;toast({title:'Saldo atualizado',description:result.data.message});onFinish();}catch(failure){console.error('Ação administrativa',failure);setError(userErrorMessage(failure));setReview(false);}finally{lock.current=false;setBusy(false);}};
+ return <DialogContent><DialogHeader><DialogTitle>Modificar saldo de {user.full_name}</DialogTitle><DialogDescription>Saldos originais por moeda. A operação não realiza câmbio.</DialogDescription></DialogHeader>{error&&<p role="alert" className="text-sm text-destructive">{error}</p>}{!data?<Button onClick={load}>Consultar saldos</Button>:<><dl className="grid grid-cols-2 gap-2">{rows.map(row=><div key={row.code} className="min-w-0 rounded-lg border p-2"><dt className="text-xs text-muted-foreground">{row.code}</dt><dd className="break-words text-sm font-semibold">{money(row.balance,row.code)}</dd></div>)}</dl><form onSubmit={submit} className="space-y-4"><fieldset disabled={busy||review} className="space-y-4"><div><Label htmlFor="wallet-currency">Moeda</Label><GovSelect id="wallet-currency" value={currency} onChange={event=>{setCurrency(event.target.value);setAmount('');}}>{rows.map(row=><option key={row.code} value={row.code}>{row.code}</option>)}</GovSelect></div><div><Label htmlFor="wallet-action">Operação</Label><GovSelect id="wallet-action" value={action} onChange={event=>setAction(event.target.value)}><option value="add">Adicionar saldo</option><option value="remove">Remover saldo</option></GovSelect></div><div><Label htmlFor="wallet-amount">Valor ({currency})</Label><CurrencyInput id="wallet-amount" currency={currency} decimal required min={selected?.decimals===0?1:0.01} step={selected?.decimals===0?1:0.01} max={action==='remove'?selected?.balance:1000000000} value={amount} onValueChange={setAmount}/></div><div><Label htmlFor="wallet-reason">Justificativa</Label><Textarea id="wallet-reason" required minLength={5} maxLength={1000} value={reason} onChange={event=>setReason(event.target.value)}/></div></fieldset>{review&&<p role="status" className="rounded-lg border p-3 text-sm">Confirme: {action==='add'?'adicionar':'remover'} {money(amount,currency)} da carteira de {user.full_name}. Motivo: {reason}</p>}<DialogFooter>{review?<Button type="button" variant="outline" disabled={busy} onClick={()=>setReview(false)}>Editar</Button>:<DialogClose asChild><Button type="button" variant="outline">Cancelar</Button></DialogClose>}<Button type="submit" disabled={busy||!(Number(amount)>0)||reason.trim().length<5}>{busy&&<Loader2 className="mr-2 h-4 w-4 animate-spin"/>}{review?'Confirmar alteração':'Revisar alteração'}</Button></DialogFooter></form></>}</DialogContent>;
+}

@@ -15,15 +15,17 @@ const fetchManualPresident = async () => {
     .limit(1)
     .maybeSingle();
 
-  if (error || !president) return null;
+  if (error) throw error;
+  if (!president) return null;
 
-  const { data: membership } = await supabase
+  const { data: membership, error: membershipError } = await supabase
     .from('party_members')
     .select('party:political_parties(name, acronym, ideology, orientation)')
     .eq('user_id', president.id)
     .limit(1)
     .maybeSingle();
 
+  if(membershipError)throw membershipError;
   return {
     leader: president.full_name || president.username,
     party: membership?.party?.name
@@ -50,8 +52,8 @@ const fetchBrazilPoliticalState = async () => {
         source: 'GOV.RP — eleição dos jogadores',
       };
     }
-  } catch {
-    // A camada real continua visível se a governança do jogo ainda não estiver acessível.
+  } catch(error) {
+    throw error;
   }
 
   return {
@@ -86,6 +88,8 @@ export const loadCountryRpContext = async (alpha2) => {
     fetchRpStateRow(alpha2),
     isBrazil ? fetchBrazilPoliticalState() : Promise.resolve(null),
   ]);
+  if(stateResult.status==='rejected')throw stateResult.reason;
+  if(politicsResult.status==='rejected')throw politicsResult.reason;
   const state = stateResult.status === 'fulfilled' ? stateResult.value : null;
   const gamePolitics = politicsResult.status === 'fulfilled' ? politicsResult.value : null;
   const explicitPolitics = withoutNullishValues(state?.political_current);

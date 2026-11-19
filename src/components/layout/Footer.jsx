@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Mail, Heart, HelpCircle, Headphones as Headset, BookOpen, Newspaper, Landmark, Store, FileText, Users, Scroll, ArrowRight, Home as HomeIcon, Map } from 'lucide-react';
+import { Sparkles, Mail, Heart, HelpCircle, Headphones as Headset, BookOpen, Newspaper, Landmark, Store, FileText, Users, Scroll, ArrowRight, Home as HomeIcon, Map } from 'lucide-react';
 import { FaWhatsapp, FaDiscord, FaTelegram } from 'react-icons/fa';
 import { cn } from '@/lib/utils';
 
@@ -58,6 +58,7 @@ const Footer = ({ disableTopSpacing = false }) => {
               <Link to="/" className={footerLink}><HomeIcon className="w-4 h-4"/> Início</Link>
               <Link to="/country-info" className={footerLink}><Map className="w-4 h-4"/> Sobre o País</Link>
               <Link to="/community" className={footerLink}><Users className="w-4 h-4"/> Comunidade</Link>
+              <Link to="/updates" className={footerLink}><Sparkles className="w-4 h-4"/>Novidades</Link>
               <Link to="/news" className={footerLink}><Newspaper className="w-4 h-4"/> Notícias</Link>
             </div>
           </div>

@@ -114,14 +114,14 @@ const PublicEconomyPanel = ({ data }) => {
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[1.35fr_0.65fr]">
-        <Card className="border-border/70 bg-card/75">
-          <CardHeader>
+        <Card className="min-w-0 border-border/70 bg-card/75">
+          <CardHeader className="min-w-0 p-3 sm:p-6">
             <CardTitle className="text-base">PIB por setor</CardTitle>
             <p className="text-xs text-muted-foreground">
               Participação setorial calculada sobre o mesmo PIB total do Panorama nacional.
             </p>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="min-w-0 space-y-4 p-3 sm:p-6">
             {(data?.sectors || []).length ? data.sectors.map((sector) => {
               const sectorValue = sector.gdp_usd ?? sector.value_added;
               const maximum = Math.max(...data.sectors.map((item) => (
@@ -158,11 +158,11 @@ const PublicEconomyPanel = ({ data }) => {
           </CardContent>
         </Card>
 
-        <Card className="border-border/70 bg-card/75">
-          <CardHeader>
+        <Card className="min-w-0 border-border/70 bg-card/75">
+          <CardHeader className="min-w-0 p-3 sm:p-6">
             <CardTitle className="text-base">Cesta oficial de preços</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-3">
+          <CardContent className="min-w-0 space-y-3 p-3 sm:p-6">
             {(data?.basket || []).slice(0, 8).map((item) => {
               const BasketIcon = iconFor(basketIconByName, item.name, ShoppingBasket);
               return (
@@ -187,9 +187,9 @@ const PublicEconomyPanel = ({ data }) => {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <Card className="border-border/70 bg-card/75">
-          <CardHeader><CardTitle className="text-base">Boletins oficiais</CardTitle></CardHeader>
-          <CardContent className="space-y-4">
+        <Card className="min-w-0 border-border/70 bg-card/75">
+          <CardHeader className="min-w-0 p-3 sm:p-6"><CardTitle className="text-base">Boletins oficiais</CardTitle></CardHeader>
+          <CardContent className="min-w-0 space-y-4 p-3 sm:p-6">
             {(data?.bulletins || []).map((bulletin) => (
               <article key={bulletin.id} className="rounded-xl border border-border/60 p-4">
                 <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
@@ -202,9 +202,9 @@ const PublicEconomyPanel = ({ data }) => {
             ))}
           </CardContent>
         </Card>
-        <Card className="border-border/70 bg-card/75">
-          <CardHeader><CardTitle className="text-base">Alertas econômicos</CardTitle></CardHeader>
-          <CardContent className="space-y-3">
+        <Card className="min-w-0 border-border/70 bg-card/75">
+          <CardHeader className="min-w-0 p-3 sm:p-6"><CardTitle className="text-base">Alertas econômicos</CardTitle></CardHeader>
+          <CardContent className="min-w-0 space-y-3 p-3 sm:p-6">
             {(data?.alerts || []).length ? data.alerts.map((alert) => (
               <div key={alert.id} className="rounded-xl border border-border/60 p-4">
                 <div className="mb-1 flex items-center justify-between gap-2">

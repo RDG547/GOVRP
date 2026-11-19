@@ -1,3 +1,5 @@
+import CardLimitRequest from './CardLimitRequest';
+import { useSearchParams } from 'react-router-dom';
 import {CurrencyInput} from '@/components/ui/currency-input';
 import { formatLocaleBR } from '@/lib/dateTime';
 import { useDomainRealtime } from '@/hooks/use-domain-realtime';
@@ -223,6 +225,9 @@ const CardsTab = ({ onUpdate }) => {
     const [cardToPay, setCardToPay] = useState(null);
     const [isPayModalOpen, setIsPayModalOpen] = useState(false);
     const [expandedInvoice, setExpandedInvoice] = useState(null);
+    const [params] = useSearchParams();
+    const focusedCard = params.get('card');
+    useEffect(()=>{if(!focusedCard)return;const timer=setTimeout(()=>document.getElementById(`bank-card-${focusedCard}`)?.scrollIntoView({block:'center'}),250);return()=>clearTimeout(timer);},[focusedCard,cards.length]);
     const [invoiceBrand, setInvoiceBrand] = useState('');
     const [invoicePage, setInvoicePage] = useState(1);
 
@@ -284,13 +289,7 @@ const CardsTab = ({ onUpdate }) => {
                 throw new Error('Você já possui ou solicitou um cartão desta bandeira.');
             }
 
-            const { error } = await supabase
-                .from('credit_card_applications')
-                .insert({
-                    user_id: user.id,
-                    brand: normalizedBrand,
-                    status: 'Pendente',
-                });
+            const { error } = await supabase.rpc('request_credit_card', { p_card_brand: normalizedBrand });
             if (error) throw error;
             toast({ title: 'Solicitação enviada', description: 'O Banco Nacional analisará seu pedido de cartão.' });
             await refreshSections(['cardApplications']);
@@ -404,7 +403,7 @@ const CardsTab = ({ onUpdate }) => {
                     ) : cards.length > 0 ? (
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                             {cards.map(card => (
-                                <div key={card.id} className="min-w-0">
+                                <div key={card.id} id={`bank-card-${card.id}`} className="min-w-0 scroll-mt-24">
                                     <ResponsiveBankCard>
                                     <Cards
                                         preview
@@ -435,7 +434,7 @@ const CardsTab = ({ onUpdate }) => {
                                            </div>
                                         </div>
 
-                                        <CreditLimitBar used={card.used_limit} limit={card.card_limit} />
+                                        <CreditLimitBar used={card.used_limit} limit={card.card_limit} /><div className="mt-3"><CardLimitRequest card={card} pending={cardApplications.some(item=>item.card_id===card.id&&item.status==='Pendente')} onSent={()=>refreshSections(['cardApplications'])}/></div>
 
                                         <div className="flex gap-2">
                                          {card.used_limit > 0 && (
@@ -607,7 +606,7 @@ const CardsTab = ({ onUpdate }) => {
                         {cardApplications.map((application) => (
                             <div key={application.id} className="flex flex-col gap-3 rounded-lg bg-slate-800/50 p-4 sm:flex-row sm:items-center sm:justify-between">
                                 <div>
-                                    <p className="font-semibold capitalize">Cartão {application.brand}</p>
+                                    <p className="font-semibold capitalize">{application.application_kind==='limit_increase'?'Aumento de limite · ': 'Cartão '}{application.brand}</p>{application.application_kind==='limit_increase'&&<p className="text-sm">Limite no pedido: {formatCurrency(application.current_limit_snapshot)} → solicitado: {formatCurrency(application.requested_limit)}{application.approved_limit!=null&&<> · Aprovado: {formatCurrency(application.approved_limit)}</>}</p>}
                                     <p className="text-xs text-muted-foreground">
                                         Solicitado em {formatLocaleBR(new Date(application.created_at), 'toLocaleDateString', 'pt-BR')}
                                     </p>

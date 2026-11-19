@@ -223,7 +223,7 @@ const PoliticalParties = () => {
                                                       alt={party.name}
                                                       className="h-14 w-14 shrink-0 rounded-lg bg-secondary p-1 object-cover"
                                                     />
-                                                    <CardTitle style={{fontFamily:brandFont(party.customization?.font_key)}} className="min-h-14 min-w-0 break-words text-foreground">{party.name} ({party.acronym})</CardTitle>
+                                                    <CardTitle style={{fontFamily:brandFont(party.customization?.font_key)}} className="min-h-14 min-w-0 break-words text-foreground"><Link to={`/services/political-parties/${party.id}`} className="rounded hover:text-primary hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary">{party.name} ({party.acronym})</Link></CardTitle>
                                                 </div>
                                                 <CardDescription tabIndex={0} aria-label={`Descrição de ${party.name}`} className="h-24 overflow-y-auto whitespace-pre-wrap break-words pr-2 text-muted-foreground">{party.description}</CardDescription>
                                                 {isUserParty && <Star className="absolute top-0 right-0 w-5 h-5 text-yellow-400 fill-yellow-400" />}

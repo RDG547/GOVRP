@@ -27,7 +27,7 @@ const migrations = [
   'supabase/migrations/20260815134500_government_impact_integrations.sql',
   'supabase/migrations/20260815140000_government_project_impact_statuses.sql',
   'supabase/migrations/20260817120000_citizen_identity_onboarding_v2.sql',
-  'supabase/migrations/20260817140039_bill_status_history.sql',
+  'supabase/migrations/20260817171609_bill_status_history.sql',
 ];
 
 migrations.forEach((file) => verify(`migration presente: ${file.split('/').at(-1)}`, existsSync(new URL(`../${file}`, import.meta.url))));

@@ -164,7 +164,7 @@ const Navbar = () => {
               </motion.div>
             </Link>
 
-            <div className="hidden md:flex items-center space-x-6">
+            <div className="hidden xl:flex items-center space-x-6">
               {navLinks.map(link => {
                 if (link.isDropdown) {
                   if (link.type === 'services') {
@@ -217,7 +217,7 @@ const Navbar = () => {
               })}
             </div>
 
-            <div className="hidden md:flex items-center space-x-2">
+            <div className="hidden xl:flex items-center space-x-2">
               {user && <Link to="/support-us"><Button variant="outline" className="border-purple-400/50 text-purple-300 hover:bg-purple-400/10 hover:text-purple-300"><Heart className="w-4 h-4 mr-2"/>Apoiar</Button></Link>}
               {session ? (
                 <>
@@ -254,7 +254,7 @@ const Navbar = () => {
               )}
             </div>
 
-            <div className="flex items-center md:hidden">
+            <div className="flex items-center xl:hidden">
               {user && <NotificationBell />}
               <button
                 type="button"
@@ -479,7 +479,7 @@ const MobileMenu = ({ isOpen, setIsOpen }) => {
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.3 }}
-          className="md:hidden fixed inset-0 z-[100] bg-background/95 backdrop-blur-lg"
+          className="xl:hidden fixed inset-0 z-[100] bg-background/95 backdrop-blur-lg"
           onClick={() => setIsOpen(false)}
         >
           <motion.div

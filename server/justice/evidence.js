@@ -75,4 +75,4 @@ export const evidenceHandler = (request, response) => withWorldRequest(request, 
     if (record.error) { await service.storage.from('justice-evidence').remove([path]); json(response, 400, { error: /limite|cidadania/i.test(record.error.message) ? record.error.message : 'Não foi possível registrar o anexo. Tente novamente.' }); return; }
     json(response, 201, record.data);
   } catch (error) { console.error('Anexo judicial recusado', { code: error.code, status: error.statusCode }); json(response, error.statusCode || 500, { error: error.statusCode ? error.message : 'Não foi possível processar o anexo. Tente novamente.' }); }
-});
+}, response);

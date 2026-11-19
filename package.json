@@ -138,7 +138,9 @@
     "test:reset-options": "node tools/test-reset-options.mjs",
     "test:reset-options-interface": "node tools/test-reset-options-interface.mjs",
     "test:integrated-expansion": "node tools/test-integrated-institutions.mjs && node tools/test-police-evidence-integration.mjs && node tools/test-salary-legislative-integration.mjs && node tools/test-delayed-inauguration-integration.mjs && node tools/test-economic-agent-ledgers.mjs && node tools/test-gdp-currency-history.mjs && node tools/test-expansion-reset-compatibility.mjs",
-    "test:expansion-e2e": "node tools/test-expansion-api-realtime.mjs"
+    "test:expansion-e2e": "node tools/test-expansion-api-realtime.mjs",
+    "test:general-update": "node tools/test-general-update-institutions.mjs && node tools/test-general-update.mjs",
+    "test:general-update-browser": "node tools/test-general-update-browser.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.0",

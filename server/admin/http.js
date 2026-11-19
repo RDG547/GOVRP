@@ -224,4 +224,4 @@ const raw_adminUpdateUserHandler = async (request, response) => {
   }
 };
 
-export const adminUpdateUserHandler=(request,response)=>withWorldRequest(request,()=>raw_adminUpdateUserHandler(request,response));
+export const adminUpdateUserHandler=(request,response)=>withWorldRequest(request,()=>raw_adminUpdateUserHandler(request,response),response);

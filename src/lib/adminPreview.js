@@ -12,5 +12,5 @@ export function previewRequestBlocked(input,options={}){
  if(url.pathname.includes('/storage/v1/'))return true;
  if(!url.pathname.includes('/rest/v1/'))return false;
  const name=url.pathname.split('/rpc/')[1];
- return !name||!(name==='set_admin_development_mode'||/^(get_|admin_get_|search_|quote_|can_|is_|simulate_)/.test(name));
+ return !name||!(name==='set_admin_development_mode'||name==='save_admin_dashboard_order'||/^(get_|admin_get_|search_|quote_|can_|is_|simulate_)/.test(name));
 }

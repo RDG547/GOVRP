@@ -5,7 +5,6 @@ import React, { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { formatCurrency } from '@/lib/utils';
 import { ArrowUpRight, ArrowDownLeft, Banknote, ShoppingCart, Landmark, Coins as HandCoins, Repeat, Loader2, ArrowRightLeft, ChevronLeft, ChevronRight, Receipt } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import ReceiptDownloadDialog from './ReceiptDownloadDialog';
@@ -91,7 +90,7 @@ const TransactionRow = ({ transaction, onShowReceipt, loadingReceipt }) => {
             <TableCell className="p-0 sm:p-4 mt-2 sm:mt-0 flex justify-between items-center sm:table-cell sm:text-right">
                 <span className="sm:hidden text-muted-foreground text-xs">Valor</span>
                 <Badge variant={getBadgeVariant()} className="font-mono text-sm">
-                    {isExchange ? '' : (isSent ? '-' : '+')} {formatCurrency(transactionAmounts(transaction).displayed)}
+                    {isExchange ? '' : (isSent ? '-' : '+')} {new Intl.NumberFormat('pt-BR',{style:'currency',currency:transaction.metadata?.currency||'BRL'}).format(transactionAmounts(transaction).displayed)}
                 </Badge>
             </TableCell>
             <TableCell className="p-0 sm:p-4 mt-2 sm:mt-0 flex justify-between items-center sm:table-cell sm:text-right text-muted-foreground">

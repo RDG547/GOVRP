@@ -1,3 +1,5 @@
+import Updates from '@/pages/Updates';
+import { PlatformAccessProvider } from '@/contexts/PlatformAccessContext';
 import {WorldRuntimeProvider,useWorldRuntime} from '@/contexts/WorldRuntimeContext';
 import {Map as WorldMapIcon} from 'lucide-react';
 import {Link as WorldMapLink} from 'react-router-dom';
@@ -177,9 +179,9 @@ function App() {
   const isAuthCallback = location.pathname === '/auth/callback';
 
   return (
-    <WorldRuntimeProvider><AuthProvider>
+    <WorldRuntimeProvider><AuthProvider><PlatformAccessProvider>
       <AppShell location={location} theme={theme} isAuthCallback={isAuthCallback} />
-    </AuthProvider></WorldRuntimeProvider>
+    </PlatformAccessProvider></AuthProvider></WorldRuntimeProvider>
   );
 }
 
@@ -243,6 +245,7 @@ const AppShell = ({ location, theme, isAuthCallback }) => {
                 <Route path="/tutorial" element={<TutorialPage />} />
                 <Route path="/under-construction" element={<UnderConstruction />} />
                 <Route path="/coming-soon" element={<ComingSoon />} />
+                <Route path="/updates" element={<Updates/>} />
                 <Route path="/maintenance" element={<MaintenanceMode />} />
                 <Route path="/beta-access" element={<BetaAccessWall />} />
 

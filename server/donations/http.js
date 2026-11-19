@@ -536,7 +536,7 @@ const raw_stripeWebhookHandler = async (request, response) => {
   }
 };
 
-export const createStripeCheckoutHandler=(request,response)=>withWorldRequest(request,()=>raw_createStripeCheckoutHandler(request,response));
-export const createPixChargeHandler=(request,response)=>withWorldRequest(request,()=>raw_createPixChargeHandler(request,response));
-export const checkPixChargeHandler=(request,response)=>withWorldRequest(request,()=>raw_checkPixChargeHandler(request,response));
-export const stripeWebhookHandler=(request,response)=>withWorldRequest(request,()=>raw_stripeWebhookHandler(request,response));
+export const createStripeCheckoutHandler=(request,response)=>withWorldRequest(request,()=>raw_createStripeCheckoutHandler(request,response),response);
+export const createPixChargeHandler=(request,response)=>withWorldRequest(request,()=>raw_createPixChargeHandler(request,response),response);
+export const checkPixChargeHandler=(request,response)=>withWorldRequest(request,()=>raw_checkPixChargeHandler(request,response),response);
+export const stripeWebhookHandler=(request,response)=>withWorldRequest(request,()=>raw_stripeWebhookHandler(request,response),response);

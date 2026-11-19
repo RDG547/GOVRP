@@ -1,4 +1,4 @@
-import {ModalPresentationContext,modalAction} from '@/contexts/ModalPresentationContext'
+import {ModalPresentationContext,modalAction,modalSemanticIcon} from '@/contexts/ModalPresentationContext'
 import { phonePortal } from '@/contexts/PhoneAppContext'
 import { withServiceSuspension } from '@/contexts/ServiceSuspensionContext'
 import * as React from "react"
@@ -61,8 +61,8 @@ const AlertDialogFooter = ({
 )
 AlertDialogFooter.displayName = "AlertDialogFooter"
 
-const AlertDialogTitle = React.forwardRef(({ className, ...props }, ref) => (
-  <AlertDialogPrimitive.Title ref={ref} className={cn("text-lg font-semibold", className)} {...props} />
+const AlertDialogTitle = React.forwardRef(({ className, children, ...props }, ref) => (
+  <AlertDialogPrimitive.Title ref={ref} className={cn("text-lg font-semibold", className)} {...props}>{modalSemanticIcon(children,{heading:true})}{children}</AlertDialogPrimitive.Title>
 ))
 AlertDialogTitle.displayName = AlertDialogPrimitive.Title.displayName
 

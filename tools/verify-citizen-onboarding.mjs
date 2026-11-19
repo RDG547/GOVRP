@@ -43,7 +43,7 @@ verify('migração legada preserva documentos existentes', migration.includes('m
 verify('reset administrativo é não destrutivo', migration.includes("'preserved_documents', true") && !/admin_reset_citizen_onboarding[\s\S]{0,900}set is_valid = false/.test(migration));
 verify('tela inclui sete etapas e cerimônia', onboarding.includes('Etapa 7') && onboarding.includes('Cidadania concedida'));
 verify('municípios usam dados oficiais do IBGE', read('src/lib/brazilianLocations.js').includes('servicodados.ibge.gov.br'));
-verify('Configurações separam Conta e Cidadão', settings.includes('Dados da Conta') && settings.includes('Dados do Cidadão'));
+verify('Configurações separam Conta e Cidadão', settings.includes('<TabsContent value="account"') && settings.includes('<TabsContent value="citizen"'));
 verify('tutorial possui trilhas por aspiração', ['politics', 'entrepreneurship', 'justice', 'security', 'communication', 'civil_life'].every((key) => tutorial.includes(`${key}:`)));
 
 process.stdout.write(`✓ ${checks.length} verificações do onboarding concluídas.\n`);

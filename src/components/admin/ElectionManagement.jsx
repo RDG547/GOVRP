@@ -1,3 +1,4 @@
+import { Label as ModalFieldLabel } from '@/components/ui/label';
 import PagedResults from '@/components/ui/paged-results';
 import { useSearchParams } from 'react-router-dom';
 import { useDomainRealtime } from '@/hooks/use-domain-realtime';
@@ -307,8 +308,8 @@ const ElectionManagement = () => {
             </div>
 
             <div className="grid gap-3 sm:grid-cols-2">
-                <label className="text-sm"><span className="mb-1 flex items-center gap-2"><Search className="h-4 w-4"/>Buscar eleição</span><Input value={search} onChange={event => changeFilter({ electionSearch: event.target.value, electionPage: 1 })} /></label>
-                <label className="text-sm">Status da eleição<GovSelect value={status} onChange={event => changeFilter({ electionStatus: event.target.value, electionPage: 1 })}><option value="all">Todos os status</option>{Object.entries(statusTranslations).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</GovSelect></label>
+                <ModalFieldLabel className="text-sm"><span className="mb-1 flex items-center gap-2"><Search className="h-4 w-4"/>Buscar eleição</span><Input value={search} onChange={event => changeFilter({ electionSearch: event.target.value, electionPage: 1 })} /></ModalFieldLabel>
+                <ModalFieldLabel className="text-sm">Status da eleição<GovSelect value={status} onChange={event => changeFilter({ electionStatus: event.target.value, electionPage: 1 })}><option value="all">Todos os status</option>{Object.entries(statusTranslations).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</GovSelect></ModalFieldLabel>
             </div>
             {loading && <p role="status" className="text-sm">Atualizando eleições…</p>}
             <PagedResults page={page} loading={loading}>

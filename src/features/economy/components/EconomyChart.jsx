@@ -39,7 +39,7 @@ const EconomyChart = ({
   const Content = embedded ? 'div' : CardContent;
 
   return (
-    <Container className={embedded ? 'min-w-0 space-y-2' : 'border-border/70 bg-card/75'}>
+    <Container className={embedded ? 'min-w-0 overflow-hidden space-y-2' : 'min-w-0 overflow-hidden border-border/70 bg-card/75'}>
       <Header>
         <CardTitle className="text-base">{title}</CardTitle>
         {description ? <p className="text-sm text-muted-foreground">{description}</p> : null}

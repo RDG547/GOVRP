@@ -156,4 +156,4 @@ const raw_processWeeklySalariesHandler = async (request, response) => {
   }
 };
 
-export const processWeeklySalariesHandler=(request,response)=>withWorldRequest(request,()=>raw_processWeeklySalariesHandler(request,response));
+export const processWeeklySalariesHandler=(request,response)=>withWorldRequest(request,()=>raw_processWeeklySalariesHandler(request,response),response);

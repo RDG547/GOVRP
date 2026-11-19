@@ -1,3 +1,4 @@
+import { Label as ModalFieldLabel } from '@/components/ui/label';
 import PagedResults from '@/components/ui/paged-results';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { CheckCircle2, ChevronLeft, ChevronRight, Headphones, Loader2, Search, Trash2 } from 'lucide-react';
@@ -256,7 +257,7 @@ const SupportManagement = () => {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="space-y-2">
-            <label htmlFor="support-delete-reason" className="text-sm font-medium">Motivo da exclusão (opcional)</label>
+            <ModalFieldLabel htmlFor="support-delete-reason" className="text-sm font-medium">Motivo da exclusão (opcional)</ModalFieldLabel>
             <Textarea id="support-delete-reason" value={deleteReason} onChange={(event) => setDeleteReason(event.target.value)} maxLength={500} placeholder="Informe o motivo para facilitar futuras auditorias." />
           </div>
           <AlertDialogFooter>

@@ -1933,8 +1933,8 @@ const raw_resignPresidencyHandler = async (request, response) => {
   }
 };
 
-export const syncElectionOfficesHandler=(request,response)=>withWorldRequest(request,()=>raw_syncElectionOfficesHandler(request,response));
-export const submitPresidentialCandidacyHandler=(request,response)=>withWorldRequest(request,()=>raw_submitPresidentialCandidacyHandler(request,response));
-export const respondViceCandidacyInvitationHandler=(request,response)=>withWorldRequest(request,()=>raw_respondViceCandidacyInvitationHandler(request,response));
-export const cancelCandidacyHandler=(request,response)=>withWorldRequest(request,()=>raw_cancelCandidacyHandler(request,response));
-export const resignPresidencyHandler=(request,response)=>withWorldRequest(request,()=>raw_resignPresidencyHandler(request,response));
+export const syncElectionOfficesHandler=(request,response)=>withWorldRequest(request,()=>raw_syncElectionOfficesHandler(request,response),response);
+export const submitPresidentialCandidacyHandler=(request,response)=>withWorldRequest(request,()=>raw_submitPresidentialCandidacyHandler(request,response),response);
+export const respondViceCandidacyInvitationHandler=(request,response)=>withWorldRequest(request,()=>raw_respondViceCandidacyInvitationHandler(request,response),response);
+export const cancelCandidacyHandler=(request,response)=>withWorldRequest(request,()=>raw_cancelCandidacyHandler(request,response),response);
+export const resignPresidencyHandler=(request,response)=>withWorldRequest(request,()=>raw_resignPresidencyHandler(request,response),response);

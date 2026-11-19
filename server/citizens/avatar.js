@@ -132,4 +132,4 @@ const raw_citizenAvatarHandler = async (request, response) => {
   }
 };
 
-export const citizenAvatarHandler=(request,response)=>withWorldRequest(request,()=>raw_citizenAvatarHandler(request,response));
+export const citizenAvatarHandler=(request,response)=>withWorldRequest(request,()=>raw_citizenAvatarHandler(request,response),response);

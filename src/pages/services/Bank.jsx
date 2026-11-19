@@ -1,3 +1,4 @@
+import { useSearchParams } from 'react-router-dom';
 import {usePhoneStep} from '@/hooks/use-phone-step';
 import { useDomainRealtime } from '@/hooks/use-domain-realtime';
 import { bankRealtimeTables } from '@/lib/bankRealtime';
@@ -24,7 +25,10 @@ const Bank = () => {
     const [loadError, setLoadError] = useState('');
     const [isTransferDialogOpen, setIsTransferDialogOpen] = useState(false);
     const [isPayBillDialogOpen, setIsPayBillDialogOpen] = useState(false);
-    const [activeTab, setActiveTab] = useState("overview");
+    const [params] = useSearchParams();
+    const requestedTab = params.get("tab");
+    const [activeTab, setActiveTab] = useState(requestedTab || "overview");
+    useEffect(()=>{if(["overview","cards","investments","loans","exchange","management"].includes(requestedTab))setActiveTab(requestedTab);},[requestedTab]);
   usePhoneStep(activeTab,setActiveTab,'overview');
 
     const refreshSections = useSectionLoader(user?.id,
@@ -66,7 +70,7 @@ const Bank = () => {
         </div>;
     }
 
-    if (!bankData?.account || bankData.account.bank_welcome_completed === false) {
+    if (!bankData?.account || (bankData.account.bank_welcome_completed === false && !(requestedTab==='cards' && params.get('card')))) {
         return <div className="px-4 py-8"><BankWelcome initialAccount={bankData?.account} onComplete={() => fetchBankData(true)} /></div>;
     }
 

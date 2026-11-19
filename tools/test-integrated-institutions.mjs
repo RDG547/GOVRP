@@ -29,6 +29,12 @@ DO $test$ DECLARE pres uuid;candidate uuid;outsider uuid;i uuid;r jsonb;v uuid;t
  IF NOT denied THEN RAISE EXCEPTION 'Aceite de terceiro permitido';END IF;
  PERFORM set_config('request.jwt.claim.sub',candidate::text,true);r:=public.respond_minister_invitation(i,true);
  IF (SELECT role FROM public.profiles WHERE id=candidate)<>'Cidadão' OR (SELECT institutional_stage FROM public.minister_invitations WHERE id=i)<>'hearing' THEN RAISE EXCEPTION 'Aceite pulou sabatina/Senado';END IF;
+ SELECT id INTO member FROM institutional_test_people WHERE kind='senator1';UPDATE public.profiles SET role='Presidente do Senado' WHERE id=member;
+ PERFORM set_config('request.jwt.claim.sub',member::text,true);r:=public.get_judicial_governance();
+ IF r->>'senate_president'<>'true' OR NOT EXISTS(SELECT 1 FROM jsonb_array_elements(r->'nominations') nomination_entry WHERE nomination_entry.value->>'id'=i::text AND nomination_entry.value->>'ready_for_vote'='false') THEN RAISE EXCEPTION 'Presidência do Senado não visualiza indicação e pendências';END IF;
+ denied:=false;BEGIN PERFORM public.manage_judicial_hearing(i,'open_vote','');EXCEPTION WHEN OTHERS THEN denied:=true;END;
+ IF NOT denied THEN RAISE EXCEPTION 'Votação dispensou sabatina obrigatória';END IF;
+ PERFORM set_config('request.jwt.claim.sub',candidate::text,true);
  PERFORM public.manage_judicial_hearing(i,'answer','Comprometo-me com a independência e o devido processo legal.');
  SELECT id INTO member FROM institutional_test_people WHERE kind='senator1';PERFORM set_config('request.jwt.claim.sub',member::text,true);
  PERFORM public.manage_judicial_hearing(i,'question','Como será preservada a independência funcional da magistratura?');
@@ -37,7 +43,8 @@ DO $test$ DECLARE pres uuid;candidate uuid;outsider uuid;i uuid;r jsonb;v uuid;t
  UPDATE public.profiles SET role='Presidente do Senado' WHERE id=member;
  r:=public.manage_judicial_hearing(i,'open_vote','');v:=(r->>'voting_id')::uuid;
  IF v IS NULL THEN RAISE EXCEPTION 'Votação não foi aberta';END IF;
- FOR s IN SELECT m.id,m.user_id FROM public.parliament_members m JOIN institutional_test_people tp ON tp.id=m.user_id WHERE tp.kind LIKE 'senator%' ORDER BY tp.kind LOOP
+ r:=public.manage_judicial_hearing(i,'open_vote','');IF r->>'voting_id'<>v::text THEN RAISE EXCEPTION 'Repetição criou outra votação';END IF;
+ FOR s IN SELECT m.id,m.user_id FROM public.parliament_members m WHERE m.id=ANY((SELECT eligible_member_ids FROM public.parliament_votings WHERE id=v)::uuid[]) ORDER BY m.id LOOP
   PERFORM set_config('request.jwt.claim.sub',s.user_id::text,true);PERFORM public.cast_parliament_vote(v,s.id,'Aprovar');
  END LOOP;
  SELECT id INTO t FROM public.institutional_terms WHERE invitation_id=i AND status='active';
@@ -80,7 +87,7 @@ DO $test$ DECLARE pres uuid;candidate uuid;outsider uuid;i uuid;r jsonb;v uuid;t
  PERFORM set_config('request.jwt.claim.sub',s.profile_id::text,true);PERFORM public.manage_judicial_impeachment('defense',NULL,imp,'Defesa apresentada com contraditório e todos os fundamentos.');
  UPDATE public.public_integrity_cases SET defense_deadline_at=now()-interval '1 second' WHERE id=imp;
  PERFORM set_config('request.jwt.claim.sub',member::text,true);r:=public.manage_judicial_impeachment('open_vote',NULL,imp,'Deliberação fundamentada após ampla defesa.');v:=(r->>'voting_id')::uuid;
- FOR s IN SELECT m.id,m.user_id FROM public.parliament_members m JOIN institutional_test_people tp ON tp.id=m.user_id WHERE tp.kind LIKE 'senator%' ORDER BY tp.kind LOOP
+ FOR s IN SELECT m.id,m.user_id FROM public.parliament_members m WHERE m.id=ANY((SELECT eligible_member_ids FROM public.parliament_votings WHERE id=v)::uuid[]) ORDER BY m.id LOOP
   PERFORM set_config('request.jwt.claim.sub',s.user_id::text,true);PERFORM public.cast_parliament_vote(v,s.id,'Aprovar');
  END LOOP;
  IF (SELECT status FROM public.public_integrity_cases WHERE id=imp)<>'convicted' OR (SELECT status FROM public.institutional_terms WHERE id=(SELECT institutional_term_id FROM public.public_integrity_cases WHERE id=imp))<>'removed' THEN RAISE EXCEPTION 'Decisão do Senado não abriu vaga';END IF;
@@ -102,7 +109,7 @@ DO $test$ DECLARE pres uuid;candidate uuid;outsider uuid;i uuid;r jsonb;v uuid;t
  PERFORM set_config('request.jwt.claim.sub',pres::text,true);r:=public.manage_executive_appointment('supreme_court_1',extra,'Indicação para testar rejeição.');i:=(r->'invitation'->>'id')::uuid;
  PERFORM set_config('request.jwt.claim.sub',extra::text,true);PERFORM public.respond_minister_invitation(i,true);PERFORM public.manage_judicial_hearing(i,'answer','Manifestação do indicado no teste de rejeição.');
  SELECT id INTO member FROM institutional_test_people WHERE kind='senator1';PERFORM set_config('request.jwt.claim.sub',member::text,true);PERFORM public.manage_judicial_hearing(i,'question','Pergunta fundamentada sobre o exercício da magistratura.');r:=public.manage_judicial_hearing(i,'open_vote','');v:=(r->>'voting_id')::uuid;
- FOR s IN SELECT m.id,m.user_id FROM public.parliament_members m JOIN institutional_test_people tp ON tp.id=m.user_id WHERE tp.kind LIKE 'senator%' LOOP
+ FOR s IN SELECT m.id,m.user_id FROM public.parliament_members m WHERE m.id=ANY((SELECT eligible_member_ids FROM public.parliament_votings WHERE id=v)::uuid[]) LOOP
   PERFORM set_config('request.jwt.claim.sub',s.user_id::text,true);PERFORM public.cast_parliament_vote(v,s.id,'Rejeitar');
  END LOOP;
  IF (SELECT role FROM public.profiles WHERE id=extra)<>'Cidadão' OR EXISTS(SELECT 1 FROM public.institutional_terms WHERE profile_id=extra) OR NOT EXISTS(SELECT 1 FROM public.news_articles WHERE source_event_type='judicial_appointment_rejected' AND source_event_id=i::text) THEN RAISE EXCEPTION 'Rejeição concedeu cargo ou notícia incorreta';END IF;
