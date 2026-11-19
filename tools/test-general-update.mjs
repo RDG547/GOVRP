@@ -45,6 +45,17 @@ check(Number(sql(`SELECT card_limit FROM public.cards WHERE id='${card.id}'`))==
 const managersCard=await checked(service.from('cards').insert({...Object.fromEntries(Object.entries(card).filter(([key])=>!['id','created_at'].includes(key))),user_id:manager.id,account_id:sql(`SELECT id FROM public.accounts WHERE user_id='${manager.id}' AND account_kind='personal'`),card_number:`5${Date.now()}12`}).select('*').single());
 const selfRequest=await checked(manager.db.rpc('request_card_limit_increase',{...request,p_card_id:managersCard.id,p_requested_limit:2500}));
 check(Boolean((await manager.db.rpc('approve_credit_card_application',{p_application_id:selfRequest.application_id,p_card_limit:2500,p_brand:'visa'})).error),'analista não aprova o próprio aumento');
+
+const adminCard=await checked(service.from('cards').insert({...Object.fromEntries(Object.entries(card).filter(([key])=>!['id','created_at'].includes(key))),user_id:admin.id,account_id:sql(`SELECT id FROM public.accounts WHERE user_id='${admin.id}' AND account_kind='personal'`),card_number:`6${Date.now()}12`}).select('*').single());
+const adminRequest=await checked(admin.db.rpc('request_card_limit_increase',{p_card_id:adminCard.id,p_requested_limit:2500,p_justification:''}));
+check(Number(sql(`SELECT count(*) FROM public.credit_card_applications WHERE id='${adminRequest.application_id}' AND justification=''`))===1,'pedido de aumento sem justificativa é aceito e persistido');
+const adminApproved=await checked(admin.db.rpc('approve_credit_card_application',{p_application_id:adminRequest.application_id,p_card_limit:2250,p_brand:'visa'}));
+check(adminApproved.success===true&&Number(sql(`SELECT card_limit FROM public.cards WHERE id='${adminCard.id}'`))===2250,'Admin analisa o próprio pedido e aplica o limite mediante auditoria');
+const adminRejectionRequest=await checked(admin.db.rpc('request_card_limit_increase',{p_card_id:adminCard.id,p_requested_limit:2800,p_justification:null}));
+const adminRejected=await checked(admin.db.rpc('reject_credit_card_application',{p_application_id:adminRejectionRequest.application_id,p_feedback:null}));
+check(adminRejected.success===true&&Number(sql(`SELECT card_limit FROM public.cards WHERE id='${adminCard.id}'`))===2250,'Admin rejeita o próprio pedido sem alterar o limite');
+check(Number(sql(`SELECT count(*) FROM public.economic_audit_log WHERE action='card_limit_request_reviewed' AND entity_id IN ('${adminRequest.application_id}','${adminRejectionRequest.application_id}') AND new_data->>'admin_self_review'='true'`))===2,'exceções administrativas são auditadas individualmente');
+
 const beforeWallet=await checked(admin.db.rpc('admin_get_wallet_balances',{p_user_id:owner.id}));
 const adjustment={p_user_id:owner.id,p_currency_code:'USD',p_amount:50,p_action:'add',p_reason:'Ajuste justificado da carteira em moeda estrangeira.',p_operation_key:randomUUID()};
 const changes=await Promise.all(Array.from({length:8},()=>checked(admin.db.rpc('admin_adjust_wallet_balance',adjustment))));
