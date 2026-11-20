@@ -71,6 +71,9 @@ type Bot struct {
  sendMu sync.Mutex
  settings Settings
  groups map[string]bool
+ officialGroups map[string]bool
+ welcomeMu sync.Mutex
+ welcomeSent map[string]time.Time
  last map[string]time.Time
  lastMu sync.Mutex
  groupNames map[string]bool
@@ -92,14 +95,20 @@ func (b *Bot) readConfig() {
  ctx,cancel:=ctxTimeout();defer cancel()
  config,err:=b.api.selectRows(ctx,"whatsapp_bot_settings",url.Values{"select":{"enabled,commands_enabled,command_prefix"},"id":{"eq.true"},"limit":{"1"}})
  if err!=nil || len(config)==0 {log.Printf("config: %v",err);return}
- gr,err:=b.api.selectRows(ctx,"whatsapp_bot_groups",url.Values{"select":{"jid,enabled"},"enabled":{"eq.true"},"bot_joined":{"eq.true"},"or":{"(is_official.eq.true,authorized_at.not.is.null)"},"limit":{"300"}})
+ gr,err:=b.api.selectRows(ctx,"whatsapp_bot_groups",url.Values{"select":{"jid,enabled,is_official"},"enabled":{"eq.true"},"bot_joined":{"eq.true"},"or":{"(is_official.eq.true,authorized_at.not.is.null)"},"limit":{"300"}})
  if err!=nil {log.Printf("groups: %v",err);return}
  allowed:=make(map[string]bool,len(gr))
- for _,g:=range gr {allowed[val(g["jid"])]=true}
+ official:=make(map[string]bool)
+ for _,g:=range gr {
+  jid:=val(g["jid"])
+  allowed[jid]=true
+  if truth(g["is_official"]){official[jid]=true}
+ }
  prefix:=val(config[0]["command_prefix"]);if prefix=="" {prefix="!"}
  b.mu.Lock()
  b.settings=Settings{Enabled:truth(config[0]["enabled"]),Commands:truth(config[0]["commands_enabled"]),Prefix:prefix}
  b.groups=allowed
+ b.officialGroups=official
  b.mu.Unlock()
 }
 func (b *Bot) current() (Settings,map[string]bool) {
@@ -167,24 +176,30 @@ func isChangelogEveryoneNotice(text string) bool {
  return strings.HasPrefix(text,"📢 *🆕 GOVRP — Changelog ")
 }
 
-func (b *Bot) send(to types.JID,message string) (string,error) {
- if !b.wa.IsLoggedIn() {return "",errors.New("WhatsApp desconectado")}
+// Serialize all outgoing messages, including personalized welcome messages.
+func (b *Bot) sendPrepared(to types.JID,payload *waE2E.Message) (string,error) {
+ if !b.wa.IsLoggedIn(){return "",errors.New("WhatsApp desconectado")}
  b.sendMu.Lock();defer b.sendMu.Unlock()
- // A single sender and a two-second spacing avoid bursts from multiple event sources.
  ctx,cancel:=context.WithTimeout(context.Background(),30*time.Second);defer cancel()
- payload:=&waE2E.Message{Conversation:proto.String(message)}
- if to.Server==types.GroupServer && (isElectionNotice(message) || isChangelogEveryoneNotice(message)) {
-  group,err:=b.wa.GetGroupInfo(ctx,to)
-  if err!=nil{return "",fmt.Errorf("não foi possível obter os membros do grupo para marcar a todos: %w",err)}
-  members:=make([]types.JID,0,len(group.Participants))
-  for _,part:=range group.Participants {members=append(members,part.JID)}
-  payload,err=electionMentionMessage(message,members)
-  if err!=nil{return "",err}
- }
  resp,err:=b.wa.SendMessage(ctx,to,payload)
  time.Sleep(2*time.Second)
  if err!=nil{return "",err}
  return string(resp.ID),nil
+}
+func (b *Bot) send(to types.JID,message string) (string,error) {
+ if !b.wa.IsLoggedIn(){return "",errors.New("WhatsApp desconectado")}
+ payload:=&waE2E.Message{Conversation:proto.String(message)}
+ if to.Server==types.GroupServer && (isElectionNotice(message) || isChangelogEveryoneNotice(message)) {
+  ctx,cancel:=context.WithTimeout(context.Background(),30*time.Second)
+  group,err:=b.wa.GetGroupInfo(ctx,to)
+  cancel()
+  if err!=nil{return "",fmt.Errorf("não foi possível obter os membros do grupo para marcar a todos: %w",err)}
+  members:=make([]types.JID,0,len(group.Participants))
+  for _,part:=range group.Participants{members=append(members,part.JID)}
+  payload,err=electionMentionMessage(message,members)
+  if err!=nil{return "",err}
+ }
+ return b.sendPrepared(to,payload)
 }
 func (b *Bot) reply(to types.JID,text string) {
  if text=="" {return}
@@ -218,25 +233,25 @@ func helpMessage(prefix string) string {
  if prefix!="!" && prefix!="/" {prefix="!"}
  categories:=[]helpCategory{
   {label:"Conta e perfil",icon:"👤",commands:[]helpCommand{
-   {name:"perfil",description:"consulte seu perfil vinculado"},
-   {name:"vincular",args:"CÓDIGO",description:"vincule sua conta (use somente no privado do bot)"},
+   {name:"perfil",description:"Consulte os dados do seu cidadão, como nome, usuário e cargo atual. Requer conta vinculada."},
+   {name:"vincular",args:"CÓDIGO",description:"Vincule seu WhatsApp à conta GOVRP com o código gerado nas configurações. Envie somente no privado do bot."},
   }},
   {label:"Economia e notícias",icon:"📊",commands:[]helpCommand{
-   {name:"economia",description:"indicadores econômicos atuais"},
-   {name:"noticias",description:"últimas notícias do GOVRP"},
+   {name:"economia",description:"Confira crescimento econômico, inflação, Selic, câmbio e outros indicadores atuais do RP."},
+   {name:"noticias",description:"Veja as cinco notícias mais recentes publicadas no portal de notícias do GOVRP."},
   }},
   {label:"Política",icon:"🏛️",commands:[]helpCommand{
-   {name:"deputados",description:"deputados, partidos e tempo de mandato"},
-   {name:"eleicao",description:"eleições em andamento ou próxima eleição"},
-   {name:"eleicoes",description:"histórico numerado; acrescente um número para ver detalhes"},
-   {name:"governo",description:"presidente e ministros"},
-   {name:"leis",description:"propostas legislativas recentes"},
-   {name:"partidos",description:"partidos ativos e em formação, com membros"},
-   {name:"senadores",description:"senadores, partidos e tempo de mandato"},
-   {name:"votacoes",description:"votações parlamentares em andamento"},
+   {name:"deputados",description:"Mostra informações dos deputados em exercício, seus partidos e o tempo restante dos mandatos."},
+   {name:"eleicao",description:"Consulte a eleição em andamento ou descubra qual será a próxima."},
+   {name:"eleicoes",description:"Veja o histórico numerado das eleições. Acrescente um número, como !eleicoes 2, para ver detalhes de uma eleição específica."},
+   {name:"governo",description:"Confira a formação governamental: Presidente, Vice-Presidente, ministros de Estado e PGR."},
+   {name:"leis",description:"Confira os projetos de lei e emendas constitucionais mais recentes e sua situação."},
+   {name:"partidos",description:"Veja os partidos ativos e em formação, incluindo a quantidade de integrantes de cada um."},
+   {name:"senadores",description:"Mostra informações dos senadores em exercício, seus partidos e o tempo restante dos mandatos."},
+   {name:"votacoes",description:"Acompanhe as votações parlamentares abertas e seus prazos de encerramento."},
   }},
   {label:"Suporte",icon:"🧭",commands:[]helpCommand{
-   {name:"ajuda",description:"veja esta lista de comandos"},
+   {name:"ajuda",description:"Veja todos os comandos disponíveis, como usá-los e o que cada um permite consultar."},
   }},
  }
  sort.Slice(categories,func(i,j int)bool{return strings.ToLower(categories[i].label)<strings.ToLower(categories[j].label)})
@@ -248,7 +263,7 @@ func helpMessage(prefix string) string {
   for _,command:=range category.commands {
    message.WriteString("\n"+prefix+command.name)
    if command.args!="" {message.WriteString(" "+command.args)}
-   message.WriteString(" — "+command.description)
+   message.WriteString(" — "+strings.ReplaceAll(command.description,"!eleicoes 2",prefix+"eleicoes 2"))
   }
  }
  message.WriteString("\n\n🌐 Acesse a plataforma e participe do GOVRP:\n"+siteURL)
@@ -396,6 +411,7 @@ func run() error {
  wa.AddEventHandler(func(evt any){
   switch v:=evt.(type) {
   case *events.Message: bot.onMessage(v)
+  case *events.GroupInfo: bot.onGroupInfo(v)
   }
  })
  bot.readConfig()
