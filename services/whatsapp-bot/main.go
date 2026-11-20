@@ -212,7 +212,7 @@ func commandAllowed(settings Settings, groups map[string]bool, isGroup bool, cha
  if !isGroup {return command=="vincular"}
  if !settings.Commands || !groups[chatJID] {return false}
  switch command {
- case "ajuda","noticias","economia","governo","partidos","eleicao","eleicoes","votacoes","leis","perfil","deputados","senadores":
+ case "ajuda","noticias","economia","governo","partidos","eleicao","eleicoes","votacoes","leis","perfil","deputados","senadores","deputado","senador","stf","presos","constituicao":
   return true
  default:
   return false
@@ -241,13 +241,18 @@ func helpMessage(prefix string) string {
    {name:"noticias",description:"Veja as cinco notícias mais recentes publicadas no portal de notícias do GOVRP."},
   }},
   {label:"Política",icon:"🏛️",commands:[]helpCommand{
+   {name:"constituicao",description:"Receba no grupo o PDF oficial da Constituição vigente do GOVRP."},
+   {name:"deputado",args:"NOME OU NÚMERO",description:"Consulte a ficha de um deputado pela posição no !deputados ou nome completo, com PLs e PECs propostas, aprovadas e rejeitadas."},
    {name:"deputados",description:"Mostra informações dos deputados em exercício, seus partidos e o tempo restante dos mandatos."},
    {name:"eleicao",description:"Consulte a eleição em andamento ou descubra qual será a próxima."},
    {name:"eleicoes",description:"Veja o histórico numerado das eleições. Acrescente um número, como !eleicoes 2, para ver detalhes de uma eleição específica."},
    {name:"governo",description:"Confira a formação governamental: Presidente, Vice-Presidente, ministros de Estado e PGR."},
    {name:"leis",description:"Confira os projetos de lei e emendas constitucionais mais recentes e sua situação."},
    {name:"partidos",description:"Veja os partidos ativos e em formação, incluindo a quantidade de integrantes de cada um."},
+   {name:"presos",description:"Consulte os cidadãos atualmente presos no GOVRP, a unidade prisional e a previsão de saída, quando disponível."},
+   {name:"senador",args:"NOME OU NÚMERO",description:"Consulte a ficha de um senador pela posição no !senadores ou nome completo, com PLs e PECs propostas, aprovadas e rejeitadas."},
    {name:"senadores",description:"Mostra informações dos senadores em exercício, seus partidos e o tempo restante dos mandatos."},
+   {name:"stf",description:"Veja a composição atual do Supremo Tribunal Federal, os ministros empossados e as vagas disponíveis."},
    {name:"votacoes",description:"Acompanhe as votações parlamentares abertas e seus prazos de encerramento."},
   }},
   {label:"Suporte",icon:"🧭",commands:[]helpCommand{
@@ -260,7 +265,8 @@ func helpMessage(prefix string) string {
  for _,category:=range categories {
   sort.Slice(category.commands,func(i,j int)bool{return category.commands[i].name<category.commands[j].name})
   message.WriteString("\n\n"+category.icon+" *"+category.label+"*")
-  for _,command:=range category.commands {
+  for index,command:=range category.commands {
+   if index==0 {message.WriteString("\n")}
    message.WriteString("\n"+prefix+command.name)
    if command.args!="" {message.WriteString(" "+command.args)}
    message.WriteString(" — "+strings.ReplaceAll(command.description,"!eleicoes 2",prefix+"eleicoes 2"))
@@ -306,6 +312,10 @@ func (b *Bot) onMessage(evt *events.Message) {
   return
  }
  // All other supported commands work exclusively within an enabled group.
+ if command=="constituicao" {
+  go b.sendConstitution(evt.Info.Chat)
+  return
+ }
  if command=="ajuda" {
   b.reply(evt.Info.Chat,helpMessage(settings.Prefix))
   return
@@ -335,6 +345,19 @@ func (b *Bot) onMessage(evt *events.Message) {
    err=b.api.rpc(ctx,"bot_whatsapp_parties",map[string]any{},&reply)
   } else if command=="deputados" || command=="senadores" {
    err=b.api.rpc(ctx,"bot_whatsapp_parliament_house",map[string]any{"p_house":command},&reply)
+  } else if command=="deputado" || command=="senador" {
+   if len(words)<2 || len(strings.Join(words[1:]," "))>120 {
+    b.reply(evt.Info.Chat,"Informe o nome completo ou o número da lista. Exemplo: "+settings.Prefix+command+" 1.")
+    return
+   }
+   selector:=strings.TrimSpace(strings.Trim(strings.Join(words[1:]," "),"\"'"))
+   if selector=="" {
+    b.reply(evt.Info.Chat,"Informe o nome completo ou o número da lista. Exemplo: "+settings.Prefix+command+" 1.")
+    return
+   }
+   err=b.api.rpc(ctx,"bot_whatsapp_parliament_member",map[string]any{"p_house":command,"p_selector":selector},&reply)
+  } else if command=="stf" || command=="presos" {
+   err=b.api.rpc(ctx,"bot_whatsapp_"+command,map[string]any{},&reply)
   } else {
    err=b.api.rpc(ctx,"bot_whatsapp_command",map[string]any{
     "p_command":command,"p_sender_jid":sender.String(),

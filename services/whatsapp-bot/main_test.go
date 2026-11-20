@@ -48,7 +48,7 @@ func TestBotCommandScopes(t *testing.T) {
  inactiveGroup := "120363222222222@g.us"
  settings := Settings{Enabled:true,Commands:true,Prefix:"!"}
  groups := map[string]bool{activeGroup:true, inactiveGroup:false}
- publicCommands := []string{"ajuda","noticias","economia","governo","partidos","eleicao","eleicoes","votacoes","leis","perfil","deputados","senadores"}
+ publicCommands := []string{"ajuda","noticias","economia","governo","partidos","eleicao","eleicoes","votacoes","leis","perfil","deputados","senadores","deputado","senador","stf","presos","constituicao"}
  for _,cmd := range publicCommands {
   if !commandAllowed(settings,groups,true,activeGroup,cmd) {
    t.Errorf("!%s should work in an enabled group",cmd)
@@ -162,7 +162,7 @@ func TestHelpMessageCategoriesAndAlphabeticalOrder(t *testing.T) {
  want:=[]string{
   "!perfil","!vincular",
   "!economia","!noticias",
-  "!deputados","!eleicao","!eleicoes","!governo","!leis","!partidos","!senadores","!votacoes",
+  "!constituicao","!deputado","!deputados","!eleicao","!eleicoes","!governo","!leis","!partidos","!presos","!senador","!senadores","!stf","!votacoes",
   "!ajuda",
  }
  if len(commandLines)!=len(want) {
@@ -190,6 +190,16 @@ func TestHelpMessageCategoriesAndAlphabeticalOrder(t *testing.T) {
  }
  if !strings.Contains(help,"!deputados —") || !strings.Contains(help,"!senadores —") {
   t.Error("both legislative house commands must appear in help")
+ }
+ for _,category:=range categories{
+  if !strings.Contains(help,category+"\n\n!") {
+   t.Errorf("category %q must have a blank line before its commands",category)
+  }
+ }
+ if !strings.Contains(help,"!constituicao —") || !strings.Contains(help,"!deputado NOME OU NÚMERO —") ||
+  !strings.Contains(help,"!senador NOME OU NÚMERO —") ||
+  !strings.Contains(help,"!stf —") || !strings.Contains(help,"!presos —") {
+  t.Error("new GOVRP commands must be documented")
  }
 }
 
@@ -318,4 +328,31 @@ func TestChangelogEveryoneMentionNotice(t *testing.T) {
  if got:=len(msg.GetExtendedTextMessage().GetContextInfo().GetMentionedJID());got!=2 {
   t.Fatalf("expected two actual mentions, got %d",got)
  }
+}
+
+
+func TestNewGovernanceCommandsScopedToAuthorizedGroups(t *testing.T) {
+  settings:=Settings{Enabled:true,Commands:true,Prefix:"!"}
+  group:=types.NewJID("120363111111111",types.GroupServer)
+  other:=types.NewJID("120363999999999",types.GroupServer)
+  allow:=map[string]bool{group.String():true}
+  for _,sample:=range []struct{ input,name string }{
+   {"!constituicao","constituicao"},
+   {"!deputado 1","deputado"},
+   {"!deputado Nome Completo","deputado"},
+   {"!senador 2","senador"},
+   {"!senador Fulano da Silva","senador"},
+   {"!stf","stf"},
+   {"!presos","presos"},
+  } {
+   msg:=&events.Message{Message:&waE2E.Message{Conversation:proto.String(sample.input)}}
+   msg.Info.Chat=group
+   msg.Info.IsGroup=true
+   command,parts,ok:=parseIncomingCommand(msg,settings,allow)
+   if !ok || command!=sample.name || len(parts)==0 {t.Fatalf("failed authorized command %q: %s %v %t",sample.input,command,parts,ok)}
+   msg.Info.Chat=other
+   if _,_,ok:=parseIncomingCommand(msg,settings,allow);ok {t.Errorf("unauthorized group accepted %q",sample.input)}
+   msg.Info.IsGroup=false
+   if _,_,ok:=parseIncomingCommand(msg,settings,allow);ok {t.Errorf("private chat accepted %q",sample.input)}
+  }
 }
