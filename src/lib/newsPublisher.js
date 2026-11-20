@@ -1,4 +1,3 @@
-import { formatLocaleBR } from './dateTime.js';
 /**
  * News Publisher Utility
  * Handles creating news articles for various events in the platform.
@@ -74,29 +73,6 @@ ${approved
     content,
     authorId: bill.author_id,
     categorySlug: 'parlamento',
-  });
-};
-
-/**
- * Publishes a news article for a president's X post.
- */
-export const publishPresidentPostNews = async (supabase, { post, authorName, authorId }) => {
-  const title = `📢 Pronunciamento Oficial do Presidente: ${authorName}`;
-
-  const content = `O Presidente da República, ${authorName}, publicou um novo pronunciamento oficial na rede social X do GOV.RP:
-
-"${post.content}"
-
-${post.created_at ? `Publicado em ${formatLocaleBR(new Date(post.created_at), 'toLocaleDateString', 'pt-BR', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}.` : ''}
-
-Este pronunciamento é de interesse público e foi automaticamente registrado no Portal de Notícias do GOV.RP.`;
-
-  await publishNewsArticle(supabase, {
-    title,
-    content,
-    authorId,
-    categorySlug: 'governo',
-    imageUrl: post.image_url || null,
   });
 };
 

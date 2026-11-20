@@ -8,7 +8,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Loader2, Send, X, Image as ImageIcon, Video } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
-import { publishPresidentPostNews } from '@/lib/newsPublisher';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
     ACCEPTED_IMAGE_EXTENSIONS,
@@ -189,16 +188,6 @@ const CreatePostForm = forwardRef(({ onPostCreated }, ref) => {
             toast({ title: 'Sucesso!', description: 'Seu post foi publicado.' });
             onPostCreated?.(newPost);
 
-            const effectiveRoles = Array.isArray(user?.effective_roles) ? user.effective_roles : [user?.role].filter(Boolean);
-            if (effectiveRoles.includes('Presidente')) {
-                try {
-                    await publishPresidentPostNews(supabase, {
-                        post: newPost, authorName: user.full_name, authorId: user.id,
-                    });
-                } catch (newsErr) {
-                    console.error('Erro ao publicar notícia presidencial:', newsErr);
-                }
-            }
         } catch (error) {
             console.error('[GOVRP X] Falha na publicação', {
                 code: error?.code || null,
