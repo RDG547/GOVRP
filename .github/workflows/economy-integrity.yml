@@ -12,6 +12,9 @@ on:
       - 'src/lib/executiveGovernance.js'
       - 'src/components/business/CompanyRankings.jsx'
       - 'src/components/social-x/PostCard.jsx'
+      - 'src/components/social-x/CreatePostForm.jsx'
+      - 'src/lib/newsPublisher.js'
+      - 'tools/test-whatsapp-bot-content.mjs'
       - 'src/components/PhoneAppViewport.jsx'
       - 'src/contexts/AuthContext.jsx'
       - 'src/lib/moderationAccess.js'
@@ -53,5 +56,6 @@ jobs:
           node tools/test-nov17-govrp-enhancements.mjs
           node tools/test-card-limit-review-contract.mjs
           node tools/test-auth-session-recovery.mjs
+          node tools/test-whatsapp-bot-content.mjs
       - name: Build GOV.RP frontend
         run: npm run build
