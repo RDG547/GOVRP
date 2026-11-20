@@ -74,16 +74,16 @@ func TestWelcomePersonalizationAndPermissions(t *testing.T) {
 func TestDetailedHelpHasRealExplanations(t *testing.T) {
 	help := helpMessage("!")
 	for _, expected := range []string{
-		"!deputados — Mostra informações dos deputados em exercício",
-		"!senadores — Mostra informações dos senadores em exercício",
-		"!eleicoes — Veja o histórico numerado das eleições",
+		"*!deputados* — Mostra informações dos deputados em exercício",
+		"*!senadores* — Mostra informações dos senadores em exercício",
+		"*!eleicoes* — Veja o histórico numerado das eleições",
 		"!eleicoes 2",
-		"!governo — Confira a formação governamental:",
+		"*!governo* — Confira a formação governamental:",
 		"Vice-Presidente, ministros de Estado e PGR",
-		"!vincular CÓDIGO — Vincule seu WhatsApp",
-		"!noticias — Veja as cinco notícias",
-		"!economia — Confira crescimento econômico",
-		"!ajuda — Veja todos os comandos",
+		"*!vincular* CÓDIGO — Vincule seu WhatsApp",
+		"*!noticias* — Veja as cinco notícias",
+		"*!economia* — Confira crescimento econômico",
+		"*!ajuda* — Veja todos os comandos",
 	} {
 		if !strings.Contains(help, expected) {
 			t.Errorf("missing command description %q", expected)
