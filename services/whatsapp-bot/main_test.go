@@ -154,8 +154,8 @@ func TestHelpMessageCategoriesAndAlphabeticalOrder(t *testing.T) {
  }
  var commandLines []string
  for _,line:=range strings.Split(help,"\n") {
-  if strings.HasPrefix(line,"!") {
-   name:=strings.Fields(line)[0]
+  if strings.HasPrefix(line,"*!") {
+   name:=strings.Trim(strings.Fields(line)[0],"*")
    commandLines=append(commandLines,name)
   }
  }
@@ -173,7 +173,7 @@ func TestHelpMessageCategoriesAndAlphabeticalOrder(t *testing.T) {
    t.Errorf("commands not in alphabetical category order at %d: got %q want %q",i,commandLines[i],command)
   }
  }
- if !strings.Contains(help,"!vincular CÓDIGO —") || !strings.Contains(help,"somente no privado") {
+ if !strings.Contains(help,"*!vincular* CÓDIGO —") || !strings.Contains(help,"somente no privado") {
   t.Error("the private-only link command must be listed and clearly scoped")
  }
  if strings.Contains(help,"!eleicoes N —") {
@@ -188,27 +188,38 @@ func TestHelpMessageCategoriesAndAlphabeticalOrder(t *testing.T) {
  if strings.Count(help,"*Política*")!=1 || strings.Contains(help,"*Eleições*") || strings.Contains(help,"Governo e legislação") {
   t.Error("all political commands must share a single Política category")
  }
- if !strings.Contains(help,"!deputados —") || !strings.Contains(help,"!senadores —") {
+ if !strings.Contains(help,"*!deputados* —") || !strings.Contains(help,"*!senadores* —") {
   t.Error("both legislative house commands must appear in help")
  }
  for _,category:=range categories{
-  if !strings.Contains(help,category+"\n\n!") {
+  if !strings.Contains(help,category+"\n\n*!") {
    t.Errorf("category %q must have a blank line before its commands",category)
   }
  }
- if !strings.Contains(help,"!constituicao —") || !strings.Contains(help,"!deputado NOME OU NÚMERO —") ||
-  !strings.Contains(help,"!senador NOME OU NÚMERO —") ||
-  !strings.Contains(help,"!stf —") || !strings.Contains(help,"!presos —") {
+ if !strings.Contains(help,"*!constituicao* —") || !strings.Contains(help,"*!deputado* NOME OU NÚMERO —") ||
+  !strings.Contains(help,"*!senador* NOME OU NÚMERO —") ||
+  !strings.Contains(help,"*!stf* —") || !strings.Contains(help,"*!presos* —") {
   t.Error("new GOVRP commands must be documented")
  }
+ for _,line:=range strings.Split(help,"\n") {
+  if !strings.HasPrefix(line,"*!") {continue}
+  fields:=strings.Fields(line)
+  if len(fields)==0 || !strings.HasSuffix(fields[0],"*") {
+   t.Errorf("command title must be bold: %q",line)
+  }
+  if !strings.Contains(help,"\n\n"+line) {
+   t.Errorf("missing blank line before command: %q",line)
+  }
+ }
+
 }
 
 func TestHelpMessageCustomPrefix(t *testing.T){
  help:=helpMessage("/")
- if !strings.Contains(help,"/vincular CÓDIGO") || !strings.Contains(help,"/eleicoes —") {
+ if !strings.Contains(help,"*/vincular* CÓDIGO") || !strings.Contains(help,"*/eleicoes* —") {
   t.Error("help commands should use the bot's configured prefix")
  }
- if strings.Contains(help,"\n!ajuda —") {
+ if strings.Contains(help,"\n*!ajuda* —") {
   t.Error("default prefix must not leak into slash-prefix help")
  }
 }

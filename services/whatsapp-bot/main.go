@@ -265,9 +265,9 @@ func helpMessage(prefix string) string {
  for _,category:=range categories {
   sort.Slice(category.commands,func(i,j int)bool{return category.commands[i].name<category.commands[j].name})
   message.WriteString("\n\n"+category.icon+" *"+category.label+"*")
-  for index,command:=range category.commands {
-   if index==0 {message.WriteString("\n")}
-   message.WriteString("\n"+prefix+command.name)
+  for _,command:=range category.commands {
+   // The WhatsApp command name is bold, with a blank line separating entries.
+   message.WriteString("\n\n*"+prefix+command.name+"*")
    if command.args!="" {message.WriteString(" "+command.args)}
    message.WriteString(" — "+strings.ReplaceAll(command.description,"!eleicoes 2",prefix+"eleicoes 2"))
   }
