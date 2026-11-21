@@ -113,12 +113,28 @@ BEGIN
      OR new.ended_at IS NOT NULL THEN
     RETURN new;
   END IF;
-  IF tg_op='UPDATE' AND old.status='active'
-     AND old.office_key IS NOT DISTINCT FROM new.office_key
-     AND old.profile_id IS NOT DISTINCT FROM new.profile_id THEN
-    RETURN new;
+  IF tg_op='UPDATE' THEN
+    IF old.status='active'
+      AND old.office_key IS NOT DISTINCT FROM new.office_key
+      AND old.profile_id IS NOT DISTINCT FROM new.profile_id THEN
+      RETURN new;
+    END IF;
   END IF;
   PERFORM pg_advisory_xact_lock(hashtextextended('govrp:stf-candidate:'||new.profile_id::text,0));
+
+  -- An active Senate ballot cannot be silently cancelled when a different
+  -- judicial office is appointed administratively.
+  IF EXISTS (
+    SELECT 1 FROM public.minister_invitations i
+    WHERE i.candidate_id=new.profile_id
+      AND i.office_key LIKE 'supreme_court_%'
+      AND i.id IS DISTINCT FROM new.invitation_id
+      AND i.status='accepted'
+      AND i.institutional_stage='voting'
+      AND i.senate_voting_id IS NOT NULL
+  ) THEN
+    RAISE EXCEPTION 'Este cidadão possui outra indicação ao STF em votação no Senado. Conclua a votação antes de uma nova posse.';
+  END IF;
   FOR previous IN
     UPDATE public.minister_invitations AS i
        SET status='cancelled',institutional_stage='cancelled',
