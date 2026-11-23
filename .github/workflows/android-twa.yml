@@ -1,0 +1,68 @@
+name: Android GOVRP - Trusted Web Activity
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'twa-android/**'
+      - 'public/.well-known/assetlinks.json'
+      - 'public/icon-512x512.png'
+      - 'tools/test-android-twa-contract.mjs'
+      - '.github/workflows/android-twa.yml'
+  pull_request:
+    paths:
+      - 'twa-android/**'
+      - 'public/.well-known/assetlinks.json'
+      - 'public/icon-512x512.png'
+      - 'tools/test-android-twa-contract.mjs'
+      - '.github/workflows/android-twa.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+
+jobs:
+  build-android-twa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+          cache-dependency-path: |
+            twa-android/**/*.gradle
+            android/gradle/wrapper/gradle-wrapper.properties
+      # GitHub hosted runners have Android command-line tools already.
+      # setup-android@v3 incorrectly asks sdkmanager to install retired 'tools'
+      # on modern SDK repositories, so we install the required packages directly.
+      - name: Install Android 16 (API 36)
+        run: |
+          SDK_MANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | sort -V | tail -n 1)"
+          test -x "$SDK_MANAGER"
+          yes | "$SDK_MANAGER" "platforms;android-36" "build-tools;36.0.0" >/dev/null || test "${PIPESTATUS[1]}" -eq 0
+      - name: Install branded Android launcher icon
+        run: |
+          mkdir -p twa-android/app/src/main/res/drawable
+          cp public/icon-512x512.png twa-android/app/src/main/res/drawable/ic_launcher.png
+      - name: Validate package, fingerprint and TWA origin
+        run: node tools/test-android-twa-contract.mjs
+      - name: Compile unsigned release AAB, unsigned release APK and debug APK
+        run: |
+          chmod +x android/gradlew
+          ./android/gradlew -p twa-android --no-daemon --stacktrace :app:bundleRelease :app:assembleRelease :app:assembleDebug
+      - name: Prepare unsigned release output and Android APK signer
+        run: |
+          mkdir -p output/apksigner/lib
+          cp twa-android/app/build/outputs/bundle/release/app-release.aab output/GOVRP-v1.0.0-unsigned.aab
+          cp twa-android/app/build/outputs/apk/release/app-release-unsigned.apk output/GOVRP-v1.0.0-unsigned.apk
+          cp twa-android/app/build/outputs/apk/debug/app-debug.apk output/GOVRP-v1.0.0-debug.apk
+          cp "$ANDROID_HOME/build-tools/36.0.0/lib/apksigner.jar" output/apksigner/lib/apksigner.jar
+          cp "$ANDROID_HOME/build-tools/36.0.0/apksigner" output/apksigner/apksigner
+          sha256sum output/*.aab output/*.apk > output/SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: govrp-twa-android-unsigned-v1
+          path: output/
+          if-no-files-found: error
+          retention-days: 14

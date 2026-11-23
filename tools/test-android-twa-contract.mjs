@@ -1,0 +1,32 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import {createHash} from 'node:crypto';
+
+const read = path => fs.readFileSync(new URL('../'+path,import.meta.url),'utf8');
+const dal = JSON.parse(read('public/.well-known/assetlinks.json'));
+const pkg='com.worldofsimulators.app';
+const fp='61:3D:8D:6C:05:B2:80:97:74:C0:C2:F4:24:85:17:27:17:92:D3:BB:53:5D:9A:2F:EE:3F:D8:24:E4:94:DE:36';
+const matches = dal.filter(x=>x.target?.namespace==='android_app'&&x.target?.package_name===pkg&&x.relation?.includes('delegate_permission/common.handle_all_urls'));
+assert.equal(matches.length,1,'TWA must have exactly one verified package statement');
+assert.ok(matches[0].target.sha256_cert_fingerprints.includes(fp),'Missing upload certificate fingerprint');
+
+const manifest=read('twa-android/app/src/main/AndroidManifest.xml');
+const appBuild=read('twa-android/app/build.gradle');
+const strings=read('twa-android/app/src/main/res/values/strings.xml');
+const workflow=read('.github/workflows/android-twa.yml');
+
+assert.match(appBuild,/applicationId 'com\.worldofsimulators\.app'/);
+assert.match(appBuild,/targetSdk 36/);
+assert.match(appBuild,/versionCode 1/);
+assert.match(appBuild,/androidbrowserhelper:2\.7\.4/);
+assert.match(manifest,/com\.google\.androidbrowserhelper\.trusted\.LauncherActivity/);
+assert.match(manifest,/android:autoVerify="true"/);
+assert.match(manifest,/android:host="govrp\.vercel\.app"/);
+assert.match(manifest,/android\.support\.customtabs\.trusted\.DEFAULT_URL/);
+assert.match(strings,/https:\/\/govrp\.vercel\.app\//);
+assert.match(strings,/delegate_permission\/common\.handle_all_urls/);
+assert.match(workflow,/:app:bundleRelease/);
+assert.match(workflow,/:app:assembleRelease/);
+assert.match(workflow,/upload-artifact@v4/);
+assert.ok(fs.existsSync(new URL('../public/icon-512x512.png',import.meta.url)),'Branded GOVRP icon is missing');
+console.log('✓ TWA package, Android API 36, digital asset links, live web origin and release build contract verified.');
