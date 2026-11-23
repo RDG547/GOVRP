@@ -33,6 +33,10 @@ channels[0].status('SUBSCRIBED');await tick(800);const healthy=one.length;await 
 check(one.length===healthy,'Connected channel has no perpetual polling');
 const off3=context.subscribeToDomain('economy','user-b',['economic_state'],()=>{});
 check(channels.length===2,'Different users have isolated subscriptions');
+const beforeDatabaseReady=one.length;
+channels[0].handlers.find(h=>h.type==='system').fn({extension:'postgres_changes',status:'ok'});
+await tick(800);
+check(one.length===beforeDatabaseReady+1,'Database-ready acknowledgement reconciles changes missed during cold subscription startup');
 off1();check(removed.length===0,'One unmount keeps the other listener');
 off2();off3();check(removed.length===2&&timers.size===0,'Final unmount removes channels and timers');
 check([...document.events.values(),...window.events.values()].every(set=>set.size===0),'Event listeners do not leak');

@@ -2,7 +2,7 @@
 
 Atualizado em 23/11/2026. Base: `936ba5dd65f38e32e6d536cf16ca39eb74e689df`. Consulte [changelog completo](economy-structural-changelog.md) e [aplicação](economy-structural-deployment.md).
 
-**Implementação testada em ambiente isolado; não aplicada em produção. Aceitação integral ainda pendente.**
+**Atualização: 18 migrations verificadas em homologação real; 20 testes Auth/RPC/RLS/Realtime aprovados; motor completo executado com integridade. A matriz abaixo é o registro anterior. Consulte a conclusão do changelog e economy-release-status.json para o estado atual. Ativação financeira/NPC e recuperação histórica dependem de decisão administrativa.**
 
 | Item | Implementado/verificado | Ainda falta |
 | --- | --- | --- |

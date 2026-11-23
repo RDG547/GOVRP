@@ -48,6 +48,11 @@ export function subscribeToDomain(domain, scope, tables, listener) {
         ? channel.on('broadcast', { event: spec.broadcast }, ({ payload }) => emit({ eventType: 'PUBLIC_PROFILE', new: payload }))
         : channel.on('postgres_changes', { event: '*', schema: 'public', ...spec }, emit);
     });
+    // The socket can join before a cold PostgreSQL replication subscription
+    // is ready. Reconcile once when the server confirms database delivery.
+    channel = channel.on('system', {}, (message) => {
+      if (message.extension === 'postgres_changes' && message.status === 'ok') entry.sync();
+    });
     entry.channel = channel.subscribe((status, error) => {
       if (entry.disposed) return;
       if (status === 'SUBSCRIBED') {

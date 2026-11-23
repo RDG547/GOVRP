@@ -1,0 +1,18 @@
+{
+  "date": "2026-11-23",
+  "pullRequest": 46,
+  "stagingProject": "vsuwizhffoyisklhoule",
+  "structuralMigrations": 18,
+  "stagingApplied": true,
+  "realSessionChecks": 20,
+  "productionApplied": false,
+  "frontendPublished": false,
+  "pilotEnabled": false,
+  "financialProgramApproved": false,
+  "historicalRewrite": false,
+  "release": "validated_for_gradual_rollout",
+  "limitations": [
+    "Economic stress scenarios retain losses and wage arrears; universal sustainability is not proven",
+    "Administrative activation and financing remain separate decisions"
+  ]
+}

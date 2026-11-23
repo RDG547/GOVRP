@@ -4,7 +4,7 @@
   "version": "0.0.1",
   "type": "module",
   "scripts": {
-    "test:structural-economy": "node tools/test-structural-economy.mjs && node tools/test-structural-catalog.mjs && node tools/test-structural-macro.mjs && node tools/test-structural-fiscal.mjs && node tools/test-structural-closes.mjs && node tools/test-structural-accrual.mjs && node tools/test-structural-circulation.mjs && node tools/test-structural-realtime.mjs",
+    "test:structural-economy": "node tools/test-structural-economy.mjs && node tools/test-structural-catalog.mjs && node tools/test-structural-macro.mjs && node tools/test-structural-fiscal.mjs && node tools/test-structural-closes.mjs && node tools/test-structural-accrual.mjs && node tools/test-structural-circulation.mjs && node tools/test-structural-realtime.mjs && node tools/test-structural-release.mjs",
     "test:structural-concurrency": "node tools/test-structural-concurrency.mjs",
     "test:structural-long-run": "node tools/test-structural-long-run.mjs",
     "test:structural-load": "node tools/test-structural-load.mjs",

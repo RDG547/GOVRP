@@ -2,7 +2,39 @@
 
 Trabalho acumulado de 21 a 23/11/2026, desde o primeiro prompt e incluindo todas as retomadas. Repositório `RDG547/GOVRP`, base `936ba5dd65f38e32e6d536cf16ca39eb74e689df`.
 
-**Situação: código preparado e testado em ambiente isolado, disponível para revisão/homologação. Nenhuma migration aplicada nem deploy realizado em produção. A aceitação integral da reforma ainda está pendente.**
+**Situação atual: 18 migrations e integração real verificadas em homologação; liberação gradual preparada. Consulte a seção de conclusão e economy-release-status.json para o estado de produção. Os ensaios não comprovam sustentabilidade universal.**
+
+## Conclusão da homologação — 23/11/2026
+
+Esta seção atualiza os estados históricos abaixo sem apagar o registro do trabalho anterior.
+
+- Reutilizado o ambiente Supabase do PR: `vsuwizhffoyisklhoule`. As 18 migrations estruturais estão instaladas, verificadas por versão/nome; não foram reaplicadas.
+- Corrigidos três bloqueios legados de reprodução do schema: dois atos históricos são pulados somente quando seus registros de origem não existem; a proteção partidária já instalada não é reaplicada. Nenhuma eleição/veto de produção foi alterado.
+- Alinhados 17 nomes de arquivos à versão já registrada em produção. O mapeamento auditável está em `docs/economy-migration-version-alignment.json`. O histórico de produção não foi reescrito.
+- 20 verificações aprovadas com duas sessões Auth reais: RPC pública, cinco RPCs administrativas, negativas de permissão, leitura sob RLS, entrega de eventos e reconexão. Contas sintéticas somente na homologação; sem envio de email.
+- A confirmação do canal precedia a prontidão da replicação PostgreSQL. O transporte compartilhado agora reconcilia também na confirmação de prontidão do banco; 22 verificações comportamentais cobrem esse fluxo.
+- Motor operacional completo, com triggers reais: 68 dias-empresa processados e R$ 5.402,18 de consumo. Nenhum saldo/estoque negativo ou dia duplicado. Não são dados posteriores de produção.
+- Nova migration de conclusão: investimento público derivado de despesas capturadas de projetos e parcela produtiva, sem confundir manutenção/transferência; CPI combina índices de preços do mesmo produto com a cesta simulada, respeitando pesos configurados e datas históricas; orçamento por categoria fica fixo durante a rodada, fornecedores reservados saem do denominador, compras usam tributos efetivos e localização tem peso limitado e neutro quanto ao proprietário.
+- Nova migration de recuperação: pequenas tentativas semanais de produção após falta prolongada de insumos, sujeitas a caixa/insumos/equipe reais; reposição de anúncios NPC ativos usa apenas estoque não reservado, sem recriar mercadorias ou pular cobrança/validade do anúncio.
+- Seis verificações novas de preço comparável e investimento capturado aprovadas; regressões de períodos, fiscal e fechamentos aprovadas. Reposição foi executada em transação revertida na homologação e conservou estoque físico.
+- Advisors não apontaram erro de segurança. Avisos existentes de funções públicas protegidas por lógica de autorização, tabelas privadas com RLS sem política e proteção contra senha vazada permanecem discriminados; não houve relaxamento de RLS para fazer os testes passarem.
+- O ensaio de 56 dias afetado pelo consumo foi atualizado; o ensaio adicional de recuperação, 28 dias sem humanos, aprovou 33 verificações contábeis e manteve R$ 100.036,13 de dinheiro total. Nenhum aporte foi feito durante as simulações. A presença de prejuízos/insolvência não foi ocultada.
+
+### Resultados atualizados do ensaio de consumo de 56 dias
+
+| Humanos | Dinheiro inicial = final | Salários pendentes | Resultado operacional | Encerramentos |
+| --- | --- | --- | --- | --- |
+| 0 | R$ 100.036,13 | R$ 8.296,65 | −R$ 92.703,42 | 5 |
+| 5 | R$ 111.700,23 | R$ 82.417,39 | −R$ 282.291,43 | 29 |
+| 30 | R$ 177.796,19 | R$ 259.972,55 | −R$ 557.440,47 | 25 |
+
+Estes são cenários de concorrência sem gestão corretiva das empresas humanas, com capital e autorização financeira sintéticos declarados no teste. Demonstram conservação e continuidade da atividade, não lucro garantido nem aceitação de sustentabilidade universal. O teste de recuperação posterior cobre a nova tentativa de produção; não equivale a repetir todos os cenários de 56 dias.
+
+### Liberação e decisões administrativas
+
+Código validado para implantação gradual com o piloto NPC desativado. Ativação do piloto, autorização de programa financeiro e recuperação histórica continuam exigindo decisão administrativa específica. Nenhum orçamento ou correção histórica foi autorizado por esta implementação. A cobertura fiscal estima bases modeladas e informa regras sem base nacional estimável; receitas efetivas dessas regras continuam registradas operacionalmente.
+
+Status de produção será registrado em `docs/economy-release-status.json` após verificar migrations e publicação. O checklist anterior registra o ponto de partida desta retomada; as verificações de homologação/Realtime, investimento público, CPI normalizado, reposição e alinhamento de migrations descritas nesta seção já foram concluídas.
 
 ## Investigação e preservação
 
