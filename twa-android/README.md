@@ -5,7 +5,7 @@ Este é o **aplicativo Android do GOVRP com atualizações web automáticas**. O
 - Nome de exibição: `GOV.RP`
 - Package/applicationId: `com.worldofsimulators.app`
 - Versão inicial: `1.0.0`, versionCode `1`
-- minSdk 23, compileSdk/targetSdk 36
+- minSdk 24, compileSdk/targetSdk 36
 - Android Browser Helper 2.7.4
 - Chave de assinatura da Google Play **não fica no repositório**.
 
