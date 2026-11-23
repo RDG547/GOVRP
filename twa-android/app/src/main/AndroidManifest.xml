@@ -15,7 +15,7 @@
             android:resource="@string/asset_statements" />
 
         <activity
-            android:name="com.google.androidbrowserhelper.trusted.LauncherActivity"
+            android:name=".MainActivity"
             android:exported="true"
             android:launchMode="singleTask"
             android:theme="@style/AppTheme">
@@ -30,7 +30,10 @@
                 android:resource="@color/twa_primary" />
             <meta-data
                 android:name="android.support.customtabs.trusted.DISPLAY_MODE"
-                android:value="standalone" />
+                android:value="default" />
+            <meta-data
+                android:name="android.support.customtabs.trusted.FALLBACK_STRATEGY"
+                android:value="webview" />
 
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
