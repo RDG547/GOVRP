@@ -27,6 +27,7 @@ assert.match(manifest,/android:name="android\.support\.customtabs\.trusted\.MANA
 assert.match(manifest,/android:value="@string\/twa_start_url"/);
 assert.match(manifest,/FALLBACK_STRATEGY/);
 assert.match(manifest,/android:value="webview"/);
+assert.match(manifest,/android:name="com\.google\.androidbrowserhelper\.trusted\.WebViewFallbackActivity"/);
 assert.match(manifest,/android:value="default"/);
 assert.match(manifest,/android:autoVerify="true"/);
 assert.match(manifest,/android:host="govrp\.vercel\.app"/);
