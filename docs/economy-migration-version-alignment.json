@@ -1,0 +1,90 @@
+{
+  "reason": "Repository filenames aligned to already installed production versions; no production migration replay or history rewrite",
+  "mappings": [
+    {
+      "from": "20261113115000_govrp_moderation_device_ip_identity_bans.sql",
+      "to": "20261113115659_govrp_moderation_device_ip_identity_bans.sql",
+      "name": "govrp_moderation_device_ip_identity_bans"
+    },
+    {
+      "from": "20261113190000_whatsapp_election_lifecycle_mention_and_history.sql",
+      "to": "20261113184509_whatsapp_election_lifecycle_mention_and_history.sql",
+      "name": "whatsapp_election_lifecycle_mention_and_history"
+    },
+    {
+      "from": "20261113192000_presidential_extraordinary_revote_auto_approved.sql",
+      "to": "20261113192441_presidential_extraordinary_revote_auto_approved.sql",
+      "name": "presidential_extraordinary_revote_auto_approved"
+    },
+    {
+      "from": "20261116113000_whatsapp_party_directory.sql",
+      "to": "20261116110928_whatsapp_party_directory.sql",
+      "name": "whatsapp_party_directory"
+    },
+    {
+      "from": "20261116121000_fix_whatsapp_decree_trigger_status_reference.sql",
+      "to": "20261116113725_fix_whatsapp_decree_trigger_status_reference.sql",
+      "name": "fix_whatsapp_decree_trigger_status_reference"
+    },
+    {
+      "from": "20261116121500_whatsapp_parties_and_legislative_houses.sql",
+      "to": "20261116113731_whatsapp_parties_and_legislative_houses.sql",
+      "name": "whatsapp_parties_and_legislative_houses"
+    },
+    {
+      "from": "20261116133000_atomic_presidential_bill_review.sql",
+      "to": "20261116120101_atomic_presidential_bill_review.sql",
+      "name": "atomic_presidential_bill_review"
+    },
+    {
+      "from": "20261116162000_pec_constitutional_rite.sql",
+      "to": "20261116122056_pec_constitutional_rite.sql",
+      "name": "pec_constitutional_rite"
+    },
+    {
+      "from": "20261116220000_presidential_veto_confirmation_and_reset.sql",
+      "to": "20261116193923_presidential_veto_confirmation_and_reset.sql",
+      "name": "presidential_veto_confirmation_and_reset"
+    },
+    {
+      "from": "20261117160000_party_commissions_candidacy_rules.sql",
+      "to": "20261117125102_party_commissions_candidacy_rules.sql",
+      "name": "party_commissions_candidacy_rules"
+    },
+    {
+      "from": "20261117170000_national_market_consumption_levies.sql",
+      "to": "20261117125327_national_market_consumption_levies.sql",
+      "name": "national_market_consumption_levies"
+    },
+    {
+      "from": "20261117174500_party_guidance_nullsafe_authority.sql",
+      "to": "20261117125633_party_guidance_nullsafe_authority.sql",
+      "name": "party_guidance_nullsafe_authority"
+    },
+    {
+      "from": "20261119204000_optional_card_limit_reason_and_admin_reviews.sql",
+      "to": "20261119203037_optional_card_limit_reason_and_admin_reviews.sql",
+      "name": "optional_card_limit_reason_and_admin_reviews"
+    },
+    {
+      "from": "20261120034400_bot_government_and_president_news_guard.sql",
+      "to": "20261120035635_bot_government_and_president_news_guard.sql",
+      "name": "bot_government_and_president_news_guard"
+    },
+    {
+      "from": "20261120142000_bot_parliament_stf_prison_lookups.sql",
+      "to": "20261120141047_bot_parliament_stf_prison_lookups.sql",
+      "name": "bot_parliament_stf_prison_lookups"
+    },
+    {
+      "from": "20261121154000_guard_single_live_stf_nomination.sql",
+      "to": "20261121122358_guard_single_live_stf_nomination.sql",
+      "name": "guard_single_live_stf_nomination"
+    },
+    {
+      "from": "20261121155500_scope_stf_guard_only_to_supreme_court.sql",
+      "to": "20261121122625_scope_stf_guard_only_to_supreme_court.sql",
+      "name": "scope_stf_guard_only_to_supreme_court"
+    }
+  ]
+}

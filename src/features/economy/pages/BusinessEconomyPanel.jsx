@@ -4,6 +4,7 @@ import { Building2, Factory, Gauge, Landmark, Receipt, TrendingUp } from 'lucide
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import EconomyCard from '@/features/economy/components/EconomyCard';
+import BusinessViability from '@/features/economy/components/BusinessViability';
 import { businessHealthLabels, formatCurrency, formatIndex, formatPercent } from '@/lib/economy/format';
 
 const healthColors = {
@@ -69,6 +70,7 @@ const BusinessEconomyPanel = ({ data }) => {
               </div>
             </CardHeader>
             <CardContent>
+              <BusinessViability businessId={business.id} />
               <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
                 <div className="rounded-xl bg-muted/35 p-4">
                   <p className="text-xs text-muted-foreground">Faturamento</p>

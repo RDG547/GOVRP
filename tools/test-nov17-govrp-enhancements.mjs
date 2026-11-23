@@ -10,8 +10,8 @@ const commission=read('src/lib/parliamentGovernance.js');
 const parliament=read('src/pages/services/ParliamentPanel.jsx');
 const parties=read('src/components/parties/PartyManagementDialog.jsx');
 const guidance=read('src/components/parties/PartyVoteGuidance.jsx');
-const rules=read('supabase/migrations/20261117160000_party_commissions_candidacy_rules.sql');
-const market=read('supabase/migrations/20261117170000_national_market_consumption_levies.sql');
+const rules=read('supabase/migrations/20261117125102_party_commissions_candidacy_rules.sql');
+const market=read('supabase/migrations/20261117125327_national_market_consumption_levies.sql');
 
 assert.ok(ranking.includes('auto-rows-auto')&&!ranking.includes('auto-rows-[100px]'),
   'Ranking cards must grow with company names on narrow phones');

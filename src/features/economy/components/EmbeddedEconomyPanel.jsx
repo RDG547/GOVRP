@@ -59,6 +59,7 @@ const EmbeddedEconomyPanel = ({ view = 'public', showHeader = true }) => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [syncError, setSyncError] = useState('');
 
   const { user } = useAuth();
   const requestSequence = useRef(0);
@@ -73,14 +74,15 @@ const EmbeddedEconomyPanel = ({ view = 'public', showHeader = true }) => {
       if (request !== requestSequence.current) return;
       setData(result);
       setError('');
+      setSyncError('');
     } catch (loadError) {
       if (request !== requestSequence.current) return;
       if (!quiet) setError(loadError.message || 'Falha ao consultar economia.');
-      else console.warn('economy-live-refresh', loadError?.message);
+      else setSyncError(loadError.message || 'Não foi possível sincronizar os dados.');
     } finally {
       if (!quiet && request === requestSequence.current) setLoading(false);
     }
-  }, [config.fetcher]);
+  }, [config]);
 
   // Prevent overlapping requests during bursts of economic events, while
   // guaranteeing a final read if an update arrives during an ongoing fetch.
@@ -89,9 +91,10 @@ const EmbeddedEconomyPanel = ({ view = 'public', showHeader = true }) => {
   useEffect(() => {
     setData(null);
     setError('');
+    setSyncError('');
     void refresh({ quiet: false });
     return () => { requestSequence.current += 1; };
-  }, [view, refresh]);
+  }, [view, user?.id, refresh]);
 
   useDomainRealtime(
     'embedded-economy-' + view,
@@ -107,6 +110,11 @@ const EmbeddedEconomyPanel = ({ view = 'public', showHeader = true }) => {
 
   return (
     <div className="space-y-5">
+      {syncError && <div role="status" className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-4 text-sm">
+        <p>Última sincronização indisponível. Os dados exibidos podem estar desatualizados.</p>
+        <p className="mt-1 text-xs text-muted-foreground">{syncError}</p>
+        <button type="button" className="mt-2 font-medium underline underline-offset-4" onClick={() => refresh({ quiet: true })}>Tentar sincronizar</button>
+      </div>}
       {showHeader ? (
         <div className="rounded-xl border border-border/70 bg-muted/25 p-4">
           <div>

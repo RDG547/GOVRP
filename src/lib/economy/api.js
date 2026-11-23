@@ -41,13 +41,25 @@ export const fetchGovernmentEconomy = async () =>
 export const fetchCentralBankEconomy = async () =>
   unwrap(await supabase.rpc('get_central_bank_dashboard'));
 
+export const fetchEconomicPeriodReview = async (periodId) =>
+  unwrap(await supabase.rpc('get_economic_period_review', { p_period_id: periodId }));
+
+export const fetchEconomicSectorViability = async (businessId) =>
+  unwrap(await supabase.rpc('get_economic_sector_viability', { p_business_id: businessId }));
+
 export const fetchAdminEconomy = async () => {
-  const [dashboard, diagnostics] = await Promise.all([
+  const [dashboard, diagnostics, structural, autonomous] = await Promise.all([
     supabase.rpc('get_economic_admin_dashboard'),
     supabase.rpc('get_economy_integrity_snapshot'),
+    supabase.rpc('get_economic_structural_diagnostics'),
+    supabase.rpc('get_autonomous_economy_preview'),
   ]);
   // The diagnostic RPC is read-only and restricted to existing admins.
-  return { ...unwrap(dashboard), health: unwrap(diagnostics) };
+  return { ...unwrap(dashboard), health: unwrap(diagnostics),
+    structural: structural.error ? null : structural.data,
+    autonomous: autonomous.error ? null : autonomous.data,
+    structuralError: structural.error?.message || autonomous.error?.message || null,
+  };
 };
 
 export const simulatePolicy = async (policyType, newValue) =>

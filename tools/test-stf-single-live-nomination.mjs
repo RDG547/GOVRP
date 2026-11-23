@@ -2,8 +2,8 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 
 const read = path => readFileSync(new URL('../'+path,import.meta.url),'utf8');
-const main = read('supabase/migrations/20261121154000_guard_single_live_stf_nomination.sql');
-const scope = read('supabase/migrations/20261121155500_scope_stf_guard_only_to_supreme_court.sql');
+const main = read('supabase/migrations/20261121122358_guard_single_live_stf_nomination.sql');
+const scope = read('supabase/migrations/20261121122625_scope_stf_guard_only_to_supreme_court.sql');
 
 assert.match(main, /one_live_stf_nomination_per_candidate/);
 assert.match(main, /CREATE UNIQUE INDEX IF NOT EXISTS one_live_stf_nomination_per_candidate\s+ON public\.minister_invitations\(candidate_id\)/);

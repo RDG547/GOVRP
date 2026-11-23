@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
 const citizen = read('src/components/bank/CardLimitRequest.jsx');
 const manager = read('src/components/bank/BankManagementPanel.jsx');
-const migration = read('supabase/migrations/20261119204000_optional_card_limit_reason_and_admin_reviews.sql');
+const migration = read('supabase/migrations/20261119203037_optional_card_limit_reason_and_admin_reviews.sql');
 const integration = read('tools/test-general-update.mjs');
 
 assert.ok(citizen.includes('Justificativa (opcional)'), 'The form must describe the explanation as optional');

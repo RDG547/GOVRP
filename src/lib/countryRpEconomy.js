@@ -121,6 +121,21 @@ export const composeNationalEconomyDashboard = ({ dashboard, rpState, snapshots 
   if (!dashboard || !rpState?.is_playable || !rpState?.reference_snapshot_at) return dashboard;
 
   const economic = normalizeRpEconomicState(rpState.economic_current);
+  // Closed accounting periods remain authoritative, including explicit nulls
+  // when twelve-month inflation history is not yet available.
+  if (dashboard.accounting_source === 'closed_periods_v2') {
+    return {
+      ...dashboard,
+      state: { ...dashboard.state, country_code: rpState.country_code,
+        country_rp_active: true, national_source: 'GOV.RP',
+        exchange_rate: asFiniteNumber(economic.exchangeUsd) ?? dashboard.state?.exchange_rate,
+        exchange_eur: asFiniteNumber(economic.exchangeEur) ?? dashboard.state?.exchange_eur },
+      sectors: scaleSectorsToNationalGdp(dashboard.sectors, dashboard.headline?.gdp_total),
+      marketHistory: normalizeSnapshotHistory(snapshots, economic),
+      national: { countryCode: rpState.country_code, source: 'GOV.RP',
+        referenceSnapshotAt: rpState.reference_snapshot_at, updatedAt: rpState.updated_at, economic },
+    };
+  }
   const gdp = asFiniteNumber(economic.gdp);
   const growth = asFiniteNumber(economic.growth);
   const inflation = asFiniteNumber(economic.inflation);

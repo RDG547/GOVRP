@@ -4,7 +4,7 @@ import {readFileSync} from 'node:fs';
 const read = path => readFileSync(new URL('../'+path,import.meta.url),'utf8');
 const form = read('src/components/social-x/CreatePostForm.jsx');
 const news = read('src/lib/newsPublisher.js');
-const migration = read('supabase/migrations/20261120034400_bot_government_and_president_news_guard.sql');
+const migration = read('supabase/migrations/20261120035635_bot_government_and_president_news_guard.sql');
 
 assert.ok(form.includes(".from('posts').insert("),'Ordinary X posts should still publish.');
 assert.ok(!form.includes('publishPresidentPostNews'),'The president cannot automatically generate official news from a normal X post.');

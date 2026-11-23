@@ -4,9 +4,9 @@ import { readFileSync } from 'node:fs';
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
 const source = read('src/lib/executiveGovernance.js');
 const president = read('src/pages/dashboards/panels/PresidentDashboard.jsx');
-const migration = read('supabase/migrations/20261116133000_atomic_presidential_bill_review.sql');
-const constitutionalRite = read('supabase/migrations/20261116162000_pec_constitutional_rite.sql');
-const explicitDecision = read('supabase/migrations/20261116220000_presidential_veto_confirmation_and_reset.sql');
+const migration = read('supabase/migrations/20261116120101_atomic_presidential_bill_review.sql');
+const constitutionalRite = read('supabase/migrations/20261116122056_pec_constitutional_rite.sql');
+const explicitDecision = read('supabase/migrations/20261116193923_presidential_veto_confirmation_and_reset.sql');
 
 const review = source.slice(source.indexOf('export const reviewPresidentialBill = async'));
 assert.ok(review.includes("supabase.rpc('review_presidential_bill'"), 'Presidential review must use the atomic server RPC');

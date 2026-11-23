@@ -4,6 +4,10 @@
   "version": "0.0.1",
   "type": "module",
   "scripts": {
+    "test:structural-economy": "node tools/test-structural-economy.mjs && node tools/test-structural-catalog.mjs && node tools/test-structural-macro.mjs && node tools/test-structural-fiscal.mjs && node tools/test-structural-closes.mjs && node tools/test-structural-accrual.mjs && node tools/test-structural-circulation.mjs && node tools/test-structural-realtime.mjs && node tools/test-structural-release.mjs",
+    "test:structural-concurrency": "node tools/test-structural-concurrency.mjs",
+    "test:structural-long-run": "node tools/test-structural-long-run.mjs",
+    "test:structural-load": "node tools/test-structural-load.mjs",
     "dev": "vite --host :: --port 3000",
     "build": "vite build",
     "preview": "vite preview --host :: --port 3000",
@@ -226,6 +230,7 @@
   },
   "devDependencies": {
     "@capacitor/cli": "^8.4.2",
+    "@electric-sql/pglite": "0.3.14",
     "@types/node": "^20.8.3",
     "@types/react": "^18.2.15",
     "@types/react-dom": "^18.2.7",
@@ -240,6 +245,7 @@
     "eslint-plugin-react-hooks": "^7.1.1",
     "glob": "^13.0.6",
     "globals": "^17.11.0",
+    "pg": "8.16.3",
     "playwright": "1.62.1",
     "postcss": "^8.4.31",
     "supabase": "^2.114.0",
