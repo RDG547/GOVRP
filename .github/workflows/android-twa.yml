@@ -33,9 +33,14 @@ jobs:
           cache-dependency-path: |
             twa-android/**/*.gradle
             android/gradle/wrapper/gradle-wrapper.properties
-      - uses: android-actions/setup-android@v3
+      # GitHub hosted runners have Android command-line tools already.
+      # setup-android@v3 incorrectly asks sdkmanager to install retired 'tools'
+      # on modern SDK repositories, so we install the required packages directly.
       - name: Install Android 16 (API 36)
-        run: sdkmanager "platforms;android-36" "build-tools;36.0.0"
+        run: |
+          SDK_MANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | sort -V | tail -n 1)"
+          test -x "$SDK_MANAGER"
+          yes | "$SDK_MANAGER" "platforms;android-36" "build-tools;36.0.0" >/dev/null || test "${PIPESTATUS[1]}" -eq 0
       - name: Install branded Android launcher icon
         run: |
           mkdir -p twa-android/app/src/main/res/drawable
