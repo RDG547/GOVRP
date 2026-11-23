@@ -31,6 +31,11 @@ on:
       - 'tools/test-stf-single-live-nomination.mjs'
       - 'src/pages/dashboards/panels/PresidentDashboard.jsx'
       - 'supabase/migrations/**'
+      - 'tools/test-structural-*.mjs'
+      - 'tools/structural-test-*.mjs'
+      - 'tools/fixtures/**'
+      - 'package.json'
+      - 'package-lock.json'
       - '.github/workflows/economy-integrity.yml'
   workflow_dispatch:
 
@@ -38,6 +43,49 @@ permissions:
   contents: read
 
 jobs:
+  structural-postgres:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:17.12
+        env:
+          POSTGRES_PASSWORD: isolated-ci-only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      GOVRP_TEST_DATABASE_URL: postgresql://postgres:isolated-ci-only@127.0.0.1:5432/postgres
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Verify structural accounting and permissions
+        run: npm run test:structural-economy
+      - name: Verify twenty concurrent database sessions
+        run: npm run test:structural-concurrency
+      - name: Verify capture and revision queries with fifty thousand events
+        run: npm run test:structural-load
+      - name: Rehearse finite authorized circulation
+        env:
+          GOVRP_TEST_SCENARIO: diversified
+          GOVRP_TEST_CIRCULATION: 'true'
+          GOVRP_TEST_DAYS: '28'
+          GOVRP_TEST_RESULTS_PATH: structural-long-run-results.json
+        run: npm run test:structural-long-run
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: structural-economy-results
+          path: structural-long-run-results.json
+          if-no-files-found: ignore
   economy-contracts-and-build:
     runs-on: ubuntu-latest
     timeout-minutes: 20

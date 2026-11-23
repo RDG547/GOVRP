@@ -106,6 +106,20 @@ const GovernmentEconomyPanel = ({ data, toast, onRefresh }) => {
       </div>
 
       <Card className="border-border/70 bg-card/75">
+        <CardHeader><CardTitle className="text-base">Contas nacionais e caixa disponível</CardTitle></CardHeader>
+        <CardContent className="space-y-2 text-sm">
+          <p>O resultado fiscal e a dívida incluem a contabilidade nacional. As reservas do Tesouro mostram o saldo bancário operacional.</p>
+          {fiscal.metadata?.model === 'national_fiscal_v2' ? <>
+            <p>Tributos estimados na economia simulada: {formatCurrency(fiscal.metadata.national_tax)}</p>
+            <p>Receitas operacionais registradas: {formatCurrency(fiscal.metadata.operational_revenue)}</p>
+            <p>Consumo governamental simulado: {formatCurrency(fiscal.metadata.government_consumption)}</p>
+            <p>Ativos financeiros nacionais: {formatCurrency(fiscal.metadata.debt_rollforward?.closing_assets)}</p>
+            <p className="text-xs text-muted-foreground">Estimativa pelas alíquotas vigentes sobre o faturamento sintético. Taxas fixas e bases sem atividade mensurável não são extrapoladas. Os valores simulados não autorizam desembolsos bancários.</p>
+          </> : <p className="text-xs text-muted-foreground">Este fechamento pertence ao histórico anterior ou à transição do modelo. Os valores publicados foram preservados.</p>}
+        </CardContent>
+      </Card>
+
+      <Card className="border-border/70 bg-card/75">
         <CardHeader>
           <CardTitle className="text-base">Políticas e parâmetros atuais</CardTitle>
           <p className="text-sm text-muted-foreground">

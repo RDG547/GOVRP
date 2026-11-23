@@ -36,23 +36,27 @@ const percent = new Intl.NumberFormat('pt-BR', {
 });
 
 export const formatCurrency = (value, compact = false) => {
+  if (value == null || value === '') return '—';
   const parsed = Number(value);
   if (!Number.isFinite(parsed)) return '—';
   return (compact ? compactCurrency : currency).format(parsed);
 };
 
 export const formatUsdCurrency = (value, compact = false) => {
+  if (value == null || value === '') return '—';
   const parsed = Number(value);
   if (!Number.isFinite(parsed)) return '—';
   return (compact ? compactUsdCurrency : usdCurrency).format(parsed);
 };
 
 export const formatNumber = (value) => {
+  if (value == null || value === '') return '—';
   const parsed = Number(value);
   return Number.isFinite(parsed) ? number.format(parsed) : '—';
 };
 
 export const formatPercent = (value, signed = false) => {
+  if (value == null || value === '') return '—';
   const parsed = Number(value);
   if (!Number.isFinite(parsed)) return '—';
   const prefix = signed && parsed > 0 ? '+' : '';
@@ -60,6 +64,7 @@ export const formatPercent = (value, signed = false) => {
 };
 
 export const formatIndex = (value) => {
+  if (value == null || value === '') return '—';
   const parsed = Number(value);
   return Number.isFinite(parsed) ? number.format(parsed) : '—';
 };

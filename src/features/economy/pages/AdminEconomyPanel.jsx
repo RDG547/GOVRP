@@ -4,6 +4,8 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { runEconomicClose } from '@/lib/economy/api';
+import { closeStatusMessage } from '@/lib/economy/period-status';
+import StructuralEconomyStatus from '@/features/economy/components/StructuralEconomyStatus';
 import {
   calibrationLabels,
   economicEventLabels,
@@ -24,11 +26,12 @@ const AdminEconomyPanel = ({ data, toast, onRefresh }) => {
     setRunning(period.id);
     try {
       const result = await runEconomicClose(period);
+      if (result?.period_id !== period.id) throw new Error('O servidor não confirmou o período solicitado. Consulte o histórico da execução.');
+      const message = closeStatusMessage(result?.status);
       toast({
-        title: result?.status === 'not_due' ? 'Período ainda não venceu' : 'Fechamento concluído',
-        description: result?.status === 'not_due'
-          ? 'O motor preservou o calendário oficial e não forçou o fechamento.'
-          : 'Indicadores e hashes foram atualizados.',
+        title: message.title,
+        description: message.description,
+        ...(message.blocked ? { variant: 'destructive' } : {}),
       });
       await onRefresh();
     } catch (error) {
@@ -55,6 +58,7 @@ const AdminEconomyPanel = ({ data, toast, onRefresh }) => {
 
   return (
     <div className="space-y-6">
+      <StructuralEconomyStatus data={data?.structural} preview={data?.autonomous} error={data?.structuralError} onChanged={onRefresh} />
       {health && (
         <Card className="border-border/70 bg-card/75">
           <CardHeader>

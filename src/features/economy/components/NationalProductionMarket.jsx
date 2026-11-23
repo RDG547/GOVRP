@@ -1,4 +1,5 @@
 import { Label as ModalFieldLabel } from '@/components/ui/label';
+import PopulationCirculationControl from './PopulationCirculationControl';
 import IntegratedUpdateGate from '@/components/IntegratedUpdateGate';
 import React,{useCallback,useEffect,useRef,useState} from 'react';
 import {Link} from 'react-router-dom';
@@ -30,6 +31,7 @@ function NationalProductionMarketContent({companies=[],admin=false}){
  const own=new Set(companies.map(c=>c.id));
  const visible=offers.filter(o=>`${o.company_name} ${o.name}`.toLocaleLowerCase('pt-BR').includes(search.toLocaleLowerCase('pt-BR')));
  return <section className="space-y-5" aria-label="Produção e abastecimento nacional">
+  {admin && <PopulationCirculationControl />}
   <Card><CardHeader><CardTitle className="flex items-center gap-2"><Factory className="h-5 w-5 text-primary"/>Produção e abastecimento nacional</CardTitle></CardHeader><CardContent className="space-y-3"><p className="text-sm text-muted-foreground">O Mercado Nacional compra a produção disponível das empresas participantes, conforme a demanda demográfica e o orçamento. O pagamento entra na conta empresarial. O abastecimento e o consumo são processados no ciclo econômico diário. Compras automáticas preservam reservas comerciais e têm limite por empresa.</p><p>Orçamento disponível: <strong>{data?money(data.budget):'Carregando…'}</strong></p><p className="text-xs text-muted-foreground">Preços de referência por unidade. Tributos vigentes são calculados no fechamento da operação. Serviços representam capacidade contratada para consumo diário.</p>{admin&&<Button onClick={()=>setFund({amount:'',key:crypto.randomUUID()})}>Transferir orçamento do Tesouro</Button>}</CardContent></Card>
   {admin&&operations&&<Card><CardHeader><CardTitle className="text-lg">Consumo da população e compatibilidade fiscal</CardTitle></CardHeader><CardContent className="space-y-3">
     <p>Orçamento da população: <strong>{money(operations.population_budget)}</strong></p>

@@ -64,6 +64,10 @@ export function economyRealtimeTablesFor(view, userId) {
     tables.push('salary_payments');
   }
 
+  if (privateViewer && view === 'admin') {
+    tables.push('economic_periods', 'economic_engine_runs', 'business_types', 'business_recipes');
+  }
+
   if (privateViewer && view === 'centralBank') {
     tables.push('currency_market_states', 'stock_price_history');
   }
