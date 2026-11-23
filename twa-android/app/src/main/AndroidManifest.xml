@@ -8,11 +8,29 @@
         android:usesCleartextTraffic="false"
         android:allowBackup="false"
         android:supportsRtl="true"
-        android:theme="@style/AppTheme">
+        android:theme="@style/AppTheme"
+        android:manageSpaceActivity="com.google.androidbrowserhelper.trusted.ManageDataLauncherActivity">
 
         <meta-data
             android:name="asset_statements"
             android:resource="@string/asset_statements" />
+
+        <!-- Required by Android Browser Helper 2.7.4. Without this activity,
+             LauncherActivity crashes on every start while enabling manage-data settings. -->
+        <activity
+            android:name="com.google.androidbrowserhelper.trusted.ManageDataLauncherActivity"
+            android:exported="false">
+            <meta-data
+                android:name="android.support.customtabs.trusted.MANAGE_SPACE_URL"
+                android:value="@string/twa_start_url" />
+        </activity>
+
+        <!-- Required when FALLBACK_STRATEGY=webview and the device has no
+             supported Trusted Web Activity browser. -->
+        <activity
+            android:name="com.google.androidbrowserhelper.trusted.WebViewFallbackActivity"
+            android:exported="false"
+            android:configChanges="orientation|screenSize" />
 
         <activity
             android:name="com.google.androidbrowserhelper.trusted.LauncherActivity"
@@ -30,7 +48,10 @@
                 android:resource="@color/twa_primary" />
             <meta-data
                 android:name="android.support.customtabs.trusted.DISPLAY_MODE"
-                android:value="standalone" />
+                android:value="default" />
+            <meta-data
+                android:name="android.support.customtabs.trusted.FALLBACK_STRATEGY"
+                android:value="webview" />
 
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

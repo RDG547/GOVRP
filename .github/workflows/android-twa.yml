@@ -54,15 +54,15 @@ jobs:
       - name: Prepare unsigned release output and Android APK signer
         run: |
           mkdir -p output/apksigner/lib
-          cp twa-android/app/build/outputs/bundle/release/app-release.aab output/GOVRP-v1.0.0-unsigned.aab
-          cp twa-android/app/build/outputs/apk/release/app-release-unsigned.apk output/GOVRP-v1.0.0-unsigned.apk
-          cp twa-android/app/build/outputs/apk/debug/app-debug.apk output/GOVRP-v1.0.0-debug.apk
+          cp twa-android/app/build/outputs/bundle/release/app-release.aab output/GOVRP-v1.0.1-unsigned.aab
+          cp twa-android/app/build/outputs/apk/release/app-release-unsigned.apk output/GOVRP-v1.0.1-unsigned.apk
+          cp twa-android/app/build/outputs/apk/debug/app-debug.apk output/GOVRP-v1.0.1-debug.apk
           cp "$ANDROID_HOME/build-tools/36.0.0/lib/apksigner.jar" output/apksigner/lib/apksigner.jar
           cp "$ANDROID_HOME/build-tools/36.0.0/apksigner" output/apksigner/apksigner
           sha256sum output/*.aab output/*.apk > output/SHA256SUMS
       - uses: actions/upload-artifact@v4
         with:
-          name: govrp-twa-android-unsigned-v1
+          name: govrp-twa-android-unsigned-v101
           path: output/
           if-no-files-found: error
           retention-days: 14
