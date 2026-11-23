@@ -8,14 +8,25 @@
         android:usesCleartextTraffic="false"
         android:allowBackup="false"
         android:supportsRtl="true"
-        android:theme="@style/AppTheme">
+        android:theme="@style/AppTheme"
+        android:manageSpaceActivity="com.google.androidbrowserhelper.trusted.ManageDataLauncherActivity">
 
         <meta-data
             android:name="asset_statements"
             android:resource="@string/asset_statements" />
 
+        <!-- Required by Android Browser Helper 2.7.4. Without this activity,
+             LauncherActivity crashes on every start while enabling manage-data settings. -->
         <activity
-            android:name=".MainActivity"
+            android:name="com.google.androidbrowserhelper.trusted.ManageDataLauncherActivity"
+            android:exported="false">
+            <meta-data
+                android:name="android.support.customtabs.trusted.MANAGE_SPACE_URL"
+                android:value="@string/twa_start_url" />
+        </activity>
+
+        <activity
+            android:name="com.google.androidbrowserhelper.trusted.LauncherActivity"
             android:exported="true"
             android:launchMode="singleTask"
             android:theme="@style/AppTheme">
