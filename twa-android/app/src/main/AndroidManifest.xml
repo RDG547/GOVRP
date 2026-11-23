@@ -25,6 +25,13 @@
                 android:value="@string/twa_start_url" />
         </activity>
 
+        <!-- Required when FALLBACK_STRATEGY=webview and the device has no
+             supported Trusted Web Activity browser. -->
+        <activity
+            android:name="com.google.androidbrowserhelper.trusted.WebViewFallbackActivity"
+            android:exported="false"
+            android:configChanges="orientation|screenSize" />
+
         <activity
             android:name="com.google.androidbrowserhelper.trusted.LauncherActivity"
             android:exported="true"
