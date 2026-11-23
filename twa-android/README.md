@@ -4,7 +4,7 @@ Este é o **aplicativo Android do GOVRP com atualizações web automáticas**. O
 
 - Nome de exibição: `GOV.RP`
 - Package/applicationId: `com.worldofsimulators.app`
-- Versão inicial: `1.0.0`, versionCode `1`
+- Versão de correção: `1.0.1`, versionCode `2`
 - minSdk 24, compileSdk/targetSdk 36
 - Android Browser Helper 2.7.4
 - Chave de assinatura da Google Play **não fica no repositório**.
@@ -16,9 +16,9 @@ Mudanças de HTML, CSS, React e funcionalidades na Vercel são entregues pelo pr
 ## Build
 
 A GitHub Action `Android GOVRP - Trusted Web Activity` faz build de:
-- `GOVRP-v1.0.0-unsigned.aab` — assinar localmente com `jarsigner` + sua keystore de upload antes de enviar à Play Store.
-- `GOVRP-v1.0.0-unsigned.apk` — assinar com `apksigner` + mesma chave, após ZIP align quando necessário.
-- `GOVRP-v1.0.0-debug.apk` — aplicativo de debug, **não enviar à Play Store e não usar para verificar TWA**, pois possui certificado de debug diferente.
+- `GOVRP-v1.0.1-unsigned.aab` — assinar localmente com `jarsigner` + sua keystore de upload antes de enviar à Play Store.
+- `GOVRP-v1.0.1-unsigned.apk` — assinar com `apksigner` + mesma chave, após ZIP align quando necessário.
+- `GOVRP-v1.0.1-debug.apk` — aplicativo de debug, **não enviar à Play Store e não usar para verificar TWA**, pois possui certificado de debug diferente.
 - Ferramenta `apksigner` do Android Build Tools, para assinatura local do APK.
 
 Ao gerar diretamente em Android Studio:
