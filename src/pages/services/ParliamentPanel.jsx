@@ -326,6 +326,9 @@ const ParliamentPanel = () => {
   const canScheduleVote = rolePool.includes('Admin') ||
     rolePool.some(role => ['Presidente da Câmara','Presidente da Câmara dos Deputados',
       'Presidente do Senado','Presidente do Senado Federal'].includes(role));
+  const canManageSenateViceBillVote = Boolean(parliamentMember) &&
+    house?.name?.toLocaleLowerCase('pt-BR').includes('senado') &&
+    rolePool.some(role => ['Vice-Presidente do Senado', 'Vice-Presidente do Senado Federal'].includes(role));
   const canManageGovernance = rolePool.some((role) => canManageParliamentGovernance(role));
   const canParticipateInGovernance =
     Boolean(parliamentMember) && !isAdministrativeViewer;
@@ -1205,6 +1208,8 @@ const ParliamentPanel = () => {
                     <CardContent className="space-y-4">
                       {filteredBills.length ? (
                         filteredBills.map((bill) => {
+                          const canViceManageThisBill = canManageSenateViceBillVote &&
+                            ['PL', 'PEC', 'Proposta de Emenda Constitucional'].includes(bill.type);
                           const billStatusMeta = {
                             'Em tramitação': 'bg-yellow-500/20 text-yellow-300 border-yellow-500/30',
                             'Em votação': 'bg-blue-500/20 text-blue-300 border-blue-500/30',
@@ -1243,13 +1248,13 @@ const ParliamentPanel = () => {
                                 <p className="text-sm text-muted-foreground">{bill.summary}</p>
                                 <PartyGuidanceNotice guidance={partyGuidanceByBill[bill.id]} />
                               </CardContent>
-                              {canStartVote && bill.status === 'Em tramitação' ? (
+                              {(canStartVote || canViceManageThisBill) && bill.status === 'Em tramitação' ? (
                                 <CardFooter className="flex flex-wrap items-center gap-2">
                                   {!scheduledVotings.some(item=>item.bill_id===bill.id) &&
                                     <Button size="sm" onClick={() => handleStartBillVoting(bill)}>
                                       <Gavel className="mr-2 h-4 w-4" />Iniciar agora
                                     </Button>}
-                                  {canScheduleVote && <ParliamentVoteScheduler bill={bill} houseId={house.id}
+                                  {(canScheduleVote || canViceManageThisBill) && <ParliamentVoteScheduler bill={bill} houseId={house.id}
                                     schedule={scheduledVotings.find(item=>item.bill_id===bill.id)}
                                     onChanged={async()=>{await loadScheduledVotings();await fetchPanelData({quiet:true});}} />}
                                 </CardFooter>
