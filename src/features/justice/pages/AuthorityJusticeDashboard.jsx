@@ -235,7 +235,7 @@ const AuthorityJusticeDashboard = () => {
       } else if (action.type === 'citizen-request') {
         await decideCitizenJusticeRequest({ requestId: action.item.id, status: action.status, notes: reason });
       } else if (action.type === 'integrity') {
-        await transitionIntegrityCase({ caseId: action.item.id, status: action.status, summary: reason });
+        await transitionIntegrityCase({ caseId: action.item.id, status: action.status, summary: reason, investigationId: action.status === 'police_investigation' ? action.investigationId || null : null });
       } else if (action.type === 'seal-evidence') {
         await sealInvestigationEvidence({ evidenceId: action.item.id, justification: reason });
       } else if (action.type === 'evidence') {
@@ -706,7 +706,28 @@ const AuthorityJusticeDashboard = () => {
 
         <TabsContent value="integrity" className="space-y-4">
           {user?.admin_development?.mode==='total'&&<p className="text-xs text-amber-400">Normalmente disponível para: Autoridades de controle institucional.</p>}
-          {data.integrityCases.length ? data.integrityCases.map((item) => <Card key={item.id} className="glass-effect"><CardHeader><div className="flex items-start justify-between gap-3"><div><CardTitle>{item.title}</CardTitle><CardDescription>{item.case_number} · fluxo sem presunção automática de culpa</CardDescription></div><Badge variant="outline">{justiceStatus(item.status)}</Badge></div></CardHeader><CardContent className="space-y-4"><p className="text-sm text-muted-foreground">{item.summary}</p>{item.status === 'suspicion' ? <div className="flex gap-2"><Button size="sm" onClick={() => setAction({ type: 'integrity', item, status: 'police_investigation' })}>Abrir investigação</Button><Button size="sm" variant="outline" onClick={() => setAction({ type: 'integrity', item, status: 'archived' })}>Arquivar</Button></div> : null}</CardContent></Card>) : <JusticeEmptyState title="Nenhum caso de integridade" description="Suspeitas, investigações, processos e decisões finais ficam historicamente separados." />}
+          {data.integrityCases.length ? data.integrityCases.map((item) => {
+            const special = item.institutional_term_id || item.source_type === 'judicial_impeachment';
+            const investigation = data.investigations.find(row => row.id === item.investigation_id);
+            const preliminary = ['suspicion','journalistic_investigation'].includes(item.status);
+            const canRecordJudgment = hasAnyJusticeRole(user, ['Juiz Federal']);
+            const actions = [];
+            if (!special) {
+              if (preliminary && isPolice) actions.push(['police_investigation', 'Vincular investigação policial']);
+              if (preliminary && (isPolice || isProsecutor)) actions.push(['archived', 'Arquivar suspeita']);
+              if (item.status === 'police_investigation' && isProsecutor && investigation?.status === 'sent_to_prosecutor') actions.push(['public_prosecution', 'Assumir análise pelo MP']);
+              if (item.status === 'public_prosecution' && isProsecutor) actions.push(['judicial_process', 'Vincular denúncia já oferecida']);
+              if (investigation?.status === 'archived' && ((item.status === 'police_investigation' && isPolice) || (item.status === 'public_prosecution' && isProsecutor))) actions.push(['archived', 'Registrar arquivamento']);
+              if (item.status === 'judicial_process' && canRecordJudgment) actions.push(['convicted', 'Registrar condenação definitiva'], ['acquitted', 'Registrar absolvição definitiva']);
+            }
+            return <Card key={item.id} className="glass-effect"><CardHeader><div className="flex items-start justify-between gap-3"><div><CardTitle>{item.title}</CardTitle><CardDescription>{item.case_number} · fluxo sem presunção automática de culpa</CardDescription></div><Badge variant="outline">{justiceStatus(item.status)}</Badge></div></CardHeader><CardContent className="space-y-4"><p className="text-sm text-muted-foreground">{item.summary}</p>
+              {special ? <p className="text-sm text-muted-foreground">Procedimento de responsabilidade judicial: utilize o fluxo específico do Senado.</p> : <>
+                {investigation && <p className="text-sm">Investigação vinculada: {investigation.investigation_number}</p>}
+                {item.status === 'judicial_process' && <p className="text-sm text-muted-foreground">O resultado exige decisão judicial definitiva para todos os acusados. O registro não substitui a sentença.</p>}
+                <div className="flex flex-wrap gap-2">{actions.map(([status,label]) => <Button key={status} size="sm" variant="outline" onClick={() => setAction({ type:'integrity',item,status,investigationId:item.investigation_id || '' })}>{label}</Button>)}</div>
+              </>}
+            </CardContent></Card>;
+          }) : <JusticeEmptyState title="Nenhum caso de integridade" description="Suspeitas, investigações, processos e decisões finais ficam historicamente separados." />}
         </TabsContent>
       </Tabs>
 
@@ -727,6 +748,7 @@ const AuthorityJusticeDashboard = () => {
             {action?.type === 'fine-hearing' && action.status === 'scheduled' ? <><Label htmlFor="hearing-date">Data e hora (Brasília)</Label><Input id="hearing-date" type="datetime-local" value={scheduledAt} onChange={(event) => setScheduledAt(event.target.value)} /></> : null}
             {action?.type === 'issue-fine' && <><Label>Cidadão</Label><CitizenSelector value={action.userId} onChange={value => updateAction({userId:value})}/><Label htmlFor="fine-amount">Valor da multa (R$)</Label><CurrencyInput decimal id="fine-amount" min="0.01" step="0.01" value={action.amount} onChange={event => updateAction({ amount: event.target.value })} /><Label htmlFor="fine-due-date">Vencimento (Brasília)</Label><Input id="fine-due-date" type="datetime-local" value={scheduledAt} onChange={event => setScheduledAt(event.target.value)} /></>}
             {action?.type === 'convict' && <div className="space-y-2"><Label htmlFor="sentence-special-justification">Justificativa especial para pena fora dos limites legais</Label><Textarea id="sentence-special-justification" value={action.specialJustification || ''} onChange={event => updateAction({ specialJustification: event.target.value })} minLength={40} rows={4} aria-describedby="sentence-special-help"/><p id="sentence-special-help" className="text-xs text-muted-foreground">Obrigatória quando a pena ultrapassa os limites da norma aplicável ao caso. Mínimo de 40 caracteres; não substitui a fundamentação da sentença. {(action.specialJustification || '').trim().length} / 40</p></div>}
+            {action?.type === 'integrity' && action.status === 'police_investigation' && !action.item.investigation_id && <><Label>Investigação policial vinculada</Label><Select value={action.investigationId} onValueChange={value => updateAction({investigationId:value})}><SelectTrigger><SelectValue placeholder="Selecione a investigação existente" /></SelectTrigger><SelectContent>{data.investigations.filter(row => ['open','in_progress','delegate_review','complement_requested','sent_to_prosecutor'].includes(row.status)).map(row => <SelectItem key={row.id} value={row.id}>{row.investigation_number}</SelectItem>)}</SelectContent></Select><p className="text-xs text-muted-foreground">Abra a investigação na área policial primeiro e vincule as pessoas relacionadas à suspeita.</p></>}
             <Label htmlFor="authority-reason">Fundamentação (mínimo de {actionReasonMinimum} caracteres)</Label>
             <Textarea
               id="authority-reason"
@@ -745,6 +767,7 @@ const AuthorityJusticeDashboard = () => {
               onClick={performAction}
               disabled={acting
                 || reason.trim().length < actionReasonMinimum
+                || (action?.type === 'integrity' && action.status === 'police_investigation' && !action.investigationId)
                 || (action?.type === 'schedule-case-hearing' && !scheduledAt)
                 || (action?.type === 'fine-hearing' && action.status === 'scheduled' && !scheduledAt)
                 || (action?.type === 'evidence' && action.title?.trim().length < 5)
