@@ -20,9 +20,9 @@ $$;
 REVOKE ALL ON FUNCTION public.mp_investigation_scope(uuid) FROM PUBLIC,anon;
 GRANT EXECUTE ON FUNCTION public.mp_investigation_scope(uuid) TO authenticated,service_role;
 
-CREATE FUNCTION public.mp_case_evidence_access(p_id uuid) RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path='' AS $
+CREATE FUNCTION public.mp_case_evidence_access(p_id uuid) RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path='' AS $$
  SELECT private.is_mp_investigation(p_id) AND EXISTS(SELECT 1 FROM public.criminal_cases c WHERE c.investigation_id=p_id AND public.justice_can_access_case(c.id));
-$;
+$$;
 REVOKE ALL ON FUNCTION public.mp_case_evidence_access(uuid) FROM PUBLIC,anon;
 GRANT EXECUTE ON FUNCTION public.mp_case_evidence_access(uuid) TO authenticated,service_role;
 CREATE POLICY mp_subject_scope ON public.investigation_subjects AS RESTRICTIVE FOR SELECT TO authenticated USING (public.mp_investigation_scope(investigation_id) OR (profile_id=auth.uid() AND notified_at IS NOT NULL AND NOT is_secret));
