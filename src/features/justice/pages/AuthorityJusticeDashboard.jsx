@@ -318,7 +318,7 @@ const AuthorityJusticeDashboard = () => {
   const actionReasonMinimum = action?.type === 'acquit' || action?.type === 'convict' ? 80
     : action?.type === 'appeal-decision' ? 60
       : ['admission', 'resolve-investigation', 'archive-referred', 'file-charge', 'complete-case-hearing'].includes(action?.type) ? 40
-        : ['investigate', 'complement-investigation', 'execute-warrant', 'request-decision', 'release', 'revoke-warrant'].includes(action?.type) ? 20
+        : ['integrity', 'investigate', 'complement-investigation', 'execute-warrant', 'request-decision', 'release', 'revoke-warrant'].includes(action?.type) ? 20
           : 10;
 
   const actionTitle = {
@@ -710,7 +710,7 @@ const AuthorityJusticeDashboard = () => {
             const special = item.institutional_term_id || item.source_type === 'judicial_impeachment';
             const investigation = data.investigations.find(row => row.id === item.investigation_id);
             const preliminary = ['suspicion','journalistic_investigation'].includes(item.status);
-            const canRecordJudgment = hasAnyJusticeRole(user, ['Juiz Federal']);
+            const canRecordJudgment = hasAnyJusticeRole(user, ['Juiz Federal']) && data.cases.some(row => row.investigation_id === item.investigation_id && ['final','execution','served'].includes(row.status) && (row.judge_id === user.id || data.caseAppeals.some(appeal => appeal.case_id === row.id && appeal.reviewing_judge_id === user.id && appeal.status === 'denied')));
             const actions = [];
             if (!special) {
               if (preliminary && isPolice) actions.push(['police_investigation', 'Vincular investigação policial']);
