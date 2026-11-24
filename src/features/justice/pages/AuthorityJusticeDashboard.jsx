@@ -58,6 +58,9 @@ import {
   issueJusticeFine,
   revokeJudicialWarrant,
   openInvestigation,
+  openMPInvestigation,
+  moveMPInvestigation,
+  requestMPWarrant,
   recordInvestigationEvidence,
   releasePrisonTerm,
   requestInvestigationComplement,
@@ -116,7 +119,9 @@ const AuthorityJusticeDashboard = () => {
   const isAdmin = hasAnyJusticeRole(user, ['Admin']);
   const canDecideCase = criminalCase => isAdmin || (isJudge && criminalCase.judge_id === user?.id);
   const isJudge = hasAnyJusticeRole(user, ['Admin', 'Juiz Federal']);
-  const isProsecutor = hasAnyJusticeRole(user, ['Admin', 'Promotor']);
+  const isMP = hasAnyJusticeRole(user, ['Promotor', 'Procurador-Geral da República']);
+  const isMPPoliceDirector = hasAnyJusticeRole(user, ['Diretor-Geral de Polícia']);
+  const isProsecutor = isMP || isAdmin;
   const isLawyer = hasAnyJusticeRole(user, ['Admin', 'Advogado', 'Defensor Público']);
   const isPrisonStaff = hasAnyJusticeRole(user, ['Admin', 'Agente Penitenciário', 'Diretor Penitenciário']);
   const hasJudicialAccess = isJudge || isProsecutor || isLawyer || isPrisonStaff;
@@ -133,7 +138,7 @@ const AuthorityJusticeDashboard = () => {
       ['integrity', BadgeCheck, 'Integridade'],
     ]
     : [
-      ...(isProsecutor ? [['investigations', Search, 'Remessas ao MP']] : []),
+      ...(isProsecutor ? [['investigations', Search, 'Investigações do MP']] : []),
       ['requests', Gavel, 'Pedidos judiciais'],
       ['cases', Scale, 'Processos'],
       ['warrants', ClipboardList, 'Mandados'],
@@ -213,6 +218,12 @@ const AuthorityJusticeDashboard = () => {
           occurrenceId: action.item.id,
           summary: reason,
         });
+      } else if (action.type === 'mp-open') {
+        await openMPInvestigation({ summary: reason, factsAt: fromBrasiliaInput(action.factsAt) });
+      } else if (action.type === 'mp-move') {
+        await moveMPInvestigation({ id: action.item.id, action: action.mpAction, reason, profileId: action.profileId || null, title: action.title || null, subjectStatus: action.subjectStatus || 'under_review', notify: Boolean(action.notify) });
+      } else if (action.type === 'mp-warrant') {
+        await requestMPWarrant({ id: action.item.id, profileId: action.profileId, warrantType: action.warrantType, reason, days: action.days });
       } else if (action.type === 'request-decision') {
         await decideJudicialRequest({
           requestId: action.item.id,
@@ -317,12 +328,15 @@ const AuthorityJusticeDashboard = () => {
 
   const actionReasonMinimum = action?.type === 'acquit' || action?.type === 'convict' ? 80
     : action?.type === 'appeal-decision' ? 60
-      : ['admission', 'resolve-investigation', 'archive-referred', 'file-charge', 'complete-case-hearing'].includes(action?.type) ? 40
+      : ['admission', 'resolve-investigation', 'archive-referred', 'file-charge', 'complete-case-hearing', 'mp-open', 'mp-move', 'mp-warrant'].includes(action?.type) ? 40
         : ['integrity', 'investigate', 'complement-investigation', 'execute-warrant', 'request-decision', 'release', 'revoke-warrant'].includes(action?.type) ? 20
           : 10;
 
   const actionTitle = {
     investigate: 'Abrir investigação',
+    'mp-open': 'Instaurar investigação própria do MP',
+    'mp-move': ({ subject:'Vincular ou atualizar investigado', witness:'Vincular testemunha', evidence:'Registrar e lacrar prova', diligence:'Solicitar diligência à Polícia', reply:'Responder diligência', ready:'Concluir investigação para denúncia', archive:'Arquivar PIC' })[action?.mpAction],
+    'mp-warrant': 'Solicitar medida judicial',
     'revoke-warrant': 'Revogar mandado',
     'execute-warrant': 'Cumprir mandado de prisão',
     'archive-referred': 'Arquivar investigação no Ministério Público',
@@ -454,7 +468,45 @@ const AuthorityJusticeDashboard = () => {
 
         <TabsContent value="investigations" className="space-y-4">
           {user?.admin_development?.mode==='total'&&<p className="text-xs text-amber-400">Normalmente disponível para: Polícia e Diretoria-Geral.</p>}
-          {data.investigations.length ? data.investigations.map((investigation) => (
+          {(isMP || isMPPoliceDirector || isAdmin) && <div className="space-y-4">
+            <Card className="glass-effect">
+              <CardHeader className="gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div><CardTitle className="text-lg">Procedimentos investigatórios do Ministério Público (PIC)</CardTitle><CardDescription>Investigações próprias, independentes de boletim policial. A instauração não presume culpa.</CardDescription></div>
+                {isMP && <Button onClick={() => setAction({type:'mp-open',factsAt:''})}><Search className="mr-2 h-4 w-4"/>Instaurar PIC</Button>}
+              </CardHeader>
+            </Card>
+            {data.investigations.filter(i => i.origin === 'mp').map(i => {
+              const active = ['open','in_progress','complement_requested'].includes(i.status);
+              const hasCase = data.cases.some(c => c.investigation_id === i.id);
+              const people = data.investigationSubjects.filter(p => p.investigation_id === i.id);
+              const witnesses = data.investigationParties.filter(p => p.investigation_id === i.id && p.party_type === 'witness');
+              const evidence = data.evidence.filter(e => e.investigation_id === i.id);
+              const policeReply = isMPPoliceDirector && i.status === 'complement_requested' && !hasCase;
+              const act = (mpAction, extra={}) => setAction({type:'mp-move',item:i,mpAction,...extra});
+              return <Card key={i.id} className="glass-effect">
+                <CardHeader><div className="flex items-start justify-between gap-3"><div><CardTitle>{i.investigation_number} · PIC</CardTitle><CardDescription className="mt-1 whitespace-pre-wrap">{i.summary}</CardDescription></div><Badge variant="outline">{i.status === 'complement_requested' ? 'Diligência solicitada' : i.status === 'sent_to_prosecutor' ? 'Pronto para denúncia' : justiceStatus(i.status)}</Badge></div></CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid gap-2 text-sm sm:grid-cols-2"><div>Instaurado: {formatJusticeDate(i.opened_at)}</div><div>Data dos fatos: {formatJusticeDate(i.facts_occurred_at)}</div><div>Responsável: {data.profiles.find(p => p.id === i.created_by)?.full_name || 'Ministério Público'}</div><div><LockKeyhole className="mr-1 inline h-4 w-4"/> Acesso restrito por competência</div></div>
+                  {i.conclusion && <p className="whitespace-pre-wrap rounded-lg border p-3 text-sm">Conclusão: {i.conclusion}</p>}
+                  <details className="rounded-lg border p-3"><summary className="cursor-pointer font-medium">Investigados ({people.length}) e testemunhas ({witnesses.length})</summary><div className="mt-3 space-y-2">{people.map(p => <div key={p.profile_id} className="rounded border p-2"><UserSelectOption user={data.profiles.find(x => x.id === p.profile_id) || p.profile || {id:p.profile_id,full_name:'Pessoa vinculada'}} detail={justiceStatus(p.subject_status)}/><p className="mt-1 text-xs text-muted-foreground">{p.is_secret ? 'Sob sigilo' : 'Notificado'}{p.notes ? ' · '+p.notes : ''}</p></div>)}{witnesses.map(p => <div key={p.id} className="rounded border p-2"><UserSelectOption user={data.profiles.find(x => x.id === p.profile_id) || {id:p.profile_id,full_name:'Testemunha'}} detail="Testemunha sob sigilo"/><p className="mt-1 text-xs text-muted-foreground">{p.notes}</p></div>)}</div></details>
+                  <CaseEvidence evidence={evidence}/>
+                  <CaseTimeline status={i.status} events={data.timeline.filter(e => e.investigation_id === i.id)}/>
+                  <div className="flex flex-wrap gap-2">
+                    {isMP && active && !hasCase && <><Button size="sm" variant="outline" onClick={() => act('subject',{profileId:'',subjectStatus:'under_review',notify:false})}>Vincular investigado</Button><Button size="sm" variant="outline" onClick={() => act('witness',{profileId:''})}>Vincular testemunha</Button></>}
+                    {(isMP && active && !hasCase || policeReply) && <Button size="sm" variant="outline" onClick={() => act('evidence',{title:''})}>Registrar e lacrar prova</Button>}
+                    {isMP && !hasCase && ['open','in_progress','sent_to_prosecutor'].includes(i.status) && <Button size="sm" variant="outline" onClick={() => act('diligence')}>Solicitar diligência</Button>}
+                    {policeReply && <Button size="sm" onClick={() => act('reply')}>Responder diligência</Button>}
+                    {isMP && !hasCase && ['open','in_progress'].includes(i.status) && <Button size="sm" onClick={() => act('ready')}>Concluir para denúncia</Button>}
+                    {isMP && (active || i.status === 'sent_to_prosecutor') && <Button size="sm" variant="outline" onClick={() => setAction({type:'mp-warrant',item:i,profileId:'',warrantType:'search_warrant',days:'7'})}>Solicitar medida judicial</Button>}
+                    {isMP && i.status === 'sent_to_prosecutor' && <Button size="sm" onClick={() => setAction({type:'file-charge',item:i,title:'',defendantId:'',penalCodeId:''})}>Oferecer denúncia</Button>}
+                    {isMP && !hasCase && (active || i.status === 'sent_to_prosecutor') && <Button size="sm" variant="destructive" onClick={() => act('archive')}>Arquivar PIC</Button>}
+                  </div>
+                </CardContent>
+              </Card>;
+            })}
+          </div>}
+          <h3 className="font-semibold">{isMP ? 'Investigações encaminhadas pela Polícia' : 'Inquéritos policiais'}</h3>
+          {data.investigations.some(i => i.origin !== 'mp') ? data.investigations.filter(i => i.origin !== 'mp').map((investigation) => (
             <Card key={investigation.id} className="glass-effect">
               <CardHeader>
                 <div className="flex flex-wrap items-start justify-between gap-3">
@@ -740,15 +792,19 @@ const AuthorityJusticeDashboard = () => {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-2 py-2">
+            {action?.type === 'mp-open' && <><Label htmlFor="mp-facts-at">Data e hora dos fatos (Brasília)</Label><Input id="mp-facts-at" type="datetime-local" value={action.factsAt} onChange={event=>updateAction({factsAt:event.target.value})}/><p className="text-xs text-muted-foreground">Descreva os fatos, a origem da notícia e os fundamentos da instauração. O PIC não depende de boletim policial.</p></>}
+            {action?.type === 'mp-move' && ['subject','witness'].includes(action.mpAction) && <><Label>Pessoa vinculada</Label><CitizenSelector value={action.profileId} onChange={profileId=>updateAction({profileId})}/>{action.mpAction === 'subject' && <><Label>Situação</Label><Select value={action.subjectStatus} onValueChange={subjectStatus=>updateAction({subjectStatus})}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="under_review">Verificação preliminar</SelectItem><SelectItem value="investigated">Investigado</SelectItem><SelectItem value="cleared">Retirado da investigação</SelectItem></SelectContent></Select><ModalFieldLabel className="flex items-center gap-2 py-2 text-sm"><input type="checkbox" checked={Boolean(action.notify)} onChange={event=>updateAction({notify:event.target.checked})}/>Notificar formalmente (o vínculo é sigiloso por padrão)</ModalFieldLabel></>}</>}
+            {action?.type === 'mp-move' && action.mpAction === 'evidence' && <><Label htmlFor="mp-proof-title">Título da prova</Label><Input id="mp-proof-title" value={action.title} onChange={event=>updateAction({title:event.target.value})}/><p className="text-xs text-muted-foreground">O registro textual será lacrado com cadeia de custódia.</p></>}
+            {action?.type === 'mp-warrant' && <><Label>Investigado</Label><Select value={action.profileId} onValueChange={profileId=>updateAction({profileId})}><SelectTrigger><SelectValue placeholder="Selecione pessoa vinculada"/></SelectTrigger><SelectContent>{data.investigationSubjects.filter(p=>p.investigation_id===action.item.id && p.subject_status!=='cleared').map(p=><SelectItem key={p.profile_id} value={p.profile_id}>{data.profiles.find(x=>x.id===p.profile_id)?.full_name || 'Pessoa vinculada'}</SelectItem>)}</SelectContent></Select><Label>Medida solicitada</Label><Select value={action.warrantType} onValueChange={warrantType=>updateAction({warrantType})}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="search_warrant">Busca e apreensão</SelectItem><SelectItem value="arrest_warrant">Prisão</SelectItem></SelectContent></Select><Label htmlFor="mp-warrant-days">Prazo solicitado (dias RP)</Label><Input id="mp-warrant-days" type="number" min="1" max="30" value={action.days} onChange={event=>updateAction({days:event.target.value})}/><p className="text-xs text-muted-foreground">A expedição depende de decisão judicial. Este pedido não autoriza cumprimento imediato.</p></>}
             {action?.type === 'execute-warrant' && <div><Label htmlFor="arrest-location">Local do cumprimento</Label><Input id="arrest-location" value={action.location} onChange={event => updateAction({ location: event.target.value })} /></div>}
             {action?.type === 'evidence' ? <><Label htmlFor="evidence-title">Identificação da prova</Label><Input id="evidence-title" value={action.title} onChange={(event) => updateAction({ title: event.target.value })} placeholder="Ex.: Laudo pericial nº 14" /><ModalFieldLabel className="flex items-center gap-2 py-2 text-sm"><input type="checkbox" checked={Boolean(action.seal)} disabled={!isDelegate} onChange={(event) => updateAction({ seal: event.target.checked })} />Lacrar prova ao registrar</ModalFieldLabel></> : null}
-            {action?.type === 'file-charge' ? <><Label htmlFor="charge-title">Título da ação penal</Label><Input id="charge-title" value={action.title} onChange={(event) => updateAction({ title: event.target.value })} /><Label>Acusado</Label><Select value={action.defendantId} onValueChange={(value) => updateAction({ defendantId: value })}><SelectTrigger><SelectValue placeholder="Selecione o investigado" /></SelectTrigger><SelectContent>{data.investigationParties.filter((party) => party.investigation_id === action.item.id && party.party_type === 'suspect').map((party) => { const profile = data.profiles.find((item) => item.id === party.profile_id); return <SelectItem key={party.id} value={party.profile_id}><UserSelectOption user={profile || { id: party.profile_id, full_name: party.profile_id }} /></SelectItem>; })}</SelectContent></Select><Label>Tipo penal</Label><Select value={action.penalCodeId} onValueChange={(value) => updateAction({ penalCodeId: value })}><SelectTrigger><SelectValue placeholder="Selecione o enquadramento" /></SelectTrigger><SelectContent>{data.penalCodes.map((code) => <SelectItem key={code.id} value={code.id}>{code.code} — {code.name}</SelectItem>)}</SelectContent></Select></> : null}
+            {action?.type === 'file-charge' ? <><Label htmlFor="charge-title">Título da ação penal</Label><Input id="charge-title" value={action.title} onChange={(event) => updateAction({ title: event.target.value })} /><Label>Acusado</Label><Select value={action.defendantId} onValueChange={(value) => updateAction({ defendantId: value })}><SelectTrigger><SelectValue placeholder="Selecione o investigado" /></SelectTrigger><SelectContent>{data.investigationParties.filter((party) => party.investigation_id === action.item.id && party.party_type === 'suspect' && (action.item.origin !== 'mp' || !data.investigationSubjects.some(p => p.investigation_id === action.item.id && p.profile_id === party.profile_id && p.subject_status === 'cleared'))).map((party) => { const profile = data.profiles.find((item) => item.id === party.profile_id); return <SelectItem key={party.id} value={party.profile_id}><UserSelectOption user={profile || { id: party.profile_id, full_name: party.profile_id }} /></SelectItem>; })}</SelectContent></Select><Label>Tipo penal</Label><Select value={action.penalCodeId} onValueChange={(value) => updateAction({ penalCodeId: value })}><SelectTrigger><SelectValue placeholder="Selecione o enquadramento" /></SelectTrigger><SelectContent>{data.penalCodes.map((code) => <SelectItem key={code.id} value={code.id}>{code.code} — {code.name}</SelectItem>)}</SelectContent></Select></> : null}
             {action?.type === 'schedule-case-hearing' ? <><Label htmlFor="case-hearing-date">Data e hora (Brasília)</Label><Input id="case-hearing-date" type="datetime-local" value={scheduledAt} onChange={(event) => setScheduledAt(event.target.value)} /><Label htmlFor="case-hearing-location">Local ou sala virtual</Label><Input id="case-hearing-location" value={action.location} onChange={(event) => updateAction({ location: event.target.value })} /></> : null}
             {action?.type === 'convict' ? <div className="grid grid-cols-2 gap-3"><div><Label htmlFor="sentence-units">Pena (anos RP)</Label><Input id="sentence-units" type="number" min="0.1" step="0.1" value={action.sentenceUnits} onChange={(event) => updateAction({ sentenceUnits: event.target.value })} /></div><div><Label htmlFor="sentence-fine">Multa</Label><CurrencyInput decimal id="sentence-fine" min="0" step="0.01" value={action.fineAmount} onChange={(event) => updateAction({ fineAmount: event.target.value })} /></div><div className="col-span-2"><Label>Regime</Label><Select value={action.prisonRegime} onValueChange={(value) => updateAction({ prisonRegime: value })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="open">Aberto</SelectItem><SelectItem value="semi_open">Semiaberto</SelectItem><SelectItem value="closed">Fechado</SelectItem><SelectItem value="maximum_security">Segurança máxima</SelectItem></SelectContent></Select></div></div> : null}
             {action?.type === 'fine-hearing' && action.status === 'scheduled' ? <><Label htmlFor="hearing-date">Data e hora (Brasília)</Label><Input id="hearing-date" type="datetime-local" value={scheduledAt} onChange={(event) => setScheduledAt(event.target.value)} /></> : null}
             {action?.type === 'issue-fine' && <><Label>Cidadão</Label><CitizenSelector value={action.userId} onChange={value => updateAction({userId:value})}/><Label htmlFor="fine-amount">Valor da multa (R$)</Label><CurrencyInput decimal id="fine-amount" min="0.01" step="0.01" value={action.amount} onChange={event => updateAction({ amount: event.target.value })} /><Label htmlFor="fine-due-date">Vencimento (Brasília)</Label><Input id="fine-due-date" type="datetime-local" value={scheduledAt} onChange={event => setScheduledAt(event.target.value)} /></>}
             {action?.type === 'convict' && <div className="space-y-2"><Label htmlFor="sentence-special-justification">Justificativa especial para pena fora dos limites legais</Label><Textarea id="sentence-special-justification" value={action.specialJustification || ''} onChange={event => updateAction({ specialJustification: event.target.value })} minLength={40} rows={4} aria-describedby="sentence-special-help"/><p id="sentence-special-help" className="text-xs text-muted-foreground">Obrigatória quando a pena ultrapassa os limites da norma aplicável ao caso. Mínimo de 40 caracteres; não substitui a fundamentação da sentença. {(action.specialJustification || '').trim().length} / 40</p></div>}
-            {action?.type === 'integrity' && action.status === 'police_investigation' && !action.item.investigation_id && <><Label>Investigação policial vinculada</Label><Select value={action.investigationId} onValueChange={value => updateAction({investigationId:value})}><SelectTrigger><SelectValue placeholder="Selecione a investigação existente" /></SelectTrigger><SelectContent>{data.investigations.filter(row => ['open','in_progress','delegate_review','complement_requested','sent_to_prosecutor'].includes(row.status)).map(row => <SelectItem key={row.id} value={row.id}>{row.investigation_number}</SelectItem>)}</SelectContent></Select><p className="text-xs text-muted-foreground">Abra a investigação na área policial primeiro e vincule as pessoas relacionadas à suspeita.</p></>}
+            {action?.type === 'integrity' && action.status === 'police_investigation' && !action.item.investigation_id && <><Label>Investigação policial vinculada</Label><Select value={action.investigationId} onValueChange={value => updateAction({investigationId:value})}><SelectTrigger><SelectValue placeholder="Selecione a investigação existente" /></SelectTrigger><SelectContent>{data.investigations.filter(row => row.origin !== 'mp' && ['open','in_progress','delegate_review','complement_requested','sent_to_prosecutor'].includes(row.status)).map(row => <SelectItem key={row.id} value={row.id}>{row.investigation_number}</SelectItem>)}</SelectContent></Select><p className="text-xs text-muted-foreground">Abra a investigação na área policial primeiro e vincule as pessoas relacionadas à suspeita.</p></>}
             <Label htmlFor="authority-reason">Fundamentação (mínimo de {actionReasonMinimum} caracteres)</Label>
             <Textarea
               id="authority-reason"
@@ -767,6 +823,10 @@ const AuthorityJusticeDashboard = () => {
               onClick={performAction}
               disabled={acting
                 || reason.trim().length < actionReasonMinimum
+                || (action?.type === 'mp-open' && (!action.factsAt || !Number.isFinite(new Date(fromBrasiliaInput(action.factsAt)).getTime()) || new Date(fromBrasiliaInput(action.factsAt)).getTime() > now))
+                || (action?.type === 'mp-move' && ['subject','witness'].includes(action.mpAction) && !action.profileId)
+                || (action?.type === 'mp-move' && action.mpAction === 'evidence' && (action.title?.trim().length < 5 || action.title?.trim().length > 200))
+                || (action?.type === 'mp-warrant' && (!action.profileId || !Number.isInteger(Number(action.days)) || Number(action.days) < 1 || Number(action.days) > 30))
                 || (action?.type === 'integrity' && action.status === 'police_investigation' && !action.investigationId)
                 || (action?.type === 'schedule-case-hearing' && !scheduledAt)
                 || (action?.type === 'fine-hearing' && action.status === 'scheduled' && !scheduledAt)
