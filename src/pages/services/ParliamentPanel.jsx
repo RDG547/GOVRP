@@ -347,7 +347,7 @@ const ParliamentPanel = () => {
   },[house?.id,user?.id]);
 
   const canStartVote=Boolean(housePresidencyAuthority?.can_manage_votings);
-  const canScheduleVote=canStartVote;
+  const canScheduleVote=Boolean(housePresidencyAuthority?.can_schedule_votings);
   const canManageGovernance = rolePool.some((role) => canManageParliamentGovernance(role));
   const canParticipateInGovernance =
     Boolean(parliamentMember) && !isAdministrativeViewer;
