@@ -1391,7 +1391,11 @@ const ParliamentPanel = () => {
                   {votings.length ? (
                     <div className="space-y-4">
                       {votings.map((voting) => {
-                        const canVote = voting.type !== 'bill' || (voting.tie_break_pending ? voting.chair_member_id === parliamentMember?.id : voting.eligible_member_ids?.includes(parliamentMember?.id));
+                        const canVote = voting.type !== 'bill' ||
+                          (voting.tie_break_pending
+                            ? Boolean(parliamentMember?.id && (housePresidencyAuthority?.is_house_president ||
+                                housePresidencyAuthority?.is_temporary_substitute))
+                            : voting.eligible_member_ids?.includes(parliamentMember?.id));
                         const userHasVoted = (voting.votes || []).some((entry) => entry.member_id === parliamentMember?.id);
                         const votingLabel =
                           voting.type === 'commission'
