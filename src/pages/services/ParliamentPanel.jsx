@@ -69,7 +69,6 @@ import { Separator } from '@/components/ui/separator';
 import PageHeader from '@/components/layout/PageHeader';
 import GovernanceMigrationAlert from '@/components/parliament/GovernanceMigrationAlert';
 import {
-  canManageParliamentVoting,
   ensureParliamentOperatorMember,
   finalizeParliamentVotingIfReady,
   PARLIAMENT_MANDATE_DURATION_LABEL,
@@ -322,13 +321,33 @@ const ParliamentPanel = () => {
   const rolePool = useMemo(() => JSON.parse(roleSignature), [roleSignature]);
   const isAdministrativeViewer =
     rolePool.includes('Admin') || rolePool.includes('Presidente');
-  const canStartVote = rolePool.some((role) => canManageParliamentVoting(role));
-  const canScheduleVote = rolePool.includes('Admin') ||
-    rolePool.some(role => ['Presidente da Câmara','Presidente da Câmara dos Deputados',
-      'Presidente do Senado','Presidente do Senado Federal'].includes(role));
-  const canManageSenateViceBillVote = Boolean(parliamentMember) &&
-    house?.name?.toLocaleLowerCase('pt-BR').includes('senado') &&
-    rolePool.some(role => ['Vice-Presidente do Senado', 'Vice-Presidente do Senado Federal'].includes(role));
+  const [housePresidencyAuthority,setHousePresidencyAuthority]=useState(null);
+
+  // The server—not the role label—decides whether a vice may substitute.
+  // Check periodically so a returning President immediately revokes temporary
+  // powers on the next refresh; every RPC also checks the rule at execution.
+  useEffect(()=>{
+    let cancelled=false;
+    setHousePresidencyAuthority(null);
+    if(!user?.id||!house?.id) return undefined;
+
+    const refreshAuthority=async()=>{
+      const {data,error}=await supabase.rpc('get_house_presidency_authority',{p_house_id:house.id});
+      if(!cancelled) setHousePresidencyAuthority(error?null:data);
+    };
+    void refreshAuthority();
+    const timer=window.setInterval(()=>{void refreshAuthority();},30000);
+    const onReturn=()=>{if(!document.hidden) void refreshAuthority();};
+    document.addEventListener('visibilitychange',onReturn);
+    return ()=>{
+      cancelled=true;
+      window.clearInterval(timer);
+      document.removeEventListener('visibilitychange',onReturn);
+    };
+  },[house?.id,user?.id]);
+
+  const canStartVote=Boolean(housePresidencyAuthority?.can_manage_votings);
+  const canScheduleVote=Boolean(housePresidencyAuthority?.can_schedule_votings);
   const canManageGovernance = rolePool.some((role) => canManageParliamentGovernance(role));
   const canParticipateInGovernance =
     Boolean(parliamentMember) && !isAdministrativeViewer;
@@ -1157,6 +1176,28 @@ const ParliamentPanel = () => {
             <TabsContent value="information"><GovernanceRulesGrid /></TabsContent>
             <TabsContent value="appointments"><JudicialGovernance /></TabsContent>
             <TabsContent value="projects" className="space-y-6">
+              {housePresidencyAuthority?.is_temporary_substitute && (
+                <Alert className="border-amber-500/40">
+                  <Crown className="h-4 w-4" />
+                  <AlertTitle>Presidência temporária da Casa</AlertTitle>
+                  <AlertDescription>
+                    Você está exercendo as atribuições da Presidência porque o titular
+                    está há pelo menos 4 dias reais sem acessar o GOVRP. As atribuições
+                    são revogadas automaticamente quando ele retornar.
+                  </AlertDescription>
+                </Alert>
+              )}
+              {housePresidencyAuthority?.is_house_vice_president &&
+               !housePresidencyAuthority?.can_manage_votings && (
+                <Alert>
+                  <Info className="h-4 w-4" />
+                  <AlertDescription>
+                    A Vice-Presidência pode iniciar, agendar e cancelar votações apenas
+                    durante a ausência do titular por 4 dias reais, ou após assumir
+                    definitivamente a Presidência por vacância.
+                  </AlertDescription>
+                </Alert>
+              )}
               <DecreeOversight houseId={house?.id} onUpdated={() => fetchPanelData({ quiet: true })} />
               <Tabs value={activeSubTab} onValueChange={setActiveSubTab}>
                 <TabsList className="grid h-auto w-full grid-cols-2 items-stretch gap-2">
@@ -1208,8 +1249,6 @@ const ParliamentPanel = () => {
                     <CardContent className="space-y-4">
                       {filteredBills.length ? (
                         filteredBills.map((bill) => {
-                          const canViceManageThisBill = canManageSenateViceBillVote &&
-                            ['PL', 'PEC', 'Proposta de Emenda Constitucional'].includes(bill.type);
                           const billStatusMeta = {
                             'Em tramitação': 'bg-yellow-500/20 text-yellow-300 border-yellow-500/30',
                             'Em votação': 'bg-blue-500/20 text-blue-300 border-blue-500/30',
@@ -1248,13 +1287,13 @@ const ParliamentPanel = () => {
                                 <p className="text-sm text-muted-foreground">{bill.summary}</p>
                                 <PartyGuidanceNotice guidance={partyGuidanceByBill[bill.id]} />
                               </CardContent>
-                              {(canStartVote || canViceManageThisBill) && bill.status === 'Em tramitação' ? (
+                              {canStartVote && bill.status === 'Em tramitação' ? (
                                 <CardFooter className="flex flex-wrap items-center gap-2">
                                   {!scheduledVotings.some(item=>item.bill_id===bill.id) &&
                                     <Button size="sm" onClick={() => handleStartBillVoting(bill)}>
                                       <Gavel className="mr-2 h-4 w-4" />Iniciar agora
                                     </Button>}
-                                  {(canScheduleVote || canViceManageThisBill) && <ParliamentVoteScheduler bill={bill} houseId={house.id}
+                                  {canScheduleVote && <ParliamentVoteScheduler bill={bill} houseId={house.id}
                                     schedule={scheduledVotings.find(item=>item.bill_id===bill.id)}
                                     onChanged={async()=>{await loadScheduledVotings();await fetchPanelData({quiet:true});}} />}
                                 </CardFooter>
