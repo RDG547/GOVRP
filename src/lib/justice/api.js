@@ -371,12 +371,12 @@ export const savePublicSafetyCampaign = async (campaign) => throwIfError(
   })
 );
 
-export const transitionIntegrityCase = async ({ caseId, status, summary }) => throwIfError(
+export const transitionIntegrityCase = async ({ caseId, status, summary, investigationId = null }) => throwIfError(
   await supabase.rpc('transition_integrity_case', {
     p_case_id: caseId,
     p_new_status: status,
     p_summary: summary,
-    p_investigation_id: null,
+    p_investigation_id: investigationId,
     p_commission_id: null,
   })
 );
