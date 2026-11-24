@@ -473,3 +473,16 @@ export const archiveReferredInvestigation = async ({ investigationId, reason }) 
 );
 
 export const sealInvestigationEvidence = async ({ evidenceId, justification }) => throwIfError(await supabase.rpc('seal_case_evidence', { p_evidence_id: evidenceId, p_justification: justification }));
+
+// Independent criminal investigation of the Ministério Público (PIC).
+export const openMPInvestigation = async ({ summary, factsAt }) => throwIfError(
+  await supabase.rpc('open_mp_investigation', { p_summary: summary, p_facts_occurred_at: factsAt })
+);
+
+export const moveMPInvestigation = async ({ id, action, reason, profileId = null, title = null, subjectStatus = 'under_review', notify = false }) => throwIfError(
+  await supabase.rpc('move_mp_investigation', { p_id: id, p_action: action, p_reason: reason, p_profile_id: profileId, p_title: title, p_subject_status: subjectStatus, p_notify: notify })
+);
+
+export const requestMPWarrant = async ({ id, profileId, warrantType, reason, days }) => throwIfError(
+  await supabase.rpc('request_judicial_warrant', { p_investigation_id: id, p_target_profile_id: profileId, p_warrant_type: warrantType, p_justification: reason, p_duration_rp_days: Number(days) })
+);
