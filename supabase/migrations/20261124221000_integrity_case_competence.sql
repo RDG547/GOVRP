@@ -54,7 +54,7 @@ BEGIN
      RAISE EXCEPTION 'Ofereça a denúncia no módulo judicial antes de movimentar o caso.';
    END IF;
  WHEN 'archived' THEN
-   IF NOT ((c.status IN ('suspicion','journalistic_investigation') AND (police OR mp OR admin)) OR (c.status='police_investigation' AND (police OR admin) AND inv.status='archived') OR (c.status='public_prosecution' AND (mp OR admin) AND inv.status='archived')) THEN RAISE EXCEPTION 'Arquivamento exige autoridade competente e, quando vinculada, investigação arquivada.' USING errcode='42501'; END IF;
+   IF NOT ((c.status IN ('suspicion','journalistic_investigation') AND (police OR mp OR admin)) OR (c.status='police_investigation' AND (police OR admin) AND inv_id IS NOT NULL AND inv.status='archived') OR (c.status='public_prosecution' AND (mp OR admin) AND inv_id IS NOT NULL AND inv.status='archived')) THEN RAISE EXCEPTION 'Arquivamento exige autoridade competente e, quando vinculada, investigação arquivada.' USING errcode='42501'; END IF;
    IF inv_id IS NOT NULL AND inv.status<>'archived' THEN RAISE EXCEPTION 'Arquive primeiro a investigação no módulo competente.'; END IF;
  WHEN 'convicted','acquitted' THEN
    IF c.status<>'judicial_process' OR NOT judge THEN RAISE EXCEPTION 'Somente magistrado em exercício pode registrar o resultado judicial.' USING errcode='42501'; END IF;
