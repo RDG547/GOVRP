@@ -1,3 +1,4 @@
+import MPOversight from '@/features/justice/components/MPOversight';
 import { Label as ModalFieldLabel } from '@/components/ui/label';
 import CitizenMultiSelector from '@/components/CitizenMultiSelector';
 import { PoliceEvidenceUploader } from '@/features/justice/components/PoliceEvidenceFiles';
@@ -331,13 +332,14 @@ const CitizenJusticeDashboard = () => {
 
       {data.errors?.length ? <div role="alert" className="rounded-lg border border-amber-500/40 p-3 text-sm">Algumas informações não puderam ser atualizadas. <Button variant="link" onClick={() => loadData({ quiet: true, sections: data.errors })}>Tentar novamente</Button></div> : null}
       <Tabs defaultValue="occurrences" className="space-y-6">
-        <TabsList className="grid h-auto w-full grid-cols-2 gap-2 bg-muted/50 p-2 md:grid-cols-3 xl:grid-cols-6">
+        <TabsList className="grid h-auto w-full grid-cols-2 gap-2 bg-muted/50 p-2 md:grid-cols-3 xl:grid-cols-7">
           <TabsTrigger value="occurrences"><FileSearch className="mr-2 h-4 w-4" />Ocorrências</TabsTrigger>
           <TabsTrigger value="cases"><Scale className="mr-2 h-4 w-4" />Processos</TabsTrigger>
           <TabsTrigger value="deadlines"><CalendarClock className="mr-2 h-4 w-4" />Prazos e intimações</TabsTrigger>
           <TabsTrigger value="requests"><Gavel className="mr-2 h-4 w-4" />Pedidos e decisões</TabsTrigger>
           <TabsTrigger value="fines"><Banknote className="mr-2 h-4 w-4" />Multas</TabsTrigger>
           <TabsTrigger value="security"><ShieldCheck className="mr-2 h-4 w-4" />Segurança pública</TabsTrigger>
+          <TabsTrigger value="oversight"><ShieldCheck className="mr-2 h-4 w-4" />Representações ao MP</TabsTrigger>
         </TabsList>
 
         <TabsContent value="occurrences" className="space-y-6">
@@ -682,6 +684,7 @@ const CitizenJusticeDashboard = () => {
           }) : <JusticeEmptyState title="Nenhuma multa recebida" description="Multas oficiais aparecerão aqui com número único, pagamento, recurso e audiência." />}
         </TabsContent>
 
+        <TabsContent value="oversight" className="space-y-4"><MPOversight key={user.id+user.role}/></TabsContent>
         <TabsContent value="security" className="space-y-6">
           <div className="grid gap-4 md:grid-cols-2">
             <Card className="glass-effect"><CardHeader><CardTitle className="flex items-center gap-2"><Search className="h-5 w-5 text-red-300" />Mandados em seu nome</CardTitle></CardHeader><CardContent>{data.security.warrants?.length ? data.security.warrants.map((item) => <div key={item.id} className="mb-3 rounded-lg border border-red-500/20 bg-red-500/5 p-3"><p className="font-medium">{item.number}</p><p className="text-sm text-muted-foreground">{justiceRequest(item.type)} · {justiceStatus(item.status)}</p></div>) : <p className="text-sm text-muted-foreground">Nenhum mandado ativo localizado.</p>}</CardContent></Card>
