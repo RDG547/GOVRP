@@ -11,6 +11,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import CitizenJusticeDashboard from '@/features/justice/pages/CitizenJusticeDashboard';
 import AuthorityJusticeDashboard from '@/features/justice/pages/AuthorityJusticeDashboard';
+import PGRDashboard from '@/features/justice/pages/PGRDashboard';
 import RpClock from '@/features/justice/components/RpClock';
 import { fetchRpTimeSettings } from '@/lib/justice/api';
 import { hasAnyJusticeRole } from '@/lib/justice/constants';
@@ -22,6 +23,7 @@ const Justice = ({ defaultView = 'citizen' }) => {
   const [timeSettings, setTimeSettings] = useState(null);
   const [loadingClock, setLoadingClock] = useState(true);
   const [showGovernance, setShowGovernance] = useState(false);
+  const isPGR = user?.role === 'Procurador-Geral da República' || (user?.admin_development?.mode==='normal' && hasAnyJusticeRole(user,['Procurador-Geral da República']));
   const hasAuthorityAccess = useMemo(() => hasAnyJusticeRole(user), [user]);
   const requestedView = searchParams.get('view') || defaultView;
   const activeView = requestedView === 'authority' && hasAuthorityAccess
@@ -58,7 +60,7 @@ const Justice = ({ defaultView = 'citizen' }) => {
   };
 
   if (hasAuthorityAccess && !searchParams.has('view') && defaultView === 'citizen') {
-    return <ServiceAccess requiredRoles={JUSTICE_AUTHORITY_ROLES} title="Como deseja acessar?" panelLabel={`Acessar como ${primaryJusticeRole(user)}`} citizenPath="/services/justice?view=citizen" panelPath="/services/justice?view=authority" />;
+    return <ServiceAccess requiredRoles={JUSTICE_AUTHORITY_ROLES} title="Como deseja acessar?" panelLabel={isPGR?'Acessar Painel da PGR':`Acessar como ${primaryJusticeRole(user)}`} citizenPath="/services/justice?view=citizen" panelPath="/services/justice?view=authority" />;
   }
 
   return (
@@ -104,7 +106,7 @@ const Justice = ({ defaultView = 'citizen' }) => {
                 onClick={() => changeView('authority')}
               >
                 <ShieldCheck className="mr-2 h-4 w-4" />
-                Meu painel de trabalho
+                {isPGR?'Painel da PGR':'Meu painel de trabalho'}
               </Button>
             </div>
           ) : null}
@@ -112,7 +114,7 @@ const Justice = ({ defaultView = 'citizen' }) => {
 
         <div className="mb-6 space-y-3"><Button variant="outline" aria-expanded={showGovernance} onClick={() => setShowGovernance(current=>!current)}><Gavel className="mr-2 h-4 w-4"/>STF, sabatinas e mandatos</Button>{showGovernance&&<JudicialGovernance/>}</div>
         {activeView === 'authority'
-          ? <AuthorityJusticeDashboard />
+          ? (isPGR?<PGRDashboard key={user?.id+user?.role}/>:<AuthorityJusticeDashboard />)
           : <CitizenJusticeDashboard />}
       </div>
     </>
