@@ -323,12 +323,13 @@ export const decideJudicialRequest = async ({
   requestId,
   approved,
   reason,
+  days = 7,
 }) => throwIfError(
   await supabase.rpc('decide_judicial_request', {
     p_request_id: requestId,
     p_approved: approved,
     p_decision_reason: reason,
-    p_warrant_duration_rp_days: 7,
+    p_warrant_duration_rp_days: Number(days),
   })
 );
 
@@ -483,6 +484,14 @@ export const moveMPInvestigation = async ({ id, action, reason, profileId = null
   await supabase.rpc('move_mp_investigation', { p_id: id, p_action: action, p_reason: reason, p_profile_id: profileId, p_title: title, p_subject_status: subjectStatus, p_notify: notify })
 );
 
-export const requestMPWarrant = async ({ id, profileId, warrantType, reason, days }) => throwIfError(
-  await supabase.rpc('request_judicial_warrant', { p_investigation_id: id, p_target_profile_id: profileId, p_warrant_type: warrantType, p_justification: reason, p_duration_rp_days: Number(days) })
+export const requestMPWarrant = async ({ id, profileId, warrantType, reason, legalBasis, days, evidenceIds, bankFrom = null, bankTo = null }) => throwIfError(
+  await supabase.rpc('request_mp_judicial_measure', { p_investigation_id: id, p_target_profile_id: profileId, p_request_type: warrantType, p_justification: reason, p_legal_basis: legalBasis, p_duration_rp_days: Number(days), p_evidence_ids: evidenceIds, p_bank_from: bankFrom, p_bank_to: bankTo })
+);
+
+export const cancelMPWarrant = async ({ id, reason }) => throwIfError(
+  await supabase.rpc('cancel_mp_judicial_measure', { p_id: id, p_reason: reason })
+);
+
+export const getMPFinancialEvidence = async ({ id, reason }) => throwIfError(
+  await supabase.rpc('get_mp_financial_evidence', { p_request_id: id, p_reason: reason })
 );
