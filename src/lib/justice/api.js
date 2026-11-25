@@ -495,3 +495,7 @@ export const cancelMPWarrant = async ({ id, reason }) => throwIfError(
 export const getMPFinancialEvidence = async ({ id, reason }) => throwIfError(
   await supabase.rpc('get_mp_financial_evidence', { p_request_id: id, p_reason: reason })
 );
+
+export const revokeMPMeasure = async ({ id, reason }) => throwIfError(
+  await supabase.rpc('revoke_mp_judicial_measure', { p_id: id, p_reason: reason })
+);
