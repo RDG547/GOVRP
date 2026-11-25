@@ -228,4 +228,33 @@ BEGIN
  END IF;
 END
 $test$;
+
+DO $verify$
+DECLARE v_count int; v_principal numeric; v_treasury numeric; v_funding numeric; v_gain numeric; v_again int;
+BEGIN
+ SELECT coalesce(sum(amount_invested),0) INTO v_principal FROM public.user_investments;
+ SELECT treasury_balance INTO v_treasury FROM public.government_finances WHERE id=1;
+ BEGIN
+  -- This subtransaction is always rolled back. No test transaction can persist.
+  UPDATE public.investment_options SET listing_metadata=listing_metadata||jsonb_build_object('balanced_yield_at',clock_timestamp()-interval '25 hours'),
+   price_updated_at=clock_timestamp()-interval '25 hours'
+   WHERE asset_type='fixed_income' AND is_active AND listing_metadata ? 'balanced_yield_mode';
+  v_count:=private.refresh_balanced_investments();
+  v_again:=private.refresh_balanced_investments();
+  IF v_again<>0 THEN RAISE EXCEPTION 'Daily update replayed'; END IF;
+  SELECT v_treasury-treasury_balance INTO v_funding FROM public.government_finances WHERE id=1;
+  IF coalesce(v_funding,0)<0 OR coalesce(v_funding,0)>100 THEN RAISE EXCEPTION 'Daily funding exceeded limit';END IF;
+  IF EXISTS(SELECT 1 FROM public.investment_options o JOIN public.accounts a ON a.investment_id=o.id AND a.account_kind='investment_reserve'
+    JOIN LATERAL (SELECT coalesce(sum(quantity),0) AS qty FROM public.user_investments WHERE investment_id=o.id AND is_active) h ON true
+    WHERE o.listing_metadata ? 'balanced_yield_mode' AND round(h.qty*o.current_unit_price,2)>a.balance) THEN
+   RAISE EXCEPTION 'Reserve insufficient after quote';END IF;
+  IF (SELECT coalesce(sum(amount_invested),0) FROM public.user_investments)<>v_principal THEN RAISE EXCEPTION 'Principal was modified';END IF;
+  IF EXISTS(SELECT 1 FROM public.stock_price_history WHERE reason='balanced_investment_daily'
+    AND captured_at>=statement_timestamp() AND abs(price/(metadata->>'previous_price')::numeric-1)>.000501) THEN RAISE EXCEPTION 'Excess price change';END IF;
+  RAISE EXCEPTION USING ERRCODE='PZ901',MESSAGE='Rollback of successful settlement rehearsal';
+ EXCEPTION WHEN SQLSTATE 'PZ901' THEN NULL;
+ END;
+ IF (SELECT treasury_balance FROM public.government_finances WHERE id=1) IS DISTINCT FROM v_treasury THEN RAISE EXCEPTION 'Test was not rolled back';END IF;
+END
+$verify$;
 COMMIT;
