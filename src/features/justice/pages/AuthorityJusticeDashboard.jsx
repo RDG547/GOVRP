@@ -63,6 +63,7 @@ import {
   requestMPWarrant,
   cancelMPWarrant,
   getMPFinancialEvidence,
+  revokeMPMeasure,
   recordInvestigationEvidence,
   releasePrisonTerm,
   requestInvestigationComplement,
@@ -240,6 +241,8 @@ const AuthorityJusticeDashboard = () => {
         await requestMPWarrant({ id: action.item.id, profileId: action.profileId, warrantType: action.warrantType, reason, legalBasis: action.legalBasis, days: action.days, evidenceIds: action.evidenceIds, bankFrom: action.warrantType==='rp_confidentiality_break' ? fromBrasiliaInput(action.bankFrom) : null, bankTo: action.warrantType==='rp_confidentiality_break' ? fromBrasiliaInput(action.bankTo) : null });
       } else if (action.type === 'mp-warrant-cancel') {
         await cancelMPWarrant({id:action.item.id,reason});
+      } else if (action.type === 'mp-measure-revoke') {
+        await revokeMPMeasure({id:action.item.id,reason});
       } else if (action.type === 'mp-financial') {
         const entries = await getMPFinancialEvidence({id:action.item.id,reason});
         setFinancialResult({protocol:action.item.metadata?.protocol,entries:Array.isArray(entries)?entries:[]});
@@ -349,7 +352,7 @@ const AuthorityJusticeDashboard = () => {
   const actionReasonMinimum = action?.type === 'acquit' || action?.type === 'convict' ? 80
     : action?.type === 'appeal-decision' ? 60
       : ['admission', 'resolve-investigation', 'archive-referred', 'file-charge', 'complete-case-hearing', 'mp-open', 'mp-move', 'mp-warrant'].includes(action?.type) ? 40
-        : ['integrity', 'investigate', 'complement-investigation', 'execute-warrant', 'request-decision', 'release', 'revoke-warrant', 'mp-warrant-cancel', 'mp-financial'].includes(action?.type) ? 20
+        : ['integrity', 'investigate', 'complement-investigation', 'execute-warrant', 'request-decision', 'release', 'revoke-warrant', 'mp-warrant-cancel', 'mp-financial', 'mp-measure-revoke'].includes(action?.type) ? 20
           : 10;
 
   const actionTitle = {
@@ -359,6 +362,7 @@ const AuthorityJusticeDashboard = () => {
     'mp-warrant': 'Protocolar pedido judicial',
     'mp-warrant-cancel': 'Retirar pedido judicial',
     'mp-financial': 'Consultar extrato fictício autorizado',
+    'mp-measure-revoke': 'Revogar autorização judicial',
     'revoke-warrant': 'Revogar mandado',
     'execute-warrant': 'Cumprir mandado de prisão',
     'archive-referred': 'Arquivar investigação no Ministério Público',
@@ -599,6 +603,8 @@ const AuthorityJusticeDashboard = () => {
                   <p className="font-medium">Provas vinculadas ({request.metadata.evidence_ids?.length || 0})</p>
                   <CaseEvidence evidence={data.evidence.filter(e=>request.metadata.evidence_ids?.includes(e.id))}/>
                 </div>}
+                {request.metadata?.revocation_reason && <p className="rounded-lg border p-3 text-sm whitespace-pre-wrap">Revogação: {request.metadata.revocation_reason}</p>}
+                {isActualJudge && isEnhancedRequest(request) && request.status==='approved' && ['rp_confidentiality_break','evidence_production'].includes(request.request_type) && new Date(request.expires_at).getTime()>now && (request.case_id ? data.cases.some(c=>c.id===request.case_id && c.judge_id===user.id) : request.decided_by===user.id) && <Button size="sm" variant="outline" onClick={()=>setAction({type:'mp-measure-revoke',item:request})}>Revogar autorização</Button>}
                 {request.decision_reason && <p className="rounded-lg border p-3 text-sm whitespace-pre-wrap">Fundamentação da decisão/retirada: {request.decision_reason}{request.decided_at ? ' · '+formatJusticeDate(request.decided_at) : ''}</p>}
                 {data.warrants.filter(w=>w.request_id===request.id).map(w=><p key={w.id} className="text-sm">Mandado {w.warrant_number} · {justiceStatus(w.status)} · validade {formatJusticeDate(w.expires_at)}</p>)}
                 {isMP && isEnhancedRequest(request) && request.requested_by===user.id && request.status==='pending' && <Button variant="outline" size="sm" onClick={()=>setAction({type:'mp-warrant-cancel',item:request})}>Retirar pedido</Button>}
