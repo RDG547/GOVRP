@@ -61,6 +61,9 @@ import {
   openMPInvestigation,
   moveMPInvestigation,
   requestMPWarrant,
+  cancelMPWarrant,
+  getMPFinancialEvidence,
+  revokeMPMeasure,
   recordInvestigationEvidence,
   releasePrisonTerm,
   requestInvestigationComplement,
@@ -112,13 +115,15 @@ const AuthorityJusticeDashboard = () => {
   const [reason, setReason] = useState('');
   const [scheduledAt, setScheduledAt] = useState('');
   const [subjectForm, setSubjectForm] = useState(null);
+  const [financialResult, setFinancialResult] = useState(null);
 
   const role = primaryJusticeRole(user);
   const isPolice = hasAnyJusticeRole(user, ['Admin', 'Policial', 'Police', 'Diretor-Geral de Polícia']);
   const isDelegate = hasAnyJusticeRole(user, ['Admin', 'Diretor-Geral de Polícia']);
   const isAdmin = hasAnyJusticeRole(user, ['Admin']);
   const canDecideCase = criminalCase => isAdmin || (isJudge && criminalCase.judge_id === user?.id);
-  const isJudge = hasAnyJusticeRole(user, ['Admin', 'Juiz Federal']);
+  const isActualJudge = hasAnyJusticeRole(user, ['Juiz Federal', 'Presidente do STF']);
+  const isJudge = isAdmin || isActualJudge;
   const isMP = hasAnyJusticeRole(user, ['Promotor', 'Procurador-Geral da República']);
   const isMPPoliceDirector = hasAnyJusticeRole(user, ['Diretor-Geral de Polícia']);
   const isProsecutor = isMP || isAdmin;
@@ -198,6 +203,16 @@ const AuthorityJusticeDashboard = () => {
   };
 
   const updateAction = (values) => setAction((current) => ({ ...current, ...values }));
+  const activeMPInvestigations = data.investigations.filter(i => ['open','in_progress','delegate_review','complement_requested','sent_to_prosecutor'].includes(i.status));
+  const openMeasureForm = (item = null) => setAction({type:'mp-warrant',item,profileId:'',warrantType:'search_warrant',days:'7',legalBasis:'',evidenceIds:[],bankFrom:'',bankTo:''});
+  const measureTargets = action?.type === 'mp-warrant' && action.item ? [...new Set([
+    ...data.investigationSubjects.filter(p=>p.investigation_id===action.item.id && p.subject_status!=='cleared').map(p=>p.profile_id),
+    ...data.investigationParties.filter(p=>p.investigation_id===action.item.id && p.party_type==='suspect').map(p=>p.profile_id),
+  ])].filter(id=>id!==user.id && !data.investigationSubjects.some(p=>p.investigation_id===action.item.id && p.profile_id===id && p.subject_status==='cleared')) : [];
+  const measureCase = action?.type === 'mp-warrant' && action.item && data.cases.find(c=>c.investigation_id===action.item.id && data.caseParties.some(p=>p.case_id===c.id && p.profile_id===action.profileId && p.party_type==='defendant'));
+  const measureEvidence = action?.type === 'mp-warrant' && action.item ? data.evidence.filter(e=>e.status==='sealed' && ((e.investigation_id===action.item.id && (!e.criminal_case_id || e.criminal_case_id===measureCase?.id)) || (measureCase && e.criminal_case_id===measureCase.id && (!e.investigation_id || e.investigation_id===action.item.id)))) : [];
+  const isEnhancedRequest = r => r?.metadata?.origin==='mp_warrant_v2';
+  const requiresWarrant = r => ['arrest_warrant','search_warrant','preventive_detention','temporary_detention'].includes(r?.request_type);
 
   const performAction = async () => {
     if (!action || acting) return;
@@ -223,12 +238,20 @@ const AuthorityJusticeDashboard = () => {
       } else if (action.type === 'mp-move') {
         await moveMPInvestigation({ id: action.item.id, action: action.mpAction, reason, profileId: action.profileId || null, title: action.title || null, subjectStatus: action.subjectStatus || 'under_review', notify: Boolean(action.notify) });
       } else if (action.type === 'mp-warrant') {
-        await requestMPWarrant({ id: action.item.id, profileId: action.profileId, warrantType: action.warrantType, reason, days: action.days });
+        await requestMPWarrant({ id: action.item.id, profileId: action.profileId, warrantType: action.warrantType, reason, legalBasis: action.legalBasis, days: action.days, evidenceIds: action.evidenceIds, bankFrom: action.warrantType==='rp_confidentiality_break' ? fromBrasiliaInput(action.bankFrom) : null, bankTo: action.warrantType==='rp_confidentiality_break' ? fromBrasiliaInput(action.bankTo) : null });
+      } else if (action.type === 'mp-warrant-cancel') {
+        await cancelMPWarrant({id:action.item.id,reason});
+      } else if (action.type === 'mp-measure-revoke') {
+        await revokeMPMeasure({id:action.item.id,reason});
+      } else if (action.type === 'mp-financial') {
+        const entries = await getMPFinancialEvidence({id:action.item.id,reason});
+        setFinancialResult({protocol:action.item.metadata?.protocol,entries:Array.isArray(entries)?entries:[]});
       } else if (action.type === 'request-decision') {
         await decideJudicialRequest({
           requestId: action.item.id,
           approved: action.approved,
           reason,
+          days: action.days || 7,
         });
       } else if (action.type === 'revoke-warrant') {
         await revokeJudicialWarrant({ warrantId: action.item.id, reason });
@@ -329,14 +352,17 @@ const AuthorityJusticeDashboard = () => {
   const actionReasonMinimum = action?.type === 'acquit' || action?.type === 'convict' ? 80
     : action?.type === 'appeal-decision' ? 60
       : ['admission', 'resolve-investigation', 'archive-referred', 'file-charge', 'complete-case-hearing', 'mp-open', 'mp-move', 'mp-warrant'].includes(action?.type) ? 40
-        : ['integrity', 'investigate', 'complement-investigation', 'execute-warrant', 'request-decision', 'release', 'revoke-warrant'].includes(action?.type) ? 20
+        : ['integrity', 'investigate', 'complement-investigation', 'execute-warrant', 'request-decision', 'release', 'revoke-warrant', 'mp-warrant-cancel', 'mp-financial', 'mp-measure-revoke'].includes(action?.type) ? 20
           : 10;
 
   const actionTitle = {
     investigate: 'Abrir investigação',
     'mp-open': 'Instaurar investigação própria do MP',
     'mp-move': ({ subject:'Vincular ou atualizar investigado', witness:'Vincular testemunha', evidence:'Registrar e lacrar prova', diligence:'Solicitar diligência à Polícia', reply:'Responder diligência', ready:'Concluir investigação para denúncia', archive:'Arquivar PIC' })[action?.mpAction],
-    'mp-warrant': 'Solicitar medida judicial',
+    'mp-warrant': 'Protocolar pedido judicial',
+    'mp-warrant-cancel': 'Retirar pedido judicial',
+    'mp-financial': 'Consultar extrato fictício autorizado',
+    'mp-measure-revoke': 'Revogar autorização judicial',
     'revoke-warrant': 'Revogar mandado',
     'execute-warrant': 'Cumprir mandado de prisão',
     'archive-referred': 'Arquivar investigação no Ministério Público',
@@ -497,7 +523,7 @@ const AuthorityJusticeDashboard = () => {
                     {isMP && !hasCase && ['open','in_progress','sent_to_prosecutor'].includes(i.status) && <Button size="sm" variant="outline" onClick={() => act('diligence')}>Solicitar diligência</Button>}
                     {policeReply && <Button size="sm" onClick={() => act('reply')}>Responder diligência</Button>}
                     {isMP && !hasCase && ['open','in_progress'].includes(i.status) && <Button size="sm" onClick={() => act('ready')}>Concluir para denúncia</Button>}
-                    {isMP && (active || i.status === 'sent_to_prosecutor') && <Button size="sm" variant="outline" onClick={() => setAction({type:'mp-warrant',item:i,profileId:'',warrantType:'search_warrant',days:'7'})}>Solicitar medida judicial</Button>}
+                    {isMP && (active || i.status === 'sent_to_prosecutor') && <Button size="sm" variant="outline" onClick={() => openMeasureForm(i)}>Solicitar medida judicial</Button>}
                     {isMP && i.status === 'sent_to_prosecutor' && <Button size="sm" onClick={() => setAction({type:'file-charge',item:i,title:'',defendantId:'',penalCodeId:''})}>Oferecer denúncia</Button>}
                     {isMP && !hasCase && (active || i.status === 'sent_to_prosecutor') && <Button size="sm" variant="destructive" onClick={() => act('archive')}>Arquivar PIC</Button>}
                   </div>
@@ -526,6 +552,7 @@ const AuthorityJusticeDashboard = () => {
                   <CaseEvidence evidence={data.evidence.filter(evidence => evidence.investigation_id === investigation.id)} onSeal={isDelegate ? item => setAction({type:'seal-evidence',item}) : undefined} />
                   <div className="flex flex-wrap gap-2">
                     {isPolice && ['open', 'in_progress', 'delegate_review', 'complement_requested'].includes(investigation.status) ? <Button size="sm" variant="outline" onClick={() => setAction({ type: 'evidence', item: investigation, title: '', seal: isDelegate })}>Registrar prova</Button> : null}
+                    {isMP && activeMPInvestigations.some(i=>i.id===investigation.id) && <Button size="sm" variant="outline" onClick={()=>openMeasureForm(investigation)}>Solicitar medida judicial</Button>}
                     {isProsecutor && investigation.status === 'sent_to_prosecutor' && <Button size="sm" variant="outline" onClick={() => setAction({ type: 'archive-referred', item: investigation })}><Archive className="mr-2 h-4 w-4 text-slate-400"/>Arquivar no Ministério Público</Button>}
                     {isPolice ? <Button size="sm" variant="outline" onClick={() => setSubjectForm({ investigationId: investigation.id, investigationNumber: investigation.investigation_number, profileId: '', subjectStatus: 'under_review', notifySubject: false, notes: '' })}><Users className="mr-2 h-4 w-4" />Vincular pessoa</Button> : null}
                     {isDelegate && ['open', 'in_progress', 'delegate_review', 'complement_requested'].includes(investigation.status) ? <><Button size="sm" onClick={() => setAction({ type: 'resolve-investigation', item: investigation, outcome: 'indict' })}>Indiciar e remeter</Button><Button size="sm" variant="destructive" onClick={() => setAction({ type: 'resolve-investigation', item: investigation, outcome: 'no_indictment' })}>Arquivar sem indiciar</Button></> : null}
@@ -544,6 +571,7 @@ const AuthorityJusticeDashboard = () => {
 
         <TabsContent value="requests" className="space-y-4">
           {user?.admin_development?.mode==='total'&&<p className="text-xs text-amber-400">Normalmente disponível para: Ministério Público e Justiça.</p>}
+          {isMP && <Card className="glass-effect"><CardHeader className="gap-3 sm:flex-row sm:items-center sm:justify-between"><div><CardTitle className="text-lg">Pedidos judiciais do Ministério Público</CardTitle><CardDescription>Protocole medidas vinculadas a PIC ou inquérito, com fundamento legal e provas lacradas. O Judiciário decide.</CardDescription></div><Button onClick={()=>openMeasureForm()}><Gavel className="mr-2 h-4 w-4"/>Novo pedido judicial</Button></CardHeader></Card>}
           {data.requests.length ? data.requests.map((request) => (
             <Card
               key={request.id}
@@ -556,15 +584,32 @@ const AuthorityJusticeDashboard = () => {
                       {justiceRequest(request.request_type)}
                     </CardTitle>
                     <CardDescription className="mt-1">
-                      Pedido em {formatJusticeDate(request.created_at)}
+                      {request.metadata?.protocol ? request.metadata.protocol + ' · ' : ''}Pedido em {formatJusticeDate(request.created_at)}
                     </CardDescription>
                   </div>
-                  <Badge variant="outline">{justiceStatus(request.status)}</Badge>
+                  <Badge variant="outline">{request.status === "pending" && request.expires_at && new Date(request.expires_at).getTime() <= now && isEnhancedRequest(request) ? "Prazo de análise expirado" : justiceStatus(request.status)}</Badge>
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
-                <p className="text-sm text-muted-foreground">{request.justification}</p>
-                {isJudge && request.status === 'pending' && request.requested_by !== user.id && request.target_profile_id !== user.id ? (
+                <p className="whitespace-pre-wrap text-sm text-muted-foreground">{request.justification}</p>
+                {isEnhancedRequest(request) && <div className="space-y-2 rounded-lg border p-3 text-sm">
+                  <p>Requerente: {data.profiles.find(p=>p.id===request.requested_by)?.full_name || 'Ministério Público'}</p>
+                  <p>Investigado: {data.profiles.find(p=>p.id===request.target_profile_id)?.full_name || 'Identidade protegida'}</p>
+                  <p>Procedimento: {data.investigations.find(i=>i.id===request.investigation_id)?.investigation_number || 'Investigação vinculada'}{request.case_id ? ' · Processo vinculado' : ''}</p>
+                  <p className="whitespace-pre-wrap">Base legal: {request.metadata.legal_basis}</p>
+                  <p>Prazo solicitado: {request.metadata.duration_rp_days} dias RP{request.metadata.approved_duration_rp_days ? ' · Prazo deferido: '+request.metadata.approved_duration_rp_days+' dias RP' : ''}</p>
+                  <p>{request.status==='pending'?'Prazo de análise':'Validade da autorização'}: {formatJusticeDate(request.expires_at)}</p>
+                  {request.request_type==='rp_confidentiality_break' && <p>Intervalo do extrato fictício: {formatJusticeDate(request.metadata.bank_from)} — {formatJusticeDate(request.metadata.bank_to)} (até 100 registros)</p>}
+                  <p className="font-medium">Provas vinculadas ({request.metadata.evidence_ids?.length || 0})</p>
+                  <CaseEvidence evidence={data.evidence.filter(e=>request.metadata.evidence_ids?.includes(e.id))}/>
+                </div>}
+                {request.metadata?.revocation_reason && <p className="rounded-lg border p-3 text-sm whitespace-pre-wrap">Revogação: {request.metadata.revocation_reason}</p>}
+                {isActualJudge && isEnhancedRequest(request) && request.status==='approved' && ['rp_confidentiality_break','evidence_production'].includes(request.request_type) && new Date(request.expires_at).getTime()>now && (request.case_id ? data.cases.some(c=>c.id===request.case_id && c.judge_id===user.id) : request.decided_by===user.id) && <Button size="sm" variant="outline" onClick={()=>setAction({type:'mp-measure-revoke',item:request})}>Revogar autorização</Button>}
+                {request.decision_reason && <p className="rounded-lg border p-3 text-sm whitespace-pre-wrap">Fundamentação da decisão/retirada: {request.decision_reason}{request.decided_at ? ' · '+formatJusticeDate(request.decided_at) : ''}</p>}
+                {data.warrants.filter(w=>w.request_id===request.id).map(w=><p key={w.id} className="text-sm">Mandado {w.warrant_number} · {justiceStatus(w.status)} · validade {formatJusticeDate(w.expires_at)}</p>)}
+                {isMP && isEnhancedRequest(request) && request.requested_by===user.id && request.status==='pending' && <Button variant="outline" size="sm" onClick={()=>setAction({type:'mp-warrant-cancel',item:request})}>Retirar pedido</Button>}
+                {isMP && isEnhancedRequest(request) && request.requested_by===user.id && request.request_type==='rp_confidentiality_break' && request.status==='approved' && new Date(request.expires_at).getTime()>now && <Button size="sm" variant="outline" onClick={()=>setAction({type:'mp-financial',item:request})}>Consultar extrato autorizado do RP</Button>}
+                {isJudge && (!isEnhancedRequest(request) || (isActualJudge && (!request.case_id || data.cases.some(c=>c.id===request.case_id && c.judge_id===user.id)) && new Date(request.expires_at).getTime()>now)) && request.status === 'pending' && request.requested_by !== user.id && request.target_profile_id !== user.id ? (
                   <div className="flex flex-wrap gap-2">
                     <Button
                       size="sm"
@@ -572,10 +617,11 @@ const AuthorityJusticeDashboard = () => {
                         type: 'request-decision',
                         item: request,
                         approved: true,
+                        days: String(request.metadata?.duration_rp_days || 7),
                       })}
                     >
                       <CheckCircle2 className="mr-2 h-4 w-4" />
-                      {['arrest_warrant', 'search_warrant'].includes(request.request_type) ? 'Aprovar e emitir mandado' : 'Aprovar'}
+                      {requiresWarrant(request) ? 'Aprovar e emitir mandado' : 'Deferir medida'}
                     </Button>
                     <Button
                       size="sm"
@@ -784,7 +830,7 @@ const AuthorityJusticeDashboard = () => {
       </Tabs>
 
       <Dialog open={Boolean(action)} onOpenChange={(open) => !open && !acting && closeAction()}>
-        <DialogContent>
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{actionTitle}</DialogTitle>
             <DialogDescription>
@@ -795,7 +841,18 @@ const AuthorityJusticeDashboard = () => {
             {action?.type === 'mp-open' && <><Label htmlFor="mp-facts-at">Data e hora dos fatos (Brasília)</Label><Input id="mp-facts-at" type="datetime-local" value={action.factsAt} onChange={event=>updateAction({factsAt:event.target.value})}/><p className="text-xs text-muted-foreground">Descreva os fatos, a origem da notícia e os fundamentos da instauração. O PIC não depende de boletim policial.</p></>}
             {action?.type === 'mp-move' && ['subject','witness'].includes(action.mpAction) && <><Label>Pessoa vinculada</Label><CitizenSelector value={action.profileId} onChange={profileId=>updateAction({profileId})}/>{action.mpAction === 'subject' && <><Label>Situação</Label><Select value={action.subjectStatus} onValueChange={subjectStatus=>updateAction({subjectStatus})}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="under_review">Verificação preliminar</SelectItem><SelectItem value="investigated">Investigado</SelectItem><SelectItem value="cleared">Retirado da investigação</SelectItem></SelectContent></Select><ModalFieldLabel className="flex items-center gap-2 py-2 text-sm"><input type="checkbox" checked={Boolean(action.notify)} onChange={event=>updateAction({notify:event.target.checked})}/>Notificar formalmente (o vínculo é sigiloso por padrão)</ModalFieldLabel></>}</>}
             {action?.type === 'mp-move' && action.mpAction === 'evidence' && <><Label htmlFor="mp-proof-title">Título da prova</Label><Input id="mp-proof-title" value={action.title} onChange={event=>updateAction({title:event.target.value})}/><p className="text-xs text-muted-foreground">O registro textual será lacrado com cadeia de custódia.</p></>}
-            {action?.type === 'mp-warrant' && <><Label>Investigado</Label><Select value={action.profileId} onValueChange={profileId=>updateAction({profileId})}><SelectTrigger><SelectValue placeholder="Selecione pessoa vinculada"/></SelectTrigger><SelectContent>{data.investigationSubjects.filter(p=>p.investigation_id===action.item.id && p.subject_status!=='cleared').map(p=><SelectItem key={p.profile_id} value={p.profile_id}>{data.profiles.find(x=>x.id===p.profile_id)?.full_name || 'Pessoa vinculada'}</SelectItem>)}</SelectContent></Select><Label>Medida solicitada</Label><Select value={action.warrantType} onValueChange={warrantType=>updateAction({warrantType})}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="search_warrant">Busca e apreensão</SelectItem><SelectItem value="arrest_warrant">Prisão</SelectItem></SelectContent></Select><Label htmlFor="mp-warrant-days">Prazo solicitado (dias RP)</Label><Input id="mp-warrant-days" type="number" min="1" max="30" value={action.days} onChange={event=>updateAction({days:event.target.value})}/><p className="text-xs text-muted-foreground">A expedição depende de decisão judicial. Este pedido não autoriza cumprimento imediato.</p></>}
+            {action?.type === 'mp-warrant' && <div className="space-y-3">
+              <Label>Investigação vinculada</Label><Select value={action.item?.id || ''} onValueChange={id=>updateAction({item:activeMPInvestigations.find(i=>i.id===id),profileId:'',evidenceIds:[]})}><SelectTrigger><SelectValue placeholder="Selecione PIC ou inquérito ativo"/></SelectTrigger><SelectContent>{activeMPInvestigations.map(i=><SelectItem key={i.id} value={i.id}>{i.investigation_number} · {i.origin==='mp'?'PIC':'Inquérito policial'}</SelectItem>)}</SelectContent></Select>
+              {!activeMPInvestigations.length && <p className="text-xs text-muted-foreground">Não há investigação ativa. Instaure um PIC ou utilize um inquérito existente.</p>}
+              <Label>Investigado</Label><Select value={action.profileId} onValueChange={profileId=>updateAction({profileId,evidenceIds:[]})}><SelectTrigger><SelectValue placeholder="Selecione pessoa vinculada"/></SelectTrigger><SelectContent>{measureTargets.map(id=><SelectItem key={id} value={id}>{data.profiles.find(x=>x.id===id)?.full_name || 'Pessoa vinculada'}</SelectItem>)}</SelectContent></Select>
+              <Label>Medida solicitada</Label><Select value={action.warrantType} onValueChange={warrantType=>updateAction({warrantType})}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent>{['search_warrant','arrest_warrant','preventive_detention','temporary_detention','rp_confidentiality_break','evidence_production'].map(type=><SelectItem key={type} value={type}>{justiceRequest(type)}</SelectItem>)}</SelectContent></Select>
+              <Label htmlFor="mp-legal-basis">Fundamento legal no GOV.RP</Label><Textarea id="mp-legal-basis" rows={2} value={action.legalBasis} onChange={event=>updateAction({legalBasis:event.target.value})} placeholder="Indique a norma e o dispositivo aplicável."/>
+              <Label htmlFor="mp-warrant-days">Prazo solicitado (dias RP)</Label><Input id="mp-warrant-days" type="number" min="1" max="30" value={action.days} onChange={event=>updateAction({days:event.target.value})}/>
+              <Label>Provas lacradas vinculadas ao pedido</Label><div className="max-h-36 overflow-auto rounded border p-2 space-y-2">{measureEvidence.length?measureEvidence.map(e=><label key={e.id} className="flex gap-2 text-sm"><input type="checkbox" checked={action.evidenceIds.includes(e.id)} disabled={!action.evidenceIds.includes(e.id)&&action.evidenceIds.length>=20} onChange={event=>updateAction({evidenceIds:event.target.checked?[...action.evidenceIds,e.id]:action.evidenceIds.filter(id=>id!==e.id)})}/>{e.title}</label>):<p className="text-xs text-muted-foreground">Nenhuma prova lacrada disponível para este procedimento.</p>}</div>
+              {action.warrantType==='rp_confidentiality_break' && <div className="space-y-2"><Label htmlFor="mp-bank-from">Início do intervalo (Brasília)</Label><Input type="datetime-local" id="mp-bank-from" value={action.bankFrom} onChange={event=>updateAction({bankFrom:event.target.value})}/><Label htmlFor="mp-bank-to">Fim do intervalo (Brasília)</Label><Input type="datetime-local" id="mp-bank-to" value={action.bankTo} onChange={event=>updateAction({bankTo:event.target.value})}/><p className="text-xs text-muted-foreground">Até 30 dias reais passados, no máximo 100 transações fictícias. Não inclui dados bancários reais, credenciais ou identificação de contrapartes.</p></div>}
+              <p className="text-xs text-muted-foreground">O pedido não autoriza cumprimento imediato. O Judiciário poderá deferir, reduzir o prazo ou indeferir, com fundamentação.</p>
+            </div>}
+            {action?.type === 'request-decision' && action.approved && isEnhancedRequest(action.item) && <><Label htmlFor="mp-decision-days">Prazo deferido (dias RP; máximo solicitado: {action.item.metadata.duration_rp_days})</Label><Input id="mp-decision-days" type="number" min="1" max={action.item.metadata.duration_rp_days} value={action.days} onChange={event=>updateAction({days:event.target.value})}/></>}
             {action?.type === 'execute-warrant' && <div><Label htmlFor="arrest-location">Local do cumprimento</Label><Input id="arrest-location" value={action.location} onChange={event => updateAction({ location: event.target.value })} /></div>}
             {action?.type === 'evidence' ? <><Label htmlFor="evidence-title">Identificação da prova</Label><Input id="evidence-title" value={action.title} onChange={(event) => updateAction({ title: event.target.value })} placeholder="Ex.: Laudo pericial nº 14" /><ModalFieldLabel className="flex items-center gap-2 py-2 text-sm"><input type="checkbox" checked={Boolean(action.seal)} disabled={!isDelegate} onChange={(event) => updateAction({ seal: event.target.checked })} />Lacrar prova ao registrar</ModalFieldLabel></> : null}
             {action?.type === 'file-charge' ? <><Label htmlFor="charge-title">Título da ação penal</Label><Input id="charge-title" value={action.title} onChange={(event) => updateAction({ title: event.target.value })} /><Label>Acusado</Label><Select value={action.defendantId} onValueChange={(value) => updateAction({ defendantId: value })}><SelectTrigger><SelectValue placeholder="Selecione o investigado" /></SelectTrigger><SelectContent>{data.investigationParties.filter((party) => party.investigation_id === action.item.id && party.party_type === 'suspect' && (action.item.origin !== 'mp' || !data.investigationSubjects.some(p => p.investigation_id === action.item.id && p.profile_id === party.profile_id && p.subject_status === 'cleared'))).map((party) => { const profile = data.profiles.find((item) => item.id === party.profile_id); return <SelectItem key={party.id} value={party.profile_id}><UserSelectOption user={profile || { id: party.profile_id, full_name: party.profile_id }} /></SelectItem>; })}</SelectContent></Select><Label>Tipo penal</Label><Select value={action.penalCodeId} onValueChange={(value) => updateAction({ penalCodeId: value })}><SelectTrigger><SelectValue placeholder="Selecione o enquadramento" /></SelectTrigger><SelectContent>{data.penalCodes.map((code) => <SelectItem key={code.id} value={code.id}>{code.code} — {code.name}</SelectItem>)}</SelectContent></Select></> : null}
@@ -826,7 +883,8 @@ const AuthorityJusticeDashboard = () => {
                 || (action?.type === 'mp-open' && (!action.factsAt || !Number.isFinite(new Date(fromBrasiliaInput(action.factsAt)).getTime()) || new Date(fromBrasiliaInput(action.factsAt)).getTime() > now))
                 || (action?.type === 'mp-move' && ['subject','witness'].includes(action.mpAction) && !action.profileId)
                 || (action?.type === 'mp-move' && action.mpAction === 'evidence' && (action.title?.trim().length < 5 || action.title?.trim().length > 200))
-                || (action?.type === 'mp-warrant' && (!action.profileId || !Number.isInteger(Number(action.days)) || Number(action.days) < 1 || Number(action.days) > 30))
+                || (action?.type === 'mp-warrant' && (!action.item || !action.profileId || !measureTargets.includes(action.profileId) || action.legalBasis.trim().length<10 || !action.evidenceIds.length || !Number.isInteger(Number(action.days)) || Number(action.days)<1 || Number(action.days)>30 || (action.warrantType==='rp_confidentiality_break' && (!action.bankFrom || !action.bankTo || new Date(fromBrasiliaInput(action.bankFrom)).getTime()>=new Date(fromBrasiliaInput(action.bankTo)).getTime() || new Date(fromBrasiliaInput(action.bankTo)).getTime()>now || new Date(fromBrasiliaInput(action.bankTo)).getTime()-new Date(fromBrasiliaInput(action.bankFrom)).getTime()>30*86400000))))
+                || (action?.type === 'request-decision' && action.approved && isEnhancedRequest(action.item) && (!Number.isInteger(Number(action.days)) || Number(action.days)<1 || Number(action.days)>Number(action.item.metadata.duration_rp_days)))
                 || (action?.type === 'integrity' && action.status === 'police_investigation' && !action.investigationId)
                 || (action?.type === 'schedule-case-hearing' && !scheduledAt)
                 || (action?.type === 'fine-hearing' && action.status === 'scheduled' && !scheduledAt)
@@ -844,6 +902,9 @@ const AuthorityJusticeDashboard = () => {
 
 
 
+      <Dialog open={Boolean(financialResult)} onOpenChange={open=>{if(!open)setFinancialResult(null);}}>
+        <DialogContent className="max-h-[85vh] overflow-auto sm:max-w-2xl"><DialogHeader><DialogTitle>Extrato fictício autorizado · {financialResult?.protocol}</DialogTitle><DialogDescription>Consulta registrada em auditoria. Somente valores, tipo e data das transações do RP no intervalo autorizado.</DialogDescription></DialogHeader><div className="max-h-[55vh] overflow-auto space-y-2">{financialResult?.entries.length ? financialResult.entries.map(e=><div key={e.id} className="grid gap-1 rounded border p-2 text-sm sm:grid-cols-3"><span>{formatJusticeDate(e.created_at)}</span><span>{e.type}</span><span>{Number(e.amount).toLocaleString('pt-BR',{style:'currency',currency:'BRL'})}</span></div>):<p>Nenhuma transação no intervalo.</p>}</div><DialogFooter><Button onClick={()=>setFinancialResult(null)}>Fechar</Button></DialogFooter></DialogContent>
+      </Dialog>
       <Dialog open={Boolean(subjectForm)} onOpenChange={(open) => !open && !acting && setSubjectForm(null)}>
         <DialogContent><DialogHeader><DialogTitle>Vincular pessoa à investigação</DialogTitle><DialogDescription>{subjectForm?.investigationNumber}. Investigações sigilosas não aparecem para o investigado até uma notificação formal.</DialogDescription></DialogHeader>{subjectForm ? <div className="grid gap-4"><div className="space-y-2"><Label>Pessoa</Label><CitizenSelector value={subjectForm.profileId} onChange={value => setSubjectForm(current => ({...current,profileId:value}))}/></div><div className="space-y-2"><Label>Situação</Label><Select value={subjectForm.subjectStatus} onValueChange={(value) => setSubjectForm((current) => ({ ...current, subjectStatus: value }))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="under_review">Em verificação preliminar</SelectItem><SelectItem value="investigated">Investigado</SelectItem><SelectItem value="cleared">Inocentado/retirado</SelectItem><SelectItem value="indicted">Indiciado</SelectItem></SelectContent></Select></div><div className="space-y-2"><Label>Fundamentação interna</Label><Textarea value={subjectForm.notes} onChange={(event) => setSubjectForm((current) => ({ ...current, notes: event.target.value }))} /></div><ModalFieldLabel className="flex items-start gap-3 rounded-lg border border-white/10 p-3"><input type="checkbox" className="mt-1" checked={subjectForm.notifySubject} onChange={(event) => setSubjectForm((current) => ({ ...current, notifySubject: event.target.checked }))} /><span><span className="block font-medium">Notificar formalmente o cidadão</span><span className="text-xs text-muted-foreground">Ao marcar, a investigação deixa de ficar oculta para esta pessoa.</span></span></ModalFieldLabel></div> : null}<DialogFooter><Button variant="outline" onClick={() => setSubjectForm(null)}>Cancelar</Button><Button onClick={persistSubject} disabled={acting || !subjectForm?.profileId}>{acting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}Vincular</Button></DialogFooter></DialogContent>
       </Dialog>
