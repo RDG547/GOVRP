@@ -24,7 +24,7 @@ const InvestmentActionModal = ({ isOpen, setIsOpen, action, investment, onAction
     const title = action === 'invest' ? 'Investir' : 'Sacar';
     const investmentName = investment?.investment_option?.name || investment?.name;
     const currentPrice = Number(investment?.investment_option?.current_unit_price || investment?.current_unit_price || 1);
-    const availableValue = Number(investment?.quantity || 0) * currentPrice;
+    const availableValue = Math.floor(Number(investment?.quantity || 0) * currentPrice * 100 + 1e-7) / 100;
     const description = action === 'invest'
         ? `Quanto você gostaria de investir em ${investmentName}?`
         : `Você possui ${Number(investment?.quantity || 0).toLocaleString('pt-BR', { maximumFractionDigits: 8 })} unidades, atualmente avaliadas em ${formatCurrency(availableValue)}.`;
@@ -55,10 +55,17 @@ const InvestmentActionModal = ({ isOpen, setIsOpen, action, investment, onAction
 
         try {
             const optionId = action === 'invest' ? investment.id : investment.investment_id;
-            const { data, error } = await supabase.rpc('trade_investment', {
+            // Round units toward the requested cent amount; final redemption closes the actual holding.
+            const quantity = action === 'invest'
+                ? Math.floor(numericAmount / currentPrice * 1e8 + 1e-7) / 1e8
+                : numericAmount === availableValue
+                    ? Number(investment.quantity)
+                    : Math.ceil(numericAmount / currentPrice * 1e8 - 1e-7) / 1e8;
+            const { data, error } = await supabase.rpc('trade_investment_quoted', {
                 p_investment_id: optionId,
                 p_operation_type: action === 'invest' ? 'buy' : 'sell',
-                p_quantity: Number((numericAmount / currentPrice).toFixed(8)),
+                p_quantity: quantity,
+                p_expected_price: currentPrice,
                 p_idempotency_key: crypto.randomUUID(),
             });
 
@@ -117,7 +124,8 @@ const RiskBadge = ({ level }) => {
     return <span className={`px-2 py-1 text-xs font-medium rounded-full ${riskStyles[level] || riskStyles.medium}`}>{riskLabels[level] || 'Médio'}</span>;
 }
 
-const getAnnualReturnPercent = (value) => Number(value || 0) * 100;
+const getAnnualReturnPercent = (value) => Math.min(15, Math.max(0, Number(value || 0) * 100));
+const isVariableInvestment = (option) => option.asset_type === 'stock' || option.listing_metadata?.balanced_yield_mode === 'variable';
 
 const getInvestmentProjectedReturn = (amount, rate) =>
     Number(amount || 0) * Number(rate || 0);
@@ -266,7 +274,7 @@ const InvestmentsTab = ({ investmentOptions, userInvestments, investmentOperatio
                          <Card className="glass-effect">
                              <CardHeader>
                                  <CardTitle className="text-white flex items-center gap-2"><Briefcase className="h-5 w-5 text-sky-300" /> Opções Para Investir</CardTitle>
-                                 <CardDescription>Compare risco, rentabilidade e aplicação mínima.</CardDescription>
+                                 <CardDescription>Compare risco, rentabilidade e aplicação mínima. Rendimentos seguem dias reais, sem pagamentos retroativos; não há ganho garantido nos produtos variáveis.</CardDescription>
                              </CardHeader>
                              <CardContent className="space-y-6">
                                 <div className="flex flex-wrap gap-2">
@@ -293,7 +301,7 @@ const InvestmentsTab = ({ investmentOptions, userInvestments, investmentOperatio
                                             <div className="mt-4 grid grid-cols-2 gap-3">
                                                 <div className="rounded-lg bg-white/5 p-3">
                                                     <p className="text-xs text-gray-400">Rentabilidade</p>
-                                                    <p className="text-lg font-bold text-green-400">{opt.asset_type === 'stock' ? 'Variável' : `${getAnnualReturnPercent(opt.annual_return_rate).toFixed(2)}% a.a.`}</p>
+                                                    <p className="text-lg font-bold text-green-400">{isVariableInvestment(opt) ? 'Variável' : `${getAnnualReturnPercent(opt.annual_return_rate).toFixed(2)}% a.a. real`}</p>
                                                 </div>
                                                 <div className="rounded-lg bg-white/5 p-3">
                                                     <p className="text-xs text-gray-400">Aplicação mínima</p>
@@ -303,7 +311,7 @@ const InvestmentsTab = ({ investmentOptions, userInvestments, investmentOperatio
                                             <div className="mt-4 flex items-center justify-between gap-3">
                                                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
                                                     <ShieldCheck className="h-4 w-4 text-emerald-300" />
-                                                    {opt.asset_type === 'stock' ? 'Oferta e liquidez limitadas' : 'Resgate sujeito à reserva'}
+                                                    {opt.asset_type === 'stock' ? 'Oferta e liquidez limitadas' : isVariableInvestment(opt) ? 'Pode subir ou cair; ganhos limitados à reserva' : 'Até a taxa indicada; evolução diária real, sujeita à reserva'}
                                                 </div>
                                                 <Button size="sm" onClick={() => openModal('invest', opt)}>Investir</Button>
                                             </div>
@@ -318,7 +326,7 @@ const InvestmentsTab = ({ investmentOptions, userInvestments, investmentOperatio
                     </TabsContent>
                     <TabsContent value="stocks" className="mt-4"><StockExchange embedded initialAsset={stockAsset} onTrade={onUpdate}/></TabsContent>
                     <TabsContent value="history" className="mt-4 space-y-4">
-                        <Card className="glass-effect"><CardHeader><CardTitle>Evolução do portfólio</CardTitle><CardDescription>Snapshots gerados pelo servidor após cada compra ou venda.</CardDescription></CardHeader><CardContent>{portfolioSnapshots.length ? <div className="h-64 w-full"><ResponsiveContainer width="100%" height="100%"><LineChart data={portfolioSnapshots.map((item) => ({ ...item, label: formatLocaleBR(new Date(item.captured_at), 'toLocaleDateString', 'pt-BR'), value: Number(item.market_value) }))}><CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,.15)" /><XAxis dataKey="label" stroke="#94a3b8" /><YAxis stroke="#94a3b8" /><Tooltip formatter={(value) => formatCurrency(value)} contentStyle={{ background: '#0f172a', border: '1px solid rgba(148,163,184,.25)', borderRadius: 8 }} /><Line type="monotone" dataKey="value" stroke="#38bdf8" strokeWidth={2} dot={false} /></LineChart></ResponsiveContainer></div> : <p className="py-8 text-center text-muted-foreground">O gráfico surgirá após a primeira operação.</p>}</CardContent></Card>
+                        <Card className="glass-effect"><CardHeader><CardTitle>Evolução do portfólio</CardTitle><CardDescription>Histórico atualizado pelo servidor após operações e alterações de cotação.</CardDescription></CardHeader><CardContent>{portfolioSnapshots.length ? <div className="h-64 w-full"><ResponsiveContainer width="100%" height="100%"><LineChart data={portfolioSnapshots.map((item) => ({ ...item, label: formatLocaleBR(new Date(item.captured_at), 'toLocaleDateString', 'pt-BR'), value: Number(item.market_value) }))}><CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,.15)" /><XAxis dataKey="label" stroke="#94a3b8" /><YAxis stroke="#94a3b8" /><Tooltip formatter={(value) => formatCurrency(value)} contentStyle={{ background: '#0f172a', border: '1px solid rgba(148,163,184,.25)', borderRadius: 8 }} /><Line type="monotone" dataKey="value" stroke="#38bdf8" strokeWidth={2} dot={false} /></LineChart></ResponsiveContainer></div> : <p className="py-8 text-center text-muted-foreground">O gráfico surgirá após a primeira operação.</p>}</CardContent></Card>
                         <Card className="glass-effect"><CardHeader><CardTitle>Compras e vendas</CardTitle></CardHeader><CardContent className="space-y-3">{investmentOperations.length ? investmentOperations.map((operation) => <div key={operation.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-white/10 p-3"><div><p className="font-medium">{operation.operation_type === 'buy' ? 'Compra' : 'Venda'} · {operation.investment_option?.asset_symbol || operation.investment_option?.name}</p><p className="text-xs text-muted-foreground">{formatLocaleBR(new Date(operation.executed_at), 'toLocaleString', 'pt-BR')} · {Number(operation.quantity).toLocaleString('pt-BR', { maximumFractionDigits: 8 })} unidades a {formatCurrency(operation.unit_price)}</p></div><p className="font-bold">{formatCurrency(operation.gross_amount)}</p></div>) : <p className="py-6 text-center text-muted-foreground">Nenhuma operação registrada.</p>}</CardContent></Card>
                     </TabsContent>
                 </Tabs>
