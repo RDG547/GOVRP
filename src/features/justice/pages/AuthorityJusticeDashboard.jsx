@@ -1,3 +1,4 @@
+import MPOversight from '@/features/justice/components/MPOversight';
 import { Label as ModalFieldLabel } from '@/components/ui/label';
 import OccurrenceDetails from '@/features/justice/components/OccurrenceDetails';
 import JudicialOrders from '@/components/justice/JudicialOrders';
@@ -144,6 +145,7 @@ const AuthorityJusticeDashboard = () => {
     ]
     : [
       ...(isProsecutor ? [['investigations', Search, 'Investigações do MP']] : []),
+      ...(isMP ? [['oversight', BadgeCheck, 'Fiscalização de autoridades']] : []),
       ['requests', Gavel, 'Pedidos judiciais'],
       ['cases', Scale, 'Processos'],
       ['warrants', ClipboardList, 'Mandados'],
@@ -569,6 +571,7 @@ const AuthorityJusticeDashboard = () => {
           )}
         </TabsContent>
 
+        <TabsContent value="oversight" className="space-y-4">{isMP && <MPOversight management key={user.id+user.role}/>}</TabsContent>
         <TabsContent value="requests" className="space-y-4">
           {user?.admin_development?.mode==='total'&&<p className="text-xs text-amber-400">Normalmente disponível para: Ministério Público e Justiça.</p>}
           {isMP && <Card className="glass-effect"><CardHeader className="gap-3 sm:flex-row sm:items-center sm:justify-between"><div><CardTitle className="text-lg">Pedidos judiciais do Ministério Público</CardTitle><CardDescription>Protocole medidas vinculadas a PIC ou inquérito, com fundamento legal e provas lacradas. O Judiciário decide.</CardDescription></div><Button onClick={()=>openMeasureForm()}><Gavel className="mr-2 h-4 w-4"/>Novo pedido judicial</Button></CardHeader></Card>}
