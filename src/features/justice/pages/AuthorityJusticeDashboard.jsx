@@ -89,7 +89,7 @@ import JusticeStatCard from '@/features/justice/components/JusticeStatCard';
 import CaseTimeline from '@/features/justice/components/CaseTimeline';
 import UserSelectOption from '@/components/UserSelectOption';
 
-const AuthorityJusticeDashboard = () => {
+const AuthorityJusticeDashboard = ({pgrMode=false,previewOnly=false,activeTab,onTabChange,overview,onPgrRefresh}={}) => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [data, setData] = useState({
@@ -119,23 +119,23 @@ const AuthorityJusticeDashboard = () => {
   const [financialResult, setFinancialResult] = useState(null);
 
   const role = primaryJusticeRole(user);
-  const isPolice = hasAnyJusticeRole(user, ['Admin', 'Policial', 'Police', 'Diretor-Geral de Polícia']);
-  const isDelegate = hasAnyJusticeRole(user, ['Admin', 'Diretor-Geral de Polícia']);
-  const isAdmin = hasAnyJusticeRole(user, ['Admin']);
+  const isPolice = !pgrMode && hasAnyJusticeRole(user, ['Admin', 'Policial', 'Police', 'Diretor-Geral de Polícia']);
+  const isDelegate = !pgrMode && hasAnyJusticeRole(user, ['Admin', 'Diretor-Geral de Polícia']);
+  const isAdmin = !pgrMode && hasAnyJusticeRole(user, ['Admin']);
   const canDecideCase = criminalCase => isAdmin || (isJudge && criminalCase.judge_id === user?.id);
-  const isActualJudge = hasAnyJusticeRole(user, ['Juiz Federal', 'Presidente do STF']);
+  const isActualJudge = !pgrMode && hasAnyJusticeRole(user, ['Juiz Federal', 'Presidente do STF']);
   const isJudge = isAdmin || isActualJudge;
   const isMP = hasAnyJusticeRole(user, ['Promotor', 'Procurador-Geral da República']);
-  const isMPPoliceDirector = hasAnyJusticeRole(user, ['Diretor-Geral de Polícia']);
+  const isMPPoliceDirector = !pgrMode && hasAnyJusticeRole(user, ['Diretor-Geral de Polícia']);
   const isProsecutor = isMP || isAdmin;
-  const isLawyer = hasAnyJusticeRole(user, ['Admin', 'Advogado', 'Defensor Público']);
-  const isPrisonStaff = hasAnyJusticeRole(user, ['Admin', 'Agente Penitenciário', 'Diretor Penitenciário']);
+  const isLawyer = !pgrMode && hasAnyJusticeRole(user, ['Admin', 'Advogado', 'Defensor Público']);
+  const isPrisonStaff = !pgrMode && hasAnyJusticeRole(user, ['Admin', 'Agente Penitenciário', 'Diretor Penitenciário']);
   const hasJudicialAccess = isJudge || isProsecutor || isLawyer || isPrisonStaff;
   const [panelMode, setPanelMode] = useState(isPolice ? 'police' : 'judicial');
   const activePanelMode = panelMode === 'police' && !isPolice ? 'judicial'
     : panelMode === 'judicial' && !hasJudicialAccess ? 'police'
       : panelMode;
-  const visibleTabs = activePanelMode === 'police'
+  const visibleTabs = pgrMode ? [['overview',Scale,'Visão geral'],['investigations',Search,'Investigações do MP'],['requests',Gavel,'Pedidos judiciais'],['warrants',ClipboardList,'Mandados'],['oversight',FileWarning,'Fiscalização de autoridades'],['integrity',BadgeCheck,'Integridade'],['cases',Scale,'Processos']] : activePanelMode === 'police'
     ? [
       ['missions', Siren, 'Boletins de Ocorrências'],
       ['investigations', Search, 'Investigações'],
@@ -156,6 +156,7 @@ const AuthorityJusticeDashboard = () => {
     ];
 
   const loadData = useCallback(async ({ quiet = false } = {}) => {
+    if (previewOnly) {setLoading(false);return;}
     if (!quiet) setLoading(true);
     try {
       const nextData = await fetchAuthorityJusticeData();
@@ -170,16 +171,16 @@ const AuthorityJusticeDashboard = () => {
     } finally {
       if (!quiet) setLoading(false);
     }
-  }, [toast]);
+  }, [toast, previewOnly]);
 
   useEffect(() => {
     loadData();
   }, [loadData]);
 
   useEffect(() => {
-    if (!user?.id) return undefined;
+    if (!user?.id || previewOnly) return undefined;
     return subscribeToJusticeChanges(user.id, () => loadData({ quiet: true }));
-  }, [loadData, user?.id]);
+  }, [loadData, user?.id, previewOnly]);
 
   useEffect(() => {
     const interval = window.setInterval(() => setNow(Date.now() + serverOffset), 1000);
@@ -217,6 +218,7 @@ const AuthorityJusticeDashboard = () => {
   const requiresWarrant = r => ['arrest_warrant','search_warrant','preventive_detention','temporary_detention'].includes(r?.request_type);
 
   const performAction = async () => {
+    if (previewOnly) {toast({title:'Pré-visualização',description:'Nenhuma ação real foi executada.'});return;}
     if (!action || acting) return;
     if (reason.trim().length < actionReasonMinimum) {
       toast({ title: 'Fundamentação incompleta', description: `Informe pelo menos ${actionReasonMinimum} caracteres.`, variant: 'destructive' });
@@ -322,6 +324,7 @@ const AuthorityJusticeDashboard = () => {
       });
       closeAction();
       await loadData({ quiet: true });
+      onPgrRefresh?.();
     } catch (error) {
       toast({
         title: 'A ação não foi concluída',
@@ -399,7 +402,7 @@ const AuthorityJusticeDashboard = () => {
 
   return (
     <div className="space-y-8">
-      <Card className="border-cyan-500/25 bg-cyan-500/5">
+      {!pgrMode && <><Card className="border-cyan-500/25 bg-cyan-500/5">
         <CardHeader>
           <div>
             <Badge className="mb-3 bg-cyan-500/15 text-cyan-200">{role}</Badge>
@@ -435,8 +438,9 @@ const AuthorityJusticeDashboard = () => {
         )}
       </div>
 
+      </>}
       {data.errors?.length ? <div role="alert" className="rounded-lg border border-amber-500/40 p-3 text-sm">Algumas informações não puderam ser atualizadas. <Button variant="link" onClick={() => loadData({ quiet: true })}>Tentar novamente</Button></div> : null}
-      <Tabs key={activePanelMode} defaultValue={visibleTabs[0]?.[0]} className="space-y-6">
+      <Tabs key={activePanelMode} {...(pgrMode?{value:activeTab,onValueChange:onTabChange}:{defaultValue:visibleTabs[0]?.[0]})} className="space-y-6">
         <TabsList className="flex h-auto w-full justify-start gap-2 overflow-x-auto bg-muted/50 p-2">
           {visibleTabs.map(([value, Icon, label]) => (
             <TabsTrigger key={value} value={value} className="shrink-0">
@@ -445,6 +449,7 @@ const AuthorityJusticeDashboard = () => {
           ))}
         </TabsList>
 
+        {pgrMode && <TabsContent value="overview" className="space-y-4">{overview}</TabsContent>}
         <TabsContent value="missions" className="space-y-4">
           {user?.admin_development?.mode==='total'&&<p className="text-xs text-amber-400">Normalmente disponível para: Polícia.</p>}
           {!isPolice ? (
@@ -571,7 +576,7 @@ const AuthorityJusticeDashboard = () => {
           )}
         </TabsContent>
 
-        <TabsContent value="oversight" className="space-y-4">{isMP && <MPOversight management key={user.id+user.role}/>}</TabsContent>
+        <TabsContent value="oversight" className="space-y-4">{isMP && <MPOversight management previewOnly={previewOnly} onChange={onPgrRefresh} key={user.id+user.role+previewOnly}/>}</TabsContent>
         <TabsContent value="requests" className="space-y-4">
           {user?.admin_development?.mode==='total'&&<p className="text-xs text-amber-400">Normalmente disponível para: Ministério Público e Justiça.</p>}
           {isMP && <Card className="glass-effect"><CardHeader className="gap-3 sm:flex-row sm:items-center sm:justify-between"><div><CardTitle className="text-lg">Pedidos judiciais do Ministério Público</CardTitle><CardDescription>Protocole medidas vinculadas a PIC ou inquérito, com fundamento legal e provas lacradas. O Judiciário decide.</CardDescription></div><Button onClick={()=>openMeasureForm()}><Gavel className="mr-2 h-4 w-4"/>Novo pedido judicial</Button></CardHeader></Card>}
@@ -811,7 +816,7 @@ const AuthorityJusticeDashboard = () => {
             const special = item.institutional_term_id || item.source_type === 'judicial_impeachment';
             const investigation = data.investigations.find(row => row.id === item.investigation_id);
             const preliminary = ['suspicion','journalistic_investigation'].includes(item.status);
-            const canRecordJudgment = hasAnyJusticeRole(user, ['Juiz Federal']) && data.cases.some(row => row.investigation_id === item.investigation_id && ['final','execution','served'].includes(row.status) && (row.judge_id === user.id || data.caseAppeals.some(appeal => appeal.case_id === row.id && appeal.reviewing_judge_id === user.id && appeal.status === 'denied')));
+            const canRecordJudgment = !pgrMode && hasAnyJusticeRole(user, ['Juiz Federal']) && data.cases.some(row => row.investigation_id === item.investigation_id && ['final','execution','served'].includes(row.status) && (row.judge_id === user.id || data.caseAppeals.some(appeal => appeal.case_id === row.id && appeal.reviewing_judge_id === user.id && appeal.status === 'denied')));
             const actions = [];
             if (!special) {
               if (preliminary && isPolice) actions.push(['police_investigation', 'Vincular investigação policial']);
