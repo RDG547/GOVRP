@@ -36,6 +36,7 @@ const EmbeddedEconomyPanel = lazy(
 const AuthorityJusticeDashboard = lazy(
   () => import('@/features/justice/pages/AuthorityJusticeDashboard')
 );
+const PGRDashboard = lazy(() => import('@/features/justice/pages/PGRDashboard'));
 const CitizenJusticeDashboard = lazy(
   () => import('@/features/justice/pages/CitizenJusticeDashboard')
 );
@@ -73,6 +74,7 @@ const dashboards = {
     component: ParliamentarianDashboard,
     economyView: 'public',
   },
+  'Procurador-Geral da República': { icon: Scale, title: 'Painel da PGR', description: 'Central institucional de investigações, medidas judiciais, integridade e fiscalização de autoridades.', color: 'text-purple-400', component: PGRDashboard, economyView: 'public' },
   Promotor: { icon: Scale, title: 'Ministério Público', description: 'Analise remessas policiais, apresente denúncias e acompanhe processos.', color: 'text-purple-400', component: AuthorityJusticeDashboard, economyView: 'public' },
   'Juiz Federal': {
     icon: Gavel,
@@ -115,6 +117,7 @@ const resolveRoleKey = (user, forcedRole) => {
     ? user.effective_roles
     : [user?.role].filter(Boolean);
 
+  if (rolePool.includes('Procurador-Geral da República')) return 'Procurador-Geral da República';
   if (rolePool.includes('Presidente')) return 'Presidente';
   if (rolePool.includes('Presidente do Banco Nacional')) return 'Presidente do Banco Nacional';
   if (rolePool.some((role) => `${role}`.startsWith('Ministro'))) return 'Ministro';
@@ -122,7 +125,7 @@ const resolveRoleKey = (user, forcedRole) => {
     return 'Parlamentar';
   }
   if (rolePool.some((role) => ['Juiz Federal', 'Presidente do STF'].includes(role))) return 'Juiz Federal';
-  if (rolePool.some((role) => ['Promotor','Procurador-Geral da República'].includes(role))) return 'Promotor';
+  if (rolePool.some((role) => role === 'Promotor')) return 'Promotor';
   if (rolePool.some((role) => ['Police', 'Policial', 'Delegado'].includes(role))) return 'Police';
   if (rolePool.some((role) => ['AGIES', 'Agente Secreto'].includes(role))) return 'AGIES';
   if (rolePool.some((role) => ['Forças Armadas', 'Militar'].includes(role))) return 'Forças Armadas';
@@ -135,7 +138,8 @@ const RoleDashboard = ({ forcedRole = null }) => {
   const [selectedDashboard, setSelectedDashboard] = useState('Ministro');
   // All official role panels are viewable to a platform administrator; the RPCs
   // still enforce their own authorization and audit the real action separately.
-  const roleKey = (isAdmin && !forcedRole) ? selectedDashboard : resolveRoleKey(user, forcedRole);
+  const pgrRole = user?.role==='Procurador-Geral da República';
+  const roleKey = (isAdmin && !forcedRole && !pgrRole) ? selectedDashboard : resolveRoleKey(user, forcedRole);
   const dashboardConfig = dashboards[roleKey];
 
   if (!dashboardConfig) {
@@ -179,7 +183,7 @@ const RoleDashboard = ({ forcedRole = null }) => {
             centered
           />
 
-          {isAdmin && !forcedRole && <section className="mx-auto mt-6 max-w-lg space-y-2 rounded-lg border border-white/10 bg-card/60 p-4">
+          {isAdmin && !forcedRole && !pgrRole && <section className="mx-auto mt-6 max-w-lg space-y-2 rounded-lg border border-white/10 bg-card/60 p-4">
             <label className="text-sm font-medium" htmlFor="administrator-role-panel">Painel do cargo</label>
             <Select value={selectedDashboard} onValueChange={setSelectedDashboard}>
               <SelectTrigger id="administrator-role-panel"><SelectValue placeholder="Selecionar painel" /></SelectTrigger>
@@ -237,7 +241,7 @@ const RoleDashboard = ({ forcedRole = null }) => {
                   </div>
                 )}
               >
-                {justiceAuthority
+                {roleKey==='Procurador-Geral da República' ? <PGRDashboard /> : justiceAuthority
                   ? <AuthorityJusticeDashboard />
                   : <CitizenJusticeDashboard />}
               </Suspense>

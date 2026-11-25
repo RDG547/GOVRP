@@ -25,12 +25,12 @@ const brInput=v=>v?new Date(v+':00-03:00').toISOString():null;
 const call=async(name,params)=>{const r=await supabase.rpc(name,params);if(r.error)throw r.error;return r.data;};
 const blank={officials:[],cases:[],representations:[],messages:[],managed_messages:[],events:[]};
 
-export default function MPOversight({management=false}){
+export default function MPOversight({management=false,previewOnly=false,onChange}){
  const {user}=useAuth();
  const {toast}=useToast();
  const [data,setData]=useState(blank),[error,setError]=useState(''),[loading,setLoading]=useState(true),[busy,setBusy]=useState(false),[form,setForm]=useState(null);
  const roleKey=user?.id+'|'+user?.role+'|'+user?.admin_development?.mode;
- const load=useCallback(async()=>{setLoading(true);try{setData(await call('get_mp_oversight',{}));setError('');}catch(e){setData(blank);setError(e.message||'Não foi possível consultar a fiscalização.');}finally{setLoading(false);}},[roleKey]);
+ const load=useCallback(async()=>{if(previewOnly){setData({...blank,can_manage:true,preview_only:true});setError('');setLoading(false);return;}setLoading(true);try{setData(await call('get_mp_oversight',{}));setError('');}catch(e){setData(blank);setError(e.message||'Não foi possível consultar a fiscalização.');}finally{setLoading(false);}},[roleKey,previewOnly]);
  useEffect(()=>{setData(blank);setForm(null);void load();},[load]);
  const open=(action,item=null)=>setForm({action,item,reason:'',title:'',category:'legality',target:'',legalBasis:'',days:'7',recipient:'',factsAt:''});
  const update=patch=>setForm(f=>({...f,...patch}));
@@ -39,11 +39,11 @@ export default function MPOversight({management=false}){
  const needsLegal=form&&legalActions.includes(form.action);
  const needsDays=form&&timedActions.includes(form.action);
  const allowed=form&&form.reason.trim().length>=40&&form.reason.trim().length<=20000&&(!creating||(form.target&&form.title.trim().length>=5&&form.title.trim().length<=200))&&(!needsLegal||(form.legalBasis.trim().length>=10&&form.legalBasis.trim().length<=2000))&&(!needsDays||(Number.isInteger(Number(form.days))&&Number(form.days)>=1&&Number(form.days)<=30))&&(form.action!=='refer_external'||form.recipient)&&(form.action!=='refer_pic'||(form.factsAt&&new Date(brInput(form.factsAt)).getTime()<=Date.now()));
- const submit=async()=>{if(!allowed||busy)return;setBusy(true);try{
+ const submit=async()=>{if(previewOnly){toast({title:'Pré-visualização',description:'Nenhuma ação real foi executada.'});return;}if(!allowed||busy)return;setBusy(true);try{
   if(creating)await call('create_mp_oversight',{p_target:form.target,p_title:form.title,p_description:form.reason,p_category:form.category,p_direct:form.action==='direct',p_legal_basis:form.legalBasis||null});
   else if(form.action==='reply')await call('reply_mp_oversight',{p_id:form.item.id,p_response:form.reason});
   else await call('move_mp_oversight',{p_id:form.item.id,p_action:form.action,p_reason:form.reason,p_legal_basis:form.legalBasis||null,p_days:needsDays?Number(form.days):null,p_recipient:form.recipient||null,p_facts_at:form.action==='refer_pic'?brInput(form.factsAt):null});
-  setForm(null);toast({title:'Movimentação registrada'});await load();
+  setForm(null);toast({title:'Movimentação registrada'});await load();onChange?.();
  }catch(e){toast({title:'Ação não concluída',description:e.message,variant:'destructive'});}finally{setBusy(false);}};
  const renderMessage=(m,managed=false)=><article key={m.id} className="space-y-2 rounded-lg border p-3 text-sm">
   <div className="flex flex-wrap justify-between gap-2"><strong>{kinds[m.kind]}{m.protocol?' · '+m.protocol:''}</strong><Badge variant="outline">{deadlineLabel(m)}</Badge></div>
