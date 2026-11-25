@@ -88,7 +88,7 @@ BEGIN
  IF auth.uid() IS NULL OR NOT public.justice_has_role(ARRAY['Promotor']) OR length(btrim(coalesce(p_reason,''))) NOT BETWEEN 20 AND 20000 THEN RAISE EXCEPTION 'Consulta exige competência e fundamentação.' USING errcode='42501'; END IF;
  PERFORM public.assert_admin_real_action(auth.uid());
  SELECT * INTO r FROM public.judicial_requests WHERE id=p_request_id FOR SHARE;
- IF NOT FOUND OR r.metadata->>'origin' IS DISTINCT FROM 'mp_warrant_v2' OR r.request_type<>'rp_confidentiality_break' OR r.requested_by<>auth.uid() OR r.status<>'approved' OR r.expires_at<=clock_timestamp() OR r.decided_by IS NULL OR r.decided_by IN(r.requested_by,r.target_profile_id) OR NOT private.mp_request_target_valid(r.investigation_id,r.target_profile_id) OR NOT EXISTS(SELECT 1 FROM public.criminal_investigations WHERE id=r.investigation_id AND status NOT IN('archived','closed')) THEN RAISE EXCEPTION 'Consulta exige autorização judicial vigente e específica para este requerente.' USING errcode='42501'; END IF;
+ IF NOT FOUND OR r.metadata->>'origin' IS DISTINCT FROM 'mp_warrant_v2' OR r.request_type<>'rp_confidentiality_break' OR r.requested_by<>auth.uid() OR r.status<>'approved' OR r.expires_at<=clock_timestamp() OR r.decided_by IS NULL OR r.decided_by IN(r.requested_by,r.target_profile_id) OR NOT private.mp_request_target_valid(r.investigation_id,r.target_profile_id) OR NOT EXISTS(SELECT 1 FROM public.criminal_investigations WHERE id=r.investigation_id AND status NOT IN('archived','closed')) OR (r.case_id IS NOT NULL AND NOT EXISTS(SELECT 1 FROM public.criminal_cases WHERE id=r.case_id AND status NOT IN('archived','served','final','execution','acquitted','convicted'))) THEN RAISE EXCEPTION 'Consulta exige autorização judicial vigente e específica para este requerente.' USING errcode='42501'; END IF;
  SELECT coalesce(jsonb_agg(to_jsonb(t) ORDER BY t.created_at DESC),'[]') INTO result FROM (
  SELECT tx.id,tx.amount,tx.type,tx.created_at FROM public.transactions tx
  WHERE tx.created_at >= (r.metadata->>'bank_from')::timestamptz AND tx.created_at <= (r.metadata->>'bank_to')::timestamptz
@@ -217,4 +217,19 @@ BEGIN
  PERFORM public.justice_notify(previous.issued_by,'justice_warrant_revoked','O mandado '||previous.warrant_number||' foi revogado.','/services/justice?view=authority',jsonb_build_object('warrant_id',previous.id));
  RETURN result;
 END $function$;
+CREATE FUNCTION public.revoke_mp_judicial_measure(p_id uuid,p_reason text) RETURNS public.judicial_requests LANGUAGE plpgsql SECURITY DEFINER SET search_path='' AS $$
+DECLARE r public.judicial_requests%rowtype; old_r public.judicial_requests%rowtype;
+BEGIN
+ IF auth.uid() IS NULL OR NOT public.justice_has_role(ARRAY['Juiz Federal']) THEN RAISE EXCEPTION 'Revogação exige autoridade judicial.' USING errcode='42501'; END IF;
+ PERFORM public.assert_admin_real_action(auth.uid());
+ IF length(btrim(coalesce(p_reason,''))) NOT BETWEEN 20 AND 20000 THEN RAISE EXCEPTION 'Fundamente a revogação.'; END IF;
+ SELECT * INTO old_r FROM public.judicial_requests WHERE id=p_id AND metadata->>'origin'='mp_warrant_v2' FOR UPDATE;
+ IF NOT FOUND OR old_r.status<>'approved' OR old_r.request_type NOT IN('rp_confidentiality_break','evidence_production') OR old_r.expires_at<=clock_timestamp() OR NOT private.mp_request_judge_eligible(old_r) OR (old_r.case_id IS NULL AND old_r.decided_by<>auth.uid()) THEN RAISE EXCEPTION 'Somente a autoridade judicial competente pode revogar medida vigente.' USING errcode='42501'; END IF;
+ UPDATE public.judicial_requests SET status='cancelled',metadata=metadata||jsonb_build_object('revoked_at',clock_timestamp(),'revoked_by',auth.uid(),'revocation_reason',btrim(p_reason)) WHERE id=p_id RETURNING * INTO r;
+ PERFORM public.justice_write_audit('mp.judicial_request.revoked','judicial_request',r.id,to_jsonb(old_r),to_jsonb(r),p_reason);
+ PERFORM public.justice_notify(r.requested_by,'mp_judicial_revoked','A medida judicial autorizada foi revogada.','/services/justice?view=authority',jsonb_build_object('request_id',r.id));
+ RETURN r;
+END $$;
+REVOKE ALL ON FUNCTION public.revoke_mp_judicial_measure(uuid,text) FROM PUBLIC,anon;
+GRANT EXECUTE ON FUNCTION public.revoke_mp_judicial_measure(uuid,text) TO authenticated,service_role;
 NOTIFY pgrst,'reload schema';
