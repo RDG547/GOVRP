@@ -58,7 +58,7 @@ REVOKE ALL ON FUNCTION private.mp_oversight_is_manager(private.mp_oversight_case
 CREATE FUNCTION private.mp_oversight_log(p_case uuid,p_action text,p_description text) RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path='' AS $$
 BEGIN
  INSERT INTO private.mp_oversight_events(case_id,actor_id,action,description) VALUES(p_case,auth.uid(),p_action,p_description);
- PERFORM public.justice_write_audit('mp.oversight.'||p_action,'mp_oversight_case',p_case,NULL,jsonb_build_object('action',p_action),p_description);
+ PERFORM public.justice_write_audit('mp.oversight.'||p_action,'mp_oversight_case',p_case,NULL,jsonb_build_object('action',p_action),'Movimentação de fiscalização registrada em histórico restrito.');
 END $$;
 REVOKE ALL ON FUNCTION private.mp_oversight_log(uuid,text,text) FROM PUBLIC,anon,authenticated;
 
@@ -127,7 +127,7 @@ BEGIN
    IF p_action='refer_external' THEN new_status:='referred_external'; END IF;
   WHEN 'refer_pic' THEN
    IF p_facts_at IS NULL OR p_facts_at>clock_timestamp() OR NOT EXISTS(SELECT 1 FROM public.profiles WHERE id=c.target_id AND deleted_at IS NULL) THEN RAISE EXCEPTION 'Informe data passada dos fatos e investigado ativo.'; END IF;
-   pic:=public.open_mp_investigation('Encaminhamento do procedimento administrativo '||c.protocol||'. '||btrim(p_reason),p_facts_at);
+   pic:=public.open_mp_investigation(left('Encaminhamento do procedimento administrativo '||c.protocol||'. '||btrim(p_reason),20000),p_facts_at);
    PERFORM public.move_mp_investigation(pic.id,'subject',p_reason,c.target_id,NULL,'under_review',false);
    UPDATE private.mp_oversight_cases SET investigation_id=pic.id WHERE id=c.id RETURNING * INTO c;
    new_status:='referred_pic';
