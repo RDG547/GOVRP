@@ -1,6 +1,6 @@
 import React from 'react';
 import { Helmet } from 'react-helmet-async';
-import { Check, Crown, Sparkles, Lock, ShieldCheck, Heart } from 'lucide-react';
+import { Check, Crown, Sparkles, Lock } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import PageHeader from '@/components/layout/PageHeader';
@@ -12,7 +12,7 @@ const plans = [
     name: 'GOVRP+',
     icon: Sparkles,
     price: '9,90',
-    description: 'Personalize sua experiência e contribua com o futuro do GOVRP.',
+    description: 'Desbloqueie personalizações exclusivas e aproveite ainda mais sua jornada no GOVRP.',
     accent: 'text-violet-300',
     surface: 'bg-violet-500/10 border-violet-400/30',
     border: 'border-violet-500/30',
@@ -30,7 +30,7 @@ const plans = [
     name: 'GOVRP Patrono',
     icon: Crown,
     price: '19,90',
-    description: 'Apoie ainda mais o desenvolvimento e a manutenção da comunidade.',
+    description: 'Tenha uma experiência premium completa, com benefícios e personalizações ainda mais exclusivos.',
     accent: 'text-amber-300',
     surface: 'bg-amber-500/10 border-amber-400/30',
     border: 'border-amber-500/30',
@@ -50,15 +50,15 @@ export default function Plans() {
   return (
     <>
       <Helmet>
-        <title>Planos de apoio | GOV.RP</title>
-        <meta name="description" content="Conheça os futuros planos GOVRP+ e GOVRP Patrono. As assinaturas ainda não estão disponíveis." />
+        <title>Assinaturas | GOV.RP</title>
+        <meta name="description" content="Eleve sua experiência no GOVRP com benefícios exclusivos. Escolha entre GOVRP+ e GOVRP Patrono. Contratação em breve." />
       </Helmet>
       <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6 md:py-20 lg:px-8">
         <PageHeader
-          icon={Heart}
-          title="Faça parte do"
-          gradientText="futuro do GOVRP"
-          description="Conheça os planos de apoio que estamos preparando para fortalecer o desenvolvimento e a comunidade."
+          icon={Crown}
+          title="Eleve sua experiência"
+          gradientText="no GOVRP"
+          description="Desbloqueie benefícios exclusivos, personalize sua jornada e aproveite ainda mais o universo do GOVRP. Escolha a assinatura ideal para você!"
           iconColor="text-violet-400"
           centered
         />
@@ -66,7 +66,7 @@ export default function Plans() {
           <Lock aria-hidden="true" className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground" />
           <div>
             <p className="font-semibold text-foreground">Assinaturas em breve</p>
-            <p className="mt-1 text-sm leading-relaxed text-muted-foreground">Esta página é uma prévia. Os valores e benefícios são previstos e podem ser ajustados antes do lançamento. Nenhuma assinatura ou cobrança está disponível. O acesso atual ao jogo permanece inalterado.</p>
+            <p className="mt-1 text-sm leading-relaxed text-muted-foreground">As assinaturas ainda não estão disponíveis para contratação. Nenhuma cobrança será realizada neste momento.</p>
           </div>
         </div>
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
@@ -109,13 +109,6 @@ export default function Plans() {
             );
           })}
         </div>
-        <section aria-labelledby="fair-play-title" className="mt-10 flex items-start gap-4 rounded-xl border border-border bg-card/50 p-5 sm:p-6">
-          <ShieldCheck aria-hidden="true" className="mt-1 h-7 w-7 shrink-0 text-emerald-400" />
-          <div>
-            <h2 id="fair-play-title" className="text-lg font-semibold text-foreground">Apoio sem vantagens competitivas</h2>
-            <p className="mt-2 text-sm leading-relaxed text-muted-foreground">Os planos serão opcionais e não concederão votos, cargos, dinheiro virtual, influência política ou vantagens econômicas. A participação nas mecânicas essenciais continuará independente de assinatura. As estatísticas previstas serão limitadas a informações pessoais ou públicas.</p>
-          </div>
-        </section>
       </div>
     </>
   );
