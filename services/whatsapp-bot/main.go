@@ -212,7 +212,7 @@ func commandAllowed(settings Settings, groups map[string]bool, isGroup bool, cha
  if !isGroup {return command=="vincular"}
  if !settings.Commands || !groups[chatJID] {return false}
  switch command {
- case "ajuda","noticias","economia","governo","partidos","eleicao","eleicoes","votacoes","leis","perfil","deputados","senadores","deputado","senador","stf","presos","constituicao","projetos","projeto":
+ case "ajuda","noticias","economia","governo","partidos","eleicao","eleicoes","votacoes","perfil","deputados","senadores","deputado","senador","stf","presos","constituicao","projetos","projeto":
   return true
  default:
   return false
@@ -247,11 +247,11 @@ func helpMessage(prefix string) string {
    {name:"eleicao",description:"Consulte a eleição em andamento ou descubra qual será a próxima."},
    {name:"eleicoes",description:"Veja o histórico numerado das eleições. Acrescente um número, como !eleicoes 2, para ver detalhes de uma eleição específica."},
    {name:"governo",description:"Confira a formação governamental: Presidente, Vice-Presidente, ministros de Estado e PGR."},
-   {name:"leis",description:"Confira os projetos de lei e emendas constitucionais mais recentes e sua situação."},
+   {name:description:"Confira os projetos de lei e emendas constitucionais mais recentes e sua situação."},
    {name:"partidos",description:"Veja os partidos ativos e em formação, incluindo a quantidade de integrantes de cada um."},
    {name:"presos",description:"Consulte os cidadãos atualmente presos no GOVRP, a unidade prisional e a previsão de saída, quando disponível."},
    {name:"projeto",args:"NÚMERO OU NOME",description:"Veja o projeto, sua situação e a apuração por Casa: aprovado ou rejeitado, votos favoráveis, contrários, abstenções e quórum."},
-   {name:"projetos",description:"Liste os 12 projetos legislativos mais recentes, com números para consultar usando !projeto N."},
+   {name:"projetos",description:"Liste os 12 projetos legislativos mais recentes, com autor, Casa e situação. Use !projeto N para detalhes."},
    {name:"senador",args:"NOME OU NÚMERO",description:"Consulte a ficha de um senador pela posição no !senadores ou nome completo, com PLs e PECs propostas, aprovadas e rejeitadas."},
    {name:"senadores",description:"Mostra informações dos senadores em exercício, seus partidos e o tempo restante dos mandatos."},
    {name:"stf",description:"Veja a composição atual do Supremo Tribunal Federal, os ministros empossados e as vagas disponíveis."},
