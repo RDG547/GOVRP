@@ -37,6 +37,7 @@ const SupportUs = () => {
 
   const supportWays = [
     { icon: DollarSign, title: 'Doação Financeira', description: 'Contribua diretamente para os custos de desenvolvimento e manutenção.', actionText: 'Ver Opções de Doação', action: () => navigate('/donation'), color: 'text-green-400' },
+    { icon: Award, title: 'Planos de Apoio', description: 'Conheça o GOVRP+ e o GOVRP Patrono. Assinaturas em breve, sem cobrança disponível.', actionText: 'Conhecer Planos', action: () => navigate('/planos'), color: 'text-violet-400' },
     { icon: Lightbulb, title: 'Ideias para o Futuro', description: 'Compartilhe propostas de experiência, eventos e novos caminhos para a comunidade.', actionText: 'Enviar uma Ideia', action: () => navigate('/support'), color: 'text-blue-400' },
     { icon: Users, title: 'Feedback e Ideias', description: 'Compartilhe sugestões e reporte bugs para melhorar a experiência de todos.', actionText: 'Enviar Feedback', action: () => navigate('/support'), color: 'text-purple-400' },
     { icon: Share2, title: 'Divulgação', description: 'Ajude a espalhar a palavra sobre o GOV.RP em suas redes sociais e comunidades.', actionText: 'Compartilhar Projeto', action: handleShare, color: 'text-sky-400' },

@@ -13,6 +13,7 @@
     "preview": "vite preview --host :: --port 3000",
     "tunnel": "npx --yes cloudflared tunnel --url http://127.0.0.1:3000",
     "lint": "eslint . --quiet",
+    "test:plans-preview": "node tools/test-plans-preview.mjs",
     "test:functional": "node tools/verify-master-implementation.mjs",
     "test:onboarding": "node tools/verify-citizen-onboarding.mjs",
     "test:interface": "node tools/verify-interface-ux.mjs",

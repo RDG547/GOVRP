@@ -50,6 +50,7 @@ import Article from '@/pages/Article';
 import Documentation from '@/pages/Documentation';
 import ErrorPage from '@/pages/ErrorPage';
 import SupportUs from '@/pages/SupportUs';
+import Plans from '@/pages/Plans';
 import UnderConstruction from '@/pages/UnderConstruction';
 import ComingSoon from '@/pages/ComingSoon';
 import MaintenanceMode from '@/pages/MaintenanceMode';
@@ -238,6 +239,7 @@ const AppShell = ({ location, theme, isAuthCallback }) => {
                 <Route path="/faq" element={<FAQ />} />
                 <Route path="/donation" element={<DonationPage />} />
                 <Route path="/support-us" element={<SupportUs />} />
+                <Route path="/planos" element={<Plans />} />
                 <Route path="/community" element={<Community />} />
                 <Route path="/news" element={<ServiceProtectedRoute><News /></ServiceProtectedRoute>} />
                 <Route path="/news/:articleId" element={<ServiceProtectedRoute><Article /></ServiceProtectedRoute>} />
