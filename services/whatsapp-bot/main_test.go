@@ -50,7 +50,7 @@ func TestBotCommandScopes(t *testing.T) {
  inactiveGroup := "120363222222222@g.us"
  settings := Settings{Enabled:true,Commands:true,Prefix:"!"}
  groups := map[string]bool{activeGroup:true, inactiveGroup:false}
- publicCommands := []string{"ajuda","noticias","economia","governo","partidos","eleicao","eleicoes","votacoes","leis","perfil","deputados","senadores","deputado","senador","stf","presos","constituicao","projeto","projetos"}
+ publicCommands := []string{"ajuda","noticias","economia","governo","partidos","eleicao","eleicoes","votacoes","perfil","deputados","senadores","deputado","senador","stf","presos","constituicao","projeto","projetos"}
  for _,cmd := range publicCommands {
   if !commandAllowed(settings,groups,true,activeGroup,cmd) {
    t.Errorf("!%s should work in an enabled group",cmd)
@@ -164,7 +164,7 @@ func TestHelpMessageCategoriesAndAlphabeticalOrder(t *testing.T) {
  want:=[]string{
   "!perfil","!vincular",
   "!economia","!noticias",
-  "!constituicao","!deputado","!deputados","!eleicao","!eleicoes","!governo","!leis","!partidos","!presos","!projeto","!projetos","!senador","!senadores","!stf","!votacoes",
+  "!constituicao","!deputado","!deputados","!eleicao","!eleicoes","!governo","!partidos","!presos","!projeto","!projetos","!senador","!senadores","!stf","!votacoes",
   "!ajuda",
  }
  if len(commandLines)!=len(want) {
@@ -416,4 +416,9 @@ func TestProjectCommandsAllowOnlyEnabledGroupAndQuotedTitles(t *testing.T) {
   evt.Info.IsGroup=false
   if _,_,ok:=parseIncomingCommand(evt,settings,groups);ok{t.Errorf("private command should be blocked: %q",input)}
  }
+}
+
+func TestLegacyLeisCommandRemoved(t *testing.T) {
+ if commandAllowed(Settings{Enabled:true,Commands:true},map[string]bool{"group":true},true,"group","leis") {t.Error("legacy leis command must not be accepted")}
+ if strings.Contains(helpMessage("!"),"*!leis*") {t.Error("legacy leis command must not appear in help")}
 }
