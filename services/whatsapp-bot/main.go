@@ -212,7 +212,7 @@ func commandAllowed(settings Settings, groups map[string]bool, isGroup bool, cha
  if !isGroup {return command=="vincular"}
  if !settings.Commands || !groups[chatJID] {return false}
  switch command {
- case "ajuda","noticias","economia","governo","partidos","eleicao","eleicoes","votacoes","leis","perfil","deputados","senadores","deputado","senador","stf","presos","constituicao":
+ case "ajuda","noticias","economia","governo","partidos","eleicao","eleicoes","votacoes","leis","perfil","deputados","senadores","deputado","senador","stf","presos","constituicao","projetos","projeto":
   return true
  default:
   return false
@@ -250,6 +250,8 @@ func helpMessage(prefix string) string {
    {name:"leis",description:"Confira os projetos de lei e emendas constitucionais mais recentes e sua situação."},
    {name:"partidos",description:"Veja os partidos ativos e em formação, incluindo a quantidade de integrantes de cada um."},
    {name:"presos",description:"Consulte os cidadãos atualmente presos no GOVRP, a unidade prisional e a previsão de saída, quando disponível."},
+   {name:"projeto",args:"NÚMERO OU NOME",description:"Veja o projeto, sua situação e a apuração por Casa: aprovado ou rejeitado, votos favoráveis, contrários, abstenções e quórum."},
+   {name:"projetos",description:"Liste os 12 projetos legislativos mais recentes, com números para consultar usando !projeto N."},
    {name:"senador",args:"NOME OU NÚMERO",description:"Consulte a ficha de um senador pela posição no !senadores ou nome completo, com PLs e PECs propostas, aprovadas e rejeitadas."},
    {name:"senadores",description:"Mostra informações dos senadores em exercício, seus partidos e o tempo restante dos mandatos."},
    {name:"stf",description:"Veja a composição atual do Supremo Tribunal Federal, os ministros empossados e as vagas disponíveis."},
@@ -356,6 +358,23 @@ func (b *Bot) onMessage(evt *events.Message) {
     return
    }
    err=b.api.rpc(ctx,"bot_whatsapp_parliament_member",map[string]any{"p_house":command,"p_selector":selector},&reply)
+  } else if command=="projetos" {
+   if len(words)!=1 {
+    b.reply(evt.Info.Chat,"Use "+settings.Prefix+"projetos para consultar a lista. Depois escolha "+settings.Prefix+"projeto N ou informe o nome.")
+    return
+   }
+   err=b.api.rpc(ctx,"bot_whatsapp_projects",map[string]any{},&reply)
+  } else if command=="projeto" {
+   if len(words)<2 || len(strings.Join(words[1:]," "))>140 {
+    b.reply(evt.Info.Chat,"Informe o número ou nome do projeto. Exemplo: "+settings.Prefix+"projeto 1. Consulte a lista com "+settings.Prefix+"projetos.")
+    return
+   }
+   selector:=strings.TrimSpace(strings.Trim(strings.Join(words[1:]," "),"\"'"))
+   if selector=="" {
+    b.reply(evt.Info.Chat,"Informe o número ou nome do projeto. Exemplo: "+settings.Prefix+"projeto 1.")
+    return
+   }
+   err=b.api.rpc(ctx,"bot_whatsapp_project",map[string]any{"p_selector":selector},&reply)
   } else if command=="stf" || command=="presos" {
    err=b.api.rpc(ctx,"bot_whatsapp_"+command,map[string]any{},&reply)
   } else {
