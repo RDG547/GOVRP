@@ -3,7 +3,7 @@ import CitizenNeedsHUD from '@/components/CitizenNeedsHUD';
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Menu, X, ChevronDown, Settings, LayoutDashboard, Tally5, Landmark, Store, FileText, Library, Archive, MessageSquare, Users, Newspaper, Home as HomeIcon, Heart, HelpCircle, Headphones as Headset, Grid, LogOut, Scale, Gavel, Shield, Vote, Eye, ShieldCheck, HeartHandshake as Handcuffs, Map, Siren, Wifi, Zap, Droplet, Smartphone, Wrench, LogIn, UserPlus, Flame, GraduationCap, Briefcase, Building2, ScrollText, Info } from 'lucide-react';
+import { Menu, X, ChevronDown, Settings, LayoutDashboard, Tally5, Landmark, Store, FileText, Library, Archive, MessageSquare, Users, Newspaper, Home as HomeIcon, Heart, HelpCircle, Headphones as Headset, Grid, LogOut, Scale, Gavel, Shield, Vote, Eye, ShieldCheck, HeartHandshake as Handcuffs, Map, Siren, Wifi, Zap, Droplet, Smartphone, Wrench, LogIn, UserPlus, Flame, GraduationCap, Briefcase, Building2, ScrollText, Info, Crown } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
@@ -36,6 +36,7 @@ const helpLinks = [
     { name: 'FAQ', path: '/faq', icon: HelpCircle, color: "text-yellow-400" },
     { name: 'Guias', path: '/docs', icon: ScrollText, color: "text-green-400" },
     { name: 'Sobre Nós', path: '/about', icon: Info, color: "text-purple-400" },
+    { name: 'Planos de apoio', path: '/planos', icon: Crown, color: "text-violet-400" },
 ];
 
 const Navbar = () => {
@@ -458,6 +459,7 @@ const MobileMenu = ({ isOpen, setIsOpen }) => {
   const mainLinks = [
     { name: 'Comunidade', path: '/community', icon: Users },
     { name: 'Apoie o Projeto', path: '/support-us', icon: Heart },
+    { name: 'Planos de apoio', path: '/planos', icon: Crown },
   ];
 
   const NavLink = ({ to, children, icon: Icon, onClick }) => (

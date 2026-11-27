@@ -93,6 +93,7 @@ const Footer = ({ disableTopSpacing = false }) => {
                 <Link to="/support-us" className={footerLink}>
                     <Heart className="w-4 h-4"/> Apoie o Projeto
                 </Link>
+                <Link to="/planos" className={footerLink}><Sparkles className="w-4 h-4"/> Planos de apoio</Link>
             </div>
           </div>
 
