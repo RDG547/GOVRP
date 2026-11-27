@@ -4,6 +4,7 @@ import { Check, Crown, Sparkles, Lock } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import PageHeader from '@/components/layout/PageHeader';
+import PlansParticles from '@/components/PlansParticles';
 
 // Presentation-only catalog. No checkout, subscription API, or entitlement changes.
 const plans = [
@@ -20,9 +21,8 @@ const plans = [
       'Selo exclusivo de apoiador',
       'Temas e personalização da interface',
       'Molduras e avatares exclusivos',
-      'Estatísticas pessoais e histórico ampliado',
       'Diário pessoal do personagem',
-      'Experiência sem anúncios, caso sejam implementados',
+      'Experiência sem anúncios',
     ],
   },
   {
@@ -40,7 +40,6 @@ const plans = [
       'Personalizações visuais adicionais',
       'Pacotes cosméticos exclusivos',
       'Estatísticas pessoais avançadas',
-      'Encontros com o desenvolvedor',
       'Reconhecimento opcional na página de apoiadores',
     ],
   },
@@ -53,7 +52,9 @@ export default function Plans() {
         <title>Assinaturas | GOV.RP</title>
         <meta name="description" content="Eleve sua experiência no GOVRP com benefícios exclusivos. Escolha entre GOVRP+ e GOVRP Patrono. Contratação em breve." />
       </Helmet>
-      <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6 md:py-20 lg:px-8">
+      <div className="relative isolate overflow-hidden">
+        <PlansParticles />
+        <div className="relative z-10 mx-auto max-w-6xl px-4 py-12 sm:px-6 md:py-20 lg:px-8">
         <PageHeader
           icon={Crown}
           title="Eleve sua experiência"
@@ -108,6 +109,7 @@ export default function Plans() {
               </Card>
             );
           })}
+        </div>
         </div>
       </div>
     </>
