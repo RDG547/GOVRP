@@ -8,6 +8,9 @@ assert.match(page, /name: 'GOVRP Patrono'/);
 assert.match(page, /price: '9,90'/);
 assert.match(page, /price: '19,90'/);
 assert.match(page, /<Button type="button" disabled/);
+assert.match(page, /<title>Assinaturas \| GOV\.RP<\/title>/);
+assert.match(page, /Escolha a assinatura ideal para você!/);
+assert.doesNotMatch(page, /fair-play-title|Apoio sem vantagens competitivas|Planos de apoio/i);
 assert.doesNotMatch(page, /onClick=|<form|supabase|stripe|fetch\(|axios|Fundador/i);
 assert.match(read('src/App.jsx'), /<Route path="\/planos" element=\{<Plans \/>\} \/>/);
 for (const path of ['src/components/layout/Navbar.jsx','src/components/layout/Footer.jsx','src/pages/SupportUs.jsx']) {
