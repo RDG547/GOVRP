@@ -247,7 +247,6 @@ func helpMessage(prefix string) string {
    {name:"eleicao",description:"Consulte a eleição em andamento ou descubra qual será a próxima."},
    {name:"eleicoes",description:"Veja o histórico numerado das eleições. Acrescente um número, como !eleicoes 2, para ver detalhes de uma eleição específica."},
    {name:"governo",description:"Confira a formação governamental: Presidente, Vice-Presidente, ministros de Estado e PGR."},
-   {name:description:"Confira os projetos de lei e emendas constitucionais mais recentes e sua situação."},
    {name:"partidos",description:"Veja os partidos ativos e em formação, incluindo a quantidade de integrantes de cada um."},
    {name:"presos",description:"Consulte os cidadãos atualmente presos no GOVRP, a unidade prisional e a previsão de saída, quando disponível."},
    {name:"projeto",args:"NÚMERO OU NOME",description:"Veja o projeto, sua situação e a apuração por Casa: aprovado ou rejeitado, votos favoráveis, contrários, abstenções e quórum."},
