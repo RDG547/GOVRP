@@ -1,6 +1,8 @@
 package main
 
 import (
+ "fmt"
+ "reflect"
 	"context"
 	"encoding/json"
 	"net/http"
@@ -48,7 +50,7 @@ func TestBotCommandScopes(t *testing.T) {
  inactiveGroup := "120363222222222@g.us"
  settings := Settings{Enabled:true,Commands:true,Prefix:"!"}
  groups := map[string]bool{activeGroup:true, inactiveGroup:false}
- publicCommands := []string{"ajuda","noticias","economia","governo","partidos","eleicao","eleicoes","votacoes","leis","perfil","deputados","senadores","deputado","senador","stf","presos","constituicao"}
+ publicCommands := []string{"ajuda","noticias","economia","governo","partidos","eleicao","eleicoes","votacoes","leis","perfil","deputados","senadores","deputado","senador","stf","presos","constituicao","projeto","projetos"}
  for _,cmd := range publicCommands {
   if !commandAllowed(settings,groups,true,activeGroup,cmd) {
    t.Errorf("!%s should work in an enabled group",cmd)
@@ -162,7 +164,7 @@ func TestHelpMessageCategoriesAndAlphabeticalOrder(t *testing.T) {
  want:=[]string{
   "!perfil","!vincular",
   "!economia","!noticias",
-  "!constituicao","!deputado","!deputados","!eleicao","!eleicoes","!governo","!leis","!partidos","!presos","!senador","!senadores","!stf","!votacoes",
+  "!constituicao","!deputado","!deputados","!eleicao","!eleicoes","!governo","!leis","!partidos","!presos","!projeto","!projetos","!senador","!senadores","!stf","!votacoes",
   "!ajuda",
  }
  if len(commandLines)!=len(want) {
@@ -198,7 +200,8 @@ func TestHelpMessageCategoriesAndAlphabeticalOrder(t *testing.T) {
  }
  if !strings.Contains(help,"*!constituicao* —") || !strings.Contains(help,"*!deputado* NOME OU NÚMERO —") ||
   !strings.Contains(help,"*!senador* NOME OU NÚMERO —") ||
-  !strings.Contains(help,"*!stf* —") || !strings.Contains(help,"*!presos* —") {
+  !strings.Contains(help,"*!stf* —") || !strings.Contains(help,"*!presos* —") ||
+  !strings.Contains(help,"*!projeto* NÚMERO OU NOME —") || !strings.Contains(help,"*!projetos* —") {
   t.Error("new GOVRP commands must be documented")
  }
  for _,line:=range strings.Split(help,"\n") {
@@ -366,4 +369,51 @@ func TestNewGovernanceCommandsScopedToAuthorizedGroups(t *testing.T) {
    msg.Info.IsGroup=false
    if _,_,ok:=parseIncomingCommand(msg,settings,allow);ok {t.Errorf("private chat accepted %q",sample.input)}
   }
+}
+
+func TestProjectCommandsUseDedicatedReadOnlyRPCs(t *testing.T) {
+ for _,tc:=range []struct{
+  command string
+  rpcName string
+  params map[string]any
+  reply string
+ }{
+  {command:"projetos",rpcName:"bot_whatsapp_projects",params:map[string]any{},reply:"📚 Projetos recentes"},
+  {command:"projeto",rpcName:"bot_whatsapp_project",params:map[string]any{"p_selector":"1"},reply:"📜 Projeto consultado"},
+  {command:"projeto",rpcName:"bot_whatsapp_project",params:map[string]any{"p_selector":"PEC do Exemplo"},reply:"📜 Projeto consultado"},
+ }{
+  t.Run(tc.command+"-"+fmt.Sprint(tc.params),func(t *testing.T){
+   server:=httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter,r *http.Request){
+    if r.Method!=http.MethodPost || r.URL.Path!="/rest/v1/rpc/"+tc.rpcName {
+     t.Errorf("unexpected endpoint %s %s",r.Method,r.URL.Path)
+    }
+    var got map[string]any
+    if err:=json.NewDecoder(r.Body).Decode(&got);err!=nil {t.Error(err)}
+    if !reflect.DeepEqual(got,tc.params){t.Errorf("RPC params mismatch got %v want %v",got,tc.params)}
+    w.Header().Set("Content-Type","application/json")
+    _=json.NewEncoder(w).Encode(tc.reply)
+   }))
+   defer server.Close()
+   api:=&API{base:server.URL,key:"service-test",http:server.Client()}
+   var reply string
+   if err:=api.rpc(context.Background(),tc.rpcName,tc.params,&reply);err!=nil{t.Fatal(err)}
+   if reply!=tc.reply{t.Fatalf("got %q want %q",reply,tc.reply)}
+  })
+ }
+}
+
+func TestProjectCommandsAllowOnlyEnabledGroupAndQuotedTitles(t *testing.T) {
+ settings:=Settings{Enabled:true,Commands:true,Prefix:"!"}
+ groups:=map[string]bool{"120363000000000000@g.us":true}
+ for _,input:=range []string{"!projetos","!projeto 3","!projeto PEC do Primeiro-Ministro"} {
+  evt:=&events.Message{Message:&waE2E.Message{Conversation:proto.String(input)}}
+  evt.Info.IsGroup=true
+  evt.Info.Chat=types.JID{User:"120363000000000000",Server:types.GroupServer}
+  cmd,args,ok:=parseIncomingCommand(evt,settings,groups)
+  if !ok || len(args)==0 || (cmd!="projeto" && cmd!="projetos") {
+   t.Fatalf("authorized project command %q not accepted: %q %#v",input,cmd,args)
+  }
+  evt.Info.IsGroup=false
+  if _,_,ok:=parseIncomingCommand(evt,settings,groups);ok{t.Errorf("private command should be blocked: %q",input)}
+ }
 }
